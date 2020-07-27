@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_BEACON_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_BEACON_FILTER_H_
 
@@ -44,17 +43,17 @@ class CriticalImagesBeaconFilter : public CommonFilter {
   static const char kCriticalImagesBeaconAddedCount[];
 
   explicit CriticalImagesBeaconFilter(RewriteDriver* driver);
-  virtual ~CriticalImagesBeaconFilter();
+  ~CriticalImagesBeaconFilter() override;
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl() { }
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element) { }
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual const char* Name() const { return "CriticalImagesBeacon"; }
+  void StartDocumentImpl() override {}
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override;
+  const char* Name() const override { return "CriticalImagesBeacon"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
   // Returns true if this filter is going to inject a beacon. Filters that need

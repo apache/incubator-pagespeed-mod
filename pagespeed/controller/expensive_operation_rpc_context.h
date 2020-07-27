@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_RPC_CONTEXT_H_
 #define PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_RPC_CONTEXT_H_
 
@@ -37,10 +36,11 @@ namespace net_instaweb {
 
 class ExpensiveOperationRpcContext : public ExpensiveOperationContext {
  public:
-  ExpensiveOperationRpcContext(
-      grpc::CentralControllerRpcService::StubInterface* stub,
-      ::grpc::CompletionQueue* queue, ThreadSystem* thread_system,
-      MessageHandler* handler, ExpensiveOperationCallback* callback);
+  ExpensiveOperationRpcContext(CentralControllerRpcService::StubInterface* stub,
+                               ::grpc::CompletionQueue* queue,
+                               ThreadSystem* thread_system,
+                               MessageHandler* handler,
+                               ExpensiveOperationCallback* callback);
 
   void Done() override;
 

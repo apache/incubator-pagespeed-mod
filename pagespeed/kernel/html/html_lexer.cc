@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_lexer.h"
 
 #include <algorithm>
@@ -27,7 +26,7 @@
 #include <cstdio>
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_element.h"
@@ -51,37 +50,19 @@ namespace {
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/
 // syntax.html#void-elements
 const HtmlName::Keyword kImplicitlyClosedHtmlTags[] = {
-  HtmlName::kXml,
-  HtmlName::kArea,
-  HtmlName::kBase,
-  HtmlName::kBr,
-  HtmlName::kCol,
-  HtmlName::kEmbed,
-  HtmlName::kHr,
-  HtmlName::kImg,
-  HtmlName::kInput,
-  HtmlName::kKeygen,
-  HtmlName::kLink,
-  HtmlName::kMeta,
-  HtmlName::kParam,
-  HtmlName::kSource,
-  HtmlName::kTrack,
-  HtmlName::kWbr,
+    HtmlName::kXml,   HtmlName::kArea,   HtmlName::kBase,  HtmlName::kBr,
+    HtmlName::kCol,   HtmlName::kEmbed,  HtmlName::kHr,    HtmlName::kImg,
+    HtmlName::kInput, HtmlName::kKeygen, HtmlName::kLink,  HtmlName::kMeta,
+    HtmlName::kParam, HtmlName::kSource, HtmlName::kTrack, HtmlName::kWbr,
 };
 
 // These tags cannot be closed using the brief syntax; they must
 // be closed by using an explicit </TAG>.
 const HtmlName::Keyword kNonBriefTerminatedTags[] = {
-  HtmlName::kA,
-  HtmlName::kDiv,
-  HtmlName::kHeader,  // TODO(jmaessen): All div-like tags?
-  HtmlName::kIframe,
-  HtmlName::kNav,
-  HtmlName::kScript,
-  HtmlName::kSpan,
-  HtmlName::kStyle,
-  HtmlName::kTextarea,
-  HtmlName::kXmp,
+    HtmlName::kA,      HtmlName::kDiv,
+    HtmlName::kHeader,  // TODO(jmaessen): All div-like tags?
+    HtmlName::kIframe, HtmlName::kNav,      HtmlName::kScript, HtmlName::kSpan,
+    HtmlName::kStyle,  HtmlName::kTextarea, HtmlName::kXmp,
 };
 
 // These tags cause the text inside them to be retained literally and not
@@ -105,12 +86,8 @@ const HtmlName::Keyword kNonBriefTerminatedTags[] = {
 // closing plaintext tag. Thus, if we want to support plaintext, we
 // need to handle it differently from the kLiteralTags.
 const HtmlName::Keyword kLiteralTags[] = {
-  HtmlName::kIframe,
-  HtmlName::kScript,
-  HtmlName::kStyle,
-  HtmlName::kTextarea,
-  HtmlName::kTitle,
-  HtmlName::kXmp,
+    HtmlName::kIframe,   HtmlName::kScript, HtmlName::kStyle,
+    HtmlName::kTextarea, HtmlName::kTitle,  HtmlName::kXmp,
 };
 
 // These tags cause the text inside them to be retained literally and
@@ -120,9 +97,9 @@ const HtmlName::Keyword kLiteralTags[] = {
 // that should be processed by all user agents should not insert those
 // elements into one of these tags.
 const HtmlName::Keyword kSometimesLiteralTags[] = {
-  HtmlName::kNoembed,
-  HtmlName::kNoframes,
-  HtmlName::kNoscript,
+    HtmlName::kNoembed,
+    HtmlName::kNoframes,
+    HtmlName::kNoscript,
 };
 
 // We start our stack-iterations from 1, because we put a NULL into
@@ -131,7 +108,7 @@ const int kStartStack = 1;
 
 #ifndef NDEBUG
 #define CHECK_KEYWORD_SET_ORDERING(keywords) \
-    CheckKeywordSetOrdering(keywords, arraysize(keywords))
+  CheckKeywordSetOrdering(keywords, arraysize(keywords))
 void CheckKeywordSetOrdering(const HtmlName::Keyword* keywords, int num) {
   for (int i = 1; i < num; ++i) {
     DCHECK_GT(keywords[i], keywords[i - 1]);
@@ -146,7 +123,7 @@ bool IsInSet(const HtmlName::Keyword* keywords, int num,
 }
 
 #define IS_IN_SET(keywords, keyword) \
-    IsInSet(keywords, arraysize(keywords), keyword)
+  IsInSet(keywords, arraysize(keywords), keyword)
 
 }  // namespace
 
@@ -161,7 +138,7 @@ HtmlLexer::HtmlLexer(HtmlParse* html_parse)
       state_(START),
       attr_quote_(HtmlElement::NO_QUOTE),
       has_attr_value_(false),
-      element_(NULL),
+      element_(nullptr),
       line_(1),
       tag_start_line_(-1),
       script_html_comment_(false),
@@ -178,8 +155,7 @@ HtmlLexer::HtmlLexer(HtmlParse* html_parse)
 #endif
 }
 
-HtmlLexer::~HtmlLexer() {
-}
+HtmlLexer::~HtmlLexer() {}
 
 void HtmlLexer::EvalStart(char c) {
   if (c == '<') {
@@ -210,9 +186,8 @@ bool HtmlLexer::IsLegalTagFirstChar(char c) {
 // to parse all HTML on the web.
 // TODO(morlovich): It's completely bogus for HTML.
 bool HtmlLexer::IsLegalTagChar(char c) {
-  return (IsI18nChar(c) ||
-          (isalnum(c) || (c == '<') || (c == '-') || (c == '#') ||
-          (c == '_') || (c == ':')));
+  return (IsI18nChar(c) || (isalnum(c) || (c == '<') || (c == '-') ||
+                            (c == '#') || (c == '_') || (c == ':')));
 }
 
 // TODO(morlovich): This is even more bogus, since it's true for
@@ -227,7 +202,7 @@ bool HtmlLexer::IsLegalAttrNameChar(char c) {
 void HtmlLexer::EvalTag(char c) {
   if (c == '/') {
     state_ = TAG_CLOSE_NO_NAME;
-  } else if (IsLegalTagFirstChar(c)) {   // "<x"
+  } else if (IsLegalTagFirstChar(c)) {  // "<x"
     state_ = TAG_OPEN;
     discard_until_start_state_for_error_recovery_ = false;
     token_ += c;
@@ -258,8 +233,8 @@ void HtmlLexer::EvalTagOpen(char c) {
   } else {
     // Some other punctuation.  Not sure what to do.  Let's run this
     // on the web and see what breaks & decide what to do.  E.g. "<x&"
-    SyntaxError("Invalid character `%c` while parsing tag `%s'",
-                c, token_.c_str());
+    SyntaxError("Invalid character `%c` while parsing tag `%s'", c,
+                token_.c_str());
     token_.clear();
     state_ = START;
   }
@@ -554,7 +529,8 @@ void HtmlLexer::EvalLiteralTag(char c) {
     // expecting "</x>" for tag x.
     // Chromium source lacks CHECK_GT
     html_parse_->message_handler()->Check(
-        literal_close_.size() > 3, "literal_close_.size() <= 3");  // NOLINT
+        literal_close_.size() > 3,
+        "literal_close_.size() <= 3");  // NOLINT
     int literal_minus_close_size = literal_.size() - literal_close_.size();
     if ((literal_minus_close_size >= 0) &&
         StringCaseEqual(literal_.c_str() + literal_minus_close_size,
@@ -606,9 +582,9 @@ void HtmlLexer::EvalScriptTag(char c) {
 
         // Drop the '</script' + c from literal, and also save the form
         // of the '</script' for the close tag.
-        token_ = literal_.substr(
-            literal_.size() - STATIC_STRLEN("</script") + 1,
-            STATIC_STRLEN("script"));
+        token_ =
+            literal_.substr(literal_.size() - STATIC_STRLEN("</script") + 1,
+                            STATIC_STRLEN("script"));
         literal_.resize(literal_.size() - STATIC_STRLEN("</script") - 1);
         EmitLiteral();
         EmitTagClose(HtmlElement::EXPLICIT_CLOSE);
@@ -685,7 +661,7 @@ void HtmlLexer::EmitTagOpen(bool allow_implicit_close) {
     return;
   }
 
-  DCHECK(element_ != NULL);
+  DCHECK(element_ != nullptr);
   DCHECK(token_.empty());
   HtmlName next_tag = element_->name();
 
@@ -695,7 +671,7 @@ void HtmlLexer::EmitTagOpen(bool allow_implicit_close) {
   // Continue popping off auto-close elements as needed to handle cases like
   // IClosedByOpenTr in html_parse_test.cc: "<tr><i>a<tr>b".  The first the <i>
   // needs to be auto-closed, then the <tr>.
-  for (HtmlElement* open_element = Parent(); open_element != NULL; ) {
+  for (HtmlElement* open_element = Parent(); open_element != nullptr;) {
     // TODO(jmarantz): this is a hack -- we should make a more elegant
     // structure of open/new tag combinations that we should auto-close.
     HtmlName::Keyword open_keyword = open_element->keyword();
@@ -736,11 +712,11 @@ void HtmlLexer::EmitTagOpen(bool allow_implicit_close) {
     EmitTagClose(HtmlElement::IMPLICIT_CLOSE);
   }
 
-  element_ = NULL;
+  element_ = nullptr;
 }
 
 void HtmlLexer::EmitTagBriefClose() {
-  if (!discard_until_start_state_for_error_recovery_)  {
+  if (!discard_until_start_state_for_error_recovery_) {
     HtmlElement* element = PopElement();
     CloseElement(element, HtmlElement::BRIEF_CLOSE);
   }
@@ -749,14 +725,14 @@ void HtmlLexer::EmitTagBriefClose() {
 
 HtmlElement* HtmlLexer::Parent() const {
   if (element_stack_.empty()) {
-    return NULL;
+    return nullptr;
   }
   return element_stack_.back();
 }
 
 void HtmlLexer::MakeElement() {
   DCHECK(!discard_until_start_state_for_error_recovery_);
-  if (element_ == NULL) {
+  if (element_ == nullptr) {
     if (token_.empty()) {
       SyntaxError("Making element with empty tag name");
     }
@@ -776,8 +752,8 @@ void HtmlLexer::StartParse(const StringPiece& id,
   attr_quote_ = HtmlElement::NO_QUOTE;
   state_ = START;
   element_stack_.clear();
-  element_stack_.push_back(static_cast<HtmlElement*>(0));
-  element_ = NULL;
+  element_stack_.push_back(static_cast<HtmlElement*>(nullptr));
+  element_ = nullptr;
   token_.clear();
   attr_name_.clear();
   attr_value_.clear();
@@ -812,14 +788,14 @@ void HtmlLexer::FinishParse() {
   // Any unclosed tags?  These should be noted.
   html_parse_->message_handler()->Check(!element_stack_.empty(),
                                         "element_stack_.empty()");
-  html_parse_->message_handler()->Check(element_stack_[0] == NULL,
+  html_parse_->message_handler()->Check(element_stack_[0] == nullptr,
                                         "element_stack_[0] != NULL");
 
   for (int i = element_stack_.size() - 1; i > 0; --i) {
     HtmlElement* element = element_stack_.back();
     element->name_str().CopyToString(&token_);
-    HtmlElement::Style style = skip_parsing_ ?
-        HtmlElement::EXPLICIT_CLOSE : HtmlElement::UNCLOSED;
+    HtmlElement::Style style =
+        skip_parsing_ ? HtmlElement::EXPLICIT_CLOSE : HtmlElement::UNCLOSED;
     EmitTagClose(style);
     if (!HtmlKeywords::IsOptionallyClosedTag(element->keyword())) {
       html_parse_->Info(id_.c_str(), element->begin_line_number(),
@@ -828,17 +804,18 @@ void HtmlLexer::FinishParse() {
     }
   }
   DCHECK_EQ(1U, element_stack_.size());
-  DCHECK_EQ(static_cast<HtmlElement*>(0), element_stack_[0]);
-  element_ = NULL;
+  DCHECK_EQ(static_cast<HtmlElement*>(nullptr), element_stack_[0]);
+  element_ = nullptr;
 }
 
 void HtmlLexer::MakeAttribute(bool has_value) {
   if (!discard_until_start_state_for_error_recovery_) {
-    html_parse_->message_handler()->Check(element_ != NULL, "element_ == NULL");
+    html_parse_->message_handler()->Check(element_ != nullptr,
+                                          "element_ == NULL");
   }
   HtmlName name = html_parse_->MakeName(attr_name_);
   attr_name_.clear();
-  const char* value = NULL;
+  const char* value = nullptr;
   html_parse_->message_handler()->Check(has_value == has_attr_value_,
                                         "has_value != has_attr_value_");
   if (has_value) {
@@ -991,13 +968,12 @@ void HtmlLexer::EvalAttrValSq(char c) {
 
 void HtmlLexer::EmitTagClose(HtmlElement::Style style) {
   HtmlElement* element = PopElementMatchingTag(token_);
-  if (element != NULL) {
+  if (element != nullptr) {
     DCHECK(StringCaseEqual(token_, element->name_str()));
     element->set_end_line_number(line_);
     CloseElement(element, style);
   } else {
-    SyntaxError("Unexpected close-tag `%s', no tags are open",
-                token_.c_str());
+    SyntaxError("Unexpected close-tag `%s', no tags are open", token_.c_str());
 
     // Structurally the close-tag we just parsed is not open.  This
     // might happen because the HTML structure constraint forced this
@@ -1052,38 +1028,102 @@ void HtmlLexer::Parse(const char* text, int size) {
     literal_ += c;
 
     switch (state_) {
-      case START:                 EvalStart(c);               break;
-      case TAG:                   EvalTag(c);                 break;
-      case TAG_OPEN:              EvalTagOpen(c);             break;
-      case TAG_CLOSE_NO_NAME:     EvalTagCloseNoName(c);      break;
-      case TAG_CLOSE:             EvalTagClose(c);            break;
-      case TAG_CLOSE_TERMINATE:   EvalTagClose(c);            break;
-      case TAG_BRIEF_CLOSE:       EvalTagBriefClose(c);       break;
-      case COMMENT_START1:        EvalCommentStart1(c);       break;
-      case COMMENT_START2:        EvalCommentStart2(c);       break;
-      case COMMENT_BODY:          EvalCommentBody(c);         break;
-      case COMMENT_END1:          EvalCommentEnd1(c);         break;
-      case COMMENT_END2:          EvalCommentEnd2(c);         break;
-      case CDATA_START1:          EvalCdataStart1(c);         break;
-      case CDATA_START2:          EvalCdataStart2(c);         break;
-      case CDATA_START3:          EvalCdataStart3(c);         break;
-      case CDATA_START4:          EvalCdataStart4(c);         break;
-      case CDATA_START5:          EvalCdataStart5(c);         break;
-      case CDATA_START6:          EvalCdataStart6(c);         break;
-      case CDATA_BODY:            EvalCdataBody(c);           break;
-      case CDATA_END1:            EvalCdataEnd1(c);           break;
-      case CDATA_END2:            EvalCdataEnd2(c);           break;
-      case TAG_ATTRIBUTE:         EvalAttribute(c);           break;
-      case TAG_ATTR_NAME:         EvalAttrName(c);            break;
-      case TAG_ATTR_NAME_SPACE:   EvalAttrNameSpace(c);       break;
-      case TAG_ATTR_EQ:           EvalAttrEq(c);              break;
-      case TAG_ATTR_VAL:          EvalAttrVal(c);             break;
-      case TAG_ATTR_VALDQ:        EvalAttrValDq(c);           break;
-      case TAG_ATTR_VALSQ:        EvalAttrValSq(c);           break;
-      case LITERAL_TAG:           EvalLiteralTag(c);          break;
-      case SCRIPT_TAG:            EvalScriptTag(c);           break;
-      case DIRECTIVE:             EvalDirective(c);           break;
-      case BOGUS_COMMENT:         EvalBogusComment(c);        break;
+      case START:
+        EvalStart(c);
+        break;
+      case TAG:
+        EvalTag(c);
+        break;
+      case TAG_OPEN:
+        EvalTagOpen(c);
+        break;
+      case TAG_CLOSE_NO_NAME:
+        EvalTagCloseNoName(c);
+        break;
+      case TAG_CLOSE:
+        EvalTagClose(c);
+        break;
+      case TAG_CLOSE_TERMINATE:
+        EvalTagClose(c);
+        break;
+      case TAG_BRIEF_CLOSE:
+        EvalTagBriefClose(c);
+        break;
+      case COMMENT_START1:
+        EvalCommentStart1(c);
+        break;
+      case COMMENT_START2:
+        EvalCommentStart2(c);
+        break;
+      case COMMENT_BODY:
+        EvalCommentBody(c);
+        break;
+      case COMMENT_END1:
+        EvalCommentEnd1(c);
+        break;
+      case COMMENT_END2:
+        EvalCommentEnd2(c);
+        break;
+      case CDATA_START1:
+        EvalCdataStart1(c);
+        break;
+      case CDATA_START2:
+        EvalCdataStart2(c);
+        break;
+      case CDATA_START3:
+        EvalCdataStart3(c);
+        break;
+      case CDATA_START4:
+        EvalCdataStart4(c);
+        break;
+      case CDATA_START5:
+        EvalCdataStart5(c);
+        break;
+      case CDATA_START6:
+        EvalCdataStart6(c);
+        break;
+      case CDATA_BODY:
+        EvalCdataBody(c);
+        break;
+      case CDATA_END1:
+        EvalCdataEnd1(c);
+        break;
+      case CDATA_END2:
+        EvalCdataEnd2(c);
+        break;
+      case TAG_ATTRIBUTE:
+        EvalAttribute(c);
+        break;
+      case TAG_ATTR_NAME:
+        EvalAttrName(c);
+        break;
+      case TAG_ATTR_NAME_SPACE:
+        EvalAttrNameSpace(c);
+        break;
+      case TAG_ATTR_EQ:
+        EvalAttrEq(c);
+        break;
+      case TAG_ATTR_VAL:
+        EvalAttrVal(c);
+        break;
+      case TAG_ATTR_VALDQ:
+        EvalAttrValDq(c);
+        break;
+      case TAG_ATTR_VALSQ:
+        EvalAttrValSq(c);
+        break;
+      case LITERAL_TAG:
+        EvalLiteralTag(c);
+        break;
+      case SCRIPT_TAG:
+        EvalScriptTag(c);
+        break;
+      case DIRECTIVE:
+        EvalDirective(c);
+        break;
+      case BOGUS_COMMENT:
+        EvalBogusComment(c);
+        break;
     }
   }
 }
@@ -1122,7 +1162,7 @@ void HtmlLexer::DebugPrintStack() {
 }
 
 HtmlElement* HtmlLexer::PopElement() {
-  HtmlElement* element = NULL;
+  HtmlElement* element = nullptr;
   if (!element_stack_.empty()) {
     element = element_stack_.back();
     element_stack_.pop_back();
@@ -1130,8 +1170,7 @@ HtmlElement* HtmlLexer::PopElement() {
   return element;
 }
 
-void HtmlLexer::CloseElement(HtmlElement* element,
-                             HtmlElement::Style style) {
+void HtmlLexer::CloseElement(HtmlElement* element, HtmlElement::Style style) {
   html_parse_->CloseElement(element, style, line_);
   if (size_limit_exceeded_) {
     skip_parsing_ = true;
@@ -1139,7 +1178,7 @@ void HtmlLexer::CloseElement(HtmlElement* element,
 }
 
 HtmlElement* HtmlLexer::PopElementMatchingTag(const StringPiece& tag) {
-  HtmlElement* element = NULL;
+  HtmlElement* element = nullptr;
 
   HtmlName::Keyword keyword = HtmlName::Lookup(tag);
   int close_index = element_stack_.size();
@@ -1162,12 +1201,12 @@ HtmlElement* HtmlLexer::PopElementMatchingTag(const StringPiece& tag) {
       // point the appropriate response is to give up -- there is no
       // matching open-tag for the </tr> inside the <table>.  See
       // HtmlAnnotationTest.StrayCloseTrInTable in html_parse_test.cc.
-      return NULL;
+      return nullptr;
     }
   }
 
   if (close_index == static_cast<int>(element_stack_.size())) {
-    element = NULL;
+    element = nullptr;
   } else {
     element = element_stack_[close_index];
 

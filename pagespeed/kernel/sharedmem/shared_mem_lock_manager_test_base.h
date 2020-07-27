@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_TEST_BASE_H_
 
@@ -40,8 +39,8 @@ class SharedMemLockManagerTestBase : public testing::Test {
   typedef void (SharedMemLockManagerTestBase::*TestMethod)();
 
   explicit SharedMemLockManagerTestBase(SharedMemTestEnv* test_env);
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
 
   void TestBasic();
   void TestDestructorUnlock();
@@ -56,30 +55,30 @@ class SharedMemLockManagerTestBase : public testing::Test {
   void TestBasicChild();
   void TestStealChild();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<ThreadSystem> thread_system_;
-  MockTimer timer_;   // Note: if we are running in a process-based environment
-                      // this object is not shared at all; therefore all time
-                      // advancement must be done in either parent or kid but
-                      // not both.
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  MockTimer timer_;  // Note: if we are running in a process-based environment
+                     // this object is not shared at all; therefore all time
+                     // advancement must be done in either parent or kid but
+                     // not both.
   MockMessageHandler handler_;
   MockScheduler scheduler_;
   MD5Hasher hasher_;
-  scoped_ptr<SharedMemLockManager> root_lock_manager_;  // used for init only.
+  std::unique_ptr<SharedMemLockManager>
+      root_lock_manager_;  // used for init only.
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemLockManagerTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemLockManagerTestTemplate : public SharedMemLockManagerTestBase {
  public:
   SharedMemLockManagerTestTemplate()
-      : SharedMemLockManagerTestBase(new ConcreteTestEnv) {
-  }
+      : SharedMemLockManagerTestBase(new ConcreteTestEnv) {}
 };
 
-TYPED_TEST_CASE_P(SharedMemLockManagerTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemLockManagerTestTemplate);
 
 TYPED_TEST_P(SharedMemLockManagerTestTemplate, TestBasic) {
   SharedMemLockManagerTestBase::TestBasic();
@@ -93,8 +92,8 @@ TYPED_TEST_P(SharedMemLockManagerTestTemplate, TestSteal) {
   SharedMemLockManagerTestBase::TestSteal();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemLockManagerTestTemplate, TestBasic,
-                           TestDestructorUnlock, TestSteal);
+REGISTER_TYPED_TEST_SUITE_P(SharedMemLockManagerTestTemplate, TestBasic,
+                            TestDestructorUnlock, TestSteal);
 
 }  // namespace net_instaweb
 

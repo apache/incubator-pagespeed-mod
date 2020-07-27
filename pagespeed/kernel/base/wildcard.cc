@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/wildcard.h"
 
 #include <cstddef>
@@ -40,8 +39,7 @@ Wildcard::Wildcard(const GoogleString& storage, int num_blocks,
     : storage_(storage),
       num_blocks_(num_blocks),
       last_block_offset_(last_block_offset),
-      is_simple_(is_simple) {
-}
+      is_simple_(is_simple) {}
 
 // Pre-scan the wildcard spec into storage_, canonicalizing its representation
 // as we go.  We view the input wildcard_spec as a series of possibly-empty
@@ -120,9 +118,10 @@ namespace {
 // contain chars in block (not counting final *).
 int MatchBlock(const char* pat, const char* str) {
   int pos;
-  for (pos = 0 ;
-       pat[pos] != Wildcard::kMatchAny &&
-       (pat[pos] == str[pos] || pat[pos] == Wildcard::kMatchOne); ++pos) { }
+  for (pos = 0; pat[pos] != Wildcard::kMatchAny &&
+                (pat[pos] == str[pos] || pat[pos] == Wildcard::kMatchOne);
+       ++pos) {
+  }
   return pos;
 }
 
@@ -181,8 +180,8 @@ bool Wildcard::Match(const StringPiece& actual) const {
     // Here are our invariants (the latter two guaranteed by
     // initialization).
     DCHECK_EQ(kMatchAny, pat[-1]);
-    DCHECK_NE(kMatchAny, pat[ 0]);
-    DCHECK_NE(kMatchOne, pat[ 0]);
+    DCHECK_NE(kMatchAny, pat[0]);
+    DCHECK_NE(kMatchOne, pat[0]);
     // The number of characters left to match in the pattern plus the remaining
     // chars_to_skip must be equal to the number of characters remaining in the
     // string.  This invariant is guaranteed by reducing chars_to_skip when we
@@ -193,7 +192,7 @@ bool Wildcard::Match(const StringPiece& actual) const {
     // candidate match position.
     const char* new_str =
         static_cast<const char*>(memchr(str, pat[0], str_last_block - str));
-    if (new_str == NULL) {
+    if (new_str == nullptr) {
       // First char in block wasn't found, so we can't match.
       return false;
     }
@@ -219,7 +218,7 @@ bool Wildcard::Match(const StringPiece& actual) const {
     } else {
       // Matched.  Advance to next block of pattern.
       str += ofs;
-      pat += ofs + 1;                 // Skip the *
+      pat += ofs + 1;  // Skip the *
       --blocks_left;
     }
   }

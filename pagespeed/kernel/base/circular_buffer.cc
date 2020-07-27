@@ -17,14 +17,15 @@
  * under the License.
  */
 
-
-#include <cstdlib>         // for malloc
-#include <algorithm>       // for min
-#include "base/logging.h"  // for DCHECK
 #include "pagespeed/kernel/base/circular_buffer.h"
+
+#include <algorithm>  // for min
+#include <cstdlib>    // for malloc
+
+#include "base/logging.h"  // for DCHECK
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/base/string_writer.h"
 
 namespace net_instaweb {
 
@@ -40,8 +41,7 @@ CircularBuffer* CircularBuffer::Create(const int capacity) {
 }
 
 CircularBuffer* CircularBuffer::Init(bool parent, void* block,
-                                     const int block_size,
-                                     const int capacity) {
+                                     const int block_size, const int capacity) {
   // Check if the pre-allocated block has right size for CircularBuffer.
   DCHECK(block_size == Sizeof(capacity));
   CircularBuffer* cb = static_cast<CircularBuffer*>(block);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/cache_interface.h"
 
 namespace net_instaweb {
@@ -25,11 +24,7 @@ namespace net_instaweb {
 namespace {
 
 static const char* kKeyStateNames[] = {
-  "available",
-  "not_found",
-  "overload",
-  "network_error",
-    "timeout",
+    "available", "not_found", "overload", "network_error", "timeout",
 };
 
 }  // namespace
@@ -38,18 +33,13 @@ const char* CacheInterface::KeyStateName(KeyState state) {
   return kKeyStateNames[state];
 }
 
-CacheInterface::CacheInterface() {
-}
+CacheInterface::CacheInterface() {}
 
-CacheInterface::~CacheInterface() {
-}
+CacheInterface::~CacheInterface() {}
 
-CacheInterface::Callback::~Callback() {
-}
+CacheInterface::Callback::~Callback() {}
 
-CacheInterface* CacheInterface::Backend() {
-  return this;
-}
+CacheInterface* CacheInterface::Backend() { return this; }
 
 void CacheInterface::ValidateAndReportResult(const GoogleString& key,
                                              KeyState state,

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_CALLBACK_H_
 #define PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_CALLBACK_H_
 
@@ -51,12 +50,13 @@ class ExpensiveOperationCallback
     : public CentralControllerCallback<ExpensiveOperationContext> {
  public:
   explicit ExpensiveOperationCallback(Sequence* sequence);
-  virtual ~ExpensiveOperationCallback();
+  ~ExpensiveOperationCallback() override;
 
  private:
   // CentralControllerCallback interface.
-  virtual void RunImpl(scoped_ptr<ExpensiveOperationContext>* context) = 0;
-  virtual void CancelImpl() = 0;
+  void RunImpl(std::unique_ptr<ExpensiveOperationContext>* context) override =
+      0;
+  void CancelImpl() override = 0;
 
   DISALLOW_COPY_AND_ASSIGN(ExpensiveOperationCallback);
 };

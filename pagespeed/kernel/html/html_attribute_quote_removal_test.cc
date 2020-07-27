@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_attribute_quote_removal.h"
 
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/html/html_parse.h"
+#include "pagespeed/kernel/html/html_parse_test_base.h"
 
 namespace net_instaweb {
 
@@ -34,7 +33,7 @@ class HtmlAttributeQuoteRemovalTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&html_attribute_quote_removal_);
   }
 
-  virtual bool AddBody() const { return true; }
+  bool AddBody() const override { return true; }
 
  private:
   HtmlAttributeQuoteRemoval html_attribute_quote_removal_;
@@ -53,8 +52,7 @@ TEST_F(HtmlAttributeQuoteRemovalTest, DoNotRemoveNeededQuotes) {
 }
 
 TEST_F(HtmlAttributeQuoteRemovalTest, DoNotDeleteEmptyAttrs) {
-  ValidateNoChanges("do_not_delete_empty_attrs",
-                    "<div id=''></div>");
+  ValidateNoChanges("do_not_delete_empty_attrs", "<div id=''></div>");
 }
 
 TEST_F(HtmlAttributeQuoteRemovalTest, RemoveUnneededQuotes) {
@@ -64,8 +62,7 @@ TEST_F(HtmlAttributeQuoteRemovalTest, RemoveUnneededQuotes) {
 }
 
 TEST_F(HtmlAttributeQuoteRemovalTest, NoValueNoChange) {
-  ValidateNoChanges("no_value_no_change",
-                    "<input checked type=checkbox>");
+  ValidateNoChanges("no_value_no_change", "<input checked type=checkbox>");
 }
 
 TEST_F(HtmlAttributeQuoteRemovalTest, DoNotRemoveQuotesInXhtml) {

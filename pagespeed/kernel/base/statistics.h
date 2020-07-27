@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_STATISTICS_H_
 #define PAGESPEED_KERNEL_BASE_STATISTICS_H_
 
@@ -205,9 +204,7 @@ class Histogram {
     ScopedMutex hold(lock());
     return MinimumInternal();
   }
-  double Median() {
-    return Percentile(50);
-  }
+  double Median() { return Percentile(50); }
 
   // Formats the histogram statistics as an HTML table row.  This
   // is intended for use in Statistics::RenderHistograms.
@@ -222,9 +219,7 @@ class Histogram {
   // [0, NumBuckets()+1].
   virtual double BucketStart(int index) = 0;
   // Upper bound of a bucket.
-  virtual double BucketLimit(int index) {
-    return BucketStart(index + 1);
-  }
+  virtual double BucketLimit(int index) { return BucketStart(index + 1); }
   // Value of a bucket.
   virtual double BucketCount(int index) = 0;
 
@@ -258,37 +253,37 @@ class CountHistogram : public Histogram {
  public:
   // Takes ownership of mutex.
   explicit CountHistogram(AbstractMutex* mutex);
-  virtual ~CountHistogram();
-  virtual void Add(double value) {
+  ~CountHistogram() override;
+  void Add(double value) override {
     ScopedMutex hold(lock());
     ++count_;
   }
-  virtual void Clear() {
+  void Clear() override {
     ScopedMutex hold(lock());
     count_ = 0;
   }
-  virtual int NumBuckets() { return 0; }
-  virtual void EnableNegativeBuckets() { }
-  virtual void SetMinValue(double value) { }
-  virtual void SetMaxValue(double value) { }
-  virtual void SetSuggestedNumBuckets(int i) { }
+  int NumBuckets() override { return 0; }
+  void EnableNegativeBuckets() override {}
+  void SetMinValue(double value) override {}
+  void SetMaxValue(double value) override {}
+  void SetSuggestedNumBuckets(int i) override {}
   virtual GoogleString GetName() const { return ""; }
 
  protected:
-  virtual AbstractMutex* lock() LOCK_RETURNED(mutex_) { return mutex_.get(); }
-  virtual double AverageInternal() { return 0.0; }
-  virtual double PercentileInternal(const double perc) { return 0.0; }
-  virtual double StandardDeviationInternal() { return 0.0; }
-  virtual double CountInternal() EXCLUSIVE_LOCKS_REQUIRED(lock()) {
+  AbstractMutex* lock() override LOCK_RETURNED(mutex_) { return mutex_.get(); }
+  double AverageInternal() override { return 0.0; }
+  double PercentileInternal(const double perc) override { return 0.0; }
+  double StandardDeviationInternal() override { return 0.0; }
+  double CountInternal() override EXCLUSIVE_LOCKS_REQUIRED(lock()) {
     return count_;
   }
-  virtual double MaximumInternal() { return 0.0; }
-  virtual double MinimumInternal() { return 0.0; }
-  virtual double BucketStart(int index) { return 0.0; }
-  virtual double BucketCount(int index) { return 0.0; }
+  double MaximumInternal() override { return 0.0; }
+  double MinimumInternal() override { return 0.0; }
+  double BucketStart(int index) override { return 0.0; }
+  double BucketCount(int index) override { return 0.0; }
 
  private:
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int count_ GUARDED_BY(mutex_);
 
   DISALLOW_COPY_AND_ASSIGN(CountHistogram);
@@ -315,14 +310,12 @@ class TimedVariable {
 class FakeTimedVariable : public TimedVariable {
  public:
   FakeTimedVariable(StringPiece name, Statistics* stats);
-  virtual ~FakeTimedVariable();
+  ~FakeTimedVariable() override;
   // Update the stat value. delta is in milliseconds.
-  virtual void IncBy(int64 delta) {
-    var_->Add(delta);
-  }
+  void IncBy(int64 delta) override { var_->Add(delta); }
   // Get the amount added over the last time interval
   // specified by "level".
-  virtual int64 Get(int level) {
+  int64 Get(int level) override {
     // This is a default implementation. Variable can only return the
     // total value. This should be override in subclass if we want the
     // values for different levels.
@@ -332,9 +325,7 @@ class FakeTimedVariable : public TimedVariable {
     return 0;
   }
   // Throw away all data.
-  virtual void Clear() {
-    return var_->Clear();
-  }
+  void Clear() override { return var_->Clear(); }
 
  protected:
   Variable* var_;
@@ -384,7 +375,6 @@ class Statistics {
     return var;
   }
 
-
   // Add a new histogram, or returns an existing one of that name.
   // The Histogram* is owned by the Statistics class -- it should not
   // be deleted by the caller.
@@ -402,14 +392,12 @@ class Statistics {
   // The TimedVariable* is owned by the Statistics class -- it should
   // not be deleted by the caller. Each stat belongs to a group, such as
   // "Statistics", "Disk Statistics", etc.
-  virtual TimedVariable* AddTimedVariable(
-      const StringPiece& name, const StringPiece& group) = 0;
+  virtual TimedVariable* AddTimedVariable(const StringPiece& name,
+                                          const StringPiece& group) = 0;
   // Find a TimedVariable from a name, returning NULL if not found.
-  virtual TimedVariable* FindTimedVariable(
-      const StringPiece& name) const = 0;
+  virtual TimedVariable* FindTimedVariable(const StringPiece& name) const = 0;
   // Find a TimedVariable from a name, aborting if not found.
-  TimedVariable* GetTimedVariable(
-      const StringPiece& name) const {
+  TimedVariable* GetTimedVariable(const StringPiece& name) const {
     TimedVariable* stat = FindTimedVariable(name);
     CHECK(stat != NULL) << "TimedVariable not found: " << name;
     return stat;
@@ -422,8 +410,7 @@ class Statistics {
   virtual void Dump(Writer* writer, MessageHandler* handler) = 0;
   // Dump the variable-values in JSON format to a writer.
   virtual void DumpJson(Writer* writer, MessageHandler* message_handler) = 0;
-  virtual void RenderTimedVariables(Writer* writer,
-                                    MessageHandler* handler);
+  virtual void RenderTimedVariables(Writer* writer, MessageHandler* handler);
   // Write all the histograms in this Statistic object to a writer.
   virtual void RenderHistograms(Writer* writer, MessageHandler* handler);
   // Set all variables to 0.

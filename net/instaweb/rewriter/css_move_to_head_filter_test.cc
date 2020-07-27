@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_move_to_head_filter.h"
 
 #include <cstddef>
@@ -311,9 +310,10 @@ TEST_F(CssMoveToHeadFilterTest, MoveToHeadFlushEdge) {
 
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText("<html>\n"
-                              "  <head>\n"
-                              "    <title>Example</title>");
+  rewrite_driver()->ParseText(
+      "<html>\n"
+      "  <head>\n"
+      "    <title>Example</title>");
   rewrite_driver()->Flush();
   // Make it so that the </head> is the first thing in this flush window.
   // Test to make sure we don't break this corner case.
@@ -324,22 +324,25 @@ TEST_F(CssMoveToHeadFilterTest, MoveToHeadFlushEdge) {
       "  <body>\n"
       "    <link rel='stylesheet' type='text/css' href='f.css'>");
   rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("\n"
-                              "  </body>\n"
-                              "</html>\n");
+  rewrite_driver()->ParseText(
+      "\n"
+      "  </body>\n"
+      "</html>\n");
   rewrite_driver()->FinishParse();
 
   // Check that we do still move the <link> tag to the edge of the flush window.
   // And more importantly that we don't lose the <link> or crash, etc.
-  EXPECT_EQ("<html>\n"
-            "  <head>\n"
-            "    <title>Example</title>"
-            "<link rel='stylesheet' type='text/css' href='f.css'>"
-            "</head>\n"
-            "  <body>\n"
-            "    \n"
-            "  </body>\n"
-            "</html>\n", output_buffer_);
+  EXPECT_EQ(
+      "<html>\n"
+      "  <head>\n"
+      "    <title>Example</title>"
+      "<link rel='stylesheet' type='text/css' href='f.css'>"
+      "</head>\n"
+      "  <body>\n"
+      "    \n"
+      "  </body>\n"
+      "</html>\n",
+      output_buffer_);
 }
 
 TEST_F(CssMoveToHeadFilterTest, MoveToHeadOverFlushEdge) {
@@ -347,30 +350,34 @@ TEST_F(CssMoveToHeadFilterTest, MoveToHeadOverFlushEdge) {
 
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText("<html>\n"
-                              "  <head>\n"
-                              "    <title>Example</title>"
-                              "</head>");
+  rewrite_driver()->ParseText(
+      "<html>\n"
+      "  <head>\n"
+      "    <title>Example</title>"
+      "</head>");
   rewrite_driver()->Flush();
   rewrite_driver()->ParseText(
       "\n"
       "  <body>\n"
       "    <link rel='stylesheet' type='text/css' href='f.css'>");
   rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("\n"
-                              "  </body>\n"
-                              "</html>\n");
+  rewrite_driver()->ParseText(
+      "\n"
+      "  </body>\n"
+      "</html>\n");
   rewrite_driver()->FinishParse();
 
   // </head> is out of flush window at rewrite time, so we don't move anything.
-  EXPECT_EQ("<html>\n"
-            "  <head>\n"
-            "    <title>Example</title>"
-            "</head>\n"
-            "  <body>\n"
-            "    <link rel='stylesheet' type='text/css' href='f.css'>\n"
-            "  </body>\n"
-            "</html>\n", output_buffer_);
+  EXPECT_EQ(
+      "<html>\n"
+      "  <head>\n"
+      "    <title>Example</title>"
+      "</head>\n"
+      "  <body>\n"
+      "    <link rel='stylesheet' type='text/css' href='f.css'>\n"
+      "  </body>\n"
+      "</html>\n",
+      output_buffer_);
 }
 
 TEST_F(CssMoveToHeadFilterTest, MoveAboveScriptsFlushEdge) {
@@ -378,9 +385,10 @@ TEST_F(CssMoveToHeadFilterTest, MoveAboveScriptsFlushEdge) {
 
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText("<html>\n"
-                              "  <head>\n"
-                              "    <title>Example</title>");
+  rewrite_driver()->ParseText(
+      "<html>\n"
+      "  <head>\n"
+      "    <title>Example</title>");
   rewrite_driver()->Flush();
   // Make it so that the <script> is the first thing in this flush window.
   // Test to make sure we don't break this corner case.
@@ -392,23 +400,26 @@ TEST_F(CssMoveToHeadFilterTest, MoveAboveScriptsFlushEdge) {
       "  <body>\n"
       "    <link rel='stylesheet' type='text/css' href='f.css'>");
   rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("\n"
-                              "  </body>\n"
-                              "</html>\n");
+  rewrite_driver()->ParseText(
+      "\n"
+      "  </body>\n"
+      "</html>\n");
   rewrite_driver()->FinishParse();
 
   // Check that we do still move the <link> tag to the edge of the flush window.
   // And more importantly that we don't lose the <link> or crash, etc.
-  EXPECT_EQ("<html>\n"
-            "  <head>\n"
-            "    <title>Example</title>"
-            "<link rel='stylesheet' type='text/css' href='f.css'>"
-            "<script src='b.js'></script>\n"
-            "  </head>\n"
-            "  <body>\n"
-            "    \n"
-            "  </body>\n"
-            "</html>\n", output_buffer_);
+  EXPECT_EQ(
+      "<html>\n"
+      "  <head>\n"
+      "    <title>Example</title>"
+      "<link rel='stylesheet' type='text/css' href='f.css'>"
+      "<script src='b.js'></script>\n"
+      "  </head>\n"
+      "  <body>\n"
+      "    \n"
+      "  </body>\n"
+      "</html>\n",
+      output_buffer_);
 }
 
 TEST_F(CssMoveToHeadFilterTest, MoveAboveScriptsOverFlushEdge) {
@@ -416,10 +427,11 @@ TEST_F(CssMoveToHeadFilterTest, MoveAboveScriptsOverFlushEdge) {
 
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText("<html>\n"
-                              "  <head>\n"
-                              "    <title>Example</title>"
-                              "<script src='b.js'></script>");
+  rewrite_driver()->ParseText(
+      "<html>\n"
+      "  <head>\n"
+      "    <title>Example</title>"
+      "<script src='b.js'></script>");
   rewrite_driver()->Flush();
   rewrite_driver()->ParseText(
       "\n"
@@ -427,23 +439,26 @@ TEST_F(CssMoveToHeadFilterTest, MoveAboveScriptsOverFlushEdge) {
       "  <body>\n"
       "    <link rel='stylesheet' type='text/css' href='f.css'>");
   rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("\n"
-                              "  </body>\n"
-                              "</html>\n");
+  rewrite_driver()->ParseText(
+      "\n"
+      "  </body>\n"
+      "</html>\n");
   rewrite_driver()->FinishParse();
 
   // <script> is out of flush window at rewrite time, so we don't move anything.
   // TODO(sligocki): Technically, we could move it into <head> still, but
   // I'm guessing this situation won't come up too much.
-  EXPECT_EQ("<html>\n"
-            "  <head>\n"
-            "    <title>Example</title>"
-            "<script src='b.js'></script>\n"
-            "  </head>\n"
-            "  <body>\n"
-            "    <link rel='stylesheet' type='text/css' href='f.css'>\n"
-            "  </body>\n"
-            "</html>\n", output_buffer_);
+  EXPECT_EQ(
+      "<html>\n"
+      "  <head>\n"
+      "    <title>Example</title>"
+      "<script src='b.js'></script>\n"
+      "  </head>\n"
+      "  <body>\n"
+      "    <link rel='stylesheet' type='text/css' href='f.css'>\n"
+      "  </body>\n"
+      "</html>\n",
+      output_buffer_);
 }
 
 }  // namespace

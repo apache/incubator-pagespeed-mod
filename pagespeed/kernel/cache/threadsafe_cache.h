@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_THREADSAFE_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_THREADSAFE_CACHE_H_
 
@@ -44,26 +43,24 @@ class ThreadsafeCache : public CacheInterface {
  public:
   // Does not takes ownership of cache.  Takes ownership of mutex.
   ThreadsafeCache(CacheInterface* cache, AbstractMutex* mutex)
-      : cache_(cache),
-        mutex_(mutex) {
-  }
-  virtual ~ThreadsafeCache();
+      : cache_(cache), mutex_(mutex) {}
+  ~ThreadsafeCache() override;
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value)
-      LOCKS_EXCLUDED(mutex_);
-  virtual void Delete(const GoogleString& key) LOCKS_EXCLUDED(mutex_);
-  virtual CacheInterface* Backend() { return cache_; }
-  virtual bool IsBlocking() const { return cache_->IsBlocking(); }
-  virtual bool IsHealthy() const LOCKS_EXCLUDED(mutex_);
-  virtual void ShutDown() LOCKS_EXCLUDED(mutex_);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value)
+      LOCKS_EXCLUDED(mutex_) override;
+  void Delete(const GoogleString& key) LOCKS_EXCLUDED(mutex_) override;
+  CacheInterface* Backend() override { return cache_; }
+  bool IsBlocking() const override { return cache_->IsBlocking(); }
+  bool IsHealthy() const LOCKS_EXCLUDED(mutex_) override;
+  void ShutDown() LOCKS_EXCLUDED(mutex_) override;
 
   static GoogleString FormatName(StringPiece cache);
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
+  GoogleString Name() const override { return FormatName(cache_->Name()); }
 
  private:
   CacheInterface* cache_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadsafeCache);
 };

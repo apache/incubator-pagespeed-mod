@@ -17,33 +17,34 @@
  * under the License.
  */
 
-
 // Unit-test the memcache interface.
 
 #include "pagespeed/system/apr_mem_cache.h"
 
 #include <unistd.h>
+
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
-#include <cstddef>
+#include <memory>
 
 #include "apr_network_io.h"  // NOLINT
-#include "apr_pools.h"  // NOLINT
+#include "apr_pools.h"       // NOLINT
 #include "base/logging.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
 #include "pagespeed/kernel/base/mock_hasher.h"
 #include "pagespeed/kernel/base/mock_timer.h"
+#include "pagespeed/kernel/base/null_mutex.h"
+#include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/cache/cache_key_prepender.h"
 #include "pagespeed/kernel/cache/cache_spammer.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
@@ -77,7 +78,7 @@ class AprMemCacheTest : public CacheTestBase {
     AprMemCache::InitStats(&statistics_);
   }
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     apr_initialize();
     atexit(apr_terminate);
     TcpServerThreadForTesting::PickListenPortOnce(&fake_memcache_listen_port_);
@@ -102,14 +103,14 @@ class AprMemCacheTest : public CacheTestBase {
         // Does not fail the test.
         return false;
       }
-      cluster_spec_.servers = { ExternalServerSpec("localhost", port) };
+      cluster_spec_.servers = {ExternalServerSpec("localhost", port)};
     }
     Hasher* hasher = &mock_hasher_;
     if (use_md5_hasher) {
       hasher = &md5_hasher_;
     }
-    servers_.reset(new AprMemCache(cluster_spec_, 5, hasher, &statistics_,
-                                   &timer_, &handler_));
+    servers_ = std::make_unique<AprMemCache>(cluster_spec_, 5, hasher,
+                                             &statistics_, &timer_, &handler_);
     // As memcached is not restarted between tests, we need some other kind of
     // isolation. One option would be to flush memcached, if apr_memcache
     // supported that. We do not want to modify our fork even further, so we
@@ -118,15 +119,14 @@ class AprMemCacheTest : public CacheTestBase {
         ::testing::UnitTest::GetInstance()->current_test_info();
     PosixTimer timer;
     const GoogleString memcache_prefix =
-        StrCat(test_info->test_case_name(), ".",
-               test_info->name(), "_",
+        StrCat(test_info->test_suite_name(), ".", test_info->name(), "_",
                Integer64ToString(timer.NowUs()), "_");
-    prefixed_memcache_.reset(
-        new CacheKeyPrepender(memcache_prefix, servers_.get()));
+    prefixed_memcache_ =
+        std::make_unique<CacheKeyPrepender>(memcache_prefix, servers_.get());
 
-    cache_.reset(new FallbackCache(prefixed_memcache_.get(), lru_cache_.get(),
-                                   kTestValueSizeThreshold,
-                                   &handler_));
+    cache_ = std::make_unique<FallbackCache>(
+        prefixed_memcache_.get(), lru_cache_.get(), kTestValueSizeThreshold,
+        &handler_);
 
     // apr_memcache actually lazy-connects to memcached, it seems, so
     // if we fail the Connect call then something is truly broken.  To
@@ -157,17 +157,17 @@ class AprMemCacheTest : public CacheTestBase {
     return initialized;
   }
 
-  virtual CacheInterface* Cache() { return cache_.get(); }
+  CacheInterface* Cache() override { return cache_.get(); }
 
   GoogleMessageHandler handler_;
   MD5Hasher md5_hasher_;
   MockHasher mock_hasher_;
   MockTimer timer_;
-  scoped_ptr<LRUCache> lru_cache_;
-  scoped_ptr<AprMemCache> servers_;
-  scoped_ptr<CacheKeyPrepender> prefixed_memcache_;
-  scoped_ptr<FallbackCache> cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<LRUCache> lru_cache_;
+  std::unique_ptr<AprMemCache> servers_;
+  std::unique_ptr<CacheKeyPrepender> prefixed_memcache_;
+  std::unique_ptr<FallbackCache> cache_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats statistics_;
   ExternalClusterSpec cluster_spec_;
   static apr_port_t fake_memcache_listen_port_;
@@ -236,7 +236,7 @@ TEST_F(AprMemCacheTest, SizeTest) {
   }
 
   for (int x = 0; x < 10; ++x) {
-    for (int i = kJustUnderThreshold/2; i < kJustUnderThreshold - 10; ++i) {
+    for (int i = kJustUnderThreshold / 2; i < kJustUnderThreshold - 10; ++i) {
       GoogleString value(i, 'a');
       GoogleString key = StrCat("big", IntegerToString(i));
       CheckPut(key, value);
@@ -323,8 +323,7 @@ TEST_F(AprMemCacheTest, LargeValueMultiGet) {
   const char kKey1[] = "large1";
   CheckPut(kKey1, kLargeValue1);
   CheckGet(kKey1, kLargeValue1);
-  EXPECT_EQ(kLargeWriteSize + STATIC_STRLEN(kKey1),
-            lru_cache_->size_bytes());
+  EXPECT_EQ(kLargeWriteSize + STATIC_STRLEN(kKey1), lru_cache_->size_bytes());
 
   const char kSmallKey[] = "small";
   const char kSmallValue[] = "value";
@@ -355,8 +354,7 @@ TEST_F(AprMemCacheTest, MultiServerFallback) {
   // fallback cache.
   LRUCache lru_cache2(kLRUCacheSize);
   FallbackCache mem_cache2(prefixed_memcache_.get(), &lru_cache2,
-                           kTestValueSizeThreshold,
-                           &handler_);
+                           kTestValueSizeThreshold, &handler_);
 
   // Now when we store a large object from server1, and fetch it from
   // server2, we will get a miss because they do not share fallback caches..
@@ -386,10 +384,10 @@ TEST_F(AprMemCacheTest, KeyOver64kDropped) {
   // Make another connection to the same memcached, but with a different
   // fallback cache.
   const int kBigLruSize = 1000000;
-  const int kThreshold =  200000;    // fits key and small value.
+  const int kThreshold = 200000;  // fits key and small value.
   LRUCache lru_cache2(kLRUCacheSize);
-  FallbackCache mem_cache2(prefixed_memcache_.get(), &lru_cache2,
-                           kThreshold, &handler_);
+  FallbackCache mem_cache2(prefixed_memcache_.get(), &lru_cache2, kThreshold,
+                           &handler_);
 
   const GoogleString kKey(kBigLruSize, 'a');
   CheckPut(&mem_cache2, kKey, "value");
@@ -440,11 +438,9 @@ TEST_F(AprMemCacheTest, ThreadSafe) {
 
   GoogleString large_pattern(kLargeWriteSize, 'a');
   large_pattern += "%d";
-  CacheSpammer::RunTests(5 /* num_threads */,
-                         200 /* num_iters */,
-                         10 /* num_inserts */,
-                         false, true, large_pattern.c_str(),
-                         prefixed_memcache_.get(),
+  CacheSpammer::RunTests(5 /* num_threads */, 200 /* num_iters */,
+                         10 /* num_inserts */, false, true,
+                         large_pattern.c_str(), prefixed_memcache_.get(),
                          thread_system_.get());
 }
 
@@ -456,10 +452,9 @@ TEST_F(AprMemCacheTest, ThreadSafe) {
 // only be run interactively to check on timeout behavior.  To run it,
 // set environemnt variable (APR_MEMCACHE_TIMEOUT_TEST).
 TEST_F(AprMemCacheTest, OneMicrosecondGet) {
-  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == NULL) {
-    LOG(WARNING)
-        << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
-        << "$APR_MEMCACHE_TIMEOUT_TEST to run it";
+  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == nullptr) {
+    LOG(WARNING) << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
+                 << "$APR_MEMCACHE_TIMEOUT_TEST to run it";
     return;
   }
 
@@ -478,10 +473,9 @@ TEST_F(AprMemCacheTest, OneMicrosecondGet) {
 }
 
 TEST_F(AprMemCacheTest, OneMicrosecondPut) {
-  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == NULL) {
-    LOG(WARNING)
-        << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
-        << "$APR_MEMCACHE_TIMEOUT_TEST to run it";
+  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == nullptr) {
+    LOG(WARNING) << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
+                 << "$APR_MEMCACHE_TIMEOUT_TEST to run it";
     return;
   }
 
@@ -500,10 +494,9 @@ TEST_F(AprMemCacheTest, OneMicrosecondPut) {
 }
 
 TEST_F(AprMemCacheTest, OneMicrosecondDelete) {
-  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == NULL) {
-    LOG(WARNING)
-        << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
-        << "$APR_MEMCACHE_TIMEOUT_TEST to run it";
+  if (getenv("APR_MEMCACHE_TIMEOUT_TEST") == nullptr) {
+    LOG(WARNING) << "Skipping flaky test AprMemCacheTest.OneMicrosecond, set "
+                 << "$APR_MEMCACHE_TIMEOUT_TEST to run it";
     return;
   }
 
@@ -550,7 +543,7 @@ class FakeMemcacheServerThread : public TcpServerThreadForTesting {
       : TcpServerThreadForTesting(fake_memcache_listen_port, "fake_memcache",
                                   thread_system) {}
 
-  virtual ~FakeMemcacheServerThread() { ShutDown(); }
+  ~FakeMemcacheServerThread() override { ShutDown(); }
 
  private:
   void HandleClientConnection(apr_socket_t* sock) override {
@@ -569,13 +562,13 @@ TEST_F(AprMemCacheTest, HangingMultigetTest) {
   // Test that we do not hang in the case of corrupted responses from memcached,
   // as seen in bug report 1048
   // https://github.com/apache/incubator-pagespeed-mod/issues/1048
-  scoped_ptr<FakeMemcacheServerThread> thread(new FakeMemcacheServerThread(
+  std::unique_ptr<FakeMemcacheServerThread> thread(new FakeMemcacheServerThread(
       fake_memcache_listen_port_, thread_system_.get()));
   ASSERT_TRUE(thread->Start());
   apr_port_t port = thread->GetListeningPort();
   ExternalClusterSpec spec;
   spec.servers = {ExternalServerSpec("localhost", port)};
-  scoped_ptr<AprMemCache> cache(
+  std::unique_ptr<AprMemCache> cache(
       new AprMemCache(spec, 3 /* maximal number of client connections */,
                       &mock_hasher_, &statistics_, &timer_, &handler_));
   static const char k1[] = "hello";
@@ -611,11 +604,9 @@ TEST_F(AprMemCacheTest, HangingMultigetTest) {
   ASSERT_NE(-1, dup2(stderr_backup, STDERR_FILENO));
   // Now check to make sure that we had the proper output.
   StringPiece output(buffer, bytes_read);
-  EXPECT_TRUE(
-      strings::StartsWith(
-          output, "Caught potential spin in apr_memcache multiget!"))
+  EXPECT_TRUE(strings::StartsWith(
+      output, "Caught potential spin in apr_memcache multiget!"))
       << output;
 }
-
 
 }  // namespace net_instaweb

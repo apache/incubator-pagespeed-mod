@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_HTML_KEYWORDS_H_
 #define PAGESPEED_KERNEL_HTML_HTML_KEYWORDS_H_
 
@@ -114,16 +113,15 @@ class HtmlKeywords {
   // <img> and <br>.
   static bool IsOptionallyClosedTag(HtmlName::Keyword keyword) {
     return std::binary_search(singleton_->optionally_closed_.begin(),
-                              singleton_->optionally_closed_.end(),
-                              keyword);
+                              singleton_->optionally_closed_.end(), keyword);
   }
 
   // Wraps text in a pre-tag using the specified style arguments and sends it
   // to writer, returning false if the writer failed.
   // E.g. style could be "color:red;".
   // if style is empty then it is simply a pre-tag without attributes.
-  static bool WritePre(StringPiece text, StringPiece style,
-                       Writer* writer, MessageHandler* handler);
+  static bool WritePre(StringPiece text, StringPiece style, Writer* writer,
+                       MessageHandler* handler);
 
  private:
   typedef int32 KeywordPair;  // Encoded via shift & OR.
@@ -154,10 +152,8 @@ class HtmlKeywords {
   //
   // Returns false iff the escape-sequence is a valid multi-byte sequence,
   // which we can't currently represent in our 8-bit format.
-  bool TryUnescape(bool accumulate_numeric_code,
-                   uint32 numeric_value,
-                   const GoogleString& escape,
-                   bool was_terminated,
+  bool TryUnescape(bool accumulate_numeric_code, uint32 numeric_value,
+                   const GoogleString& escape, bool was_terminated,
                    GoogleString* buf) const;
 
   // Encodes two keyword enums as a KeywordPair, represented as an int32.
@@ -186,8 +182,7 @@ class HtmlKeywords {
 
   StringPiece EscapeHelper(const StringPiece& unescaped,
                            GoogleString* buf) const;
-  StringPiece UnescapeHelper(const StringPiece& escaped,
-                             GoogleString* buf,
+  StringPiece UnescapeHelper(const StringPiece& escaped, GoogleString* buf,
                              bool* decoding_error) const;
 
   // Conventional wisdom suggests this application calls for dense_hash_map,
@@ -195,13 +190,11 @@ class HtmlKeywords {
   // My theory is that the maps are sufficiently small that the algorithmic
   // differences are not dominant, but keeping the data small helps the
   // processor cache behavior.
-  typedef sparse_hash_map<
-    GoogleString, const char*,
-    CaseFoldStringHash,
-    CaseFoldStringEqual> StringStringSparseHashMapInsensitive;
-  typedef sparse_hash_map<
-    GoogleString, const char*,
-    CasePreserveStringHash> StringStringSparseHashMapSensitive;
+  typedef sparse_hash_map<GoogleString, const char*, CaseFoldStringHash,
+                          CaseFoldStringEqual>
+      StringStringSparseHashMapInsensitive;
+  typedef sparse_hash_map<GoogleString, const char*, CasePreserveStringHash>
+      StringStringSparseHashMapSensitive;
 
   StringStringSparseHashMapInsensitive unescape_insensitive_map_;
   StringStringSparseHashMapSensitive unescape_sensitive_map_;

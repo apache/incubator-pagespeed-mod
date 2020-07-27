@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/fallback_cache.h"
 
 #include "base/logging.h"
@@ -54,15 +53,13 @@ class FallbackCallback : public CacheInterface::Callback {
                    CacheInterface* large_object_cache)
       : callback_(callback),
         large_object_cache_(large_object_cache),
-        validate_candidate_called_(false) {
-  }
+        validate_candidate_called_(false) {}
 
-  virtual ~FallbackCallback() {
-  }
+  ~FallbackCallback() override {}
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     DCHECK(validate_candidate_called_);
-    if (callback_ != NULL) {
+    if (callback_ != nullptr) {
       callback_->DelegatedDone(state);
     }
     delete this;
@@ -71,8 +68,8 @@ class FallbackCallback : public CacheInterface::Callback {
   // This validation is called by the small-object cache.  We need to decode
   // the value and decide whether to unwrap the small value, or forward the
   // request to the large_object_cache_.
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) {
+  bool ValidateCandidate(const GoogleString& key,
+                         CacheInterface::KeyState state) override {
     validate_candidate_called_ = true;
     size_t size = value().size();
     const char* val = value().data();
@@ -82,7 +79,7 @@ class FallbackCallback : public CacheInterface::Callback {
       // We erase callback_ so we don't forward the Done report
       // from the small cache.
       Callback* callback = callback_;
-      callback_ = NULL;
+      callback_ = nullptr;
       large_object_cache_->Get(key, callback);
       return true;  // The forwarding-marker in the small object cache is OK.
     } else if ((size >= 1) && (val[size - 1] == kInSmallObjectCache)) {
@@ -109,17 +106,14 @@ class FallbackCallback : public CacheInterface::Callback {
 
 FallbackCache::FallbackCache(CacheInterface* small_object_cache,
                              CacheInterface* large_object_cache,
-                             int threshold_bytes,
-                             MessageHandler* handler)
+                             int threshold_bytes, MessageHandler* handler)
     : small_object_cache_(small_object_cache),
       large_object_cache_(large_object_cache),
       threshold_bytes_(threshold_bytes),
       account_for_key_size_(true),
-      message_handler_(handler) {
-}
+      message_handler_(handler) {}
 
-FallbackCache::~FallbackCache() {
-}
+FallbackCache::~FallbackCache() {}
 
 GoogleString FallbackCache::FormatName(StringPiece small, StringPiece large) {
   return StrCat("Fallback(small=", small, ",large=", large, ")");
@@ -133,8 +127,8 @@ void FallbackCache::Get(const GoogleString& key, Callback* callback) {
 void FallbackCache::MultiGet(MultiGetRequest* request) {
   for (int i = 0, n = request->size(); i < n; ++i) {
     KeyCallback& key_callback = (*request)[i];
-    key_callback.callback = new FallbackCallback(key_callback.callback,
-                                                 large_object_cache_);
+    key_callback.callback =
+        new FallbackCallback(key_callback.callback, large_object_cache_);
   }
   small_object_cache_->MultiGet(request);
 }

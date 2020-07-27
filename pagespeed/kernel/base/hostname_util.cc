@@ -17,17 +17,16 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/hostname_util.h"
 
-#include <limits.h>
+#include <climits>
 // The following break portability.
 
 // Windows doesn't use <unistd.h> nor does it define HOST_NAME_MAX.
 #if defined(WIN32)
 #include <windows.h>
 #include <winsock2.h>
-#define HOST_NAME_MAX (MAX_COMPUTERNAME_LENGTH+1)
+#define HOST_NAME_MAX (MAX_COMPUTERNAME_LENGTH + 1)
 #else
 // Some Linux environments require this, although not all, but it's benign.
 #if defined(unix)
@@ -63,10 +62,8 @@ GoogleString GetHostname() {
 }
 
 bool IsLocalhost(StringPiece host_to_test, StringPiece hostname) {
-  return (host_to_test == "localhost" ||
-          host_to_test == "127.0.0.1" ||
-          host_to_test == "::1" ||
-          host_to_test == hostname);
+  return (host_to_test == "localhost" || host_to_test == "127.0.0.1" ||
+          host_to_test == "::1" || host_to_test == hostname);
 }
 
 }  // namespace net_instaweb

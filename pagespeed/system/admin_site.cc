@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/admin_site.h"
 
 #include <cstddef>
@@ -32,7 +31,7 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/property_store.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/callback.h"
 #include "pagespeed/kernel/base/message_handler.h"
@@ -89,13 +88,14 @@ const char kLongBreak[] = " &nbsp;&nbsp; ";
 // TODO(jmarantz): disable or recolor links to pages that are not available
 // based on the current config.
 const Tab kTabs[] = {
-  {"Statistics", "Statistics", "statistics", "?", kLongBreak},
-  {"Configuration", "Configuration", "config", "?config", kShortBreak},
-  {"Histograms", "Histograms", "histograms", "?histograms", kLongBreak},
-  {"Caches", "Caches", "cache", "?cache", kLongBreak},
-  {"Console", "Console", "console", NULL, kLongBreak},
-  {"Message History", "Message History", "message_history", NULL, kLongBreak},
-  {"Graphs", "Graphs", "graphs", NULL, kLongBreak},
+    {"Statistics", "Statistics", "statistics", "?", kLongBreak},
+    {"Configuration", "Configuration", "config", "?config", kShortBreak},
+    {"Histograms", "Histograms", "histograms", "?histograms", kLongBreak},
+    {"Caches", "Caches", "cache", "?cache", kLongBreak},
+    {"Console", "Console", "console", nullptr, kLongBreak},
+    {"Message History", "Message History", "message_history", nullptr,
+     kLongBreak},
+    {"Graphs", "Graphs", "graphs", nullptr, kLongBreak},
 };
 
 // Controls the generation of an HTML Admin page.  Constructing it
@@ -106,10 +106,9 @@ const Tab kTabs[] = {
 class AdminHtml {
  public:
   AdminHtml(StringPiece current_link, StringPiece head_extra,
-            AdminSite::AdminSource source, Timer* timer,
-            AsyncFetch* fetch, MessageHandler* handler)
-      : fetch_(fetch),
-        handler_(handler) {
+            AdminSite::AdminSource source, Timer* timer, AsyncFetch* fetch,
+            MessageHandler* handler)
+      : fetch_(fetch), handler_(handler) {
     fetch->response_headers()->SetStatusAndReason(HttpStatus::kOK);
     fetch->response_headers()->Add(HttpAttributes::kContentType, "text/html");
 
@@ -138,7 +137,7 @@ class AdminHtml {
     GoogleString buf;
     for (int i = 0, n = arraysize(kTabs); i < n; ++i) {
       const Tab& tab = kTabs[i];
-      const char* link = NULL;
+      const char* link = nullptr;
       switch (source) {
         case AdminSite::kPageSpeedAdmin:
           link = tab.admin_link;
@@ -147,28 +146,27 @@ class AdminHtml {
           link = tab.statistics_link;
           break;
         case AdminSite::kOther:
-          link = NULL;
+          link = nullptr;
           break;
       }
-      if (link != NULL) {
+      if (link != nullptr) {
         StringPiece style;
         if (tab.admin_link == current_link) {
           style = " style='color:darkblue;text-decoration:underline;'";
           fetch->Write(StrCat("<title>PageSpeed ", tab.title, "</title>"),
                        handler_);
         }
-        StrAppend(&buf,
-                  "<a href='", link, "'", style, ">", tab.label, "</a>",
+        StrAppend(&buf, "<a href='", link, "'", style, ">", tab.label, "</a>",
                   tab.space);
       }
     }
 
     fetch->Write(StrCat(head_extra, "</head>"), handler_);
-    fetch->Write(
-        StrCat("<body class='pagespeed-admin-body'>"
-               "<div class='pagespeed-admin-tabs'>\n"
-               "<b>Pagespeed Admin</b>", kLongBreak, "\n"),
-        handler_);
+    fetch->Write(StrCat("<body class='pagespeed-admin-body'>"
+                        "<div class='pagespeed-admin-tabs'>\n"
+                        "<b>Pagespeed Admin</b>",
+                        kLongBreak, "\n"),
+                 handler_);
     fetch->Write(buf, handler_);
     fetch->Write("</div><hr/>\n", handler_);
     fetch->Flush(handler_);
@@ -190,8 +188,7 @@ AdminSite::AdminSite(StaticAssetManager* static_asset_manager, Timer* timer,
                      MessageHandler* message_handler)
     : message_handler_(message_handler),
       static_asset_manager_(static_asset_manager),
-      timer_(timer) {
-}
+      timer_(timer) {}
 
 // Handler which serves PSOL console.
 void AdminSite::ConsoleHandler(const SystemRewriteOptions& global_options,
@@ -211,21 +208,22 @@ void AdminSite::ConsoleHandler(const SystemRewriteOptions& global_options,
 
   // TODO(jmarantz): change StaticAssetManager to take options by const ref.
   // TODO(sligocki): Move static content to a data2cc library.
-  StringPiece console_js = options.Enabled(RewriteOptions::kDebug) ?
-      JS_console_js :
-      JS_console_js_opt;
+  StringPiece console_js = options.Enabled(RewriteOptions::kDebug)
+                               ? JS_console_js
+                               : JS_console_js_opt;
   // TODO(sligocki): Do we want to have a minified version of console CSS?
-  GoogleString head_markup = StrCat(
-      "<style>", CSS_console_css, "</style>\n");
+  GoogleString head_markup = StrCat("<style>", CSS_console_css, "</style>\n");
   AdminHtml admin_html("console", head_markup, source, timer_, fetch,
                        message_handler_);
   if (statistics_enabled && logging_enabled && log_dir_set) {
-    fetch->Write("<div class='console_div' id='suggestions'>\n"
-                 "  <div class='console_div' id='pagespeed-graphs-container'>"
-                 "</div>\n</div>\n"
-                 "<script src='https://www.google.com/jsapi'></script>\n"
-                 "<script>var pagespeedStatisticsUrl = '';</script>\n"
-                 "<script>", handler);
+    fetch->Write(
+        "<div class='console_div' id='suggestions'>\n"
+        "  <div class='console_div' id='pagespeed-graphs-container'>"
+        "</div>\n</div>\n"
+        "<script src='https://www.google.com/jsapi'></script>\n"
+        "<script>var pagespeedStatisticsUrl = '';</script>\n"
+        "<script>",
+        handler);
     // From the admin page, the console JSON is relative, so it can
     // be set to ''.  Formerly it was set to options.statistics_handler_path(),
     // but there does not appear to be a disadvantage to always handling it
@@ -236,28 +234,33 @@ void AdminSite::ConsoleHandler(const SystemRewriteOptions& global_options,
     fetch->Write("google.setOnLoadCallback(pagespeed.startConsole);", handler);
     fetch->Write("</script>\n", handler);
   } else {
-    fetch->Write("<p>\n"
-                 "  Failed to load PageSpeed Console because:\n"
-                 "</p>\n"
-                 "<ul>\n", handler);
+    fetch->Write(
+        "<p>\n"
+        "  Failed to load PageSpeed Console because:\n"
+        "</p>\n"
+        "<ul>\n",
+        handler);
     if (!statistics_enabled) {
-      fetch->Write("  <li>Statistics is not enabled.</li>\n",
-                    handler);
+      fetch->Write("  <li>Statistics is not enabled.</li>\n", handler);
     }
     if (!logging_enabled) {
-      fetch->Write("  <li>StatisticsLogging is not enabled."
-                    "</li>\n", handler);
+      fetch->Write(
+          "  <li>StatisticsLogging is not enabled."
+          "</li>\n",
+          handler);
     }
     if (!log_dir_set) {
       fetch->Write("  <li>LogDir is not set.</li>\n", handler);
     }
-    fetch->Write("</ul>\n"
-                  "<p>\n"
-                  "  In order to use the console you must configure these\n"
-                  "  options. See the <a href='https://developers.google.com/"
-                  "speed/pagespeed/module/console'>console documentation</a>\n"
-                  "  for more details.\n"
-                  "</p>\n", handler);
+    fetch->Write(
+        "</ul>\n"
+        "<p>\n"
+        "  In order to use the console you must configure these\n"
+        "  options. See the <a href='https://developers.google.com/"
+        "speed/pagespeed/module/console'>console documentation</a>\n"
+        "  for more details.\n"
+        "</p>\n",
+        handler);
   }
 }
 
@@ -272,8 +275,8 @@ void AdminSite::StatisticsJsonHandler(AsyncFetch* fetch, Statistics* stats) {
 void AdminSite::StatisticsHandler(const RewriteOptions& options,
                                   AdminSource source, AsyncFetch* fetch,
                                   Statistics* stats) {
-  GoogleString head_markup = StrCat(
-      "<style>", CSS_statistics_css, "</style>\n");
+  GoogleString head_markup =
+      StrCat("<style>", CSS_statistics_css, "</style>\n");
   AdminHtml admin_html("statistics", head_markup, source, timer_, fetch,
                        message_handler_);
   // We have to call Dump() here to write data to sources for
@@ -281,48 +284,46 @@ void AdminSite::StatisticsHandler(const RewriteOptions& options,
   fetch->Write("<pre id='stat'>", message_handler_);
   stats->Dump(fetch, message_handler_);
   fetch->Write("</pre>\n", message_handler_);
-  StringPiece statistics_js = options.Enabled(RewriteOptions::kDebug) ?
-        JS_statistics_js :
-        JS_statistics_js_opt;
+  StringPiece statistics_js = options.Enabled(RewriteOptions::kDebug)
+                                  ? JS_statistics_js
+                                  : JS_statistics_js_opt;
   fetch->Write(StrCat("<script type='text/javascript'>", statistics_js,
                       "\npagespeed.Statistics.Start();</script>\n"),
                message_handler_);
 }
 
-void AdminSite::GraphsHandler(const RewriteOptions& options,
-                              AdminSource source,
+void AdminSite::GraphsHandler(const RewriteOptions& options, AdminSource source,
                               const QueryParams& query_params,
-                              AsyncFetch* fetch,
-                              Statistics* statistics) {
+                              AsyncFetch* fetch, Statistics* statistics) {
   if (query_params.Has("json")) {
     ConsoleJsonHandler(query_params, fetch, statistics);
     return;
   }
-  GoogleString head_markup = StrCat(
-      "<style>", CSS_graphs_css, "</style>\n");
+  GoogleString head_markup = StrCat("<style>", CSS_graphs_css, "</style>\n");
   AdminHtml admin_html("graphs", head_markup, source, timer_, fetch,
                        message_handler_);
-  fetch->Write("<div id='cache_applied'>Loading Charts...</div>"
-               "<div id='cache_type'>Loading Charts...</div>"
-               "<div id='ipro'>Loading Charts...</div>"
-               "<div id='image_rewriting'>Loading Charts...</div>"
-               "<div id='realtime'>Loading Charts...</div>",
-               message_handler_);
-  fetch->Write("<script type='text/javascript' "
-               "src='https://www.google.com/jsapi'></script>",
-               message_handler_);
-  StringPiece graphs_js = options.Enabled(RewriteOptions::kDebug) ?
-        JS_graphs_js :
-        JS_graphs_js_opt;
+  fetch->Write(
+      "<div id='cache_applied'>Loading Charts...</div>"
+      "<div id='cache_type'>Loading Charts...</div>"
+      "<div id='ipro'>Loading Charts...</div>"
+      "<div id='image_rewriting'>Loading Charts...</div>"
+      "<div id='realtime'>Loading Charts...</div>",
+      message_handler_);
+  fetch->Write(
+      "<script type='text/javascript' "
+      "src='https://www.google.com/jsapi'></script>",
+      message_handler_);
+  StringPiece graphs_js =
+      options.Enabled(RewriteOptions::kDebug) ? JS_graphs_js : JS_graphs_js_opt;
   fetch->Write(StrCat("<script type='text/javascript'>", graphs_js,
                       "\npagespeed.Graphs.Start();</script>\n"),
                message_handler_);
 }
 
-void AdminSite::ConsoleJsonHandler(const QueryParams& params,
-                                   AsyncFetch* fetch, Statistics* statistics) {
+void AdminSite::ConsoleJsonHandler(const QueryParams& params, AsyncFetch* fetch,
+                                   Statistics* statistics) {
   StatisticsLogger* console_logger = statistics->console_logger();
-  if (console_logger == NULL) {
+  if (console_logger == nullptr) {
     fetch->response_headers()->SetStatusAndReason(HttpStatus::kNotFound);
     fetch->response_headers()->Add(HttpAttributes::kContentType, "text/plain");
     fetch->Write(
@@ -358,7 +359,7 @@ void AdminSite::ConsoleJsonHandler(const QueryParams& params,
       GoogleString value;
       if (params.UnescapedValue(i, &value)) {
         StringPiece name = params.name(i);
-        if (name =="start_time") {
+        if (name == "start_time") {
           StringToInt64(value, &start_time);
         } else if (name == "end_time") {
           StringToInt64(value, &end_time);
@@ -417,9 +418,8 @@ GoogleString HackCacheDescriptor(StringPiece name) {
   // overly cryptic; it's designed for unit tests.  But let's extract
   // a few keywords out of this to understand the main pointers.
   static const char* kCacheKeywords[] = {
-    "Compressed", "Async", "SharedMemCache", "LRUCache", "AprMemCache",
-    "FileCache", "RedisCache"
-  };
+      "Compressed",  "Async",     "SharedMemCache", "LRUCache",
+      "AprMemCache", "FileCache", "RedisCache"};
   const char* delim = "";
   for (int i = 0, n = arraysize(kCacheKeywords); i < n; ++i) {
     if (name.find(kCacheKeywords[i]) != StringPiece::npos) {
@@ -481,8 +481,8 @@ GoogleString CacheInfoHtmlSnippet(StringPiece label, StringPiece descriptor) {
   StrAppend(&out, "_toggle' type='checkbox' ",
             "onclick=\"pagespeed.Caches.toggleDetail('", label,
             "')\"/></td><td><code id='", label, "_summary'>");
-  StrAppend(&out, HtmlKeywords::Escape(HackCacheDescriptor(descriptor),
-                                       &escaped));
+  StrAppend(&out,
+            HtmlKeywords::Escape(HackCacheDescriptor(descriptor), &escaped));
   StrAppend(&out, "</code><code id='", label,
             "_detail' style='display:none;'>");
   StrAppend(&out, IndentCacheDescriptor(descriptor));
@@ -492,17 +492,13 @@ GoogleString CacheInfoHtmlSnippet(StringPiece label, StringPiece descriptor) {
 
 }  // namespace
 
-void AdminSite::PrintCaches(bool is_global, AdminSource source,
-                            const GoogleUrl& stripped_gurl,
-                            const QueryParams& query_params,
-                            const RewriteOptions* options,
-                            SystemCachePath* cache_path,
-                            AsyncFetch* fetch, SystemCaches* system_caches,
-                            CacheInterface* filesystem_metadata_cache,
-                            HTTPCache* http_cache,
-                            CacheInterface* metadata_cache,
-                            PropertyCache* page_property_cache,
-                            ServerContext* server_context) {
+void AdminSite::PrintCaches(
+    bool is_global, AdminSource source, const GoogleUrl& stripped_gurl,
+    const QueryParams& query_params, const RewriteOptions* options,
+    SystemCachePath* cache_path, AsyncFetch* fetch, SystemCaches* system_caches,
+    CacheInterface* filesystem_metadata_cache, HTTPCache* http_cache,
+    CacheInterface* metadata_cache, PropertyCache* page_property_cache,
+    ServerContext* server_context) {
   GoogleString url;
   if ((source == kPageSpeedAdmin) &&
       query_params.Lookup1Unescaped("url", &url)) {
@@ -518,7 +514,7 @@ void AdminSite::PrintCaches(bool is_global, AdminSource source,
     GoogleString ua;
     query_params.Lookup1Unescaped("user_agent", &ua);
     server_context->ShowCacheHandler(
-        format, url, ua,  query_params.Has("Delete"), fetch, options->Clone());
+        format, url, ua, query_params.Has("Delete"), fetch, options->Clone());
   } else if ((source == kPageSpeedAdmin) &&
              query_params.Lookup1Unescaped("new_set", &url)) {
     ResponseHeaders* response_headers = fetch->response_headers();
@@ -567,21 +563,20 @@ void AdminSite::PrintCaches(bool is_global, AdminSource source,
       }
     }
   } else {
-    GoogleString head_markup = StrCat(
-        "<style>", CSS_caches_css, "</style>\n");
+    GoogleString head_markup = StrCat("<style>", CSS_caches_css, "</style>\n");
     AdminHtml admin_html("cache", head_markup, source, timer_, fetch,
                          message_handler_);
 
     fetch->Write("<div id='show_metadata'>", message_handler_);
     // Present a small form to enter a URL.
     if (source == kPageSpeedAdmin) {
-      const char* user_agent = fetch->request_headers()->Lookup1(
-          HttpAttributes::kUserAgent);
+      const char* user_agent =
+          fetch->request_headers()->Lookup1(HttpAttributes::kUserAgent);
       fetch->Write(ServerContext::ShowCacheForm(user_agent), message_handler_);
     }
     fetch->Write("</div>\n", message_handler_);
     // Display configured cache information.
-    if (system_caches != NULL) {
+    if (system_caches != nullptr) {
       int flags = SystemCaches::kDefaultStatFlags;
       if (is_global) {
         flags |= SystemCaches::kGlobalView;
@@ -592,23 +587,23 @@ void AdminSite::PrintCaches(bool is_global, AdminSource source,
       // for info about the cache.
       flags |= SystemCaches::kIncludeMemcached;
       flags |= SystemCaches::kIncludeRedis;
-      fetch->Write("<div id='cache_struct'>",
-                   message_handler_);
+      fetch->Write("<div id='cache_struct'>", message_handler_);
       fetch->Write(kTableStart, message_handler_);
       CacheInterface* fsmdc = filesystem_metadata_cache;
-      fetch->Write(StrCat(
-          CacheInfoHtmlSnippet("HTTP Cache", http_cache->Name()),
-          CacheInfoHtmlSnippet("Metadata Cache", metadata_cache->Name()),
-          CacheInfoHtmlSnippet("Property Cache",
-                               page_property_cache->property_store()->Name()),
-          CacheInfoHtmlSnippet("FileSystem Metadata Cache",
-                               (fsmdc == NULL) ? "none" : fsmdc->Name())),
-                   message_handler_);
+      fetch->Write(
+          StrCat(CacheInfoHtmlSnippet("HTTP Cache", http_cache->Name()),
+                 CacheInfoHtmlSnippet("Metadata Cache", metadata_cache->Name()),
+                 CacheInfoHtmlSnippet(
+                     "Property Cache",
+                     page_property_cache->property_store()->Name()),
+                 CacheInfoHtmlSnippet(
+                     "FileSystem Metadata Cache",
+                     (fsmdc == nullptr) ? "none" : fsmdc->Name())),
+          message_handler_);
       fetch->Write(kTableEnd, message_handler_);
       fetch->Write("</div>", message_handler_);
 
-      fetch->Write("<div id='physical_cache'>",
-                   message_handler_);
+      fetch->Write("<div id='physical_cache'>", message_handler_);
       GoogleString backend_stats;
       system_caches->PrintCacheStats(
           static_cast<SystemCaches::StatFlags>(flags), &backend_stats);
@@ -617,20 +612,20 @@ void AdminSite::PrintCaches(bool is_global, AdminSource source,
       }
       fetch->Write("</div>", message_handler_);
 
-      fetch->Write("<div id='purge_cache'>",
-                   message_handler_);
+      fetch->Write("<div id='purge_cache'>", message_handler_);
       // Filled in by JS in caches.js: updatePurgeSet().
-      fetch->Write("<h3>Purge Set</h3>"
-                   "<div id='purge_global'"
-                   " class='pagespeed-caches-purge-global'></div>"
-                   "<div id='purge_table'"
-                   " class='pagespeed-caches-purge-table'></div>"
-                   "</div>",  // closes 'purge_cache'.
-                   message_handler_);
+      fetch->Write(
+          "<h3>Purge Set</h3>"
+          "<div id='purge_global'"
+          " class='pagespeed-caches-purge-global'></div>"
+          "<div id='purge_table'"
+          " class='pagespeed-caches-purge-table'></div>"
+          "</div>",  // closes 'purge_cache'.
+          message_handler_);
     }
-    StringPiece caches_js = options->Enabled(RewriteOptions::kDebug) ?
-        JS_caches_js :
-        JS_caches_js_opt;
+    StringPiece caches_js = options->Enabled(RewriteOptions::kDebug)
+                                ? JS_caches_js
+                                : JS_caches_js_opt;
     // Practice what we preach: put the blocking JS in the tail.
     // TODO(jmarantz): use static asset manager to compile & deliver JS
     // externally.
@@ -644,9 +639,8 @@ void AdminSite::PrintConfig(
     AdminSource source, AsyncFetch* fetch,
     SystemRewriteOptions* global_system_rewrite_options) {
   AdminHtml admin_html("config", "", source, timer_, fetch, message_handler_);
-  HtmlKeywords::WritePre(
-      global_system_rewrite_options->OptionsToString(), "",
-      fetch, message_handler_);
+  HtmlKeywords::WritePre(global_system_rewrite_options->OptionsToString(), "",
+                         fetch, message_handler_);
 }
 
 void AdminSite::MessageHistoryHandler(const RewriteOptions& options,
@@ -684,24 +678,25 @@ void AdminSite::MessageHistoryHandler(const RewriteOptions& options,
           }
           default: {
             HtmlKeywords::WritePre(
-                message_handler_->ReformatMessage(messages[i]),
-                "margin:0;", fetch, message_handler_);
+                message_handler_->ReformatMessage(messages[i]), "margin:0;",
+                fetch, message_handler_);
           }
         }
       }
     }
     fetch->Write("</div>\n", message_handler_);
-    StringPiece messages_js = options.Enabled(RewriteOptions::kDebug) ?
-        JS_messages_js :
-        JS_messages_js_opt;
+    StringPiece messages_js = options.Enabled(RewriteOptions::kDebug)
+                                  ? JS_messages_js
+                                  : JS_messages_js_opt;
     fetch->Write(StrCat("<script type='text/javascript'>", messages_js,
                         "\npagespeed.Messages.Start();</script>\n"),
                  message_handler_);
   } else {
-    fetch->Write("<p>Writing to mod_pagespeed_message failed. \n"
-                 "Verify that MessageBufferSize is not set to 0 "
-                 "in pagespeed.conf.</p>\n",
-                 message_handler_);
+    fetch->Write(
+        "<p>Writing to mod_pagespeed_message failed. \n"
+        "Verify that MessageBufferSize is not set to 0 "
+        "in pagespeed.conf.</p>\n",
+        message_handler_);
   }
 }
 
@@ -722,8 +717,8 @@ void AdminSite::AdminPage(
   // only the default admin path in Apache for fresh installs.  In fact
   // we can put the handler on any path, and this code should still work;
   // all the paths here are specified relative to the incoming URL.
-  StringPiece path = stripped_gurl.PathSansQuery();   // "/pagespeed_admin/foo"
-  path = path.substr(1);                              // "pagespeed_admin/foo"
+  StringPiece path = stripped_gurl.PathSansQuery();  // "/pagespeed_admin/foo"
+  path = path.substr(1);                             // "pagespeed_admin/foo"
 
   // If there are no slashes at all in the path, e.g. it's "pagespeed_admin",
   // then the relative references to "config" etc will not work.  We need
@@ -788,9 +783,9 @@ void AdminSite::AdminPage(
       GoogleString escaped_url;
       HtmlKeywords::Escape(StrCat(stripped_gurl.AllExceptQuery(), "/"),
                            &escaped_url);
-      fetch->Write(StrCat("<a href='", escaped_url, "'>", escaped_url,
-                          "</a>\n"),
-                   message_handler_);
+      fetch->Write(
+          StrCat("<a href='", escaped_url, "'>", escaped_url, "</a>\n"),
+          message_handler_);
       fetch->Done(true);
     }
   }
@@ -814,11 +809,10 @@ void AdminSite::StatisticsPage(
     GraphsHandler(*options, kStatistics, query_params, fetch, statistics);
   } else if (query_params.Has("cache")) {
     GoogleUrl empty_url;
-    PrintCaches(is_global, kStatistics, empty_url, query_params,
-                options, NULL,  // cache_path is reference from statistics page.
-                fetch, system_caches, filesystem_metadata_cache,
-                http_cache, metadata_cache, page_property_cache,
-                server_context);
+    PrintCaches(is_global, kStatistics, empty_url, query_params, options,
+                nullptr,  // cache_path is reference from statistics page.
+                fetch, system_caches, filesystem_metadata_cache, http_cache,
+                metadata_cache, page_property_cache, server_context);
   } else {
     StatisticsHandler(*options, kStatistics, fetch, stats);
   }
@@ -832,9 +826,7 @@ namespace {
 class PurgeFetchCallbackGasket {
  public:
   PurgeFetchCallbackGasket(AsyncFetch* fetch, MessageHandler* handler)
-      : fetch_(fetch),
-        message_handler_(handler) {
-  }
+      : fetch_(fetch), message_handler_(handler) {}
   void Done(bool success, StringPiece reason) {
     ResponseHeaders* headers = fetch_->response_headers();
     headers->set_status_code(HttpStatus::kOK);
@@ -872,8 +864,8 @@ void AdminSite::PurgeHandler(StringPiece url, SystemCachePath* cache_path,
   int64 now_ms = timer_->NowMs();
   PurgeFetchCallbackGasket* gasket =
       new PurgeFetchCallbackGasket(fetch, message_handler_);
-  PurgeContext::PurgeCallback* callback = NewCallback(
-      gasket, &PurgeFetchCallbackGasket::Done);
+  PurgeContext::PurgeCallback* callback =
+      NewCallback(gasket, &PurgeFetchCallbackGasket::Done);
   if (strings::EndsWith(url, "*")) {
     // If the url is "*" we'll just purge everything.  Note that we will
     // ignore any sub-paths in the expression.  We can only purge the

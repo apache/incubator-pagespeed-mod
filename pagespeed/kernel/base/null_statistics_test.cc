@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/null_statistics.h"
 
 #include "pagespeed/kernel/base/gtest.h"

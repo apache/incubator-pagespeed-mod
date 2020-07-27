@@ -17,15 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/function.h"
+
 #include "base/logging.h"
 
 namespace net_instaweb {
 
-Function::Function()
-    : quit_requested_(NULL),
-      delete_after_callback_(true) {
+Function::Function() : quit_requested_(nullptr), delete_after_callback_(true) {
   Reset();
 }
 

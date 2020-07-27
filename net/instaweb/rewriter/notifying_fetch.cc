@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/notifying_fetch.h"
 
 #include "net/instaweb/http/public/async_fetch.h"
@@ -28,8 +27,7 @@
 namespace net_instaweb {
 
 NotifyingFetch::NotifyingFetch(const RequestContextPtr& request_context,
-                               RewriteOptions* options,
-                               const GoogleString& url,
+                               RewriteOptions* options, const GoogleString& url,
                                WorkerTestBase::SyncPoint* sync,
                                ResponseHeaders* response_headers)
     : AsyncFetch(request_context),
@@ -43,8 +41,7 @@ NotifyingFetch::NotifyingFetch(const RequestContextPtr& request_context,
   }
 }
 
-NotifyingFetch::~NotifyingFetch() {
-}
+NotifyingFetch::~NotifyingFetch() {}
 
 bool NotifyingFetch::IsCachedResultValid(const ResponseHeaders& headers) {
   return OptionsAwareHTTPCacheCallback::IsCacheValid(
@@ -57,9 +54,7 @@ bool NotifyingFetch::HandleWrite(const StringPiece& content,
   return true;
 }
 
-bool NotifyingFetch::HandleFlush(MessageHandler* handler) {
-  return true;
-}
+bool NotifyingFetch::HandleFlush(MessageHandler* handler) { return true; }
 
 void NotifyingFetch::HandleDone(bool success) {
   response_headers()->ComputeCaching();

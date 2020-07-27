@@ -17,41 +17,17 @@
  * under the License.
  */
 
+#pragma once
 
-#ifndef PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
-#define PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
-
-
-// Chromium has moved scoped_ptr.h from base directory to base/memory.
-// Thankfully, even older version we built against had it available in
-// base/memory, just with the compatibility alias still available.
-#include "base/memory/scoped_ptr.h"
+#include <memory>
 
 namespace net_instaweb {
 
-template<typename T> class scoped_ptr : public ::scoped_ptr<T> {
+template <typename T>
+class scoped_array : public std::unique_ptr<T[]> {
  public:
-  scoped_ptr() {}
-  explicit scoped_ptr(T* ptr) : ::scoped_ptr<T>(ptr) {}
-};
-
-template<class C> class scoped_ptr<C[]> : public ::scoped_ptr<C[]> {
- public:
-  scoped_ptr() {}
-  explicit scoped_ptr(C* array) : ::scoped_ptr<C[]>(array) {}
+  scoped_array() : std::unique_ptr<T[]>() {}
+  explicit scoped_array(T* t) : std::unique_ptr<T[]>(t) {}
 };
 
 }  // namespace net_instaweb
-
-
-namespace net_instaweb {
-
-template<typename T> class scoped_array : public scoped_ptr<T[]> {
- public:
-  scoped_array() : scoped_ptr<T[]>() {}
-  explicit scoped_array(T* t) : scoped_ptr<T[]>(t) {}
-};
-
-}
-
-#endif

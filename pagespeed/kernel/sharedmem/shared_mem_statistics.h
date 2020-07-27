@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_H_
 
@@ -60,13 +59,13 @@ class Timer;
 class SharedMemVariable : public MutexedScalar {
  public:
   SharedMemVariable(StringPiece name, Statistics* stats);
-  virtual ~SharedMemVariable() {}
+  ~SharedMemVariable() override {}
   virtual StringPiece GetName() const { return name_; }
 
  protected:
-  virtual AbstractMutex* mutex() const;
-  virtual int64 GetLockHeld() const;
-  virtual int64 SetReturningPreviousValueLockHeld(int64 value);
+  AbstractMutex* mutex() const override;
+  int64 GetLockHeld() const override;
+  int64 SetReturningPreviousValueLockHeld(int64 value) override;
 
  private:
   friend class SharedMemStatistics;
@@ -85,7 +84,7 @@ class SharedMemVariable : public MutexedScalar {
   const GoogleString name_;
 
   // Lock protecting us. NULL if for some reason initialization failed.
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   // The data...
   volatile int64* value_ptr_;
@@ -97,26 +96,26 @@ class SharedMemHistogram : public Histogram {
  public:
   SharedMemHistogram(StringPiece name, Statistics* stats);
 
-  virtual ~SharedMemHistogram();
-  virtual void Add(double value);
-  virtual void Clear();
-  virtual int NumBuckets();
+  ~SharedMemHistogram() override;
+  void Add(double value) override;
+  void Clear() override;
+  int NumBuckets() override;
   // Call the following functions after statistics->Init and before add values.
   // EnableNegativeBuckets, SetMinValue and SetMaxValue will
   // cause resetting Histogram.
-  virtual void EnableNegativeBuckets();
+  void EnableNegativeBuckets() override;
   // Set the minimum value allowed in histogram.
-  virtual void SetMinValue(double value);
+  void SetMinValue(double value) override;
   // Set the upper-bound of value in histogram,
   // The value range in histogram is [MinValue, MaxValue) or
   // (-MaxValue, MaxValue) if negative buckets are enabled.
-  virtual void SetMaxValue(double value);
+  void SetMaxValue(double value) override;
 
   // We rely on NumBuckets to allocate a memory segment for the histogram, so
   // this should be called right after AddHistogram() in the ::Initialize
   // process. Similarly, all the bounds must be initialized at that point, to
   // avoid clearing the histogram as new child processes attach to it.
-  virtual void SetSuggestedNumBuckets(int i);
+  void SetSuggestedNumBuckets(int i) override;
 
   // Return the amount of shared memory this Histogram objects needs for its
   // use.
@@ -124,21 +123,19 @@ class SharedMemHistogram : public Histogram {
     // Shared memory space should include a mutex, HistogramBody and the storage
     // for the actual buckets.
     return shm_runtime->SharedMutexSize() + sizeof(HistogramBody) +
-        sizeof(double) * NumBuckets();
+           sizeof(double) * NumBuckets();
   }
 
  protected:
-  virtual AbstractMutex* lock() {
-    return mutex_.get();
-  }
-  virtual double AverageInternal();
-  virtual double PercentileInternal(const double perc);
-  virtual double StandardDeviationInternal();
-  virtual double CountInternal();
-  virtual double MaximumInternal();
-  virtual double MinimumInternal();
-  virtual double BucketStart(int index);
-  virtual double BucketCount(int index);
+  AbstractMutex* lock() override { return mutex_.get(); }
+  double AverageInternal() override;
+  double PercentileInternal(const double perc) override;
+  double StandardDeviationInternal() override;
+  double CountInternal() override;
+  double MaximumInternal() override;
+  double MinimumInternal() override;
+  double BucketStart(int index) override;
+  double BucketCount(int index) override;
 
  private:
   friend class SharedMemStatistics;
@@ -157,7 +154,7 @@ class SharedMemHistogram : public Histogram {
   void Reset();
   void ClearInternal();  // expects mutex_ held, buffer_ != NULL
   const GoogleString name_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   // TODO(fangfei): implement a non-shared-mem histogram.
   struct HistogramBody {
     // Enable negative values in histogram, false by default.
@@ -183,17 +180,17 @@ class SharedMemHistogram : public Histogram {
   DISALLOW_COPY_AND_ASSIGN(SharedMemHistogram);
 };
 
-class SharedMemStatistics : public ScalarStatisticsTemplate<
-  SharedMemVariable, SharedMemHistogram, FakeTimedVariable> {
+class SharedMemStatistics
+    : public ScalarStatisticsTemplate<SharedMemVariable, SharedMemHistogram,
+                                      FakeTimedVariable> {
  public:
-  SharedMemStatistics(int64 logging_interval_ms,
-                      int64 max_logfile_size_kb,
+  SharedMemStatistics(int64 logging_interval_ms, int64 max_logfile_size_kb,
                       const StringPiece& logging_file, bool logging,
                       const GoogleString& filename_prefix,
                       AbstractSharedMem* shm_runtime,
                       MessageHandler* message_handler, FileSystem* file_system,
                       Timer* timer);
-  virtual ~SharedMemStatistics();
+  ~SharedMemStatistics() override;
 
   // This method initializes or attaches to shared memory. You should call this
   // exactly once in each process/thread, after all calls to AddVariables,
@@ -220,14 +217,12 @@ class SharedMemStatistics : public ScalarStatisticsTemplate<
   GoogleString SegmentName() const;
 
   // TODO(sligocki): Rename to statistics_logger().
-  virtual StatisticsLogger* console_logger() {
-    return console_logger_.get();
-  }
+  StatisticsLogger* console_logger() override { return console_logger_.get(); }
 
  protected:
-  virtual Var* NewVariable(StringPiece name);
-  virtual UpDown* NewUpDownCounter(StringPiece name);
-  virtual Hist* NewHistogram(StringPiece name);
+  Var* NewVariable(StringPiece name) override;
+  UpDown* NewUpDownCounter(StringPiece name) override;
+  Hist* NewHistogram(StringPiece name) override;
 
  private:
   // Create mutexes in the segment, with per_var bytes being used,
@@ -238,10 +233,10 @@ class SharedMemStatistics : public ScalarStatisticsTemplate<
 
   AbstractSharedMem* shm_runtime_;
   GoogleString filename_prefix_;
-  scoped_ptr<AbstractSharedMemSegment> segment_;
+  std::unique_ptr<AbstractSharedMemSegment> segment_;
   bool frozen_;
   // TODO(sligocki): Rename.
-  scoped_ptr<StatisticsLogger> console_logger_;
+  std::unique_ptr<StatisticsLogger> console_logger_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemStatistics);
 };

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_INLINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_INLINE_FILTER_H_
 
@@ -46,23 +45,23 @@ class CssInlineFilter : public CommonFilter {
   static const char kNumCssInlined[];
 
   explicit CssInlineFilter(RewriteDriver* driver);
-  virtual ~CssInlineFilter();
+  ~CssInlineFilter() override;
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual const char* Name() const { return "InlineCss"; }
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
+  const char* Name() const override { return "InlineCss"; }
   // Inlining css from unauthorized domains into HTML is considered
   // safe because it does not cause any new content to be executed compared
   // to the unoptimized page.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const {
+  RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
+      const override {
     return driver()->options()->HasInlineUnauthorizedResourceType(
-               semantic_type::kStylesheet) ?
-           RewriteDriver::kInlineUnauthorizedResources :
-           RewriteDriver::kInlineOnlyAuthorizedResources;
+               semantic_type::kStylesheet)
+               ? RewriteDriver::kInlineUnauthorizedResources
+               : RewriteDriver::kInlineOnlyAuthorizedResources;
   }
-  virtual bool IntendedForInlining() const { return true; }
+  bool IntendedForInlining() const override { return true; }
 
   static void InitStats(Statistics* statistics);
   static bool HasClosingStyleTag(StringPiece contents);

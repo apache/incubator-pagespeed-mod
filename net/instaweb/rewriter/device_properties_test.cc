@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/device_properties.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -28,10 +27,9 @@
 
 namespace net_instaweb {
 
-class DevicePropertiesTest: public testing::Test {
+class DevicePropertiesTest : public testing::Test {
  protected:
-  DevicePropertiesTest()
-      : device_properties_(&user_agent_matcher_) { }
+  DevicePropertiesTest() : device_properties_(&user_agent_matcher_) {}
 
   void ParseAndVerifySaveData(const char* header_value, bool expected_value) {
     RequestHeaders headers;
@@ -124,8 +122,7 @@ TEST_F(DevicePropertiesTest, WebpRequireAcceptHeaderExceptAndroid) {
   EXPECT_FALSE(device_properties_.SupportsWebpRewrittenUrls());
   EXPECT_FALSE(device_properties_.SupportsWebpLosslessAlpha());
 
-  device_properties_.SetUserAgent(
-      UserAgentMatcherTestBase::kCriOS48UserAgent);
+  device_properties_.SetUserAgent(UserAgentMatcherTestBase::kCriOS48UserAgent);
   EXPECT_FALSE(device_properties_.SupportsWebpInPlace());
   EXPECT_FALSE(device_properties_.SupportsWebpRewrittenUrls());
   EXPECT_FALSE(device_properties_.SupportsWebpLosslessAlpha());
@@ -146,8 +143,7 @@ TEST_F(DevicePropertiesTest, WebpRequireAcceptHeaderExceptAndroid) {
   EXPECT_TRUE(device_properties_.SupportsWebpRewrittenUrls());
   EXPECT_FALSE(device_properties_.SupportsWebpLosslessAlpha());
 
-  device_properties_.SetUserAgent(
-      UserAgentMatcherTestBase::kCriOS48UserAgent);
+  device_properties_.SetUserAgent(UserAgentMatcherTestBase::kCriOS48UserAgent);
   EXPECT_TRUE(device_properties_.SupportsWebpInPlace());
   EXPECT_TRUE(device_properties_.SupportsWebpRewrittenUrls());
   EXPECT_TRUE(device_properties_.SupportsWebpLosslessAlpha());
@@ -199,8 +195,7 @@ TEST_F(DevicePropertiesTest, ProcessViaHeader) {
 
   RequestHeaders headers2;
   DeviceProperties device_properties2(&user_agent_matcher_);
-  headers2.Add(HttpAttributes::kVia,
-               "1.0 fred, 1.1 example.com (Apache/1.1)");
+  headers2.Add(HttpAttributes::kVia, "1.0 fred, 1.1 example.com (Apache/1.1)");
   device_properties2.ParseRequestHeaders(headers2);
   EXPECT_TRUE(device_properties2.HasViaHeader());
 

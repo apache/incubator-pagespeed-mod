@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_IMAGE_REWRITER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_IMAGE_REWRITER_H_
 
@@ -47,8 +46,7 @@ class Statistics;
 
 class CssImageRewriter {
  public:
-  CssImageRewriter(CssFilter::Context* root_context,
-                   CssFilter* filter,
+  CssImageRewriter(CssFilter::Context* root_context, CssFilter* filter,
                    CacheExtender* cache_extender,
                    ImageRewriteFilter* image_rewriter,
                    ImageCombineFilter* image_combiner);
@@ -60,10 +58,8 @@ class CssImageRewriter {
   // import and image to be rewritten. If successful, it mutates the CSS
   // to point to new images and flattens all @imports (if enabled).
   // Returns true if rewriting is enabled.
-  bool RewriteCss(int64 image_inline_max_bytes,
-                  RewriteContext* parent,
-                  CssHierarchy* hierarchy,
-                  MessageHandler* handler);
+  bool RewriteCss(int64 image_inline_max_bytes, RewriteContext* parent,
+                  CssHierarchy* hierarchy, MessageHandler* handler);
 
   // Is @import flattening enabled?
   bool FlatteningEnabled() const;
@@ -73,8 +69,7 @@ class CssImageRewriter {
 
   // Rewrite an image already loaded into a slot. Used by RewriteImage and
   // AssociationTransformer to rewrite images in either case.
-  void RewriteSlot(const ResourceSlotPtr& slot,
-                   int64 image_inline_max_bytes,
+  void RewriteSlot(const ResourceSlotPtr& slot, int64 image_inline_max_bytes,
                    RewriteContext* parent);
 
   // Propagates image information in child rewrites of context into it.
@@ -82,9 +77,7 @@ class CssImageRewriter {
   static void InheritChildImageInfo(RewriteContext* context);
 
  private:
-  RewriteDriver* driver() const {
-    return filter_->driver();
-  }
+  RewriteDriver* driver() const { return filter_->driver(); }
   bool RewriteImport(RewriteContext* parent, CssHierarchy* hierarchy,
                      bool* is_authorized);
   bool RewriteImage(int64 image_inline_max_bytes, const GoogleUrl& trim_url,

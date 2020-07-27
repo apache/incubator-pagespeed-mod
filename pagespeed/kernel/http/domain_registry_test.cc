@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/http/domain_registry.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -31,8 +30,7 @@ TEST(DomainRegistry, MinimalPrivateSuffix) {
 
   // com is a public suffix, so both google.com and www.google.com should yield
   // google.com
-  EXPECT_EQ("google.com",
-            domain_registry::MinimalPrivateSuffix("google.com"));
+  EXPECT_EQ("google.com", domain_registry::MinimalPrivateSuffix("google.com"));
   EXPECT_EQ("google.com",
             domain_registry::MinimalPrivateSuffix("www.google.com"));
 
@@ -57,19 +55,17 @@ TEST(DomainRegistry, MinimalPrivateSuffix) {
 
   // Check that we handle lots of url components properly.
   EXPECT_EQ("l.co.uk", domain_registry::MinimalPrivateSuffix(
-      "a.b.c.d.e.f.g.h.i.j.k.l.co.uk"));
+                           "a.b.c.d.e.f.g.h.i.j.k.l.co.uk"));
 
   // Check that we handle public suffixes that are not tlds.
   EXPECT_EQ("example.appspot.com",
             domain_registry::MinimalPrivateSuffix("example.appspot.com"));
-  EXPECT_EQ(
-      "example.appspot.com",
-      domain_registry::MinimalPrivateSuffix("www.example.appspot.com"));
+  EXPECT_EQ("example.appspot.com",
+            domain_registry::MinimalPrivateSuffix("www.example.appspot.com"));
 
   // If a tld doesn't exist, again fail secure.
-  EXPECT_EQ(
-      "a.b.c.this.doesntexist",
-      domain_registry::MinimalPrivateSuffix("a.b.c.this.doesntexist"));
+  EXPECT_EQ("a.b.c.this.doesntexist",
+            domain_registry::MinimalPrivateSuffix("a.b.c.this.doesntexist"));
 
   // Check that we don't give errors on various kinds of invalid hostnames.
   EXPECT_EQ("com", domain_registry::MinimalPrivateSuffix("com"));
@@ -79,7 +75,6 @@ TEST(DomainRegistry, MinimalPrivateSuffix) {
   EXPECT_EQ("..doesntexist.",
             domain_registry::MinimalPrivateSuffix("..doesntexist."));
 }
-
 
 }  // namespace
 

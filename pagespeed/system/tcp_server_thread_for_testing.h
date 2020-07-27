@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_TCP_SERVER_THREAD_FOR_TESTING_H_
 #define PAGESPEED_KERNEL_BASE_TCP_SERVER_THREAD_FOR_TESTING_H_
 
@@ -56,7 +55,7 @@ class TcpServerThreadForTesting : public ThreadSystem::Thread {
   // HandleClientConnection() in the server thread.
   void ShutDown();
 
-  virtual ~TcpServerThreadForTesting();
+  ~TcpServerThreadForTesting() override;
 
   // Wait for thread to successfully start listening and then return the actual
   // bound port number, which will be bound to IPv4 localhost.
@@ -86,8 +85,8 @@ class TcpServerThreadForTesting : public ThreadSystem::Thread {
   // Thread implementation.
   void Run() override;
 
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> ready_notify_ GUARDED_BY(mutex_);
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> ready_notify_ GUARDED_BY(mutex_);
   apr_pool_t* pool_;
   const apr_port_t requested_listen_port_;
   apr_port_t actual_listening_port_ GUARDED_BY(mutex_);

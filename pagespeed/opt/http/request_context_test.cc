@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit tests for RequestContext.
 
 #include "pagespeed/opt/http/request_context.h"
@@ -31,16 +30,14 @@ namespace net_instaweb {
 
 class RequestContextTest : public testing::Test {
  public:
-  RequestContextTest()
-      : thread_system_(Platform::CreateThreadSystem()) {
-  }
+  RequestContextTest() : thread_system_(Platform::CreateThreadSystem()) {}
 
   RequestContextPtr MakeRequestContext() {
     return RequestContext::NewTestRequestContext(thread_system_.get());
   }
 
  private:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   DISALLOW_COPY_AND_ASSIGN(RequestContextTest);
 };
 

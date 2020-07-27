@@ -29,12 +29,9 @@ namespace net_instaweb {
 
 DelegatingCacheCallback::DelegatingCacheCallback(
     CacheInterface::Callback* callback)
-    : callback_(callback),
-      validate_candidate_called_(false) {
-}
+    : callback_(callback), validate_candidate_called_(false) {}
 
-DelegatingCacheCallback::~DelegatingCacheCallback() {
-}
+DelegatingCacheCallback::~DelegatingCacheCallback() {}
 
 // Note that we have to forward validity faithfully here, as if we're
 // wrapping a 2-level cache it will need to know accurately if the value

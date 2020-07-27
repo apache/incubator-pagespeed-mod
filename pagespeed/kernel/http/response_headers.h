@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_HTTP_RESPONSE_HEADERS_H_
 #define PAGESPEED_KERNEL_HTTP_RESPONSE_HEADERS_H_
 
@@ -54,14 +52,13 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // TODO(sligocki): Phase this out so that nobody uses this one by accident.
   ResponseHeaders() { Init(kDeprecatedDefaultHttpOptions); }
 
-  virtual ~ResponseHeaders();
+  ~ResponseHeaders() override;
 
   // Returns true if the resource with given date and TTL is going to expire
   // shortly and should hence be proactively re-fetched. All the parameters are
   // absolute times.
-  static bool IsImminentlyExpiring(
-      int64 start_date_ms, int64 expire_ms, int64 now_ms,
-      const HttpOptions& options);
+  static bool IsImminentlyExpiring(int64 start_date_ms, int64 expire_ms,
+                                   int64 now_ms, const HttpOptions& options);
 
   // This will set Date and (if supplied in the first place, Expires)
   // header to now if the delta of date header wrt now_ms is more than
@@ -74,7 +71,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // debug assertions.
   bool cache_fields_dirty() const { return cache_fields_dirty_; }
 
-  virtual void Clear();
+  void Clear() override;
 
   void CopyFrom(const ResponseHeaders& other);
 
@@ -89,22 +86,22 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // when recieving 304 Not Modified responses.
   // Note: We must use Headers<HttpResponseHeaders> instead of ResponseHeaders
   // so that we don't expose the base UpdateFrom (and to avoid "hiding" errors).
-  virtual void UpdateFrom(const Headers<HttpResponseHeaders>& other);
+  void UpdateFrom(const Headers<HttpResponseHeaders>& other) override;
 
   // Initializes the response headers with the one in proto, clearing the
   // existing fields.
   void UpdateFromProto(const HttpResponseHeaders& proto);
 
   // Serialize HTTP response header to a binary stream.
-  virtual bool WriteAsBinary(Writer* writer, MessageHandler* message_handler);
+  bool WriteAsBinary(Writer* writer, MessageHandler* message_handler) override;
 
   // Read HTTP response header from a binary string.  Note that this
   // is distinct from HTTP response-header parsing, which is in
   // ResponseHeadersParser.
-  virtual bool ReadFromBinary(const StringPiece& buf, MessageHandler* handler);
+  bool ReadFromBinary(const StringPiece& buf, MessageHandler* handler) override;
 
   // Serialize HTTP response header in HTTP format so it can be re-parsed.
-  virtual bool WriteAsHttp(Writer* writer, MessageHandler* handler) const;
+  bool WriteAsHttp(Writer* writer, MessageHandler* handler) const override;
 
   // Compute caching information.  The current time is used to compute
   // the absolute time when a cache resource will expire.  The timestamp
@@ -138,8 +135,8 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   // assuming the request has cookies, there is no validator, and we
   // respect Vary.
   bool IsProxyCacheable() const {
-    return IsProxyCacheable(
-        RequestHeaders::Properties(), kRespectVaryOnResources, kNoValidator);
+    return IsProxyCacheable(RequestHeaders::Properties(),
+                            kRespectVaryOnResources, kNoValidator);
   }
 
   // Returns true if the response is privately cacheable.
@@ -288,7 +285,6 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   void DetermineContentTypeAndCharset(const ContentType** content_type_out,
                                       GoogleString* charset_out) const;
 
-
   // Parses a date header such as HttpAttributes::kDate or
   // HttpAttributes::kExpires, returning the timestamp as
   // number of milliseconds since 1970.
@@ -390,8 +386,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   void SetSMaxAge(int s_maxage_sec);
   // Stand-alone version of SetSMaxAge.  If there are changes to make, returns
   // true and sets updated_cache_control.
-  static bool ApplySMaxAge(int s_maxage_sec,
-                           StringPiece existing_cache_control,
+  static bool ApplySMaxAge(int s_maxage_sec, StringPiece existing_cache_control,
                            GoogleString* updated_cache_control);
 
   // Returns true if the given value should be interpreted as a header being
@@ -399,7 +394,7 @@ class ResponseHeaders : public Headers<HttpResponseHeaders> {
   static bool IsHopByHopIndication(StringPiece val);
 
  protected:
-  virtual void UpdateHook();
+  void UpdateHook() override;
 
  private:
   void Init(const HttpOptions& options);

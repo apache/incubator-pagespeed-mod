@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/message_handler.h"
 
 #include <cstdarg>
@@ -26,14 +25,12 @@
 
 namespace net_instaweb {
 
-MessageHandler::MessageHandler() : min_message_type_(kInfo) {
-}
+MessageHandler::MessageHandler() : min_message_type_(kInfo) {}
 
-MessageHandler::~MessageHandler() {
-}
+MessageHandler::~MessageHandler() {}
 
 const char* MessageHandler::MessageTypeToString(const MessageType type) const {
-  const char* type_string = NULL;
+  const char* type_string = nullptr;
 
   // Don't include a 'default:' clause so that the compiler can tell us when we
   // are missing an enum value.  Instead use a null check for 'type_string' to
@@ -52,7 +49,7 @@ const char* MessageHandler::MessageTypeToString(const MessageType type) const {
       type_string = "Fatal";
       break;
   }
-  CHECK(type_string != NULL) << "INVALID MessageType!";
+  CHECK(type_string != nullptr) << "INVALID MessageType!";
   return type_string;
 }
 
@@ -83,16 +80,15 @@ void MessageHandler::MessageV(MessageType type, const char* msg, va_list args) {
   }
 }
 
-void MessageHandler::MessageS(
-    MessageType type, const GoogleString& message) {
+void MessageHandler::MessageS(MessageType type, const GoogleString& message) {
   if (type >= min_message_type_) {
     MessageSImpl(type, message);
   }
 }
 
 // Default implementation of MessageVImpl formats and then calls MessageS.
-void MessageHandler::MessageVImpl(
-    MessageType type, const char* msg, va_list args) {
+void MessageHandler::MessageVImpl(MessageType type, const char* msg,
+                                  va_list args) {
   GoogleString buffer;
   FormatTo(&buffer, msg, args);
   MessageSImpl(type, buffer);
@@ -120,9 +116,8 @@ void MessageHandler::FileMessageS(MessageType type, const char* filename,
   }
 }
 
-void MessageHandler::FileMessageVImpl(
-    MessageType type, const char* filename, int line,
-    const char* msg, va_list args) {
+void MessageHandler::FileMessageVImpl(MessageType type, const char* filename,
+                                      int line, const char* msg, va_list args) {
   GoogleString buffer;
   FormatTo(&buffer, msg, args);
   FileMessageSImpl(type, filename, line, buffer);
@@ -162,27 +157,25 @@ void MessageHandler::Error(const char* file, int line, const char* msg, ...) {
   va_end(args);
 }
 
-void MessageHandler::FatalError(
-    const char* file, int line, const char* msg, ...) {
+void MessageHandler::FatalError(const char* file, int line, const char* msg,
+                                ...) {
   va_list args;
   va_start(args, msg);
   FatalErrorV(file, line, msg, args);
   va_end(args);
 }
 
-void MessageHandler::FormatTo(GoogleString* buffer,
-                              const char* msg, va_list args) {
+void MessageHandler::FormatTo(GoogleString* buffer, const char* msg,
+                              va_list args) {
   // Ignore the name of this routine: it formats with vsnprintf.
   // See base/stringprintf.cc.
   StringAppendV(buffer, msg, args);
 }
 
-bool MessageHandler::Dump(Writer* writer) {
-  return false;
-}
+bool MessageHandler::Dump(Writer* writer) { return false; }
 
-void MessageHandler::ParseMessageDumpIntoMessages(
-    StringPiece message_dump, StringPieceVector* messages) {
+void MessageHandler::ParseMessageDumpIntoMessages(StringPiece message_dump,
+                                                  StringPieceVector* messages) {
   // Ignore the first line to make sure all the messages dumped are complete.
   stringpiece_ssize_type pos = message_dump.find("\n");
   if (pos != StringPiece::npos) {

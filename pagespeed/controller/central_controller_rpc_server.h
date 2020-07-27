@@ -45,9 +45,8 @@ class CentralControllerRpcServer : public ControllerProcess {
   CentralControllerRpcServer(
       const GoogleString& listen_address,
       ExpensiveOperationController* expensive_operation_controller,
-      ScheduleRewriteController* rewrite_controller,
-      MessageHandler* handler);
-  virtual ~CentralControllerRpcServer() { }
+      ScheduleRewriteController* rewrite_controller, MessageHandler* handler);
+  ~CentralControllerRpcServer() override {}
 
   // ControllerProcess implementation.
   int Setup() override;
@@ -61,7 +60,7 @@ class CentralControllerRpcServer : public ControllerProcess {
   const GoogleString listen_address_;
   std::unique_ptr<::grpc::Server> server_;
   std::unique_ptr<::grpc::ServerCompletionQueue> queue_;
-  grpc::CentralControllerRpcService::AsyncService service_;
+  CentralControllerRpcService::AsyncService service_;
 
   std::unique_ptr<ExpensiveOperationController> expensive_operation_controller_;
   std::unique_ptr<ScheduleRewriteController> rewrite_controller_;

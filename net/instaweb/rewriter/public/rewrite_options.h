@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_H_
 
@@ -89,8 +88,10 @@ class RewriteOptions {
   // them protected while still being used by the Option class hierarchy.
   // Note that iwyu.py incorrectly complains about the template classes but
   // scripts/iwyu manually removes the warning.
-  template<class ValueType> class Property;
-  template<class RewriteOptionsSubclass, class OptionClass> class PropertyLeaf;
+  template <class ValueType>
+  class Property;
+  template <class RewriteOptionsSubclass, class OptionClass>
+  class PropertyLeaf;
 
  public:
   // If you add or remove anything from this list, you must also update the
@@ -503,8 +504,7 @@ class RewriteOptions {
 
   // We only create this class so that we get the correct ParseFromString()
   // version for parsing densities.
-  class ResponsiveDensities : public std::vector<double> {
-  };
+  class ResponsiveDensities : public std::vector<double> {};
 
   class AllowVaryOn {
    public:
@@ -512,39 +512,22 @@ class RewriteOptions {
     static const char kNoneString[];
     static const char kAutoString[];
 
-    AllowVaryOn() :
-        allow_auto_(false),
-        allow_accept_(false),
-        allow_save_data_(false),
-        allow_user_agent_(false) {
-    }
+    AllowVaryOn()
+        : allow_auto_(false),
+          allow_accept_(false),
+          allow_save_data_(false),
+          allow_user_agent_(false) {}
 
     GoogleString ToString() const;
 
-    bool allow_auto() const {
-      return allow_auto_;
-    }
-    void set_allow_auto(bool v) {
-      allow_auto_ = v;
-    }
-    bool allow_accept() const {
-      return allow_accept_;
-    }
-    void set_allow_accept(bool v) {
-      allow_accept_ = v;
-    }
-    bool allow_save_data() const {
-      return allow_save_data_ || allow_auto_;
-    }
-    void set_allow_save_data(bool v) {
-      allow_save_data_ = v;
-    }
-    bool allow_user_agent() const {
-      return allow_user_agent_;
-    }
-    void set_allow_user_agent(bool v) {
-      allow_user_agent_ = v;
-    }
+    bool allow_auto() const { return allow_auto_; }
+    void set_allow_auto(bool v) { allow_auto_ = v; }
+    bool allow_accept() const { return allow_accept_; }
+    void set_allow_accept(bool v) { allow_accept_ = v; }
+    bool allow_save_data() const { return allow_save_data_ || allow_auto_; }
+    void set_allow_save_data(bool v) { allow_save_data_ = v; }
+    bool allow_user_agent() const { return allow_user_agent_; }
+    void set_allow_user_agent(bool v) { allow_user_agent_ = v; }
 
    private:
     // All of the properties must be included in
@@ -555,9 +538,7 @@ class RewriteOptions {
     bool allow_user_agent_;
   };
 
-  bool AllowVaryOnAuto() const {
-    return allow_vary_on_.value().allow_auto();
-  }
+  bool AllowVaryOnAuto() const { return allow_vary_on_.value().allow_auto(); }
   bool AllowVaryOnAccept() const {
     return allow_vary_on_.value().allow_accept();
   }
@@ -614,13 +595,13 @@ class RewriteOptions {
   // This version number should be incremented if any default-values
   // are changed, either in an Add*Property() call or via
   // options->set_default.
-  static const int kOptionsVersion = 14;
+  static constexpr int kOptionsVersion = 14;
 
   // Number of bytes used for signature hashing.
-  static const int kHashBytes = 20;
+  static constexpr int kHashBytes = 20;
 
   // Number of bytes capacity in the URL invalidation set.
-  static const int kCachePurgeBytes = 25000;
+  static constexpr int kCachePurgeBytes = 25000;
 
   // Determines the scope at which an option is evaluated.  In Apache,
   // for example, kDirectoryScope indicates it can be changed via .htaccess
@@ -702,8 +683,7 @@ class RewriteOptions {
           option_name_(option_name),
           scope_(kDirectoryScope),
           do_not_use_for_signature_computation_(false),
-          index_(-1) {
-    }
+          index_(-1) {}
     virtual ~PropertyBase();
 
     // Connect the specified RewriteOption to this property.
@@ -1020,7 +1000,7 @@ class RewriteOptions {
     // If you add any members to this list, be sure to also add them to the
     // Merge method.
     //
-    int id_;  // id for this experiment
+    int id_;              // id for this experiment
     GoogleString ga_id_;  // Google Analytics ID for this experiment
     int ga_variable_slot_;
     int percent_;  // percentage of traffic to go through this experiment.
@@ -1031,7 +1011,7 @@ class RewriteOptions {
     // bitset to indicate which device types this ExperimentSpec should apply
     // to. If NULL, no device type was specified and the experiment applies
     // to all device types.
-    scoped_ptr<DeviceTypeBitSet> matches_device_types_;
+    std::unique_ptr<DeviceTypeBitSet> matches_device_types_;
     // Use whatever RewriteOptions' settings are without experiments
     // for this experiment.
     bool use_default_;
@@ -1126,8 +1106,7 @@ class RewriteOptions {
   typedef std::set<semantic_type::Category> ResourceCategorySet;
 
   static bool ParseInlineUnauthorizedResourceType(
-      const StringPiece& in,
-      ResourceCategorySet* resource_types);
+      const StringPiece& in, ResourceCategorySet* resource_types);
 
   // Parse a beacon url, or a pair of beacon urls (http https) separated by a
   // space.  If only an http url is given, the https url is derived from it
@@ -1183,9 +1162,7 @@ class RewriteOptions {
     // Do not set the modified bit -- we are only changing the default.
     level_.set_default(level);
   }
-  void SetRewriteLevel(RewriteLevel level) {
-    set_option(level, &level_);
-  }
+  void SetRewriteLevel(RewriteLevel level) { set_option(level, &level_); }
 
   // Returns true iff given name and value are valid to set as a http header.
   // If false is returned, error_message will have a descriptive failure
@@ -1207,13 +1184,9 @@ class RewriteOptions {
   // ValidateAndAddResourceHeader if you need validation.
   void AddResourceHeader(const StringPiece& name, const StringPiece& value);
 
-  const NameValue* resource_header(int i) const {
-    return resource_headers_[i];
-  }
+  const NameValue* resource_header(int i) const { return resource_headers_[i]; }
 
-  int num_resource_headers() const {
-    return resource_headers_.size();
-  }
+  int num_resource_headers() const { return resource_headers_.size(); }
 
   // Specify a header to insert when fetching subresources.
   void AddCustomFetchHeader(const StringPiece& name, const StringPiece& value);
@@ -1222,9 +1195,7 @@ class RewriteOptions {
     return custom_fetch_headers_[i];
   }
 
-  int num_custom_fetch_headers() const {
-    return custom_fetch_headers_.size();
-  }
+  int num_custom_fetch_headers() const { return custom_fetch_headers_.size(); }
 
   // Returns the spec with the id_ that matches id.  Returns NULL if no
   // spec matches.
@@ -1256,9 +1227,7 @@ class RewriteOptions {
 
   int experiment_id() const { return experiment_id_; }
 
-  int experiment_spec_id(int i) const {
-    return experiment_specs_[i]->id();
-  }
+  int experiment_spec_id(int i) const { return experiment_specs_[i]->id(); }
 
   // Returns a string representation of experiment_id() suitable for consumption
   // by SetExperimentStateStr(), encoding the index of the current experiment
@@ -1266,9 +1235,7 @@ class RewriteOptions {
   // string.
   GoogleString GetExperimentStateStr() const;
 
-  ExperimentSpec* experiment_spec(int i) const {
-    return experiment_specs_[i];
-  }
+  ExperimentSpec* experiment_spec(int i) const { return experiment_specs_[i]; }
 
   int num_experiments() const { return experiment_specs_.size(); }
 
@@ -1293,8 +1260,7 @@ class RewriteOptions {
 
   // Look up a url-valued attribute, return details via element, attribute,
   // and category.  index must be less than num_url_valued_attributes().
-  void UrlValuedAttribute(int index,
-                          StringPiece* element,
+  void UrlValuedAttribute(int index, StringPiece* element,
                           StringPiece* attribute,
                           semantic_type::Category* category) const;
 
@@ -1313,8 +1279,8 @@ class RewriteOptions {
   void set_inline_unauthorized_resource_types(ResourceCategorySet x);
 
   // Store size, md5 hash and canonical url for library recognition.
-  bool RegisterLibrary(
-      uint64 bytes, StringPiece md5_hash, StringPiece canonical_url) {
+  bool RegisterLibrary(uint64 bytes, StringPiece md5_hash,
+                       StringPiece canonical_url) {
     return WriteableJavascriptLibraryIdentification()->RegisterLibrary(
         bytes, md5_hash, canonical_url);
   }
@@ -1434,19 +1400,19 @@ class RewriteOptions {
   // values are not checked for validity, just stored. If the string piece
   // was parsed correctly, this returns true. If there were parsing errors this
   // returns false. The set is still populated on error.
-  static bool AddCommaSeparatedListToOptionSet(
-      const StringPiece& options, OptionSet* set, MessageHandler* handler);
+  static bool AddCommaSeparatedListToOptionSet(const StringPiece& options,
+                                               OptionSet* set,
+                                               MessageHandler* handler);
 
   // Set Option 'name' to 'value'. Returns whether it succeeded or the kind of
   // failure (wrong name or value), and writes the diagnostic into 'msg'.
   // This only understands simple scalar options, and not more general things
   // like filter lists, blacklists, etc.
-  OptionSettingResult SetOptionFromName(
-      StringPiece name, StringPiece value, GoogleString* msg);
+  OptionSettingResult SetOptionFromName(StringPiece name, StringPiece value,
+                                        GoogleString* msg);
 
   // Like above, but doesn't bother formatting the error message.
-  OptionSettingResult SetOptionFromName(
-      StringPiece name, StringPiece value);
+  OptionSettingResult SetOptionFromName(StringPiece name, StringPiece value);
 
   // Same as SetOptionFromName, but only works with options that are valid
   // to use as query parameters, returning kOptionNameUnknown for properties
@@ -1469,8 +1435,8 @@ class RewriteOptions {
   // If you extend any of these you also need to extend Merge() and
   // SubclassSignatureLockHeld().
   virtual OptionSettingResult ParseAndSetOptionFromName1(
-      StringPiece name, StringPiece arg,
-      GoogleString* msg, MessageHandler* handler);
+      StringPiece name, StringPiece arg, GoogleString* msg,
+      MessageHandler* handler);
   // Parses and sets options like ParseAndSetOptionFromName1, but with a maximum
   // scope specified.  ParseAndSetOptionFromName1 will apply options from any
   // scope, whereas ParseAndSetOptionFromNameWithScope will only apply options
@@ -1480,8 +1446,8 @@ class RewriteOptions {
       GoogleString* msg, MessageHandler* handler);
 
   virtual OptionSettingResult ParseAndSetOptionFromName2(
-      StringPiece name, StringPiece arg1, StringPiece arg2,
-      GoogleString* msg, MessageHandler* handler);
+      StringPiece name, StringPiece arg1, StringPiece arg2, GoogleString* msg,
+      MessageHandler* handler);
 
   virtual OptionSettingResult ParseAndSetOptionFromName3(
       StringPiece name, StringPiece arg1, StringPiece arg2, StringPiece arg3,
@@ -1492,8 +1458,8 @@ class RewriteOptions {
   //
   // If this option was not found, false is returned, and *id, *was_set, and
   // *value will be left unassigned.
-  bool OptionValue(StringPiece option_name, const char** id,
-                   bool* was_set, GoogleString* value) const;
+  bool OptionValue(StringPiece option_name, const char** id, bool* was_set,
+                   GoogleString* value) const;
 
   // Set all of the options to their values specified in the option set.
   // Returns true if all options in the set were successful, false if not.
@@ -1501,8 +1467,7 @@ class RewriteOptions {
 
   // Sets Option 'name' to 'value'. Returns whether it succeeded and logs
   // any warnings to 'handler'.
-  bool SetOptionFromNameAndLog(StringPiece name,
-                               StringPiece value,
+  bool SetOptionFromNameAndLog(StringPiece name, StringPiece value,
                                MessageHandler* handler);
 
   // These static methods are used by Option<T>::SetFromString to set
@@ -1549,9 +1514,7 @@ class RewriteOptions {
   }
 
   const GoogleString& ga_id() const { return ga_id_.value(); }
-  void set_ga_id(const GoogleString& id) {
-    set_option(id, &ga_id_);
-  }
+  void set_ga_id(const GoogleString& id) { set_option(id, &ga_id_); }
 
   void set_content_experiment_id(const GoogleString& s) {
     set_option(s, &content_experiment_id_);
@@ -1572,12 +1535,8 @@ class RewriteOptions {
            !content_experiment_variant_id().empty();
   }
 
-  bool use_analytics_js() const {
-    return use_analytics_js_.value();
-  }
-  void set_use_analytics_js(bool x) {
-    set_option(x, &use_analytics_js_);
-  }
+  bool use_analytics_js() const { return use_analytics_js_.value(); }
+  void set_use_analytics_js(bool x) { set_option(x, &use_analytics_js_); }
 
   bool increase_speed_tracking() const {
     return increase_speed_tracking_.value();
@@ -1645,9 +1604,7 @@ class RewriteOptions {
   void set_max_html_cache_time_ms(int64 x) {
     set_option(x, &max_html_cache_time_ms_);
   }
-  int64 max_html_parse_bytes() const {
-    return max_html_parse_bytes_.value();
-  }
+  int64 max_html_parse_bytes() const { return max_html_parse_bytes_.value(); }
   void set_max_html_parse_bytes(int64 x) {
     set_option(x, &max_html_parse_bytes_);
   }
@@ -1689,7 +1646,6 @@ class RewriteOptions {
   void set_preserve_subresource_hints(bool x) {
     set_option(x, &preserve_subresource_hints_);
   }
-
 
   bool preserve_url_relativity() const {
     return preserve_url_relativity_.value();
@@ -1733,8 +1689,7 @@ class RewriteOptions {
   // the pattern, and whether enable_cache_purge() is true.  Note that
   // HTTP cache invalidation is always exactly for the URLs matching
   // url_pattern.  This should probably always be set to false.
-  void AddUrlCacheInvalidationEntry(StringPiece url_pattern,
-                                    int64 timestamp_ms,
+  void AddUrlCacheInvalidationEntry(StringPiece url_pattern, int64 timestamp_ms,
                                     bool ignores_metadata_and_pcache);
 
   // Purge a cache entry for an exact URL, not a wildcard.
@@ -1784,12 +1739,8 @@ class RewriteOptions {
 
   // How much inactivity of HTML input will result in PSA introducing a flush.
   // Values <= 0 disable the feature.
-  int64 idle_flush_time_ms() const {
-    return idle_flush_time_ms_.value();
-  }
-  void set_idle_flush_time_ms(int64 x) {
-    set_option(x, &idle_flush_time_ms_);
-  }
+  int64 idle_flush_time_ms() const { return idle_flush_time_ms_.value(); }
+  void set_idle_flush_time_ms(int64 x) { set_option(x, &idle_flush_time_ms_); }
 
   // How much accumulated HTML will result in PSA introducing a flush.
   int64 flush_buffer_limit_bytes() const {
@@ -1816,14 +1767,10 @@ class RewriteOptions {
 
   // The maximum size of the entire URL.  If '0', this is left unlimited.
   int max_url_size() const { return max_url_size_.value(); }
-  void set_max_url_size(int x) {
-    set_option(x, &max_url_size_);
-  }
+  void set_max_url_size(int x) { set_option(x, &max_url_size_); }
 
   int rewrite_deadline_ms() const { return rewrite_deadline_ms_.value(); }
-  void set_rewrite_deadline_ms(int x) {
-    set_option(x, &rewrite_deadline_ms_);
-  }
+  void set_rewrite_deadline_ms(int x) { set_option(x, &rewrite_deadline_ms_); }
 
   bool test_instant_fetch_rewrite_deadline() const {
     return test_instant_fetch_rewrite_deadline_.value();
@@ -1847,26 +1794,14 @@ class RewriteOptions {
     set_option(value, &domain_shard_count_);
   }
 
-  void set_enabled(EnabledEnum x) {
-    set_option(x, &enabled_);
-  }
-  bool enabled() const {
-    return enabled_.value() == kEnabledOn;
-  }
-  bool unplugged() const {
-    return enabled_.value() == kEnabledUnplugged;
-  }
-  bool standby() const {
-    return !enabled() && !unplugged();
-  }
+  void set_enabled(EnabledEnum x) { set_option(x, &enabled_); }
+  bool enabled() const { return enabled_.value() == kEnabledOn; }
+  bool unplugged() const { return enabled_.value() == kEnabledUnplugged; }
+  bool standby() const { return !enabled() && !unplugged(); }
 
-  void set_add_options_to_urls(bool x) {
-    set_option(x, &add_options_to_urls_);
-  }
+  void set_add_options_to_urls(bool x) { set_option(x, &add_options_to_urls_); }
 
-  bool add_options_to_urls() const {
-    return add_options_to_urls_.value();
-  }
+  bool add_options_to_urls() const { return add_options_to_urls_.value(); }
 
   void set_publicly_cache_mismatched_hashes_experimental(bool x) {
     set_option(x, &publicly_cache_mismatched_hashes_experimental_);
@@ -1913,9 +1848,7 @@ class RewriteOptions {
     set_option(x, &in_place_s_maxage_sec_);
   }
 
-  int in_place_s_maxage_sec() const {
-    return in_place_s_maxage_sec_.value();
-  }
+  int in_place_s_maxage_sec() const { return in_place_s_maxage_sec_.value(); }
 
   int EffectiveInPlaceSMaxAgeSec() const {
     return modify_caching_headers() ? in_place_s_maxage_sec() : -1;
@@ -1975,14 +1908,10 @@ class RewriteOptions {
     return log_mobilization_samples_.value();
   }
 
-  void set_log_rewrite_timing(bool x) {
-    set_option(x, &log_rewrite_timing_);
-  }
+  void set_log_rewrite_timing(bool x) { set_option(x, &log_rewrite_timing_); }
   bool log_rewrite_timing() const { return log_rewrite_timing_.value(); }
 
-  void set_log_url_indices(bool x) {
-    set_option(x, &log_url_indices_);
-  }
+  void set_log_url_indices(bool x) { set_option(x, &log_url_indices_); }
   bool log_url_indices() const { return log_url_indices_.value(); }
 
   void set_lowercase_html_names(bool x) {
@@ -1990,14 +1919,10 @@ class RewriteOptions {
   }
   bool lowercase_html_names() const { return lowercase_html_names_.value(); }
 
-  void set_always_rewrite_css(bool x) {
-    set_option(x, &always_rewrite_css_);
-  }
+  void set_always_rewrite_css(bool x) { set_option(x, &always_rewrite_css_); }
   bool always_rewrite_css() const { return always_rewrite_css_.value(); }
 
-  void set_respect_vary(bool x) {
-    set_option(x, &respect_vary_);
-  }
+  void set_respect_vary(bool x) { set_option(x, &respect_vary_); }
   bool respect_vary() const { return respect_vary_.value(); }
 
   void set_respect_x_forwarded_proto(bool x) {
@@ -2191,23 +2116,17 @@ class RewriteOptions {
     return (CheckBandwidthOption(css_preserve_urls_) ||
             CheckMobilizeFiltersOption(css_preserve_urls_));
   }
-  void set_css_preserve_urls(bool x) {
-    set_option(x, &css_preserve_urls_);
-  }
+  void set_css_preserve_urls(bool x) { set_option(x, &css_preserve_urls_); }
 
   bool image_preserve_urls() const {
     return CheckBandwidthOption(image_preserve_urls_);
   }
-  void set_image_preserve_urls(bool x) {
-    set_option(x, &image_preserve_urls_);
-  }
+  void set_image_preserve_urls(bool x) { set_option(x, &image_preserve_urls_); }
 
   bool js_preserve_urls() const {
     return CheckBandwidthOption(js_preserve_urls_);
   }
-  void set_js_preserve_urls(bool x) {
-    set_option(x, &js_preserve_urls_);
-  }
+  void set_js_preserve_urls(bool x) { set_option(x, &js_preserve_urls_); }
 
   void set_metadata_cache_staleness_threshold_ms(int64 x) {
     set_option(x, &metadata_cache_staleness_threshold_ms_);
@@ -2246,7 +2165,7 @@ class RewriteOptions {
   }
 
   void set_downstream_cache_rebeaconing_key(StringPiece p) {
-      set_option(p.as_string(), &downstream_cache_rebeaconing_key_);
+    set_option(p.as_string(), &downstream_cache_rebeaconing_key_);
   }
   const GoogleString& downstream_cache_rebeaconing_key() const {
     return downstream_cache_rebeaconing_key_.value();
@@ -2345,9 +2264,7 @@ class RewriteOptions {
     set_option(x, &image_webp_quality_for_save_data_);
   }
 
-  int64 image_webp_timeout_ms() const {
-    return image_webp_timeout_ms_.value();
-  }
+  int64 image_webp_timeout_ms() const { return image_webp_timeout_ms_.value(); }
   void set_image_webp_timeout_ms(int64 x) {
     set_option(x, &image_webp_timeout_ms_);
   }
@@ -2366,9 +2283,7 @@ class RewriteOptions {
     set_option(x, &domain_rewrite_cookies_);
   }
 
-  bool client_domain_rewrite() const {
-    return client_domain_rewrite_.value();
-  }
+  bool client_domain_rewrite() const { return client_domain_rewrite_.value(); }
   void set_client_domain_rewrite(bool x) {
     set_option(x, &client_domain_rewrite_);
   }
@@ -2397,12 +2312,8 @@ class RewriteOptions {
     return disable_background_fetches_for_bots_.value();
   }
 
-  void set_enable_cache_purge(bool x) {
-    set_option(x, &enable_cache_purge_);
-  }
-  bool enable_cache_purge() const {
-    return enable_cache_purge_.value();
-  }
+  void set_enable_cache_purge(bool x) { set_option(x, &enable_cache_purge_); }
+  bool enable_cache_purge() const { return enable_cache_purge_.value(); }
 
   void set_proactive_resource_freshening(bool x) {
     set_option(x, &proactive_resource_freshening_);
@@ -2425,12 +2336,8 @@ class RewriteOptions {
     return use_fallback_property_cache_values_.value();
   }
 
-  void set_await_pcache_lookup(bool x) {
-    set_option(x, &await_pcache_lookup_);
-  }
-  bool await_pcache_lookup() const {
-    return await_pcache_lookup_.value();
-  }
+  void set_await_pcache_lookup(bool x) { set_option(x, &await_pcache_lookup_); }
+  bool await_pcache_lookup() const { return await_pcache_lookup_.value(); }
 
   void set_enable_prioritizing_scripts(bool x) {
     set_option(x, &enable_prioritizing_scripts_);
@@ -2446,8 +2353,7 @@ class RewriteOptions {
     set_option(p.as_string(), &blocking_rewrite_key_);
   }
 
-  void EnableBlockingRewriteForRefererUrlPattern(
-      StringPiece url_pattern) {
+  void EnableBlockingRewriteForRefererUrlPattern(StringPiece url_pattern) {
     Modify();
     blocking_rewrite_referer_urls_.MakeWriteable()->Allow(url_pattern);
   }
@@ -2468,17 +2374,11 @@ class RewriteOptions {
     set_option(x, &rewrite_uncacheable_resources_);
   }
 
-  void set_running_experiment(bool x) {
-    set_option(x, &running_experiment_);
-  }
-  bool running_experiment() const {
-    return running_experiment_.value();
-  }
+  void set_running_experiment(bool x) { set_option(x, &running_experiment_); }
+  bool running_experiment() const { return running_experiment_.value(); }
 
   // x should be between 1 and 5 inclusive.
-  void set_experiment_ga_slot(int x) {
-    set_option(x, &experiment_ga_slot_);
-  }
+  void set_experiment_ga_slot(int x) { set_option(x, &experiment_ga_slot_); }
   int experiment_ga_slot() const { return experiment_ga_slot_.value(); }
 
   void set_enroll_experiment_id(int x) {
@@ -2486,19 +2386,13 @@ class RewriteOptions {
   }
   int enroll_experiment_id() const { return enroll_experiment_id_.value(); }
 
-  void set_report_unload_time(bool x) {
-    set_option(x, &report_unload_time_);
-  }
-  bool report_unload_time() const {
-    return report_unload_time_.value();
-  }
+  void set_report_unload_time(bool x) { set_option(x, &report_unload_time_); }
+  bool report_unload_time() const { return report_unload_time_.value(); }
 
   void set_implicit_cache_ttl_ms(int64 x) {
     set_option(x, &implicit_cache_ttl_ms_);
   }
-  int64 implicit_cache_ttl_ms() const {
-    return implicit_cache_ttl_ms_.value();
-  }
+  int64 implicit_cache_ttl_ms() const { return implicit_cache_ttl_ms_.value(); }
 
   void set_load_from_file_cache_ttl_ms(int64 x) {
     set_option(x, &load_from_file_cache_ttl_ms_);
@@ -2513,9 +2407,7 @@ class RewriteOptions {
   void set_x_header_value(StringPiece p) {
     set_option(p.as_string(), &x_header_value_);
   }
-  const GoogleString& x_header_value() const {
-    return x_header_value_.value();
-  }
+  const GoogleString& x_header_value() const { return x_header_value_.value(); }
 
   void set_avoid_renaming_introspective_javascript(bool x) {
     set_option(x, &avoid_renaming_introspective_javascript_);
@@ -2532,9 +2424,7 @@ class RewriteOptions {
   }
 
   bool reject_blacklisted() const { return reject_blacklisted_.value(); }
-  void set_reject_blacklisted(bool x) {
-    set_option(x, &reject_blacklisted_);
-  }
+  void set_reject_blacklisted(bool x) { set_option(x, &reject_blacklisted_); }
 
   HttpStatus::Code reject_blacklisted_status_code() const {
     return static_cast<HttpStatus::Code>(
@@ -2575,9 +2465,7 @@ class RewriteOptions {
   void set_max_combined_js_bytes(int64 x) {
     set_option(x, &max_combined_js_bytes_);
   }
-  int64 max_combined_js_bytes() const {
-    return max_combined_js_bytes_.value();
-  }
+  int64 max_combined_js_bytes() const { return max_combined_js_bytes_.value(); }
 
   void set_pre_connect_url(StringPiece p) {
     set_option(GoogleString(p.data(), p.size()), &pre_connect_url_);
@@ -2672,9 +2560,7 @@ class RewriteOptions {
   void set_cache_fragment(StringPiece p) {
     set_option(p.as_string(), &cache_fragment_);
   }
-  const GoogleString& cache_fragment() const {
-    return cache_fragment_.value();
-  }
+  const GoogleString& cache_fragment() const { return cache_fragment_.value(); }
 
   void set_sticky_query_parameters(StringPiece p) {
     set_option(p.as_string(), &sticky_query_parameters_);
@@ -2704,12 +2590,8 @@ class RewriteOptions {
     set_option(id, &amp_link_pattern_);
   }
 
-  bool honor_csp() const {
-    return honor_csp_.value();
-  }
-  void set_honor_csp(bool x) {
-    set_option(x, &honor_csp_);
-  }
+  bool honor_csp() const { return honor_csp_.value(); }
+  void set_honor_csp(bool x) { set_option(x, &honor_csp_); }
 
   virtual bool DisableDomainRewrite() const { return false; }
 
@@ -2819,8 +2701,8 @@ class RewriteOptions {
   // If it returns true, it's ok to fetch, rewrite, and inline this resource as
   // if IsAllowed() had returned true.
   bool IsAllowedWhenInlining(StringPiece url) const {
-    return allow_when_inlining_resources_->Match(
-        url, false /* default disallow */);
+    return allow_when_inlining_resources_->Match(url,
+                                                 false /* default disallow */);
   }
 
   // Adds a new comment wildcard pattern to be retained.
@@ -2888,8 +2770,8 @@ class RewriteOptions {
                                  const GoogleString& wildcard) {
     Modify();
     std::pair<FastWildcardGroupMap::iterator, bool> insert_result =
-        rejected_request_map_.insert(std::make_pair(
-            header_name, static_cast<FastWildcardGroup*>(NULL)));
+        rejected_request_map_.insert(
+            std::make_pair(header_name, static_cast<FastWildcardGroup*>(NULL)));
 
     if (insert_result.second) {
       insert_result.first->second = new FastWildcardGroup;
@@ -3006,9 +2888,7 @@ class RewriteOptions {
 
   // Return the list of all options.  Used to initialize the configuration
   // vector to the Apache configuration system.
-  const OptionBaseVector& all_options() const {
-    return all_options_;
-  }
+  const OptionBaseVector& all_options() const { return all_options_; }
 
   static const Properties* deprecated_properties() {
     return deprecated_properties_;
@@ -3045,13 +2925,14 @@ class RewriteOptions {
   // It can use this knowledge to intelligently merge a 'base' option value
   // into a 'new' option value, allowing explicitly set values from 'base'
   // to override default values from 'new'.
-  template<class T> class OptionTemplateBase : public OptionBase {
+  template <class T>
+  class OptionTemplateBase : public OptionBase {
    public:
     typedef T ValueType;
 
     OptionTemplateBase() : was_set_(false), property_(NULL) {}
 
-    virtual bool was_set() const { return was_set_; }
+    bool was_set() const override { return was_set_; }
 
     void set(const T& val) {
       was_set_ = true;
@@ -3065,14 +2946,17 @@ class RewriteOptions {
     }
 
     const T& value() const { return value_; }
-    T& mutable_value() { was_set_ = true; return value_; }
+    T& mutable_value() {
+      was_set_ = true;
+      return value_;
+    }
 
     // The signature of the Merge implementation must match the base-class.  The
     // caller is responsible for ensuring that only the same typed Options are
     // compared.  In RewriteOptions::Merge this is guaranteed because the
     // vector<OptionBase*> all_options_ is sorted on option_name().  We DCHECK
     // that the option_name of this and src are the same.
-    virtual void Merge(const OptionBase* src) {
+    void Merge(const OptionBase* src) override {
       DCHECK(option_name() == src->option_name());
       MergeHelper(static_cast<const OptionTemplateBase*>(src));
     }
@@ -3096,7 +2980,7 @@ class RewriteOptions {
       // default value out of properties_ when !was_set_;
       value_ = property->default_value();
     }
-    virtual const PropertyBase* property() const { return property_; }
+    const PropertyBase* property() const override { return property_; }
 
     // Sets a the option default value globally.  This is thread-unsafe,
     // and reaches into the option property_ field via a const-cast to
@@ -3136,13 +3020,14 @@ class RewriteOptions {
   // to invoke static overloaded functions are declared only here.  Enables
   // subclasses of RewriteOptions to override these in case they use Option
   // types not visible here.
-  template<class T> class Option : public OptionTemplateBase<T> {
+  template <class T>
+  class Option : public OptionTemplateBase<T> {
    public:
     Option() {}
 
     // Sets value_ from value_string.
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail) {
+    bool SetFromString(StringPiece value_string,
+                       GoogleString* error_detail) override {
       T value;
       bool success = RewriteOptions::ParseFromString(value_string, &value);
       if (success) {
@@ -3151,11 +3036,11 @@ class RewriteOptions {
       return success;
     }
 
-    virtual GoogleString Signature(const Hasher* hasher) const {
+    GoogleString Signature(const Hasher* hasher) const override {
       return RewriteOptions::OptionSignature(this->value(), hasher);
     }
 
-    virtual GoogleString ToString() const {
+    GoogleString ToString() const override {
       return RewriteOptions::ToString(this->value());
     }
 
@@ -3165,16 +3050,12 @@ class RewriteOptions {
 
  protected:
   // Adds a new Property to 'properties' (the last argument).
-  template<class RewriteOptionsSubclass, class OptionClass>
-  static void AddProperty(
-      typename OptionClass::ValueType default_value,
-      OptionClass RewriteOptionsSubclass::*offset,
-      const char* id,
-      StringPiece option_name,
-      OptionScope scope,
-      const char* help_text,
-      bool safe_to_print,
-      Properties* properties) {
+  template <class RewriteOptionsSubclass, class OptionClass>
+  static void AddProperty(typename OptionClass::ValueType default_value,
+                          OptionClass RewriteOptionsSubclass::*offset,
+                          const char* id, StringPiece option_name,
+                          OptionScope scope, const char* help_text,
+                          bool safe_to_print, Properties* properties) {
     PropertyBase* property =
         new PropertyLeaf<RewriteOptionsSubclass, OptionClass>(
             default_value, offset, id, option_name);
@@ -3217,7 +3098,7 @@ class RewriteOptions {
   // When setting an option, however, we generally are doing so
   // with a variable rather than a constant so it makes sense to pass
   // it by reference.
-  template<class T>
+  template <class T>
   void set_option(const T& new_value, OptionTemplateBase<T>* option) {
     option->set(new_value);
     Modify();
@@ -3277,19 +3158,15 @@ class RewriteOptions {
   // Type-specific class of Property.  This subclass of PropertyBase
   // knows what sort of value the Option will hold, and so we can put
   // the default value here.
-  template<class ValueType>
+  template <class ValueType>
   class Property : public PropertyBase {
    public:
     // When adding a new Property, we take the default_value by value,
     // not const-reference.  This is because when calling AddProperty
     // we may want to use a compile-time constant
     // (e.g. Timer::kHourMs) which does not have a linkable address.
-    Property(ValueType default_value,
-             const char* id,
-             StringPiece option_name)
-        : PropertyBase(id, option_name),
-          default_value_(default_value) {
-    }
+    Property(ValueType default_value, const char* id, StringPiece option_name)
+        : PropertyBase(id, option_name), default_value_(default_value) {}
 
     void set_default(ValueType value) { default_value_ = value; }
     const ValueType& default_value() const { return default_value_; }
@@ -3314,7 +3191,7 @@ class RewriteOptions {
   // way that the Option class hiearchy is structured and the
   // precision of C++ pointers-to-members.  Attempting that is
   // probably a worthwhile follow-up task.
-  template<class RewriteOptionsSubclass, class OptionClass>
+  template <class RewriteOptionsSubclass, class OptionClass>
   class PropertyLeaf : public Property<typename OptionClass::ValueType> {
    public:
     // Fancy C++ pointers to members; a typesafe version of offsetof.  See
@@ -3323,15 +3200,12 @@ class RewriteOptions {
     typedef OptionClass RewriteOptionsSubclass::*OptionOffset;
     typedef typename OptionClass::ValueType ValueType;
 
-    PropertyLeaf(ValueType default_value,
-                 OptionOffset offset,
-                 const char* id,
+    PropertyLeaf(ValueType default_value, OptionOffset offset, const char* id,
                  StringPiece option_name)
         : Property<ValueType>(default_value, id, option_name),
-          offset_(offset) {
-    }
+          offset_(offset) {}
 
-    virtual void InitializeOption(RewriteOptions* options) const {
+    void InitializeOption(RewriteOptions* options) const override {
       RewriteOptionsSubclass* options_subclass =
           static_cast<RewriteOptionsSubclass*>(options);
       OptionClass& option = options_subclass->*offset_;
@@ -3350,8 +3224,8 @@ class RewriteOptions {
   // We need to check for valid settings with CacheFragment.
   class CacheFragmentOption : public Option<GoogleString> {
    public:
-    virtual bool SetFromString(StringPiece value_string,
-                               GoogleString* error_detail);
+    bool SetFromString(StringPiece value_string,
+                       GoogleString* error_detail) override;
   };
 
   struct OptionIdCompare;
@@ -3362,8 +3236,8 @@ class RewriteOptions {
   // option/filter merging, and then performed after option/filter merging.
   enum MergeOverride { kNoAction, kDisablePreserve, kDisableFilter };
 
-  static Properties* properties_;          // from RewriteOptions only
-  static Properties* all_properties_;      // includes subclass properties
+  static Properties* properties_;      // from RewriteOptions only
+  static Properties* all_properties_;  // includes subclass properties
 
   static Properties* deprecated_properties_;
 
@@ -3380,10 +3254,9 @@ class RewriteOptions {
     return IsRejectedRequest(kRejectedRequestUrlKeyName, url);
   }
 
-  bool IsRejectedRequest(StringPiece header_name,
-                         StringPiece value) const {
-    FastWildcardGroupMap::const_iterator it = rejected_request_map_.find(
-        header_name);
+  bool IsRejectedRequest(StringPiece header_name, StringPiece value) const {
+    FastWildcardGroupMap::const_iterator it =
+        rejected_request_map_.find(header_name);
     if (it != rejected_request_map_.end()) {
       return it->second->Match(value, false);
     }
@@ -3420,9 +3293,9 @@ class RewriteOptions {
     }
 
     GoogleString ToString() const {
-      return StrCat("URL pattern: ", url_pattern.spec(), ",  Cache time (ms): ",
-                    Integer64ToString(cache_time_ms), ",  Non-cacheable: ",
-                    non_cacheable_elements);
+      return StrCat("URL pattern: ", url_pattern.spec(),
+                    ",  Cache time (ms): ", Integer64ToString(cache_time_ms),
+                    ",  Non-cacheable: ", non_cacheable_elements);
     }
 
     Wildcard url_pattern;
@@ -3433,16 +3306,15 @@ class RewriteOptions {
   // A URL pattern cache invalidation entry.  All values cached for an URL that
   // matches url_pattern before timestamp_ms should be evicted.
   struct UrlCacheInvalidationEntry {
-    UrlCacheInvalidationEntry(StringPiece url_pattern_in,
-                              int64 timestamp_ms_in,
+    UrlCacheInvalidationEntry(StringPiece url_pattern_in, int64 timestamp_ms_in,
                               bool ignores_metadata_and_pcache_in)
         : url_pattern(url_pattern_in),
           timestamp_ms(timestamp_ms_in),
           ignores_metadata_and_pcache(ignores_metadata_and_pcache_in) {}
 
     UrlCacheInvalidationEntry* Clone() const {
-      return new UrlCacheInvalidationEntry(
-          url_pattern.spec(), timestamp_ms, ignores_metadata_and_pcache);
+      return new UrlCacheInvalidationEntry(url_pattern.spec(), timestamp_ms,
+                                           ignores_metadata_and_pcache);
     }
 
     GoogleString ComputeSignature() const {
@@ -3453,10 +3325,9 @@ class RewriteOptions {
     }
 
     GoogleString ToString() const {
-      return StrCat(
-          url_pattern.spec(), ", ",
-          (ignores_metadata_and_pcache ? "STRICT" : "REFERENCE"), " @ ",
-          Integer64ToString(timestamp_ms));
+      return StrCat(url_pattern.spec(), ", ",
+                    (ignores_metadata_and_pcache ? "STRICT" : "REFERENCE"),
+                    " @ ", Integer64ToString(timestamp_ms));
     }
 
     Wildcard url_pattern;
@@ -3472,8 +3343,9 @@ class RewriteOptions {
   // inserting. The folding Equal struct is required for looking up. Damned
   // if I know why one needs to specify both.
   typedef rde::hash_map<StringPiece, const PropertyBase*,
-                        CaseFoldStringPieceHash, /* TLoadFactor4 = */ 6,
-                        CaseFoldStringPieceEqual> PropertyNameMap;
+                        CaseFoldStringPieceHash,
+                        /* TLoadFactor4 = */ 6, CaseFoldStringPieceEqual>
+      PropertyNameMap;
 
   // Private methods to help add properties to
   // RewriteOptions::properties_.  Subclasses define their own
@@ -3487,7 +3359,7 @@ class RewriteOptions {
   //
   // TODO(jmarantz): This method should be removed and such properties
   // should be moved into RequestContext.
-  template<class OptionClass>
+  template <class OptionClass>
   static void AddRequestProperty(typename OptionClass::ValueType default_value,
                                  OptionClass RewriteOptions::*offset,
                                  const char* id, bool safe_to_print) {
@@ -3497,23 +3369,23 @@ class RewriteOptions {
 
   // Adds a property with a unique option_name_ field, allowing use of
   // SetOptionFromName.
-  template<class OptionClass>
+  template <class OptionClass>
   static void AddBaseProperty(typename OptionClass::ValueType default_value,
                               OptionClass RewriteOptions::*offset,
-                              const char* id,
-                              StringPiece option_name,
-                              OptionScope scope,
-                              const char* help,
+                              const char* id, StringPiece option_name,
+                              OptionScope scope, const char* help,
                               bool safe_to_print) {
     AddProperty(default_value, offset, id, option_name, scope, help,
                 safe_to_print, properties_);
   }
 
   static void AddProperties();
-  bool AddCommaSeparatedListToFilterSetState(
-      const StringPiece& filters, FilterSet* set, MessageHandler* handler);
-  static bool AddCommaSeparatedListToFilterSet(
-      const StringPiece& filters, FilterSet* set, MessageHandler* handler);
+  bool AddCommaSeparatedListToFilterSetState(const StringPiece& filters,
+                                             FilterSet* set,
+                                             MessageHandler* handler);
+  static bool AddCommaSeparatedListToFilterSet(const StringPiece& filters,
+                                               FilterSet* set,
+                                               MessageHandler* handler);
   // Initialize the Filter id to enum reverse array used for fast lookups.
   static void InitFilterIdToEnumArray();
   static void InitOptionIdToPropertyArray();
@@ -3525,15 +3397,18 @@ class RewriteOptions {
   // Helper for converting the result of SetOptionFromNameInternal into
   // a status/message pair. The returned result may be adjusted from the passed
   // in one (in particular when option_name is kNullOption).
-  OptionSettingResult FormatSetOptionMessage(
-      OptionSettingResult result, StringPiece name, StringPiece value,
-      StringPiece error_detail, GoogleString* msg);
+  OptionSettingResult FormatSetOptionMessage(OptionSettingResult result,
+                                             StringPiece name,
+                                             StringPiece value,
+                                             StringPiece error_detail,
+                                             GoogleString* msg);
 
   // Backend to SetOptionFromName that doesn't do full message
   // formatting. *error_detail may not be always set.
-  OptionSettingResult SetOptionFromNameInternal(
-      StringPiece name, StringPiece value, OptionScope max_scope,
-      GoogleString* error_detail);
+  OptionSettingResult SetOptionFromNameInternal(StringPiece name,
+                                                StringPiece value,
+                                                OptionScope max_scope,
+                                                GoogleString* error_detail);
 
   // These static methods enable us to generate signatures for all
   // instantiated option-types from Option<T>::Signature().
@@ -3548,8 +3423,7 @@ class RewriteOptions {
   }
   static GoogleString OptionSignature(const GoogleString& x,
                                       const Hasher* hasher);
-  static GoogleString OptionSignature(RewriteLevel x,
-                                      const Hasher* hasher);
+  static GoogleString OptionSignature(RewriteLevel x, const Hasher* hasher);
   static GoogleString OptionSignature(ResourceCategorySet x,
                                       const Hasher* hasher);
   static GoogleString OptionSignature(const BeaconUrl& beacon_url,
@@ -3560,26 +3434,17 @@ class RewriteOptions {
                                       const Hasher* hasher);
   static GoogleString OptionSignature(const AllowVaryOn& allow_vary_on,
                                       const Hasher* hasher);
-  static GoogleString OptionSignature(
-      const protobuf::MessageLite& proto,
-      const Hasher* hasher);
+  static GoogleString OptionSignature(const protobuf::MessageLite& proto,
+                                      const Hasher* hasher);
 
   // These static methods enable us to generate strings for all
   // instantiated option-types from Option<T>::Signature().
-  static GoogleString ToString(bool x) {
-    return x ? "True" : "False";
-  }
-  static GoogleString ToString(int x) {
-    return IntegerToString(x);
-  }
-  static GoogleString ToString(int64 x) {
-    return Integer64ToString(x);
-  }
-  static GoogleString ToString(const GoogleString& x) {
-    return x;
-  }
+  static GoogleString ToString(bool x) { return x ? "True" : "False"; }
+  static GoogleString ToString(int x) { return IntegerToString(x); }
+  static GoogleString ToString(int64 x) { return Integer64ToString(x); }
+  static GoogleString ToString(const GoogleString& x) { return x; }
   static GoogleString ToString(RewriteLevel x);
-  static GoogleString ToString(const ResourceCategorySet &x);
+  static GoogleString ToString(const ResourceCategorySet& x);
   static GoogleString ToString(const BeaconUrl& beacon_url);
   static GoogleString ToString(const MobTheme& mob_theme);
   static GoogleString ToString(const Color& color);
@@ -3639,17 +3504,14 @@ class RewriteOptions {
   // all filters can function.  This function is called prior to merging
   // options and filters.  The resulting value is then passed to
   // ApplyMergeOverride, which must be run after the filter/option merging.
-  MergeOverride ComputeMergeOverride(
-      Filter filter,
-      const Option<bool>& src_preserve_option,
-      const Option<bool>& preserve_option,
-      const RewriteOptions& src);
+  MergeOverride ComputeMergeOverride(Filter filter,
+                                     const Option<bool>& src_preserve_option,
+                                     const Option<bool>& preserve_option,
+                                     const RewriteOptions& src);
 
   // Applies the results of ComputeMergeOverride.
-  void ApplyMergeOverride(
-      MergeOverride merge_override,
-      Filter filter,
-      Option<bool>* preserve_option);
+  void ApplyMergeOverride(MergeOverride merge_override, Filter filter,
+                          Option<bool>* preserve_option);
 
   bool modified_;
   bool frozen_;
@@ -3676,7 +3538,7 @@ class RewriteOptions {
   // it's running.
   CopyOnWrite<PurgeSet> purge_set_ GUARDED_BY(cache_purge_mutex_);
 
-  scoped_ptr<ThreadSystem::RWLock> cache_purge_mutex_;
+  std::unique_ptr<ThreadSystem::RWLock> cache_purge_mutex_;
   Option<int64> css_flatten_max_bytes_;
   Option<bool> cache_small_images_unrewritten_;
   Option<bool> no_transform_optimized_images_;
@@ -3789,7 +3651,7 @@ class RewriteOptions {
   Option<bool> combine_across_paths_;
   Option<bool> log_background_rewrites_;
   Option<bool> log_mobilization_samples_;
-  Option<bool> log_rewrite_timing_;   // Should we time HtmlParser?
+  Option<bool> log_rewrite_timing_;  // Should we time HtmlParser?
   Option<bool> log_url_indices_;
   Option<bool> lowercase_html_names_;
   Option<bool> always_rewrite_css_;  // For tests/debugging.
@@ -4137,8 +3999,8 @@ class RewriteOptions {
 
   // Reverse map from filter id string to corresponding Filter enum.  Note
   // that this is not indexed by filter enum; it's indexed alphabetically by id.
-  static const FilterEnumToIdAndNameEntry* filter_id_to_enum_array_[
-      kEndOfFilters];
+  static const FilterEnumToIdAndNameEntry*
+      filter_id_to_enum_array_[kEndOfFilters];
 
   // Reverse map from option name string to corresponding PropertyBase.
   static PropertyNameMap* option_name_to_property_map_;
@@ -4155,7 +4017,7 @@ class RewriteOptions {
   bool options_uniqueness_checked_;
 
   bool need_to_store_experiment_data_;
-  int experiment_id_;  // Which experiment configuration are we in?
+  int experiment_id_;       // Which experiment configuration are we in?
   int experiment_percent_;  // Total traffic going through experiments.
   std::vector<ExperimentSpec*> experiment_specs_;
 
@@ -4170,7 +4032,8 @@ class RewriteOptions {
 
   // If this is non-NULL it tells us additional attributes that should be
   // interpreted as containing urls.
-  scoped_ptr<std::vector<ElementAttributeCategory> > url_valued_attributes_;
+  std::unique_ptr<std::vector<ElementAttributeCategory> >
+      url_valued_attributes_;
 
   Option<ResourceCategorySet> inline_unauthorized_resource_types_;
 
@@ -4218,7 +4081,7 @@ class RewriteOptions {
   // structure-size dependent on debug-ifdef seems dangerous when used
   // as a library against externally compiled code.  We do ifdef its
   // usage within the class implementation, however.
-  scoped_ptr<ThreadSystem::ThreadId> last_thread_id_;
+  std::unique_ptr<ThreadSystem::ThreadId> last_thread_id_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteOptions);
 };

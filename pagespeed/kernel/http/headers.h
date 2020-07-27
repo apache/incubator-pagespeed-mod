@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_HTTP_HEADERS_H_
 #define PAGESPEED_KERNEL_HTTP_HEADERS_H_
 
@@ -39,7 +37,8 @@ class StringMultiMapInsensitive;
 class Writer;
 
 // Read/write API for HTTP headers (shared base class)
-template<class Proto> class Headers {
+template <class Proto>
+class Headers {
  public:
   // typedef's for manipulating the cookie multimap.
   typedef std::pair<StringPiece, StringPiece> ValueAndAttributes;
@@ -136,15 +135,13 @@ template<class Proto> class Headers {
 
   // Removes all headers whose name is in |names|, which must be in
   // case-insensitive sorted order.
-  bool RemoveAllFromSortedArray(const StringPiece* names,
-                                int names_size);
+  bool RemoveAllFromSortedArray(const StringPiece* names, int names_size);
 
   // Removes all headers whose name is in |names|, which must be in
   // string-insensitive sorted order.  Returns true if anything was
   // removed.
-  template<class StringType>
-  static bool RemoveFromHeaders(const StringType* names,
-                                int names_size,
+  template <class StringType>
+  static bool RemoveFromHeaders(const StringType* names, int names_size,
                                 protobuf::RepeatedPtrField<NameValue>* headers);
 
   // Removes all headers whose name starts with prefix.  Returns true if
@@ -236,14 +233,14 @@ template<class Proto> class Headers {
   // simple string-pair vector, but lacks a fast associative lookup.  So we
   // will build structures for associative lookup lazily, and keep them
   // up-to-date if they are present.
-  mutable scoped_ptr<StringMultiMapInsensitive> map_;
-  scoped_ptr<Proto> proto_;
+  mutable std::unique_ptr<StringMultiMapInsensitive> map_;
+  std::unique_ptr<Proto> proto_;
 
   // Furthermore, we also have a map of cookie names to <value, attributes>.
   // It is lazilyloaded by PopulateCookieMap as/when required. The keys and
   // values all point into the map_ data element. We cater for the same cookie
   // being set multiple times though we don't necessarily handle that correctly.
-  mutable scoped_ptr<CookieMultimap> cookies_;
+  mutable std::unique_ptr<CookieMultimap> cookies_;
 
   DISALLOW_COPY_AND_ASSIGN(Headers);
 };

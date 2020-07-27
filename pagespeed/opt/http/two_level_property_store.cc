@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/opt/http/two_level_property_store.h"
 
 #include "base/logging.h"
@@ -58,13 +57,10 @@ class TwoLevelPropertyStoreGetCallback
  public:
   typedef Callback1<bool> BoolCallback;
   TwoLevelPropertyStoreGetCallback(
-      const GoogleString& url,
-      const GoogleString& options_signature_hash,
+      const GoogleString& url, const GoogleString& options_signature_hash,
       const GoogleString& cache_key_suffix,
-      const PropertyCache::CohortVector& cohort_list,
-      PropertyPage* page,
-      BoolCallback* done,
-      AbstractMutex* mutex,
+      const PropertyCache::CohortVector& cohort_list, PropertyPage* page,
+      BoolCallback* done, AbstractMutex* mutex,
       PropertyStore* primary_property_store,
       PropertyStore* secondary_property_store)
       : url_(url),
@@ -75,7 +71,7 @@ class TwoLevelPropertyStoreGetCallback
         mutex_(mutex),
         primary_property_store_(primary_property_store),
         secondary_property_store_(secondary_property_store),
-        secondary_property_store_get_callback_(NULL),
+        secondary_property_store_get_callback_(nullptr),
         fast_finish_lookup_called_(false),
         lookup_level_(kFirstLevelLooking),
         delete_when_done_(false),
@@ -87,15 +83,15 @@ class TwoLevelPropertyStoreGetCallback
     }
   }
 
-  virtual ~TwoLevelPropertyStoreGetCallback() {
-    if (secondary_property_store_get_callback_ != NULL) {
+  ~TwoLevelPropertyStoreGetCallback() override {
+    if (secondary_property_store_get_callback_ != nullptr) {
       secondary_property_store_get_callback_->DeleteWhenDone();
     }
   }
 
-  virtual void FastFinishLookup() {
+  void FastFinishLookup() override {
     AbstractPropertyStoreGetCallback* secondary_property_store_get_callback =
-        NULL;
+        nullptr;
     {
       ScopedMutex lock(mutex_.get());
       fast_finish_lookup_called_ = true;
@@ -108,7 +104,7 @@ class TwoLevelPropertyStoreGetCallback
         return;
       }
 
-      DCHECK(secondary_property_store_get_callback_ != NULL);
+      DCHECK(secondary_property_store_get_callback_ != nullptr);
       secondary_property_store_get_callback =
           secondary_property_store_get_callback_;
     }
@@ -117,7 +113,7 @@ class TwoLevelPropertyStoreGetCallback
     secondary_property_store_get_callback->FastFinishLookup();
   }
 
-  virtual void DeleteWhenDone() {
+  void DeleteWhenDone() override {
     {
       ScopedMutex lock(mutex_.get());
       delete_when_done_ = true;
@@ -133,7 +129,7 @@ class TwoLevelPropertyStoreGetCallback
   // Called after the primary lookup is done.
   void PrimaryLookupDone(bool success) {
     bool should_delete = false;
-    BoolCallback* done = NULL;
+    BoolCallback* done = nullptr;
     {
       ScopedMutex lock(mutex_.get());
       first_level_result_ = success;
@@ -152,7 +148,7 @@ class TwoLevelPropertyStoreGetCallback
       if (fast_finish_lookup_called_ || secondary_lookup_cohort_list_.empty()) {
         lookup_level_ = kDone;
         done = done_;
-        done_ = NULL;
+        done_ = nullptr;
 
         // We should only ever delete ourselves if we've been canceled or we got
         // results for all cohorts from the first level property store.
@@ -183,16 +179,16 @@ class TwoLevelPropertyStoreGetCallback
 
   void SecondaryLookupDone(bool success) {
     bool should_delete = false;
-    BoolCallback* done = NULL;
+    BoolCallback* done = nullptr;
     {
       ScopedMutex lock(mutex_.get());
-      DCHECK(done_ != NULL);
+      DCHECK(done_ != nullptr);
 
       // Second Level lookup finished.
       lookup_level_ = kDone;
       success |= first_level_result_;
       done = done_;
-      done_ = NULL;
+      done_ = nullptr;
 
       // We should only ever delete ourselves if all internal states are
       // updated.
@@ -203,13 +199,9 @@ class TwoLevelPropertyStoreGetCallback
         const PropertyCache::Cohort* cohort = secondary_lookup_cohort_list_[j];
         PropertyCacheValues values;
         if (page_->EncodePropertyCacheValues(cohort, &values)) {
-          primary_property_store_->Put(
-              url_,
-              options_signature_hash_,
-              cache_key_suffix_,
-              cohort,
-              &values,
-              NULL);
+          primary_property_store_->Put(url_, options_signature_hash_,
+                                       cache_key_suffix_, cohort, &values,
+                                       nullptr);
         }
       }
     }
@@ -225,13 +217,10 @@ class TwoLevelPropertyStoreGetCallback
   // Issue lookup from secondary_primary_store.
   void IssueSecondaryGet() {
     AbstractPropertyStoreGetCallback* secondary_property_store_get_callback =
-        NULL;
+        nullptr;
     secondary_property_store_->Get(
-        url_,
-        options_signature_hash_,
-        cache_key_suffix_,
-        secondary_lookup_cohort_list_,
-        page_,
+        url_, options_signature_hash_, cache_key_suffix_,
+        secondary_lookup_cohort_list_, page_,
         NewCallback(this,
                     &TwoLevelPropertyStoreGetCallback::SecondaryLookupDone),
         &secondary_property_store_get_callback);
@@ -268,7 +257,7 @@ class TwoLevelPropertyStoreGetCallback
   bool ShouldDeleteLocked() {
     mutex_->DCheckLocked();
     if (secondary_lookup_ &&
-        secondary_property_store_get_callback_ == NULL) {
+        secondary_property_store_get_callback_ == nullptr) {
       // We've decided to issue the second lookup but haven't yet updated our
       // internal state.
       return false;
@@ -301,7 +290,7 @@ class TwoLevelPropertyStoreGetCallback
   PropertyCache::CohortVector cohort_list_;
   PropertyPage* page_;  // page_ becomes NULL as soon as Done() is called.
   BoolCallback* done_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   PropertyStore* primary_property_store_;
   PropertyStore* secondary_property_store_;
   AbstractPropertyStoreGetCallback* secondary_property_store_get_callback_;
@@ -318,79 +307,64 @@ class TwoLevelPropertyStoreGetCallback
 
 TwoLevelPropertyStore::TwoLevelPropertyStore(
     PropertyStore* primary_property_store,
-    PropertyStore* secondary_property_store,
-    ThreadSystem* thread_system)
+    PropertyStore* secondary_property_store, ThreadSystem* thread_system)
     : primary_property_store_(primary_property_store),
       secondary_property_store_(secondary_property_store),
       thread_system_(thread_system) {
-  CHECK(primary_property_store_ != NULL);
-  CHECK(secondary_property_store_ != NULL);
+  CHECK(primary_property_store_ != nullptr);
+  CHECK(secondary_property_store_ != nullptr);
   secondary_property_store_->set_enable_get_cancellation(true);
 }
 
-TwoLevelPropertyStore::~TwoLevelPropertyStore() {
-}
+TwoLevelPropertyStore::~TwoLevelPropertyStore() {}
 
-void TwoLevelPropertyStore::Get(
-    const GoogleString& url,
-    const GoogleString& options_signature_hash,
-    const GoogleString& cache_key_suffix,
-    const PropertyCache::CohortVector& cohort_list,
-    PropertyPage* page,
-    BoolCallback* done,
-    AbstractPropertyStoreGetCallback** callback) {
+void TwoLevelPropertyStore::Get(const GoogleString& url,
+                                const GoogleString& options_signature_hash,
+                                const GoogleString& cache_key_suffix,
+                                const PropertyCache::CohortVector& cohort_list,
+                                PropertyPage* page, BoolCallback* done,
+                                AbstractPropertyStoreGetCallback** callback) {
   TwoLevelPropertyStoreGetCallback* two_level_property_store_get_callback =
       new TwoLevelPropertyStoreGetCallback(
-          url,
-          options_signature_hash,
-          cache_key_suffix,
-          cohort_list,
-          page,
-          done,
-          thread_system_->NewMutex(),
-          primary_property_store_,
+          url, options_signature_hash, cache_key_suffix, cohort_list, page,
+          done, thread_system_->NewMutex(), primary_property_store_,
           secondary_property_store_);
   *callback = two_level_property_store_get_callback;
 
-  AbstractPropertyStoreGetCallback* primary_property_store_get_callback = NULL;
+  AbstractPropertyStoreGetCallback* primary_property_store_get_callback =
+      nullptr;
   primary_property_store_->Get(
-      url,
-      options_signature_hash,
-      cache_key_suffix,
-      cohort_list,
-      page,
+      url, options_signature_hash, cache_key_suffix, cohort_list, page,
       NewCallback(two_level_property_store_get_callback,
                   &TwoLevelPropertyStoreGetCallback::PrimaryLookupDone),
       &primary_property_store_get_callback);
 
-  if (primary_property_store_get_callback != NULL) {
+  if (primary_property_store_get_callback != nullptr) {
     // Delete the primary store get callback when it is done as it is not needed
     // any more.
     primary_property_store_get_callback->DeleteWhenDone();
   }
 }
 
-void TwoLevelPropertyStore::Put(
-    const GoogleString& url,
-    const GoogleString& options_signature_hash,
-    const GoogleString& cache_key_suffix,
-    const PropertyCache::Cohort* cohort,
-    const PropertyCacheValues* values,
-    BoolCallback* done) {
+void TwoLevelPropertyStore::Put(const GoogleString& url,
+                                const GoogleString& options_signature_hash,
+                                const GoogleString& cache_key_suffix,
+                                const PropertyCache::Cohort* cohort,
+                                const PropertyCacheValues* values,
+                                BoolCallback* done) {
   // TODO(pulkitg): Pass actual callback instead of NULL.
-  primary_property_store_->Put(
-      url, options_signature_hash, cache_key_suffix, cohort, values, NULL);
-  secondary_property_store_->Put(
-      url, options_signature_hash, cache_key_suffix, cohort, values, NULL);
-  if (done != NULL) {
+  primary_property_store_->Put(url, options_signature_hash, cache_key_suffix,
+                               cohort, values, nullptr);
+  secondary_property_store_->Put(url, options_signature_hash, cache_key_suffix,
+                                 cohort, values, nullptr);
+  if (done != nullptr) {
     done->Run(true);
   }
 }
 
 GoogleString TwoLevelPropertyStore::Name() const {
-  return StrCat(
-      "1:", primary_property_store_->Name(),
-      ",2:", secondary_property_store_->Name());
+  return StrCat("1:", primary_property_store_->Name(),
+                ",2:", secondary_property_store_->Name());
 }
 
 }  // namespace net_instaweb

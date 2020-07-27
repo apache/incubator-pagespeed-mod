@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTTP_CACHING_HEADERS_H_
 #define PAGESPEED_KERNEL_HTTP_CACHING_HEADERS_H_
 
@@ -123,7 +122,8 @@ class CachingHeaders {
   bool ComputeHasExplicitNoCacheDirective();
 
   // A variable with added bool for whether or not it's been set.
-  template<class T> class Optional {
+  template <class T>
+  class Optional {
    public:
     Optional() : has_value_(false) {}
     ~Optional() {}

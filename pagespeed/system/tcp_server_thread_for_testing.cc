@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/tcp_server_thread_for_testing.h"
 
 #include <sys/socket.h>
+
 #include <cstdlib>
 
 #include "apr_network_io.h"
@@ -80,13 +80,13 @@ void TcpServerThreadForTesting::PickListenPortOnce(
     apr_port_t* static_port_number) {
   // A listen_port of 0 means the system will pick for us.
   *static_port_number = 0;
-    // Looks like creating a socket and looking at its port is the easiest way
-    // to find an available port.
-    apr_pool_t* pool = AprCreateThreadCompatiblePool(nullptr);
-    apr_socket_t* sock;
-    CreateAndBindSocket(pool, &sock, static_port_number);
-    apr_socket_close(sock);
-    apr_pool_destroy(pool);
+  // Looks like creating a socket and looking at its port is the easiest way
+  // to find an available port.
+  apr_pool_t* pool = AprCreateThreadCompatiblePool(nullptr);
+  apr_socket_t* sock;
+  CreateAndBindSocket(pool, &sock, static_port_number);
+  apr_socket_close(sock);
+  apr_pool_destroy(pool);
   CHECK_NE(*static_port_number, 0);
 }
 
@@ -133,8 +133,8 @@ apr_port_t TcpServerThreadForTesting::GetListeningPort() {
 
   // port may be zero, in which case apr_socket_bind will pick a port for us.
   apr_sockaddr_t* sa;
-  status = apr_sockaddr_info_get(&sa, "127.0.0.1", APR_INET,
-                                 *port, 0 /* flags */, pool);
+  status = apr_sockaddr_info_get(&sa, "127.0.0.1", APR_INET, *port,
+                                 0 /* flags */, pool);
   CHECK_EQ(status, APR_SUCCESS) << "CreateAndBindSocket apr_sockaddr_info_get";
 
   // bind and listen.

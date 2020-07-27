@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SCAN_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SCAN_FILTER_H_
 
@@ -42,19 +41,19 @@ class RewriteDriver;
 class ScanFilter : public EmptyHtmlFilter {
  public:
   explicit ScanFilter(RewriteDriver* driver);
-  virtual ~ScanFilter();
+  ~ScanFilter() override;
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual void Cdata(HtmlCdataNode* cdata);
-  virtual void Comment(HtmlCommentNode* comment);
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void Directive(HtmlDirectiveNode* directive);
-  virtual void Flush();
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  void Cdata(HtmlCdataNode* cdata) override;
+  void Comment(HtmlCommentNode* comment) override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  void Directive(HtmlDirectiveNode* directive) override;
+  void Flush() override;
 
-  virtual const char* Name() const { return "Scan"; }
+  const char* Name() const override { return "Scan"; }
 
  private:
   RewriteDriver* driver_;

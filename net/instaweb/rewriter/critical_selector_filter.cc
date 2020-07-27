@@ -61,10 +61,11 @@ namespace {
 
 // Helper that takes a std::vector-like collection, and compacts
 // any null holes in it.
-template<typename VectorType> void Compact(VectorType* cl) {
+template <typename VectorType>
+void Compact(VectorType* cl) {
   typename VectorType::iterator new_end =
       std::remove(cl->begin(), cl->end(),
-                  static_cast<typename VectorType::value_type>(NULL));
+                  static_cast<typename VectorType::value_type>(nullptr));
   cl->erase(new_end, cl->end());
 }
 
@@ -80,7 +81,8 @@ const char CriticalSelectorFilter::kNoscriptStylesClass[] = "psa_add_styles";
 class CriticalSelectorFilter::CssElement {
  public:
   CssElement(HtmlParse* p, HtmlElement* e, bool inside_noscript)
-      : html_parse_(p), element_(p->CloneElement(e)),
+      : html_parse_(p),
+        element_(p->CloneElement(e)),
         inside_noscript_(inside_noscript) {}
 
   // HtmlParse deletes the element (regardless of whether it is inserted).
@@ -107,19 +109,20 @@ class CriticalSelectorFilter::CssStyleElement
  public:
   CssStyleElement(HtmlParse* p, HtmlElement* e, bool inside_noscript)
       : CssElement(p, e, inside_noscript) {}
-  virtual ~CssStyleElement() {}
+  ~CssStyleElement() override {}
 
   // Call before InsertBeforeCurrent.
   void AppendCharactersNode(HtmlCharactersNode* characters_node) {
     characters_nodes_.push_back(
-        html_parse_->NewCharactersNode(NULL, characters_node->contents()));
+        html_parse_->NewCharactersNode(nullptr, characters_node->contents()));
   }
 
-  virtual void AppendTo(HtmlElement* parent) const {
+  void AppendTo(HtmlElement* parent) const override {
     HtmlElement* element = element_;
     CssElement::AppendTo(parent);
     for (CharactersNodeVector::const_iterator it = characters_nodes_.begin(),
-         end = characters_nodes_.end(); it != end; ++it) {
+                                              end = characters_nodes_.end();
+         it != end; ++it) {
       html_parse_->AppendChild(element, *it);
     }
   }
@@ -137,11 +140,9 @@ CriticalSelectorFilter::CriticalSelectorFilter(RewriteDriver* driver)
     : CssSummarizerBase(driver),
       saw_end_document_(false),
       any_rendered_(false),
-      is_flush_script_added_(false) {
-}
+      is_flush_script_added_(false) {}
 
-CriticalSelectorFilter::~CriticalSelectorFilter() {
-}
+CriticalSelectorFilter::~CriticalSelectorFilter() {}
 
 void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
                                        GoogleString* out) const {
@@ -167,7 +168,7 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
         any_media_apply = true;
       } else {
         delete mq;
-        r->mutable_media_queries()[mediaquery_index] = NULL;
+        r->mutable_media_queries()[mediaquery_index] = nullptr;
       }
     }
 
@@ -178,16 +179,16 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
       // in which case we retain things to be conservative.
       any_selectors_apply = r->selectors().empty();
       for (int selector_index = 0, num_selectors = r->selectors().size();
-          selector_index < num_selectors; ++selector_index) {
+           selector_index < num_selectors; ++selector_index) {
         Css::Selector* s = r->mutable_selectors().at(selector_index);
         GoogleString portion_to_compare = css_util::JsDetectableSelector(*s);
         if (portion_to_compare.empty() ||
-            critical_selectors_.find(portion_to_compare)
-                != critical_selectors_.end()) {
+            critical_selectors_.find(portion_to_compare) !=
+                critical_selectors_.end()) {
           any_selectors_apply = true;
         } else {
           delete s;
-          r->mutable_selectors()[selector_index] = NULL;
+          r->mutable_selectors()[selector_index] = nullptr;
         }
       }
     }
@@ -199,7 +200,7 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
     } else {
       // Remove the entire production
       delete r;
-      stylesheet->mutable_rulesets()[ruleset_index] = NULL;
+      stylesheet->mutable_rulesets()[ruleset_index] = nullptr;
     }
   }
   Compact(&stylesheet->mutable_rulesets());
@@ -210,9 +211,9 @@ void CriticalSelectorFilter::Summarize(Css::Stylesheet* stylesheet,
   CssMinify::Stylesheet(*stylesheet, &writer, &handler);
 }
 
-void CriticalSelectorFilter::RenderSummary(
-    int pos, HtmlElement* element, HtmlCharactersNode* char_node,
-    bool* is_element_deleted) {
+void CriticalSelectorFilter::RenderSummary(int pos, HtmlElement* element,
+                                           HtmlCharactersNode* char_node,
+                                           bool* is_element_deleted) {
   RememberFullCss(pos, element, char_node);
 
   const SummaryInfo& summary = GetSummaryForStyle(pos);
@@ -226,15 +227,15 @@ void CriticalSelectorFilter::RenderSummary(
     StringWriter writer(&resolved_css);
     GoogleUrl input_css_base(summary.base);
     if (driver()->ResolveCssUrls(
-            input_css_base, driver()->base_url().Spec(), summary.data,
-            &writer, driver()->message_handler()) == RewriteDriver::kSuccess) {
+            input_css_base, driver()->base_url().Spec(), summary.data, &writer,
+            driver()->message_handler()) == RewriteDriver::kSuccess) {
       css_to_use = &resolved_css;
     }
   }
 
   // Update the DOM --- either an existing style element, or replace link
   // with style.
-  if (char_node != NULL) {
+  if (char_node != nullptr) {
     // Note: This depends upon all previous filters also mutating the contents
     // of the original Characters Node. If any previous filters replaces the
     // Characters Node with another one or makes some other change, this node
@@ -243,7 +244,8 @@ void CriticalSelectorFilter::RenderSummary(
     // instead so that it is not so delicate.
     *char_node->mutable_contents() = *css_to_use;
   } else {
-    HtmlElement* style_element = driver()->NewElement(NULL, HtmlName::kStyle);
+    HtmlElement* style_element =
+        driver()->NewElement(nullptr, HtmlName::kStyle);
     driver()->InsertNodeBeforeNode(element, style_element);
 
     HtmlCharactersNode* content =
@@ -341,7 +343,7 @@ void CriticalSelectorFilter::RenderDone() {
   }
 
   if (!css_elements_.empty() && any_rendered_) {
-    HtmlElement* noscript_element = NULL;
+    HtmlElement* noscript_element = nullptr;
     Compact(&css_elements_);
     for (int i = 0, n = css_elements_.size(); i < n; ++i) {
       // Insert the full CSS, but hide all the style, link tags inside noscript
@@ -358,7 +360,7 @@ void CriticalSelectorFilter::RenderDone() {
       // inside noscript).
       if (i == 0 || (css_elements_[i]->inside_noscript() !=
                      css_elements_[i - 1]->inside_noscript())) {
-        noscript_element = driver()->NewElement(NULL, HtmlName::kNoscript);
+        noscript_element = driver()->NewElement(nullptr, HtmlName::kNoscript);
         if (!css_elements_[i]->inside_noscript()) {
           driver()->AddAttribute(noscript_element, HtmlName::kClass,
                                  kNoscriptStylesClass);
@@ -368,14 +370,15 @@ void CriticalSelectorFilter::RenderDone() {
       css_elements_[i]->AppendTo(noscript_element);
     }
 
-    HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+    HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
     driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                            StringPiece());
     InsertNodeAtBodyEnd(script);
     GoogleString js =
         driver()->server_context()->static_asset_manager()->GetAsset(
             StaticAssetEnum::CRITICAL_CSS_LOADER_JS, driver()->options());
-    if (!driver()->options()
+    if (!driver()
+             ->options()
              ->test_only_prioritize_critical_css_dont_apply_original_css()) {
       StrAppend(&js, "pagespeed.CriticalCssLoader.Run();");
     }
@@ -390,8 +393,10 @@ void CriticalSelectorFilter::DetermineEnabled(GoogleString* disabled_reason) {
   // in the property cache. Unfortunately, we also cannot run safely in case of
   // IE, since we do not understand IE conditional comments well enough to
   // replicate their behavior in the load-everything section.
-  const StringSet& critical_selectors = driver()->server_context()
-      ->critical_selector_finder()->GetCriticalSelectors(driver());
+  const StringSet& critical_selectors = driver()
+                                            ->server_context()
+                                            ->critical_selector_finder()
+                                            ->GetCriticalSelectors(driver());
   bool ua_supports_critical_css =
       driver()->request_properties()->SupportsCriticalCss();
   bool can_run = ua_supports_critical_css && !critical_selectors.empty();
@@ -413,8 +418,8 @@ void CriticalSelectorFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(can_run);
 }
 
-void CriticalSelectorFilter::RememberFullCss(
-    int pos, HtmlElement* element, HtmlCharactersNode* char_node) {
+void CriticalSelectorFilter::RememberFullCss(int pos, HtmlElement* element,
+                                             HtmlCharactersNode* char_node) {
   // Deep copy[1] into the css_elements_ array the CSS as optimized by all the
   // filters that ran before us and rendered their results, so that we can
   // emit it accurately at end, as a lazy-load sequence.
@@ -424,8 +429,8 @@ void CriticalSelectorFilter::RememberFullCss(
     css_elements_.resize(pos + 1);
   }
   bool noscript = GetSummaryForStyle(pos).is_inside_noscript;
-  CssElement* save = NULL;
-  if (char_node != NULL) {
+  CssElement* save = nullptr;
+  if (char_node != nullptr) {
     CssStyleElement* save_inline =
         new CssStyleElement(driver(), element, noscript);
     save_inline->AppendCharactersNode(char_node);

@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_ABSTRACT_SHARED_MEM_H_
 #define PAGESPEED_KERNEL_BASE_ABSTRACT_SHARED_MEM_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 
@@ -101,8 +101,9 @@ class AbstractSharedMem {
   // any previous segment with the same name. The memory will be zeroed out.
   //
   // May return NULL on failure.
-  virtual AbstractSharedMemSegment* CreateSegment(
-      const GoogleString& name, size_t size, MessageHandler* handler) = 0;
+  virtual AbstractSharedMemSegment* CreateSegment(const GoogleString& name,
+                                                  size_t size,
+                                                  MessageHandler* handler) = 0;
 
   // Attaches to an existing segment, which must have been created already.
   // May return NULL on failure

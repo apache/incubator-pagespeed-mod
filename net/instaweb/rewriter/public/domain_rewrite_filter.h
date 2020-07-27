@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_DOMAIN_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_DOMAIN_REWRITE_FILTER_H_
 
@@ -54,14 +53,14 @@ class DomainRewriteFilter : public CommonFilter {
   static const char kStickyRedirectHeader[];
 
   DomainRewriteFilter(RewriteDriver* rewrite_driver, Statistics* stats);
-  ~DomainRewriteFilter();
+  ~DomainRewriteFilter() override;
   static void InitStats(Statistics* statistics);
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override {}
 
-  virtual const char* Name() const { return "DomainRewrite"; }
+  const char* Name() const override { return "DomainRewrite"; }
 
   // Injects scripts only when option ClientDomainRewrite is true, and
   // the current document is not AMP.
@@ -73,10 +72,7 @@ class DomainRewriteFilter : public CommonFilter {
     kFail,
   };
 
-  enum HeaderSource {
-    kHttp,
-    kMetaHttpEquiv
-  };
+  enum HeaderSource { kHttp, kMetaHttpEquiv };
 
   typedef std::vector<std::pair<StringPiece, StringPiece> > SetCookieAttributes;
 
@@ -91,8 +87,7 @@ class DomainRewriteFilter : public CommonFilter {
                                const GoogleUrl& base_url,
                                const ServerContext* server_context,
                                const RewriteOptions* options,
-                               bool apply_sharding,
-                               bool apply_domain_suffix,
+                               bool apply_sharding, bool apply_domain_suffix,
                                GoogleString* output_url);
 
   // Update url and domains in headers as per the rewrite rules configured
@@ -109,32 +104,25 @@ class DomainRewriteFilter : public CommonFilter {
 
   // Update an indivual header based on domain rewrite rules. Returns true
   // if a change was made, in which case *out should be committed.
-  static bool UpdateOneDomainHeader(HeaderSource src,
-                                    const GoogleUrl& base_url,
+  static bool UpdateOneDomainHeader(HeaderSource src, const GoogleUrl& base_url,
                                     const ServerContext* server_context,
                                     const RewriteOptions* options,
-                                    StringPiece name,
-                                    StringPiece value_in,
+                                    StringPiece name, StringPiece value_in,
                                     GoogleString* out);
 
   // Like UpdateOneDomainHeader, but specifically for Set-Cookie.
   static bool UpdateSetCookieHeader(const GoogleUrl& base_url,
                                     const ServerContext* server_context,
                                     const RewriteOptions* options,
-                                    StringPiece value_in,
-                                    GoogleString* out);
-
+                                    StringPiece value_in, GoogleString* out);
 
   // Tries to parse the content of a Refresh header, returning if successful.
   // *before gets anything before the URL or its opening quotes. *url gets the
   // portion of parse that's the URL itself, and *after gets everything after
   // the URL and its closing quote, if any. Note that this means that
   // reassembling the URL may require addition of new quotes and escaping.
-  static bool ParseRefreshContent(StringPiece input,
-                                  StringPiece* before,
-                                  StringPiece* url,
-                                  StringPiece* after);
-
+  static bool ParseRefreshContent(StringPiece input, StringPiece* before,
+                                  StringPiece* url, StringPiece* after);
 
   // Tries to parse the contents of a Set-Cookie header, specified as "input",
   // extracting out the cookie string into *cookie_string and the attribute

@@ -1,0 +1,205 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) kernel base tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "",
+            "program": "${workspaceRoot}/bazel-bin/pagespeed/kernel/base/base_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "TEST_TMPDIR",
+                    "value": "/tmp/foo"
+                },
+                {
+                    "name": "TEST_WORKSPACE",
+                    "value": "."
+                },
+                {
+                    "name": "TEST_SRCDIR",
+                    "value": "${workspaceRoot}"
+                },
+                {
+                    "name": "ENVOY_IP_TEST_VERSIONS",
+                    "value": ""
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "sourceFileMap": {
+                "/proc/self/cwd/external/envoy": "${workspaceFolder}/nighthawk/envoy"
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) kernel http tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "",
+            "program": "${workspaceRoot}/bazel-bin/pagespeed/kernel/http/http_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "TEST_TMPDIR",
+                    "value": "/tmp/foo"
+                },
+                {
+                    "name": "TEST_WORKSPACE",
+                    "value": "."
+                },
+                {
+                    "name": "TEST_SRCDIR",
+                    "value": "${workspaceRoot}"
+                },
+                {
+                    "name": "ENVOY_IP_TEST_VERSIONS",
+                    "value": ""
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "sourceFileMap": {
+                "/proc/self/cwd/external/envoy": "${workspaceFolder}/nighthawk/envoy"
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) kernel js tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "",
+            "program": "${workspaceRoot}/bazel-bin/pagespeed/kernel/js/js_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "TEST_TMPDIR",
+                    "value": "/tmp/foo"
+                },
+                {
+                    "name": "TEST_WORKSPACE",
+                    "value": "."
+                },
+                {
+                    "name": "TEST_SRCDIR",
+                    "value": "${workspaceRoot}"
+                },
+                {
+                    "name": "ENVOY_IP_TEST_VERSIONS",
+                    "value": ""
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "sourceFileMap": {
+                "/proc/self/cwd/external/envoy": "${workspaceFolder}/nighthawk/envoy"
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) controller tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "",
+            "program": "${workspaceRoot}/bazel-bin/pagespeed/controller/controller_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "TEST_TMPDIR",
+                    "value": "/tmp/foo"
+                },
+                {
+                    "name": "TEST_WORKSPACE",
+                    "value": "."
+                },
+                {
+                    "name": "TEST_SRCDIR",
+                    "value": "${workspaceRoot}"
+                },
+                {
+                    "name": "ENVOY_IP_TEST_VERSIONS",
+                    "value": ""
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "sourceFileMap": {
+                "/proc/self/cwd/external/envoy": "${workspaceFolder}/nighthawk/envoy"
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) http integration tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "",
+            "program": "${workspaceRoot}/bazel-bin/pagespeed/envoy/http_filter_integration_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "TEST_TMPDIR",
+                    "value": "/tmp/foo"
+                },
+                {
+                    "name": "TEST_WORKSPACE",
+                    "value": "."
+                },
+                {
+                    "name": "TEST_SRCDIR",
+                    "value": "${workspaceRoot}"
+                },
+                {
+                    "name": "ENVOY_IP_TEST_VERSIONS",
+                    "value": ""
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "sourceFileMap": {
+                "/proc/self/cwd/external/envoy": "${workspaceFolder}/nighthawk/envoy"
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+    ]
+}

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_SLOT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_SLOT_H_
 
@@ -62,8 +61,7 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
         should_delete_element_(false),
         disable_further_processing_(false),
         was_optimized_(false),
-        need_aggregate_input_info_(false) {
-  }
+        need_aggregate_input_info_(false) {}
 
   ResourcePtr resource() const { return resource_; }
   // Return HTML element associated with slot, or NULL if none (CSS, IPRO)
@@ -135,13 +133,9 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
 
   // If this is true, input info on all inputs affecting this slot
   // will be collected from all RewriteContexts chained to it.
-  void set_need_aggregate_input_info(bool x) {
-    need_aggregate_input_info_ = x;
-  }
+  void set_need_aggregate_input_info(bool x) { need_aggregate_input_info_ = x; }
 
-  bool need_aggregate_input_info() const {
-    return need_aggregate_input_info_;
-  }
+  bool need_aggregate_input_info() const { return need_aggregate_input_info_; }
 
   void ReportInput(const InputInfo& input);
 
@@ -225,13 +219,13 @@ class ResourceSlot : public RefCounted<ResourceSlot> {
 class NullResourceSlot : public ResourceSlot {
  public:
   NullResourceSlot(const ResourcePtr& resource, StringPiece location);
-  virtual HtmlElement* element() const { return NULL; }
-  virtual void Render() {}
-  virtual GoogleString LocationString() const { return location_; }
+  HtmlElement* element() const override { return NULL; }
+  void Render() override {}
+  GoogleString LocationString() const override { return location_; }
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(NullResourceSlot);
-  virtual ~NullResourceSlot();
+  ~NullResourceSlot() override;
 
  private:
   GoogleString location_;
@@ -244,15 +238,14 @@ class NullResourceSlot : public ResourceSlot {
 class FetchResourceSlot : public ResourceSlot {
  public:
   explicit FetchResourceSlot(const ResourcePtr& resource)
-      : ResourceSlot(resource) {
-  }
-  virtual HtmlElement* element() const { return NULL; }
-  virtual void Render();
-  virtual GoogleString LocationString() const;
+      : ResourceSlot(resource) {}
+  HtmlElement* element() const override { return NULL; }
+  void Render() override;
+  GoogleString LocationString() const override;
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(FetchResourceSlot);
-  virtual ~FetchResourceSlot();
+  ~FetchResourceSlot() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FetchResourceSlot);
@@ -260,18 +253,16 @@ class FetchResourceSlot : public ResourceSlot {
 
 class HtmlResourceSlot : public ResourceSlot {
  public:
-  HtmlResourceSlot(const ResourcePtr& resource,
-                   HtmlElement* element,
-                   HtmlElement::Attribute* attribute,
-                   RewriteDriver* driver);
+  HtmlResourceSlot(const ResourcePtr& resource, HtmlElement* element,
+                   HtmlElement::Attribute* attribute, RewriteDriver* driver);
 
-  virtual HtmlElement* element() const { return element_; }
+  HtmlElement* element() const override { return element_; }
   HtmlElement::Attribute* attribute() const { return attribute_; }
 
-  virtual void Render();
-  virtual GoogleString LocationString() const;
-  virtual bool DirectSetUrl(const StringPiece& url);
-  virtual bool CanDirectSetUrl() { return true; }
+  void Render() override;
+  GoogleString LocationString() const override;
+  bool DirectSetUrl(const StringPiece& url) override;
+  bool CanDirectSetUrl() override { return true; }
 
   // How relative the original URL was. If PreserveUrlRelativity is enabled,
   // Render will try to make the final URL just as relative.
@@ -279,7 +270,7 @@ class HtmlResourceSlot : public ResourceSlot {
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(HtmlResourceSlot);
-  virtual ~HtmlResourceSlot();
+  ~HtmlResourceSlot() override;
 
  private:
   HtmlElement* element_;
@@ -299,8 +290,8 @@ class HtmlResourceSlotComparator {
                   const HtmlResourceSlotPtr& q) const;
 };
 
-typedef std::set<HtmlResourceSlotPtr,
-                 HtmlResourceSlotComparator> HtmlResourceSlotSet;
+typedef std::set<HtmlResourceSlotPtr, HtmlResourceSlotComparator>
+    HtmlResourceSlotSet;
 
 }  // namespace net_instaweb
 

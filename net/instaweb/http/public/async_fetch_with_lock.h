@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_ASYNC_FETCH_WITH_LOCK_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_ASYNC_FETCH_WITH_LOCK_H_
 
@@ -64,11 +62,10 @@ class AsyncFetchWithLock : public AsyncFetch {
  public:
   AsyncFetchWithLock(const Hasher* hasher,
                      const RequestContextPtr& request_context,
-                     const GoogleString& url,
-                     const GoogleString& cache_key,
+                     const GoogleString& url, const GoogleString& cache_key,
                      NamedLockManager* lock_manager,
                      MessageHandler* message_handler);
-  virtual ~AsyncFetchWithLock();
+  ~AsyncFetchWithLock() override;
 
   // This will first try to acquire lock and triggers fetch by calling
   // StartFetch() if successful.
@@ -93,35 +90,34 @@ class AsyncFetchWithLock : public AsyncFetch {
 
   // StartFetch() will be called after the lock is acquired. The subclass
   // implements this function and is responsible for UrlAsyncFetcher::Fetch().
-  virtual void StartFetch(
-     UrlAsyncFetcher* fetcher, MessageHandler* handler) = 0;
+  virtual void StartFetch(UrlAsyncFetcher* fetcher,
+                          MessageHandler* handler) = 0;
 
   // Releases the lock.
   // If subclass overrides the function, then, it should also call
   // AsyncFetchWithLock::HandleDone()
-  virtual void HandleDone(bool success);
+  void HandleDone(bool success) override;
 
   // HandleHeadersComplete(), HandleWrite() and HandleFlush() are no-op
   // functions and any special handling can be done in subclass and must call
   // the superclass function before returning.
-  virtual void HandleHeadersComplete();
-  virtual bool HandleWrite(
-      const StringPiece& content, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
+  void HandleHeadersComplete() override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
+  bool HandleFlush(MessageHandler* handler) override;
 
  private:
   // Makes a lock used for fetching.
   NamedLock* MakeInputLock(const GoogleString& url);
   // Used only for testing.
-  static NamedLock* MakeInputLock(const GoogleString& url,
-                                  const Hasher* hasher,
+  static NamedLock* MakeInputLock(const GoogleString& url, const Hasher* hasher,
                                   NamedLockManager* lock_manager);
 
   void LockFailed(UrlAsyncFetcher* fetcher);
   void LockAcquired(UrlAsyncFetcher* fetcher);
 
   NamedLockManager* lock_manager_;  // Owned by server_context.
-  scoped_ptr<NamedLock> lock_;
+  std::unique_ptr<NamedLock> lock_;
   const Hasher* lock_hasher_;  // Used to compute named lock names.
   GoogleString url_;
   GoogleString cache_key_;

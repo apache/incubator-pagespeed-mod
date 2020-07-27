@@ -17,11 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/image_util.h"
 
-#include "third_party/libwebp/src/webp/decode.h"
-
+#include "external/libwebp/src/webp/decode.h"
 #include "pagespeed/kernel/base/countdown_timer.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/http/image_types.pb.h"
@@ -51,46 +49,64 @@ namespace image_compression {
 
 const char* ImageFormatToMimeTypeString(ImageFormat image_type) {
   switch (image_type) {
-    case IMAGE_UNKNOWN: return "image/unknown";
-    case IMAGE_JPEG:    return "image/jpeg";
-    case IMAGE_PNG:     return "image/png";
-    case IMAGE_GIF:     return "image/gif";
-    case IMAGE_WEBP:    return "image/webp";
-    // No default so compiler will complain if any enum is not processed.
+    case IMAGE_UNKNOWN:
+      return "image/unknown";
+    case IMAGE_JPEG:
+      return "image/jpeg";
+    case IMAGE_PNG:
+      return "image/png";
+    case IMAGE_GIF:
+      return "image/gif";
+    case IMAGE_WEBP:
+      return "image/webp";
+      // No default so compiler will complain if any enum is not processed.
   }
   return kInvalidImageFormat;
 }
 
 const char* ImageFormatToString(ImageFormat image_type) {
   switch (image_type) {
-    case IMAGE_UNKNOWN: return "IMAGE_UNKNOWN";
-    case IMAGE_JPEG:    return "IMAGE_JPEG";
-    case IMAGE_PNG:     return "IMAGE_PNG";
-    case IMAGE_GIF:     return "IMAGE_GIF";
-    case IMAGE_WEBP:    return "IMAGE_WEBP";
-    // No default so compiler will complain if any enum is not processed.
+    case IMAGE_UNKNOWN:
+      return "IMAGE_UNKNOWN";
+    case IMAGE_JPEG:
+      return "IMAGE_JPEG";
+    case IMAGE_PNG:
+      return "IMAGE_PNG";
+    case IMAGE_GIF:
+      return "IMAGE_GIF";
+    case IMAGE_WEBP:
+      return "IMAGE_WEBP";
+      // No default so compiler will complain if any enum is not processed.
   }
   return kInvalidImageFormat;
 }
 
 const char* GetPixelFormatString(PixelFormat pixel_format) {
   switch (pixel_format) {
-    case UNSUPPORTED: return "UNSUPPORTED";
-    case RGB_888:     return "RGB_888";
-    case RGBA_8888:   return "RGBA_8888";
-    case GRAY_8:      return "GRAY_8";
-    // No default so compiler will complain if any enum is not processed.
+    case UNSUPPORTED:
+      return "UNSUPPORTED";
+    case RGB_888:
+      return "RGB_888";
+    case RGBA_8888:
+      return "RGBA_8888";
+    case GRAY_8:
+      return "GRAY_8";
+      // No default so compiler will complain if any enum is not processed.
   }
   return kInvalidPixelFormat;
 }
 
 size_t GetBytesPerPixel(PixelFormat pixel_format) {
   switch (pixel_format) {
-    case UNSUPPORTED: return 0;
-    case RGB_888:     return 3;
-    case RGBA_8888:   return 4;
-    case GRAY_8:      return 1;
-    // No default so compiler will complain if any enum is not processed.
+    case UNSUPPORTED:
+      return 0;
+    case RGB_888:
+      return 3;
+    case RGBA_8888:
+      return 4;
+    case GRAY_8:
+      return 1;
+      // No default so compiler will complain if any enum is not processed.
   }
   return 0;
 }
@@ -134,8 +150,7 @@ net_instaweb::ImageType ComputeImageType(const StringPiece& buf) {
         // http://code.google.com/speed/webp/docs/riff_container.html
         WebPBitstreamFeatures features;
         if (WebPGetFeatures(reinterpret_cast<const uint8*>(buf.data()),
-                            buf.length(), &features) ==
-            VP8_STATUS_OK) {
+                            buf.length(), &features) == VP8_STATUS_OK) {
           if (features.has_animation) {
             image_type = net_instaweb::IMAGE_WEBP_ANIMATED;
           } else if (features.format == 2 || features.has_alpha) {
@@ -154,8 +169,8 @@ net_instaweb::ImageType ComputeImageType(const StringPiece& buf) {
 
 bool ConversionTimeoutHandler::Continue(int percent, void* user_data) {
   ConversionTimeoutHandler* timeout_handler =
-    static_cast<ConversionTimeoutHandler*>(user_data);
-  if (timeout_handler != NULL &&
+      static_cast<ConversionTimeoutHandler*>(user_data);
+  if (timeout_handler != nullptr &&
       !timeout_handler->countdown_timer_.HaveTimeLeft()) {
     // We include the output_->empty() check after HaveTimeLeft()
     // for testing, in case there's a callback that writes to
@@ -170,8 +185,7 @@ bool ConversionTimeoutHandler::Continue(int percent, void* user_data) {
   return true;
 }
 
-ScanlineWriterConfig::~ScanlineWriterConfig() {
-}
+ScanlineWriterConfig::~ScanlineWriterConfig() {}
 
 }  // namespace image_compression
 

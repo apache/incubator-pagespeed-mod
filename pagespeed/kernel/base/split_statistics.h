@@ -32,7 +32,7 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/statistics_template.h"
-#include "pagespeed/kernel/base/string_util.h"        // for StringPiece
+#include "pagespeed/kernel/base/string_util.h"  // for StringPiece
 #include "pagespeed/kernel/base/writer.h"
 
 namespace net_instaweb {
@@ -49,12 +49,12 @@ class SplitUpDownCounter : public UpDownCounter {
   // will be used for writes only. Does not take ownership of either
   // 'rw' or 'w'. 'rw' and 'w' must be non-NULL.
   SplitUpDownCounter(UpDownCounter* rw, UpDownCounter* w);
-  virtual ~SplitUpDownCounter();
-  virtual void Set(int64 new_value);
-  virtual int64 SetReturningPreviousValue(int64 new_value);
-  virtual int64 Get() const;
-  virtual StringPiece GetName() const;
-  virtual int64 AddHelper(int64 delta);
+  ~SplitUpDownCounter() override;
+  void Set(int64 new_value) override;
+  int64 SetReturningPreviousValue(int64 new_value) override;
+  int64 Get() const override;
+  StringPiece GetName() const override;
+  int64 AddHelper(int64 delta) override;
 
  private:
   UpDownCounter* rw_;
@@ -68,11 +68,11 @@ class SplitVariable : public Variable {
   // will be used for writes only. Does not take ownership of either
   // 'rw' or 'w'. 'rw' and 'w' must be non-NULL.
   SplitVariable(Variable* rw, Variable* w);
-  virtual ~SplitVariable();
-  virtual int64 Get() const;
-  virtual StringPiece GetName() const;
-  virtual int64 AddHelper(int64 delta);
-  virtual void Clear();
+  ~SplitVariable() override;
+  int64 Get() const override;
+  StringPiece GetName() const override;
+  int64 AddHelper(int64 delta) override;
+  void Clear() override;
 
  private:
   Variable* rw_;
@@ -88,34 +88,34 @@ class SplitHistogram : public Histogram {
   // will be used for writes only. Does not take ownership of either
   // 'rw' or 'w'. 'rw' and 'w' must be non-NULL.
   SplitHistogram(ThreadSystem* thread_system, Histogram* rw, Histogram* w);
-  virtual ~SplitHistogram();
+  ~SplitHistogram() override;
 
   // Reimplementation of the histogram API. See the base class for method
   // descriptions.
-  virtual void Add(double value);
-  virtual void Clear();
-  virtual void Render(int index, Writer* writer, MessageHandler* handler);
-  virtual int NumBuckets();
-  virtual void EnableNegativeBuckets();
-  virtual void SetMinValue(double value);
-  virtual void SetMaxValue(double value);
-  virtual void SetSuggestedNumBuckets(int i);
-  virtual double BucketStart(int index);
-  virtual double BucketLimit(int index);
-  virtual double BucketCount(int index);
+  void Add(double value) override;
+  void Clear() override;
+  void Render(int index, Writer* writer, MessageHandler* handler) override;
+  int NumBuckets() override;
+  void EnableNegativeBuckets() override;
+  void SetMinValue(double value) override;
+  void SetMaxValue(double value) override;
+  void SetSuggestedNumBuckets(int i) override;
+  double BucketStart(int index) override;
+  double BucketLimit(int index) override;
+  double BucketCount(int index) override;
 
  protected:
-  virtual double AverageInternal();
-  virtual double PercentileInternal(const double perc);
-  virtual double StandardDeviationInternal();
-  virtual double CountInternal();
-  virtual double MaximumInternal();
-  virtual double MinimumInternal();
+  double AverageInternal() override;
+  double PercentileInternal(const double perc) override;
+  double StandardDeviationInternal() override;
+  double CountInternal() override;
+  double MaximumInternal() override;
+  double MinimumInternal() override;
 
-  virtual AbstractMutex* lock();
+  AbstractMutex* lock() override;
 
  private:
-  scoped_ptr<AbstractMutex> lock_;
+  std::unique_ptr<AbstractMutex> lock_;
   Histogram* rw_;
   Histogram* w_;
 
@@ -130,11 +130,11 @@ class SplitTimedVariable : public TimedVariable {
   // will be used for writes only. Does not take ownership of either
   // 'rw' or 'w'. 'rw' and 'w' must be non-NULL.
   SplitTimedVariable(TimedVariable* rw, TimedVariable* w);
-  virtual ~SplitTimedVariable();
+  ~SplitTimedVariable() override;
 
-  virtual void IncBy(int64 delta);
-  virtual int64 Get(int level);
-  virtual void Clear();
+  void IncBy(int64 delta) override;
+  int64 Get(int level) override;
+  void Clear() override;
 
  private:
   TimedVariable* rw_;
@@ -156,28 +156,27 @@ class SplitStatistics
   // ::InitStats(Statistics* methods) they must have been invoked on
   // both local and global statistics objects for the same object
   // names.
-  SplitStatistics(ThreadSystem* thread_system,
-                  Statistics* local,
+  SplitStatistics(ThreadSystem* thread_system, Statistics* local,
                   Statistics* global);
 
-  virtual ~SplitStatistics();
+  ~SplitStatistics() override;
 
-  virtual StatisticsLogger* console_logger() {
+  StatisticsLogger* console_logger() override {
     // console_logger() is only used for read access, so just provide the
     // local version.
     return local_->console_logger();
   }
 
  protected:
-  virtual SplitUpDownCounter* NewUpDownCounter(StringPiece name);
-  virtual SplitVariable* NewVariable(StringPiece name);
-  virtual SplitUpDownCounter* NewGlobalUpDownCounter(StringPiece name);
-  virtual SplitHistogram* NewHistogram(StringPiece name);
-  virtual SplitTimedVariable* NewTimedVariable(StringPiece name);
+  SplitUpDownCounter* NewUpDownCounter(StringPiece name) override;
+  SplitVariable* NewVariable(StringPiece name) override;
+  SplitUpDownCounter* NewGlobalUpDownCounter(StringPiece name) override;
+  SplitHistogram* NewHistogram(StringPiece name) override;
+  SplitTimedVariable* NewTimedVariable(StringPiece name) override;
 
  private:
   ThreadSystem* thread_system_;
-  scoped_ptr<Statistics> local_;
+  std::unique_ptr<Statistics> local_;
   Statistics* global_;
   DISALLOW_COPY_AND_ASSIGN(SplitStatistics);
 };

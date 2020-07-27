@@ -39,32 +39,30 @@ class RewriteDriver;
 
 class FileInputResource : public Resource {
  public:
-  FileInputResource(const RewriteDriver* driver,
-                    const ContentType* type,
-                    StringPiece url,
-                    StringPiece filename);
-  virtual ~FileInputResource();
+  FileInputResource(const RewriteDriver* driver, const ContentType* type,
+                    StringPiece url, StringPiece filename);
+  ~FileInputResource() override;
 
   // Uses default no-op Freshen implementation because file-based resources
   // are fetched each time they are needed.
 
-  virtual bool IsValidAndCacheable() const;
+  bool IsValidAndCacheable() const override;
 
   // Set OutputPartition's input info used for expiration validation.
-  virtual void FillInPartitionInputInfo(HashHint include_content_hash,
-                                        InputInfo* input);
+  void FillInPartitionInputInfo(HashHint include_content_hash,
+                                InputInfo* input) override;
 
-  virtual GoogleString url() const { return url_; }
+  GoogleString url() const override { return url_; }
 
-  virtual bool UseHttpCache() const { return false; }
+  bool UseHttpCache() const override { return false; }
 
  protected:
   void SetDefaultHeaders(const ContentType* content_type,
                          ResponseHeaders* header, MessageHandler* handler);
 
-  virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback);
+  void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
+                       const RequestContextPtr& request_context,
+                       AsyncCallback* callback) override;
 
  private:
   GoogleString url_;

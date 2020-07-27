@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/split_writer.h"
 
 namespace net_instaweb {
 
-SplitWriter::~SplitWriter() {
-}
+SplitWriter::~SplitWriter() {}
 
 }  // namespace net_instaweb

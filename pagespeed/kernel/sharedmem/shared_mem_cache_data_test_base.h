@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_DATA_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_DATA_TEST_BASE_H_
 
@@ -67,23 +66,22 @@ class SharedMemCacheDataTestBase : public testing::Test {
 
   void ParentCleanup();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemCacheDataTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemCacheDataTestTemplate : public SharedMemCacheDataTestBase {
  public:
   SharedMemCacheDataTestTemplate()
-      : SharedMemCacheDataTestBase(new ConcreteTestEnv) {
-  }
+      : SharedMemCacheDataTestBase(new ConcreteTestEnv) {}
 };
 
-TYPED_TEST_CASE_P(SharedMemCacheDataTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemCacheDataTestTemplate);
 
 TYPED_TEST_P(SharedMemCacheDataTestTemplate, TestFreeList) {
   SharedMemCacheDataTestBase::TestFreeList();
@@ -97,8 +95,8 @@ TYPED_TEST_P(SharedMemCacheDataTestTemplate, TestBlockLists) {
   SharedMemCacheDataTestBase::TestBlockLists();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemCacheDataTestTemplate, TestFreeList,
-                           TestLRU, TestBlockLists);
+REGISTER_TYPED_TEST_SUITE_P(SharedMemCacheDataTestTemplate, TestFreeList,
+                            TestLRU, TestBlockLists);
 
 }  // namespace net_instaweb
 

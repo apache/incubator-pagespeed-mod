@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/frame_interface_optimizer.h"
 
 #include <cstdint>
@@ -31,16 +30,12 @@ namespace image_compression {
 
 // Takes ownership of reader.
 MultipleFramePaddingReader::MultipleFramePaddingReader(
-    MultipleFrameReader* reader) :
-    MultipleFrameReader(reader->message_handler()),
-    impl_(reader) {
-}
+    MultipleFrameReader* reader)
+    : MultipleFrameReader(reader->message_handler()), impl_(reader) {}
 
 MultipleFramePaddingReader::~MultipleFramePaddingReader() {}
 
-ScanlineStatus MultipleFramePaddingReader::Reset() {
-  return impl_->Reset();
-}
+ScanlineStatus MultipleFramePaddingReader::Reset() { return impl_->Reset(); }
 
 ScanlineStatus MultipleFramePaddingReader::Initialize() {
   ScanlineStatus status = impl_->Initialize(image_buffer_, buffer_length_);
@@ -90,11 +85,10 @@ ScanlineStatus MultipleFramePaddingReader::PrepareNextFrame() {
     scanline_template_.reset(new uint8_t[scanline_num_bytes]);
 
     uint8_t* template_ptr_end = scanline_template_.get() + scanline_num_bytes;
-    const void* bg_color = (image_spec_.use_bg_color ?
-                            image_spec_.bg_color : kTransparent);
+    const void* bg_color =
+        (image_spec_.use_bg_color ? image_spec_.bg_color : kTransparent);
     for (uint8_t* template_ptr = scanline_template_.get();
-         template_ptr < template_ptr_end;
-         template_ptr += bytes_per_pixel_) {
+         template_ptr < template_ptr_end; template_ptr += bytes_per_pixel_) {
       memcpy(template_ptr, bg_color, bytes_per_pixel_);
     }
 
@@ -102,8 +96,8 @@ ScanlineStatus MultipleFramePaddingReader::PrepareNextFrame() {
     // These are guaranteed to be in range because impl_frame_spec_
     // was itself bounds-checked above.
     size_px foreground_scanline_start_idx = impl_frame_spec_.left;
-    size_px foreground_scanline_end_idx = (impl_frame_spec_.left +
-                                           impl_frame_spec_.width);
+    size_px foreground_scanline_end_idx =
+        (impl_frame_spec_.left + impl_frame_spec_.width);
     foreground_scanline_start_byte_ =
         (current_scanline_.get() +
          bytes_per_pixel_ * foreground_scanline_start_idx);
@@ -118,8 +112,7 @@ ScanlineStatus MultipleFramePaddingReader::PrepareNextFrame() {
     // that since the foreground is rectangular, the same foreground
     // pixels will get overwritten in each scanline, while the
     // background pixels remain untouched.
-    memcpy(current_scanline_.get(),
-           scanline_template_.get(),
+    memcpy(current_scanline_.get(), scanline_template_.get(),
            scanline_num_bytes);
   }
   return status;
@@ -134,19 +127,18 @@ ScanlineStatus MultipleFramePaddingReader::ReadNextScanline(
   }
 
   if (!HasMoreScanlines()) {
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            FRAME_PADDING_READER,
-                            "no more scanlines in the current frame");
+    return PS_LOGGED_STATUS(
+        PS_LOG_DFATAL, message_handler(), SCANLINE_STATUS_INVOCATION_ERROR,
+        FRAME_PADDING_READER, "no more scanlines in the current frame");
   }
 
-  const void* impl_scanline = NULL;
+  const void* impl_scanline = nullptr;
   ScanlineStatus status;
 
   if (frame_is_full_height_ ||
       ((current_scanline_idx_ >= impl_frame_spec_.top) &&
-       (current_scanline_idx_ < (impl_frame_spec_.top +
-                                 impl_frame_spec_.height)))) {
+       (current_scanline_idx_ <
+        (impl_frame_spec_.top + impl_frame_spec_.height)))) {
     // This scanline contains foreground pixels.
 
     // If a full-width row, we can short-circuit the remaining
@@ -162,14 +154,13 @@ ScanlineStatus MultipleFramePaddingReader::ReadNextScanline(
     }
   }
 
-  if (impl_scanline == NULL) {
+  if (impl_scanline == nullptr) {
     // This scanline contains only background pixels.
     *out_scanline_bytes = scanline_template_.get();
   } else {
     // Overwrite the foreground pixels appropriately. Note that the
     // background pixels were already set in PrepareNextFrame.
-    memcpy(foreground_scanline_start_byte_,
-           impl_scanline,
+    memcpy(foreground_scanline_start_byte_, impl_scanline,
            bytes_per_pixel_ * impl_frame_spec_.width);
     *out_scanline_bytes = current_scanline_.get();
   }
@@ -188,8 +179,7 @@ ScanlineStatus MultipleFramePaddingReader::GetImageSpec(
     ImageSpec* image_spec) const {
   ScanlineStatus status = impl_->GetImageSpec(image_spec);
   if (status.Success() && !image_spec->Equals(image_spec_)) {
-    return ScanlineStatus(SCANLINE_STATUS_INTERNAL_ERROR,
-                          FRAME_PADDING_READER,
+    return ScanlineStatus(SCANLINE_STATUS_INTERNAL_ERROR, FRAME_PADDING_READER,
                           "ImageSpec changed during image processing");
   }
   return status;
@@ -207,7 +197,6 @@ ScanlineStatus MultipleFramePaddingReader::set_quirks_mode(
 QuirksMode MultipleFramePaddingReader::quirks_mode() const {
   return impl_->quirks_mode();
 }
-
 
 }  // namespace image_compression
 

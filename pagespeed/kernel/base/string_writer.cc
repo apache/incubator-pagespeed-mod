@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/string_writer.h"
 
 #include "pagespeed/kernel/base/string.h"
@@ -27,17 +26,14 @@ namespace net_instaweb {
 
 class MessageHandler;
 
-StringWriter::~StringWriter() {
-}
+StringWriter::~StringWriter() {}
 
 bool StringWriter::Write(const StringPiece& str, MessageHandler* handler) {
   string_->append(str.data(), str.size());
   return true;
 }
 
-bool StringWriter::Flush(MessageHandler* message_handler) {
-  return true;
-}
+bool StringWriter::Flush(MessageHandler* message_handler) { return true; }
 
 bool StringWriter::Dump(Writer* writer, MessageHandler* message_handler) {
   return writer->Write(*string_, message_handler);

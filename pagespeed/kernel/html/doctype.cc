@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/doctype.h"
 
 #include <vector>
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/content_type.h"

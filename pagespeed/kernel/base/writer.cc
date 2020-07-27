@@ -17,13 +17,11 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/writer.h"
 
 namespace net_instaweb {
 
-Writer::~Writer() {
-}
+Writer::~Writer() {}
 
 bool Writer::Dump(Writer* writer, MessageHandler* message_handler) {
   return false;

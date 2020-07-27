@@ -37,7 +37,6 @@
 // interleaved runs with the old & new algorithm.
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -49,14 +48,17 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_random.h"
 #include "pagespeed/kernel/util/simple_stats.h"
+// clang-format off
+#include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 namespace {
 
 class EmptyCallback : public net_instaweb::CacheInterface::Callback {
  public:
   EmptyCallback() {}
-  virtual ~EmptyCallback() {}
-  virtual void Done(net_instaweb::CacheInterface::KeyState state) {}
+  ~EmptyCallback() override {}
+  void Done(net_instaweb::CacheInterface::KeyState state) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyCallback);
@@ -69,7 +71,7 @@ void TestCachePayload(int payload_size, int chunk_size, int iters) {
   while (static_cast<int>(value.size()) < payload_size) {
     value += chunk;
   }
-  net_instaweb::scoped_ptr<net_instaweb::ThreadSystem> thread_system(
+  std::unique_ptr<net_instaweb::ThreadSystem> thread_system(
       net_instaweb::Platform::CreateThreadSystem());
   net_instaweb::SimpleStats stats(thread_system.get());
   net_instaweb::CompressedCache::InitStats(&stats);
@@ -84,20 +86,20 @@ void TestCachePayload(int payload_size, int chunk_size, int iters) {
   }
 }
 
-static void BM_Compress1MHighEntropy(int iters) {
-  TestCachePayload(1000*1000, 1000*1000, iters);
+static void BM_Compress1MHighEntropy(benchmark::State& state) {
+  TestCachePayload(1000 * 1000, 1000 * 1000, state.iterations());
 }
 
-static void BM_Compress1KHighEntropy(int iters) {
-  TestCachePayload(1000, 1000, iters);
+static void BM_Compress1KHighEntropy(benchmark::State& state) {
+  TestCachePayload(1000, 1000, state.iterations());
 }
 
-static void BM_Compress1MLowEntropy(int iters) {
-  TestCachePayload(1000*1000, 1000, iters);
+static void BM_Compress1MLowEntropy(benchmark::State& state) {
+  TestCachePayload(1000 * 1000, 1000, state.iterations());
 }
 
-static void BM_Compress1KLowEntropy(int iters) {
-  TestCachePayload(1000, 50, iters);
+static void BM_Compress1KLowEntropy(benchmark::State& state) {
+  TestCachePayload(1000, 50, state.iterations());
 }
 
 }  // namespace

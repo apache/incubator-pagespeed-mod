@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // A set of utility functions for handling hostnames.
 
 #ifndef PAGESPEED_KERNEL_BASE_HOSTNAME_UTIL_H_

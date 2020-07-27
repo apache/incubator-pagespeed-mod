@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_ASSOCIATION_TRANSFORMER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_ASSOCIATION_TRANSFORMER_H_
 
@@ -56,9 +55,11 @@ class AssociationTransformer : public CssTagScanner::Transformer {
                          const RewriteOptions* options,
                          CssTagScanner::Transformer* backup_transformer,
                          MessageHandler* handler)
-      : base_url_(base_url), options_(options),
-        backup_transformer_(backup_transformer), handler_(handler) {}
-  virtual ~AssociationTransformer();
+      : base_url_(base_url),
+        options_(options),
+        backup_transformer_(backup_transformer),
+        handler_(handler) {}
+  ~AssociationTransformer() override;
 
   // Map is exposed so that you can set associations.
   // Each key -> value specifies that every instance of the absolute URL
@@ -69,7 +70,7 @@ class AssociationTransformer : public CssTagScanner::Transformer {
   // with this AssociationTransformer which will call Transform() on all URLs.
   // Transform will lookup all (absolutified) URLs in map_ and rewrite them
   // if present (otherwise it will pass them to the backup_transformer_).
-  virtual TransformStatus Transform(GoogleString* str);
+  TransformStatus Transform(GoogleString* str) override;
 
  private:
   // Mapping of input URLs to output URLs.
@@ -98,18 +99,18 @@ class AssociationTransformer : public CssTagScanner::Transformer {
 class AssociationSlot : public ResourceSlot {
  public:
   // Note: map must outlive AssociationSlot.
-  AssociationSlot(ResourcePtr resource,
-                  StringStringMap* map, const StringPiece& key)
+  AssociationSlot(ResourcePtr resource, StringStringMap* map,
+                  const StringPiece& key)
       : ResourceSlot(resource), map_(map) {
     key.CopyToString(&key_);
   }
-  virtual ~AssociationSlot();
+  ~AssociationSlot() override;
 
-  virtual HtmlElement* element() const { return NULL; }
+  HtmlElement* element() const override { return NULL; }
 
   // All Render() calls are from the same thread, so this doesn't need to be
   // thread-safe.
-  virtual void Render() {
+  void Render() override {
     // We should never try to render unauthorized resource URLs as is.
     if (!resource()->is_authorized_domain()) {
       return;
@@ -119,7 +120,7 @@ class AssociationSlot : public ResourceSlot {
     }
   }
 
-  virtual bool DirectSetUrl(const StringPiece& url) {
+  bool DirectSetUrl(const StringPiece& url) override {
     // We should never try to render unauthorized resource URLs as is.
     if (!resource()->is_authorized_domain()) {
       return false;
@@ -128,7 +129,7 @@ class AssociationSlot : public ResourceSlot {
     return true;
   }
 
-  virtual GoogleString LocationString() const {
+  GoogleString LocationString() const override {
     // TODO(sligocki): Improve quality of this diagnostic.
     // Also improve CssResourceSlot::LocationString() which is identical.
     return "Inside CSS";

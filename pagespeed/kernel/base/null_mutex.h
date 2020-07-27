@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_NULL_MUTEX_H_
 #define PAGESPEED_KERNEL_BASE_NULL_MUTEX_H_
 
@@ -31,10 +30,10 @@ namespace net_instaweb {
 class LOCKABLE NullMutex : public AbstractMutex {
  public:
   NullMutex() {}
-  virtual ~NullMutex();
-  virtual bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true);
-  virtual void Lock() EXCLUSIVE_LOCK_FUNCTION();
-  virtual void Unlock() UNLOCK_FUNCTION();
+  ~NullMutex() override;
+  bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
+  void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
+  void Unlock() UNLOCK_FUNCTION() override;
 };
 
 }  // namespace net_instaweb

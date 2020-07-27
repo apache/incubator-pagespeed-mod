@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/inline_slist.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -31,7 +30,7 @@ namespace {
 
 class IntElement : public InlineSListElement<IntElement> {
  public:
-  explicit IntElement(int n) : num_(n) { }
+  explicit IntElement(int n) : num_(n) {}
 
   const int num() const { return num_; }
   void set_num(int num) { num_ = num; }

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_APACHE_SERVER_CONTEXT_H_
 #define PAGESPEED_APACHE_APACHE_SERVER_CONTEXT_H_
 
@@ -58,10 +57,9 @@ class ApacheServerContext : public SystemServerContext {
   // Prefix for ProxyInterface stats (active in proxy_all_requests_mode() only).
   static const char kProxyInterfaceStatsPrefix[];
 
-  ApacheServerContext(ApacheRewriteDriverFactory* factory,
-                      server_rec* server,
+  ApacheServerContext(ApacheRewriteDriverFactory* factory, server_rec* server,
                       const StringPiece& version);
-  virtual ~ApacheServerContext();
+  ~ApacheServerContext() override;
 
   // This must be called for every statistics object in use before using this.
   static void InitStats(Statistics* statistics);
@@ -103,7 +101,7 @@ class ApacheServerContext : public SystemServerContext {
   // This should be called after all configuration parsing is done to collapse
   // configuration inside the config overlays into actual ApacheConfig objects.
   // It will also compute signatures when done.
-  virtual void CollapseConfigOverlaysAndComputeSignatures();
+  void CollapseConfigOverlaysAndComputeSignatures() override;
 
   // Called on notification from Apache on child exit. Returns true
   // if this is the last ServerContext that exists.
@@ -121,7 +119,7 @@ class ApacheServerContext : public SystemServerContext {
   // ProxyFetch flow if proxy_all_requests_mode() is on in config.  In the usual
   // case, we handle HTML as an Apache filter, letting something like mod_proxy
   // (or one of our own test modes like slurp) do the fetching.
-  virtual bool ProxiesHtml() const {
+  bool ProxiesHtml() const override {
     return global_config()->proxy_all_requests_mode();
   }
 
@@ -150,15 +148,13 @@ class ApacheServerContext : public SystemServerContext {
                          rewrite_stats()->slurp_404_count());
   }
 
-  virtual GoogleString FormatOption(StringPiece option_name, StringPiece args);
+  GoogleString FormatOption(StringPiece option_name, StringPiece args) override;
 
  private:
   void ChildInit(SystemRewriteDriverFactory* factory) override;
 
-  void ReportNotFoundHelper(MessageType message_type,
-                            StringPiece url,
-                            request_rec* request,
-                            Variable* error_count);
+  void ReportNotFoundHelper(MessageType message_type, StringPiece url,
+                            request_rec* request, Variable* error_count);
 
   ApacheRewriteDriverFactory* apache_factory_;
   server_rec* server_rec_;
@@ -166,13 +162,13 @@ class ApacheServerContext : public SystemServerContext {
 
   // May be NULL. Constructed once we see things in config files that should
   // be stored in these.
-  scoped_ptr<ApacheConfig> spdy_config_overlay_;
-  scoped_ptr<ApacheConfig> non_spdy_config_overlay_;
+  std::unique_ptr<ApacheConfig> spdy_config_overlay_;
+  std::unique_ptr<ApacheConfig> non_spdy_config_overlay_;
 
   // May be NULL. Only constructed in measurement proxy mode.
   std::unique_ptr<MeasurementProxyUrlNamer> measurement_url_namer_;
 
-  scoped_ptr<ProxyFetchFactory> proxy_fetch_factory_;
+  std::unique_ptr<ProxyFetchFactory> proxy_fetch_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheServerContext);
 };

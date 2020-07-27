@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef WEBUTIL_CSS_SELECTOR_H__
 #define WEBUTIL_CSS_SELECTOR_H__
 
@@ -111,12 +109,12 @@ class SimpleSelector {
     // EXACT_ATTRIBUTE, but CSS provides special syntax for them, and
     // they're very common.  GetLocalName() returns "class" and "id"
     // for these:
-    CLASS,             // .class: element's class attribute is "val"
-    ID,                // #id:    the element's id attribute is "id"
+    CLASS,  // .class: element's class attribute is "val"
+    ID,     // #id:    the element's id attribute is "id"
 
     // Miscellaneous conditions:
     PSEUDOCLASS,  // a:hover matches <a href=blah> when mouse is hovering
-    LANG,          // :lang(en) matches if the element is in English.
+    LANG,         // :lang(en) matches if the element is in English.
 
     // We don't implement these (yet).
     // AND, OR, NOT, ONLY_CHILD, ONLY_TYPE, CONTENT, POSITIONAL
@@ -160,6 +158,8 @@ class SimpleSelector {
         return SUBSTRING_ATTRIBUTE;
       default:
         LOG(FATAL) << "Invalid attribute operator " << oper;
+        // XXX(oschaaf):
+        return SUBSTRING_ATTRIBUTE;
     }
   }
 
@@ -186,10 +186,10 @@ class SimpleSelector {
   // IsAttributeCondition indicates whether this is an attribute
   // selector, with valid attribute() and value() fields.
   bool IsAttributeCondition() const {
-    return (EXIST_ATTRIBUTE == type_ || EXACT_ATTRIBUTE == type_
-            || ONE_OF_ATTRIBUTE == type_ || BEGIN_HYPHEN_ATTRIBUTE == type_
-            || BEGIN_WITH_ATTRIBUTE == type_ || END_WITH_ATTRIBUTE == type_
-            || SUBSTRING_ATTRIBUTE == type_ || CLASS == type_ || ID == type_);
+    return (EXIST_ATTRIBUTE == type_ || EXACT_ATTRIBUTE == type_ ||
+            ONE_OF_ATTRIBUTE == type_ || BEGIN_HYPHEN_ATTRIBUTE == type_ ||
+            BEGIN_WITH_ATTRIBUTE == type_ || END_WITH_ATTRIBUTE == type_ ||
+            SUBSTRING_ATTRIBUTE == type_ || CLASS == type_ || ID == type_);
   }
 
   // PSEUDOCLASS accessors:
@@ -209,25 +209,28 @@ class SimpleSelector {
   }
 
   string ToString() const;
+
  private:
   Type type_;
 
-  HtmlTagEnum element_type_;  // ELEMENT_TYPE
-  UnicodeText element_text_;  // ELEMENT_TYPE
+  HtmlTagEnum element_type_;            // ELEMENT_TYPE
+  UnicodeText element_text_;            // ELEMENT_TYPE
   static const HtmlTagIndex tagindex_;  // Look up HTML tags.  Thread-safe.
 
   UnicodeText attribute_;  // Attribute name, valid for *_ATTRIBUTE, CLASS, ID
-  UnicodeText value_;    // Valid for *_ATTRIBUTE, CLASS, ID, PSEUDOCLASS, LANG
+  UnicodeText value_;  // Valid for *_ATTRIBUTE, CLASS, ID, PSEUDOCLASS, LANG
 
   // Private constructors, for use by factory methods
   SimpleSelector(Type type, const UnicodeText& attribute,
                  const UnicodeText& value)
-      : type_(type), attribute_(attribute), value_(value) { }
+      : type_(type), attribute_(attribute), value_(value) {}
   SimpleSelector(HtmlTagEnum element_type, const UnicodeText& element_text)
       : type_(ELEMENT_TYPE),
-        element_type_(element_type), element_text_(element_text) { }
+        element_type_(element_type),
+        element_text_(element_text) {}
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleSelector);
+  // TODO(XXX):
+  // DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleSelector);
 };
 
 // ------------
@@ -253,22 +256,23 @@ class SimpleSelector {
 class SimpleSelectors : public std::vector<SimpleSelector*> {
  public:
   enum Combinator {
-    NONE,         // first one in the chain
-    DESCENDANT,   // this one is a descendant of the previous one
-    CHILD,        // this one is a child (direct descendant) of the previous one
-    SIBLING       // this one is an adjacent sibling of the previous
-                  // one, non-element nodes (such as text nodes and
-                  // comments) excluded.
+    NONE,        // first one in the chain
+    DESCENDANT,  // this one is a descendant of the previous one
+    CHILD,       // this one is a child (direct descendant) of the previous one
+    SIBLING      // this one is an adjacent sibling of the previous
+                 // one, non-element nodes (such as text nodes and
+                 // comments) excluded.
   };
 
   SimpleSelectors(Combinator c)
-      : std::vector<SimpleSelector*>(), combinator_(c) { }
+      : std::vector<SimpleSelector*>(), combinator_(c) {}
   ~SimpleSelectors();
 
   Combinator combinator() const { return combinator_; }
   const SimpleSelector* get(int i) const { return (*this)[i]; }  // sugar.
 
   string ToString() const;
+
  private:
   const Combinator combinator_;
   DISALLOW_COPY_AND_ASSIGN(SimpleSelectors);
@@ -281,15 +285,16 @@ class SimpleSelectors : public std::vector<SimpleSelector*> {
 // combinators.  Each SimpleSelectors stores the combinator between
 // it and the previous one in the chain.
 // ------------
-class Selector: public std::vector<SimpleSelectors*> {
+class Selector : public std::vector<SimpleSelectors*> {
  public:
-  Selector() { }
+  Selector() {}
   ~Selector();
   // We provide syntactic sugar for accessing elements.
   // conditions->get(i) looks better than (*conditions)[i])
   const SimpleSelectors* get(int i) const { return (*this)[i]; }
 
   string ToString() const;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Selector);
 };
@@ -300,14 +305,14 @@ class Selector: public std::vector<SimpleSelectors*> {
 // When several selectors share the same declarations, they may be
 // grouped into a comma-separated list:
 // ------------
-class Selectors: public std::vector<Selector*> {
+class Selectors : public std::vector<Selector*> {
  public:
   Selectors() : is_dummy_(false) {}
   // Dummy Selectors
   // TODO(sligocki): Should we disallow accessing std::vector methods for
   // dummy selectors? This would make sure users don't accidentally treat
   // dummy selectors as normal selectors.
-  explicit Selectors(const StringPiece& bytes_in_original_buffer)
+  explicit Selectors(const CssStringPiece& bytes_in_original_buffer)
       : is_dummy_(true),
         bytes_in_original_buffer_(bytes_in_original_buffer.data(),
                                   bytes_in_original_buffer.length()) {}
@@ -316,11 +321,11 @@ class Selectors: public std::vector<Selector*> {
 
   bool is_dummy() const { return is_dummy_; }
   // Note: May be invalid UTF8.
-  StringPiece bytes_in_original_buffer() const {
+  CssStringPiece bytes_in_original_buffer() const {
     return bytes_in_original_buffer_;
   }
-  void set_bytes_in_original_buffer(const StringPiece& new_bytes) {
-    new_bytes.CopyToString(&bytes_in_original_buffer_);
+  void set_bytes_in_original_buffer(const CssStringPiece& new_bytes) {
+    bytes_in_original_buffer_ = std::string(new_bytes.data(), new_bytes.size());
   }
 
   string ToString() const;
@@ -339,6 +344,6 @@ class Selectors: public std::vector<Selector*> {
   DISALLOW_COPY_AND_ASSIGN(Selectors);
 };
 
-}  // namespace
+}  // namespace Css
 
 #endif  // WEBUTIL_CSS_SELECTOR_H__

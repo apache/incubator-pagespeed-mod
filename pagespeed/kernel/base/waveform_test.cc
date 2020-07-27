@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/waveform.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -47,23 +46,21 @@ class WaveformTest : public testing::Test {
       : thread_system_(Platform::CreateThreadSystem()),
         timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
         stats_(thread_system_.get()),
-        handler_(thread_system_->NewMutex()) {
-  }
+        handler_(thread_system_->NewMutex()) {}
 
   GoogleString Format(int time_ms, int value) {
-    return StringPrintf(kCoordinateFormat, 1.0 * time_ms, 1.0 * value);
+    return absl::StrFormat(kCoordinateFormat, 1.0 * time_ms, 1.0 * value);
   }
 
   bool Contains(const StringPiece& html, int time_ms, int value) {
     return (html.find(Format(time_ms, value)) != GoogleString::npos);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   SimpleStats stats_;
   MockMessageHandler handler_;
 };
-
 
 // A basic sanity test showing that the header loads the jsapi.
 TEST_F(WaveformTest, Header) {
@@ -134,7 +131,7 @@ TEST_F(WaveformTest, Delta) {
 // Overflows the number of samples and makes sure the desired results
 // are shown.
 TEST_F(WaveformTest, Overflow) {
-  Waveform waveform(thread_system_.get(), &timer_, 10, NULL /* variable */);
+  Waveform waveform(thread_system_.get(), &timer_, 10, nullptr /* variable */);
 
   // Don't overflow at first.
   for (int i = 0; i < 10; ++i) {
@@ -177,7 +174,7 @@ TEST_F(WaveformTest, Overflow) {
 }
 
 TEST_F(WaveformTest, AvgMinMax) {
-  Waveform waveform(thread_system_.get(), &timer_, 10, NULL /* variable */);
+  Waveform waveform(thread_system_.get(), &timer_, 10, nullptr /* variable */);
   for (int i = 1; i <= 1000; ++i) {
     waveform.Add(i);
     timer_.AdvanceMs(10);

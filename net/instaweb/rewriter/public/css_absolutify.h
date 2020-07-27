@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_ABSOLUTIFY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_ABSOLUTIFY_H_
 
@@ -51,12 +50,10 @@ class CssAbsolutify {
   // TODO(sligocki): Remove handle_ bools, and always handle both. Also,
   // absolutify imports in this function.
   // Returns true if any URLs were absolutified, false if not.
-  static bool AbsolutifyUrls(Css::Stylesheet* stylesheet,
-                             const GoogleUrl& base,
+  static bool AbsolutifyUrls(Css::Stylesheet* stylesheet, const GoogleUrl& base,
                              bool handle_parseable_ruleset_sections,
                              bool handle_unparseable_sections,
-                             RewriteDriver* driver,
-                             MessageHandler* handler);
+                             RewriteDriver* driver, MessageHandler* handler);
 
  private:
   static bool AbsolutifyDeclarations(Css::Declarations* decls,

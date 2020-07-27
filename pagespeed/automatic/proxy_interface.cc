@@ -17,17 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/automatic/proxy_interface.h"
 
-#include "base/callback.h"
+#include <memory>
+
+//#include "base/callback.h"
 #include "base/logging.h"
-#include "net/instaweb/config/rewrite_options_manager.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "pagespeed/opt/logging/log_record.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/request_timing_info.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/resource_fetch.h"
@@ -35,7 +35,8 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "strings/stringpiece_utils.h"
+#include "pagespeed/opt/logging/log_record.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/automatic/proxy_fetch.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/hasher.h"
@@ -62,7 +63,8 @@ namespace {
 const char kTotalRequestCount[] = "all-requests";
 const char kPagespeedRequestCount[] = "pagespeed-requests";
 const char kRejectedRequestCount[] = "publisher-rejected-requests";
-const char kRejectedRequestHtmlResponse[] = "Unable to serve "
+const char kRejectedRequestHtmlResponse[] =
+    "Unable to serve "
     "content as the content is blocked by the administrator of the domain.";
 const char kNoDomainConfigRequestCount[] = "without-domain-config-requests";
 const char kNoDomainConfigResourceRequestCount[] =
@@ -72,33 +74,31 @@ const char kNoDomainConfigResourceRequestCount[] =
 
 struct ProxyInterface::RequestData {
   bool is_resource_fetch;
-  scoped_ptr<GoogleUrl> request_url;
+  std::unique_ptr<GoogleUrl> request_url;
   AsyncFetch* async_fetch;
   MessageHandler* handler;
 };
 
-ProxyInterface::ProxyInterface(StringPiece stats_prefix,
-                               StringPiece hostname, int port,
-                               ServerContext* server_context,
+ProxyInterface::ProxyInterface(StringPiece stats_prefix, StringPiece hostname,
+                               int port, ServerContext* server_context,
                                Statistics* stats)
     : server_context_(server_context),
       hostname_(hostname.as_string()),
       port_(port),
-      all_requests_(stats->GetTimedVariable(
-          StrCat(stats_prefix, kTotalRequestCount))),
+      all_requests_(
+          stats->GetTimedVariable(StrCat(stats_prefix, kTotalRequestCount))),
       pagespeed_requests_(stats->GetTimedVariable(
           StrCat(stats_prefix, kPagespeedRequestCount))),
-      rejected_requests_(stats->GetTimedVariable(
-          StrCat(stats_prefix, kRejectedRequestCount))),
+      rejected_requests_(
+          stats->GetTimedVariable(StrCat(stats_prefix, kRejectedRequestCount))),
       requests_without_domain_config_(stats->GetTimedVariable(
           StrCat(stats_prefix, kNoDomainConfigRequestCount))),
       resource_requests_without_domain_config_(stats->GetTimedVariable(
-          StrCat(stats_prefix,  kNoDomainConfigResourceRequestCount))) {
-  proxy_fetch_factory_.reset(new ProxyFetchFactory(server_context));
+          StrCat(stats_prefix, kNoDomainConfigResourceRequestCount))) {
+  proxy_fetch_factory_ = std::make_unique<ProxyFetchFactory>(server_context);
 }
 
-ProxyInterface::~ProxyInterface() {
-}
+ProxyInterface::~ProxyInterface() {}
 
 void ProxyInterface::InitStats(StringPiece stats_prefix,
                                Statistics* statistics) {
@@ -155,8 +155,7 @@ bool ProxyInterface::UrlAndPortMatchThisServer(const GoogleUrl& url) {
 }
 
 void ProxyInterface::Fetch(const GoogleString& requested_url_string,
-                           MessageHandler* handler,
-                           AsyncFetch* async_fetch) {
+                           MessageHandler* handler, AsyncFetch* async_fetch) {
   GoogleUrl requested_url(requested_url_string);
   const bool is_get_or_head =
       (async_fetch->request_headers()->method() == RequestHeaders::kGet) ||
@@ -194,37 +193,35 @@ void ProxyInterface::ProxyRequest(bool is_resource_fetch,
                                   MessageHandler* handler) {
   RequestData* request_data = new RequestData;
   request_data->is_resource_fetch = is_resource_fetch;
-  request_data->request_url.reset(new GoogleUrl);
+  request_data->request_url = std::make_unique<GoogleUrl>();
   request_data->request_url->Reset(request_url);
   request_data->async_fetch = async_fetch;
   request_data->handler = handler;
 
   server_context_->rewrite_options_manager()->GetRewriteOptions(
-      request_url,
-      *async_fetch->request_headers(),
+      request_url, *async_fetch->request_headers(),
       NewCallback(this, &ProxyInterface::GetRewriteOptionsDone, request_data));
 }
 
 ProxyFetchPropertyCallbackCollector*
-    ProxyInterface::InitiatePropertyCacheLookup(
-    bool is_resource_fetch,
-    const GoogleUrl& request_url,
-    RewriteOptions* options,
-    AsyncFetch* async_fetch) {
+ProxyInterface::InitiatePropertyCacheLookup(bool is_resource_fetch,
+                                            const GoogleUrl& request_url,
+                                            RewriteOptions* options,
+                                            AsyncFetch* async_fetch) {
   return ProxyFetchFactory::InitiatePropertyCacheLookup(
       is_resource_fetch, request_url, server_context_, options, async_fetch);
 }
 
 void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
                                            RewriteOptions* domain_options) {
-  scoped_ptr<RequestData> request_data_deleter(request_data);
-  scoped_ptr<RewriteOptions> scoped_domain_options(domain_options);
+  std::unique_ptr<RequestData> request_data_deleter(request_data);
+  std::unique_ptr<RewriteOptions> scoped_domain_options(domain_options);
   bool is_resource_fetch = request_data->is_resource_fetch;
   GoogleUrl* request_url = request_data->request_url.get();
   AsyncFetch* async_fetch = request_data->async_fetch;
   MessageHandler* handler = request_data->handler;
 
-  if (domain_options == NULL) {
+  if (domain_options == nullptr) {
     requests_without_domain_config_->IncBy(1);
     if (is_resource_fetch) {
       resource_requests_without_domain_config_->IncBy(1);
@@ -233,10 +230,10 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
 
   // Parse the query options, headers, and cookies.
   RewriteQuery query;
-  if (!server_context_->GetQueryOptions(async_fetch->request_context(),
-                                        domain_options, request_url,
-                                        async_fetch->request_headers(),
-                                        NULL /* response_headers */, &query)) {
+  if (!server_context_->GetQueryOptions(
+          async_fetch->request_context(), domain_options, request_url,
+          async_fetch->request_headers(), nullptr /* response_headers */,
+          &query)) {
     async_fetch->response_headers()->SetStatusAndReason(
         HttpStatus::kMethodNotAllowed);
     async_fetch->Write("Invalid PageSpeed query-params/request headers",
@@ -251,7 +248,7 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
   GoogleString url_string;
   request_url->Spec().CopyToString(&url_string);
   RequestHeaders* request_headers = async_fetch->request_headers();
-  if (options != NULL &&
+  if (options != nullptr &&
       options->IsRequestDeclined(url_string, request_headers)) {
     rejected_requests_->IncBy(1);
     ResponseHeaders* response_headers = async_fetch->response_headers();
@@ -284,7 +281,7 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
   bool cookie_found = experiment::GetExperimentCookieState(
       *async_fetch->request_headers(), &prior_experiment_id);
 
-  AbstractLogRecord* log_record =  async_fetch->request_context()->log_record();
+  AbstractLogRecord* log_record = async_fetch->request_context()->log_record();
   {
     ScopedMutex lock(log_record->mutex());
     log_record->logging_info()->set_is_pagespeed_resource(is_resource_fetch);
@@ -299,7 +296,7 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
     // TODO(pulkitg): Set is_original_resource_cacheable to false if pagespeed
     // resource is not cacheable.
     const RewriteOptions* these_options =
-        (options == NULL ? server_context_->global_options() : options);
+        (options == nullptr ? server_context_->global_options() : options);
     // TODO(sligocki): Should we be setting default options and then overriding
     // here? It seems like it would be better to only set once, but that
     // involves a lot of complicated code changes.
@@ -312,14 +309,14 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
     // If we don't already have custom options, and the global options say we're
     // running an experiment, then clone them into custom_options so we can
     // manipulate custom options without affecting the global options.
-    if (options == NULL) {
+    if (options == nullptr) {
       RewriteOptions* global_options = server_context_->global_options();
       if (global_options->running_experiment()) {
         options = global_options->Clone();
       }
     }
     bool need_to_store_experiment_data = false;
-    if (options != NULL && options->running_experiment()) {
+    if (options != nullptr && options->running_experiment()) {
       need_to_store_experiment_data =
           server_context_->experiment_matcher()->ClassifyIntoExperiment(
               *async_fetch->request_headers(),
@@ -327,16 +324,16 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
       options->set_need_to_store_experiment_data(need_to_store_experiment_data);
     }
 
-    ProxyFetchPropertyCallbackCollector* property_callback = NULL;
+    ProxyFetchPropertyCallbackCollector* property_callback = nullptr;
 
-    if (options == NULL ||
+    if (options == nullptr ||
         (options->enabled() && options->IsAllowed(request_url->Spec()))) {
       // Ownership of "property_callback" is eventually assumed by ProxyFetch.
       property_callback = InitiatePropertyCacheLookup(
           is_resource_fetch, *request_url, options, async_fetch);
     }
 
-    if (options != NULL) {
+    if (options != nullptr) {
       server_context_->ComputeSignature(options);
       {
         ScopedMutex lock(log_record->mutex());
@@ -346,11 +343,11 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
       }
     }
 
-    RewriteDriver* driver = NULL;
+    RewriteDriver* driver = nullptr;
     RequestContextPtr request_ctx = async_fetch->request_context();
-    DCHECK(request_ctx.get() != NULL) << "Async fetch must have a request"
-                                      << "context but does not.";
-    if (options == NULL) {
+    DCHECK(request_ctx.get() != nullptr) << "Async fetch must have a request"
+                                         << "context but does not.";
+    if (options == nullptr) {
       driver = server_context_->NewRewriteDriver(request_ctx);
     } else {
       // NewCustomRewriteDriver takes ownership of custom_options_.
@@ -374,8 +371,8 @@ void ProxyInterface::GetRewriteOptionsDone(RequestData* request_data,
         query.pagespeed_option_cookies().ToEscapedString());
 
     // Takes ownership of property_callback.
-    proxy_fetch_factory_->StartNewProxyFetch(
-        url_string, async_fetch, driver, property_callback, NULL);
+    proxy_fetch_factory_->StartNewProxyFetch(url_string, async_fetch, driver,
+                                             property_callback, nullptr);
   }
 }
 

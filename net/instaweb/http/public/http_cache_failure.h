@@ -62,8 +62,7 @@ class HttpCacheFailure {
   // code doesn't have to worry about all the various knobs we have for
   // overriding TTL.
   static FetchResponseStatus ClassifyFailure(
-      const ResponseHeaders& headers,
-      StringPiece contents,
+      const ResponseHeaders& headers, StringPiece contents,
       bool physical_fetch_success, /* e.g. what Done() said */
       bool external_cacheable);
 

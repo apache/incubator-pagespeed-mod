@@ -29,20 +29,18 @@ InlineResourceSlot::InlineResourceSlot(const ResourcePtr& resource,
                                        StringPiece location)
     : ResourceSlot(resource),
       char_node_(char_node),
-      location_(location.data(), location.size()) {
-}
+      location_(location.data(), location.size()) {}
 
-InlineResourceSlot::~InlineResourceSlot() {
-}
+InlineResourceSlot::~InlineResourceSlot() {}
 
 void InlineResourceSlot::Render() {
   if (!disable_rendering()) {
-    DCHECK(char_node_ != NULL);
+    DCHECK(char_node_ != nullptr);
     // Note: This should be an InlineOutputResource so it will be loaded by
     // default.
     DCHECK(resource()->loaded());
     DCHECK(!resource()->response_headers()->cache_fields_dirty());
-    if (char_node_ != NULL && resource()->loaded()) {
+    if (char_node_ != nullptr && resource()->loaded()) {
       resource()->ExtractUncompressedContents().CopyToString(
           char_node_->mutable_contents());
     }
@@ -51,9 +49,7 @@ void InlineResourceSlot::Render() {
 
 // TODO(sligocki): Use code from HtmlResourceSlot or pass in the RewriteDriver
 // and call driver->UrlLine().
-GoogleString InlineResourceSlot::LocationString() const {
-  return location_;
-}
+GoogleString InlineResourceSlot::LocationString() const { return location_; }
 
 bool InlineResourceSlotComparator::operator()(
     const InlineResourceSlotPtr& p, const InlineResourceSlotPtr& q) const {

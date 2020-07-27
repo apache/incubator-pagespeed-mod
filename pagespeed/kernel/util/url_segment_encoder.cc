@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/url_segment_encoder.h"
 
 #include "base/logging.h"
@@ -29,8 +28,7 @@ namespace net_instaweb {
 class MessageHandler;
 class ResourceContext;
 
-UrlSegmentEncoder::~UrlSegmentEncoder() {
-}
+UrlSegmentEncoder::~UrlSegmentEncoder() {}
 
 void UrlSegmentEncoder::Encode(const StringVector& urls,
                                const ResourceContext* data,
@@ -40,8 +38,7 @@ void UrlSegmentEncoder::Encode(const StringVector& urls,
 }
 
 bool UrlSegmentEncoder::Decode(const StringPiece& url_segment,
-                               StringVector* urls,
-                               ResourceContext* out_data,
+                               StringVector* urls, ResourceContext* out_data,
                                MessageHandler* handler) const {
   urls->clear();
   urls->push_back(GoogleString());

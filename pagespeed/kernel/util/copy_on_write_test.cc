@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/copy_on_write.h"
 
 #include <vector>
@@ -40,7 +39,7 @@ class IntVector : public std::vector<int> {
 
 class CopyOnWriteTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     IntVector* one_two = cow_int_vector_a_.MakeWriteable();
     one_two->push_back(1);
     one_two->push_back(2);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 
 #include "net/instaweb/rewriter/public/debug_filter.h"
@@ -59,14 +58,11 @@ class CssOutlineFilterTest : public RewriteTestBase {
 
     debug_message.CopyToString(&debug_message_);
     debug_suffix_ = DebugFilter::FormatEndDocumentMessage(
-        0, 0, 0, 0, 0, false, StringSet(),
-        expected_disabled_filters);
+        0, 0, 0, 0, 0, false, StringSet(), expected_disabled_filters);
   }
 
-  void TestOutlineCss(StringPiece html_url,
-                      StringPiece base_ref,
-                      StringPiece css_original_body,
-                      bool expect_outline,
+  void TestOutlineCss(StringPiece html_url, StringPiece base_ref,
+                      StringPiece css_original_body, bool expect_outline,
                       StringPiece css_rewritten_body,
                       // css_url_base only needed if different from html_url,
                       // e.g. domain rewriting.
@@ -89,39 +85,36 @@ class CssOutlineFilterTest : public RewriteTestBase {
     }
     GoogleString css_gurl_base_origin = StrCat(css_gurl_base.Origin(), "/");
     GoogleString base_ref_gurl_origin = StrCat(base_ref_gurl.Origin(), "/");
-    GoogleString outline_url = EncodeWithBase(base_ref_gurl_origin,
-                                              css_gurl_base_origin,
-                                              CssOutlineFilter::kFilterId,
-                                              hash, "_", "css");
+    GoogleString outline_url =
+        EncodeWithBase(base_ref_gurl_origin, css_gurl_base_origin,
+                       CssOutlineFilter::kFilterId, hash, "_", "css");
     // Add a base href to the HTML iff specified.
     GoogleString other_content;
     if (!base_ref.empty()) {
       other_content = StrCat("  <base href=\"", base_ref, "\">\n");
     }
 
-    const GoogleString html_input = StrCat(
-        "<head>\n",
-        other_content,
-        "  <style>", css_original_body, "</style>\n"
-        "</head>\n"
-        "<body>Hello, world!</body>");
+    const GoogleString html_input =
+        StrCat("<head>\n", other_content, "  <style>", css_original_body,
+               "</style>\n"
+               "</head>\n"
+               "<body>Hello, world!</body>");
 
     // Check output HTML.
     GoogleString expected_output;
     if (expect_outline) {
-      expected_output = StrCat(
-          "<head>\n",
-          other_content,
-          "  <link rel=\"stylesheet\" href=\"",  outline_url,  "\">\n"
-          "</head>\n"
-          "<body>Hello, world!</body>");
+      expected_output =
+          StrCat("<head>\n", other_content,
+                 "  <link rel=\"stylesheet\" href=\"", outline_url,
+                 "\">\n"
+                 "</head>\n"
+                 "<body>Hello, world!</body>");
     } else {
-      expected_output = StrCat(
-          "<head>\n",
-          other_content,
-          "  <style>", css_original_body, "</style>", debug_message_, "\n"
-          "</head>\n"
-          "<body>Hello, world!</body>");
+      expected_output = StrCat("<head>\n", other_content, "  <style>",
+                               css_original_body, "</style>", debug_message_,
+                               "\n"
+                               "</head>\n"
+                               "<body>Hello, world!</body>");
     }
 
     ParseUrl(html_url, html_input);
@@ -138,8 +131,8 @@ class CssOutlineFilterTest : public RewriteTestBase {
       // Check fetched resource.
       GoogleString actual_outline;
       ResponseHeaders actual_headers;
-      EXPECT_TRUE(FetchResourceUrl(outline_url, &actual_outline,
-                                   &actual_headers));
+      EXPECT_TRUE(
+          FetchResourceUrl(outline_url, &actual_outline, &actual_headers));
       EXPECT_EQ(expected_headers, actual_headers.ToString());
       EXPECT_EQ(css_rewritten_body, actual_outline);
     }
@@ -147,8 +140,9 @@ class CssOutlineFilterTest : public RewriteTestBase {
 
   void OutlineStyle(const StringPiece& id) {
     GoogleString html_url = StrCat("http://outline_style.test/", id, ".html");
-    GoogleString style_text = "background_blue { background-color: blue; }\n"
-                              "foreground_yellow { color: yellow; }\n";
+    GoogleString style_text =
+        "background_blue { background-color: blue; }\n"
+        "foreground_yellow { color: yellow; }\n";
     TestOutlineCss(html_url, "", style_text, true, style_text, "");
   }
 
@@ -172,18 +166,18 @@ TEST_F(CssOutlineFilterTest, CssOutlinePreserveURLsOn) {
   options()->set_css_preserve_urls(true);
   options()->set_css_outline_min_bytes(0);
   SetupOutliner();
-  const char kStyleText[] = "background_blue { background-color: blue; }\n"
-                            "foreground_yellow { color: yellow; }\n";
+  const char kStyleText[] =
+      "background_blue { background-color: blue; }\n"
+      "foreground_yellow { color: yellow; }\n";
   TestOutlineCss("http://outline_style.test/outline_styles_md5.html", "",
                  kStyleText, false, "", "");
 }
 
-
 TEST_F(CssOutlineFilterTest, NoAbsolutifySameDir) {
   SetupOutliner();
   const GoogleString css = "body { background-image: url('bg.png'); }";
-  TestOutlineCss("http://outline_style.test/index.html", "",
-                 css, true, css, "");
+  TestOutlineCss("http://outline_style.test/index.html", "", css, true, css,
+                 "");
 }
 
 TEST_F(CssOutlineFilterTest, AbsolutifyDifferentDir) {
@@ -206,14 +200,15 @@ TEST_F(CssOutlineFilterTest, ShardSubresources) {
   const GoogleString css_out =
       ".p1 { background-image: url('http://shard2.com/b1.png'); }"
       ".p2 { background-image: url('http://shard1.com/b2.png'); }";
-  TestOutlineCss("http://outline_style.test/index.html", "",
-                 css_in, true, css_out, "http://shard1.com/");
+  TestOutlineCss("http://outline_style.test/index.html", "", css_in, true,
+                 css_out, "http://shard1.com/");
 }
 
 TEST_F(CssOutlineFilterTest, UrlTooLong) {
   GoogleString html_url = "http://outline_style.test/url_size_test.html";
-  GoogleString style_text = "background_blue { background-color: blue; }\n"
-                            "foreground_yellow { color: yellow; }\n";
+  GoogleString style_text =
+      "background_blue { background-color: blue; }\n"
+      "foreground_yellow { color: yellow; }\n";
 
   // By default we succeed at outlining.
   SetupDebug("");  // No debug message.
@@ -224,7 +219,8 @@ TEST_F(CssOutlineFilterTest, UrlTooLong) {
   options()->set_max_url_size(0);
   server_context()->ComputeSignature(options());
   // Now we have a debug message.
-  debug_message_ = "<!--Rewritten URL too long: "
+  debug_message_ =
+      "<!--Rewritten URL too long: "
       "http://outline_style.test/_.pagespeed.co.#.-->";
   TestOutlineCss(html_url, "", style_text, false, style_text, "");
 }
@@ -259,10 +255,9 @@ TEST_F(CssOutlineFilterTest, RewriteDomain) {
 
   // Check that CSS gets outlined to the rewritten domain.
   GoogleString expected_url = Encode("http://cdn.com/", "co", "0", "_", "css");
-  ValidateExpected("rewrite_domain",
-                   "<style>.a { color: red; }</style>",
-                   StrCat("<link rel=\"stylesheet\" href=\"", expected_url,
-                          "\">"));
+  ValidateExpected(
+      "rewrite_domain", "<style>.a { color: red; }</style>",
+      StrCat("<link rel=\"stylesheet\" href=\"", expected_url, "\">"));
 
   // And check that it serves correctly from that domain.
   GoogleString content;

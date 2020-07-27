@@ -17,14 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/apache_server_context.h"
+
+#include <memory>
 
 // http_protocol.h includes httpd.h. We need to include httpd_includes.h, which
 // works around a conflicting definition of OK in gRPC.
-#include "pagespeed/apache/apache_httpd_includes.h"
-#include "http_protocol.h"          // NOLINT
+#include "http_protocol.h"  // NOLINT
+#include "net/instaweb/rewriter/config/measurement_proxy_rewrite_options_manager.h"
+#include "net/instaweb/rewriter/public/measurement_proxy_url_namer.h"
 #include "pagespeed/apache/apache_config.h"
+#include "pagespeed/apache/apache_httpd_includes.h"
 #include "pagespeed/apache/apache_request_context.h"
 #include "pagespeed/apache/apache_rewrite_driver_factory.h"
 #include "pagespeed/automatic/proxy_fetch.h"
@@ -35,18 +38,15 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "net/instaweb/config/measurement_proxy_rewrite_options_manager.h"
-#include "net/instaweb/rewriter/public/measurement_proxy_url_namer.h"
 
 namespace net_instaweb {
 
 const char ApacheServerContext::kProxyInterfaceStatsPrefix[] =
     "proxy-all-mode-";
 
-ApacheServerContext::ApacheServerContext(
-    ApacheRewriteDriverFactory* factory,
-    server_rec* server,
-    const StringPiece& version)
+ApacheServerContext::ApacheServerContext(ApacheRewriteDriverFactory* factory,
+                                         server_rec* server,
+                                         const StringPiece& version)
     : SystemServerContext(factory, server->server_hostname, server->port),
       apache_factory_(factory),
       server_rec_(server),
@@ -65,8 +65,7 @@ ApacheServerContext::ApacheServerContext(
   set_response_headers_finalized(false);
 }
 
-ApacheServerContext::~ApacheServerContext() {
-}
+ApacheServerContext::~ApacheServerContext() {}
 
 void ApacheServerContext::InitStats(Statistics* statistics) {
   ProxyInterface::InitStats(kProxyInterfaceStatsPrefix, statistics);
@@ -95,9 +94,9 @@ const ApacheConfig* ApacheServerContext::global_config() const {
 ApacheConfig* ApacheServerContext::SpdyConfigOverlay() {
   // While we no longer actually use the spdy config overlay, it's still
   // useful for backwards compatibility during parsing.
-  if (spdy_config_overlay_.get() == NULL) {
-    spdy_config_overlay_.reset(new ApacheConfig(
-        "spdy_overlay", thread_system()));
+  if (spdy_config_overlay_.get() == nullptr) {
+    spdy_config_overlay_ =
+        std::make_unique<ApacheConfig>("spdy_overlay", thread_system());
     // We want to copy any implicit rewrite level from the parent,
     // so we don't end up overriding it with passthrough. It's also OK
     // to forward explicit one to an implicit one here, since an implicit
@@ -108,9 +107,9 @@ ApacheConfig* ApacheServerContext::SpdyConfigOverlay() {
 }
 
 ApacheConfig* ApacheServerContext::NonSpdyConfigOverlay() {
-  if (non_spdy_config_overlay_.get() == NULL) {
-    non_spdy_config_overlay_.reset(new ApacheConfig(
-        "non_spdy_overlay", thread_system()));
+  if (non_spdy_config_overlay_.get() == nullptr) {
+    non_spdy_config_overlay_ =
+        std::make_unique<ApacheConfig>("non_spdy_overlay", thread_system());
     // See ::SpdyConfigOverlay for explanation.
     non_spdy_config_overlay_->SetDefaultRewriteLevel(global_config()->level());
   }
@@ -120,7 +119,7 @@ ApacheConfig* ApacheServerContext::NonSpdyConfigOverlay() {
 void ApacheServerContext::CollapseConfigOverlaysAndComputeSignatures() {
   // These days we ignore the spdy overlay and merge-in the non-spdy one
   // unconditionally.
-  if (non_spdy_config_overlay_.get() != NULL) {
+  if (non_spdy_config_overlay_.get() != nullptr) {
     global_config()->Merge(*non_spdy_config_overlay_);
   }
 
@@ -136,15 +135,13 @@ bool ApacheServerContext::PoolDestroyed() {
 }
 
 void ApacheServerContext::InitProxyFetchFactory() {
-  proxy_fetch_factory_.reset(new ProxyFetchFactory(this));
+  proxy_fetch_factory_ = std::make_unique<ProxyFetchFactory>(this);
 }
 
 ApacheRequestContext* ApacheServerContext::NewApacheRequestContext(
     request_rec* request) {
-  return new ApacheRequestContext(
-      thread_system()->NewMutex(),
-      timer(),
-      request);
+  return new ApacheRequestContext(thread_system()->NewMutex(), timer(),
+                                  request);
 }
 
 void ApacheServerContext::ReportNotFoundHelper(MessageType message_type,
@@ -154,10 +151,10 @@ void ApacheServerContext::ReportNotFoundHelper(MessageType message_type,
   error_count->Add(1);
   request->status = HttpStatus::kNotFound;
   ap_send_error_response(request, 0);
-  message_handler()->Message(message_type, "%s %s: not found (404)",
-                             (error_message.empty() ? "(null)" :
-                              error_message.as_string().c_str()),
-                             error_count->GetName().as_string().c_str());
+  message_handler()->Message(
+      message_type, "%s %s: not found (404)",
+      (error_message.empty() ? "(null)" : error_message.as_string().c_str()),
+      error_count->GetName().as_string().c_str());
 }
 
 GoogleString ApacheServerContext::FormatOption(StringPiece option_name,
@@ -169,13 +166,12 @@ void ApacheServerContext::ChildInit(SystemRewriteDriverFactory* f) {
   if (global_config()->proxy_all_requests_mode()) {
     apache_factory_->SetNeedSchedulerThread();
     if (global_config()->measurement_proxy_mode()) {
-      measurement_url_namer_.reset(new MeasurementProxyUrlNamer(
+      measurement_url_namer_ = std::make_unique<MeasurementProxyUrlNamer>(
           global_config()->measurement_proxy_root(),
-          global_config()->measurement_proxy_password()));
+          global_config()->measurement_proxy_password());
       set_url_namer(measurement_url_namer_.get());
       SetRewriteOptionsManager(new MeasurementProxyRewriteOptionsManager(
-          this,
-          global_config()->measurement_proxy_root(),
+          this, global_config()->measurement_proxy_root(),
           global_config()->measurement_proxy_password()));
     }
   }

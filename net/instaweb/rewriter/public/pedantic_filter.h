@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_PEDANTIC_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_PEDANTIC_FILTER_H_
 
@@ -34,10 +33,10 @@ class HtmlParse;
 class PedanticFilter : public EmptyHtmlFilter {
  public:
   explicit PedanticFilter(HtmlParse* html_parse);
-  virtual ~PedanticFilter();
+  ~PedanticFilter() override;
 
-  virtual void StartElement(HtmlElement* element);
-  virtual const char* Name() const { return "Pedantic"; }
+  void StartElement(HtmlElement* element) override;
+  const char* Name() const override { return "Pedantic"; }
 
  private:
   HtmlParse* html_parse_;

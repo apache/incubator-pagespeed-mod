@@ -17,23 +17,19 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/mock_timer.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/function.h"
+#include "pagespeed/kernel/base/scoped_ptr.h"
 
 namespace net_instaweb {
 
 const int64 MockTimer::kApr_5_2010_ms = 1270493486000LL;
 
 MockTimer::MockTimer(AbstractMutex* mutex, int64 time_ms)
-    : time_us_(1000 * time_ms),
-      mutex_(mutex),
-      next_delta_(0) {
-}
+    : time_us_(1000 * time_ms), mutex_(mutex), next_delta_(0) {}
 
 MockTimer::~MockTimer() {
   while (next_delta_ < deltas_us_.size()) {
@@ -54,8 +50,7 @@ void MockTimer::SetTimeUs(int64 new_time_us) {
   mutex_->Unlock();
 }
 
-void MockTimer::SetTimeDeltaUsWithCallback(int64 delta_us,
-                                           Function* callback) {
+void MockTimer::SetTimeDeltaUsWithCallback(int64 delta_us, Function* callback) {
   TimeAndCallback time_and_callback;
   time_and_callback.time = delta_us;
   time_and_callback.callback = callback;

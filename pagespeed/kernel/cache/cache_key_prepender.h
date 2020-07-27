@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_CACHE_KEY_PREPENDER_H_
 #define PAGESPEED_KERNEL_CACHE_CACHE_KEY_PREPENDER_H_
 
@@ -61,7 +60,7 @@ class CacheKeyPrepender : public CacheInterface {
   CacheInterface* cache_;
   SharedString prefix_;  // copy of prefix to prepend, shared with callbacks
 
-  GoogleString AddPrefix(const GoogleString &key);
+  GoogleString AddPrefix(const GoogleString& key);
 
   DISALLOW_COPY_AND_ASSIGN(CacheKeyPrepender);
 };

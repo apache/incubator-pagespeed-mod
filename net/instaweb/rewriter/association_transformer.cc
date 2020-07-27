@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/association_transformer.h"
 
 #include <utility>
@@ -29,8 +28,7 @@
 
 namespace net_instaweb {
 
-AssociationTransformer::~AssociationTransformer() {
-}
+AssociationTransformer::~AssociationTransformer() {}
 
 CssTagScanner::Transformer::TransformStatus AssociationTransformer::Transform(
     GoogleString* str) {
@@ -53,7 +51,7 @@ CssTagScanner::Transformer::TransformStatus AssociationTransformer::Transform(
         *str = ResourceSlot::RelativizeOrPassthrough(
             options_, it->second, url_relativity, *base_url_);
         ret = kSuccess;
-      } else if (backup_transformer_ != NULL) {
+      } else if (backup_transformer_ != nullptr) {
         ret = backup_transformer_->Transform(str);
       }
     }
@@ -62,7 +60,6 @@ CssTagScanner::Transformer::TransformStatus AssociationTransformer::Transform(
   return ret;
 }
 
-AssociationSlot::~AssociationSlot() {
-}
+AssociationSlot::~AssociationSlot() {}
 
 }  // namespace net_instaweb

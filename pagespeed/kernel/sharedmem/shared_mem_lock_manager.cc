@@ -75,8 +75,8 @@ namespace SharedMemLockData {
 // getting filled suggests it's under heavy load as it is, in which case
 // blocking further operations is desirable.
 //
-const size_t kBuckets = 512;   // needs to be <= 65536 as we use 2 bytes of
-                               // hash to pick a bucket.
+const size_t kBuckets = 512;  // needs to be <= 65536 as we use 2 bytes of
+                              // hash to pick a bucket.
 const size_t kSlotsPerBucket = 32;
 
 struct Slot {
@@ -91,9 +91,7 @@ struct Bucket {
   char mutex_base[1];
 };
 
-inline size_t Align64(size_t in) {
-  return (in + 63) & ~63;
-}
+inline size_t Align64(size_t in) { return (in + 63) & ~63; }
 
 inline size_t BucketSize(size_t lock_size) {
   return Align64(offsetof(Bucket, mutex_base) + lock_size);
@@ -109,25 +107,21 @@ namespace Data = SharedMemLockData;
 
 class SharedMemLock : public SchedulerBasedAbstractLock {
  public:
-  virtual ~SharedMemLock() {
-    Unlock();
-  }
+  ~SharedMemLock() override { Unlock(); }
 
-  virtual bool TryLock() {
-    return TryLockImpl(false, 0);
-  }
+  bool TryLock() override { return TryLockImpl(false, 0); }
 
-  virtual bool TryLockStealOld(int64 timeout_ms) {
+  bool TryLockStealOld(int64 timeout_ms) override {
     return TryLockImpl(true, timeout_ms);
   }
 
-  virtual void Unlock() {
+  void Unlock() override {
     if (acquisition_time_ == Data::kNotAcquired) {
       return;
     }
 
     // Protect the bucket.
-    scoped_ptr<AbstractMutex> lock(AttachMutex());
+    std::unique_ptr<AbstractMutex> lock(AttachMutex());
     ScopedMutex hold_lock(lock.get());
 
     // Search for this lock.
@@ -148,18 +142,12 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
     acquisition_time_ = Data::kNotAcquired;
   }
 
-  virtual GoogleString name() const {
-    return name_;
-  }
+  GoogleString name() const override { return name_; }
 
-  virtual bool Held() {
-    return (acquisition_time_ != Data::kNotAcquired);
-  }
+  bool Held() override { return (acquisition_time_ != Data::kNotAcquired); }
 
  protected:
-  virtual Scheduler* scheduler() const {
-    return manager_->scheduler_;
-  }
+  Scheduler* scheduler() const override { return manager_->scheduler_; }
 
  private:
   friend class SharedMemLockManager;
@@ -196,13 +184,12 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
   }
 
   AbstractMutex* AttachMutex() const {
-    return manager_->seg_->AttachToSharedMutex(
-        manager_->MutexOffset(bucket_));
+    return manager_->seg_->AttachToSharedMutex(manager_->MutexOffset(bucket_));
   }
 
   bool TryLockImpl(bool steal, int64 steal_timeout_ms) {
     // Protect the bucket.
-    scoped_ptr<AbstractMutex> lock(AttachMutex());
+    std::unique_ptr<AbstractMutex> lock(AttachMutex());
     ScopedMutex hold_lock(lock.get());
 
     int64 now_ms = manager_->scheduler_->timer()->NowMs();
@@ -276,9 +263,10 @@ class SharedMemLock : public SchedulerBasedAbstractLock {
   DISALLOW_COPY_AND_ASSIGN(SharedMemLock);
 };
 
-SharedMemLockManager::SharedMemLockManager(
-    AbstractSharedMem* shm, const GoogleString& path, Scheduler* scheduler,
-    Hasher* hasher, MessageHandler* handler)
+SharedMemLockManager::SharedMemLockManager(AbstractSharedMem* shm,
+                                           const GoogleString& path,
+                                           Scheduler* scheduler, Hasher* hasher,
+                                           MessageHandler* handler)
     : shm_runtime_(shm),
       path_(path),
       scheduler_(scheduler),
@@ -288,13 +276,12 @@ SharedMemLockManager::SharedMemLockManager(
   CHECK_GE(hasher_->RawHashSizeInBytes(), 9) << "Need >= 9 byte hashes";
 }
 
-SharedMemLockManager::~SharedMemLockManager() {
-}
+SharedMemLockManager::~SharedMemLockManager() {}
 
 bool SharedMemLockManager::Initialize() {
   seg_.reset(shm_runtime_->CreateSegment(path_, Data::SegmentSize(lock_size_),
                                          handler_));
-  if (seg_.get() == NULL) {
+  if (seg_.get() == nullptr) {
     handler_->MessageS(kError, "Unable to create memory segment for locks.");
     return false;
   }
@@ -302,9 +289,8 @@ bool SharedMemLockManager::Initialize() {
   // Create the mutexes for each bucket
   for (size_t bucket = 0; bucket < Data::kBuckets; ++bucket) {
     if (!seg_->InitializeSharedMutex(MutexOffset(Bucket(bucket)), handler_)) {
-      handler_->MessageS(kError,
-                         StrCat("Unable to create lock service mutex #",
-                                Integer64ToString(bucket)));
+      handler_->MessageS(kError, StrCat("Unable to create lock service mutex #",
+                                        Integer64ToString(bucket)));
       return false;
     }
   }
@@ -314,7 +300,7 @@ bool SharedMemLockManager::Initialize() {
 bool SharedMemLockManager::Attach() {
   size_t size = Data::SegmentSize(shm_runtime_->SharedMutexSize());
   seg_.reset(shm_runtime_->AttachToSegment(path_, size, handler_));
-  if (seg_.get() == NULL) {
+  if (seg_.get() == nullptr) {
     handler_->MessageS(kWarning,
                        "Unable to attach to lock service SHM segment");
     return false;
@@ -323,8 +309,9 @@ bool SharedMemLockManager::Attach() {
   return true;
 }
 
-void SharedMemLockManager::GlobalCleanup(
-  AbstractSharedMem* shm, const GoogleString& path, MessageHandler* handler) {
+void SharedMemLockManager::GlobalCleanup(AbstractSharedMem* shm,
+                                         const GoogleString& path,
+                                         MessageHandler* handler) {
   shm->DestroySegment(path, handler);
 }
 
@@ -334,8 +321,8 @@ SchedulerBasedAbstractLock* SharedMemLockManager::CreateNamedLock(
 }
 
 Data::Bucket* SharedMemLockManager::Bucket(size_t bucket) {
-  return reinterpret_cast<Data::Bucket*>(
-      const_cast<char*>(seg_->Base()) + bucket * Data::BucketSize(lock_size_));
+  return reinterpret_cast<Data::Bucket*>(const_cast<char*>(seg_->Base()) +
+                                         bucket * Data::BucketSize(lock_size_));
 }
 
 size_t SharedMemLockManager::MutexOffset(SharedMemLockData::Bucket* bucket) {

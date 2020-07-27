@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/message_handler_test_base.h"
 
 #include <cstdarg>
+
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -35,27 +35,25 @@ void TestMessageHandler::MessageVImpl(MessageType type, const char* msg,
 
 void TestMessageHandler::MessageSImpl(MessageType type,
                                       const GoogleString& message) {
-  messages_.push_back(
-      StrCat(MessageTypeToString(type), ": ", message));
+  messages_.push_back(StrCat(MessageTypeToString(type), ": ", message));
 }
 
 void TestMessageHandler::FileMessageVImpl(MessageType type,
-                                          const char* filename,
-                                          int line, const char* msg,
-                                          va_list args) {
+                                          const char* filename, int line,
+                                          const char* msg, va_list args) {
   GoogleString message;
-  StringAppendF(&message, "%s: %s: %d: ", MessageTypeToString(type),
-                filename, line);
+  absl::StrAppendFormat(&message, "%s: %s: %d: ", MessageTypeToString(type),
+                        filename, line);
   StringAppendV(&message, msg, args);
   messages_.push_back(message);
 }
 
-void TestMessageHandler::FileMessageSImpl(
-    MessageType type, const char* filename, int line,
-    const GoogleString& message) {
+void TestMessageHandler::FileMessageSImpl(MessageType type,
+                                          const char* filename, int line,
+                                          const GoogleString& message) {
   GoogleString actual;
-  StringAppendF(&actual, "%s: %s: %d: ", MessageTypeToString(type),
-                filename, line);
+  absl::StrAppendFormat(&actual, "%s: %s: %d: ", MessageTypeToString(type),
+                        filename, line);
   StrAppend(&actual, message);
   messages_.push_back(actual);
 }

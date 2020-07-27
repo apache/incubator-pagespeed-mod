@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/cache_key_prepender.h"
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -49,7 +48,7 @@ class CacheKeyPrepender::KeyPrependerCallback : public DelegatingCacheCallback {
                          CacheInterface::KeyState state) override {
     if (!strings::StartsWith(key, prefix_.Value())) {
       LOG(DFATAL) << "KeyPrependerCallback has received a key without expected "
-                 << "prefix, treating as cache miss";
+                  << "prefix, treating as cache miss";
       return false;
     }
     return DelegatingCacheCallback::ValidateCandidate(

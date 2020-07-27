@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/annotated_message_handler.h"
 
 #include "pagespeed/kernel/base/message_handler.h"
@@ -26,18 +25,16 @@
 
 namespace net_instaweb {
 
-AnnotatedMessageHandler::AnnotatedMessageHandler(MessageHandler* handler) :
-    message_handler_(handler) {
-}
+AnnotatedMessageHandler::AnnotatedMessageHandler(MessageHandler* handler)
+    : message_handler_(handler) {}
 
 AnnotatedMessageHandler::AnnotatedMessageHandler(const GoogleString& annotation,
-                                                 MessageHandler* handler) :
-    message_handler_(handler) {
+                                                 MessageHandler* handler)
+    : message_handler_(handler) {
   annotation_ = annotation;
 }
 
-AnnotatedMessageHandler::~AnnotatedMessageHandler() {
-}
+AnnotatedMessageHandler::~AnnotatedMessageHandler() {}
 
 void AnnotatedMessageHandler::MessageVImpl(MessageType type, const char* msg,
                                            va_list args) {
@@ -46,25 +43,23 @@ void AnnotatedMessageHandler::MessageVImpl(MessageType type, const char* msg,
   message_handler_->MessageS(type, buffer);
 }
 
-void AnnotatedMessageHandler::MessageSImpl(
-    MessageType type, const GoogleString& message) {
+void AnnotatedMessageHandler::MessageSImpl(MessageType type,
+                                           const GoogleString& message) {
   GoogleString buffer = StrCat(annotation_, message);
   message_handler_->MessageS(type, buffer);
 }
 
 void AnnotatedMessageHandler::FileMessageVImpl(MessageType type,
-                                               const char* filename,
-                                               int line,
-                                               const char* msg,
-                                               va_list args) {
+                                               const char* filename, int line,
+                                               const char* msg, va_list args) {
   GoogleString buffer(annotation_);
   FormatTo(&buffer, msg, args);
   message_handler_->FileMessageS(type, filename, line, buffer);
 }
 
-void AnnotatedMessageHandler::FileMessageSImpl(
-    MessageType type, const char* filename, int line,
-    const GoogleString& message) {
+void AnnotatedMessageHandler::FileMessageSImpl(MessageType type,
+                                               const char* filename, int line,
+                                               const GoogleString& message) {
   GoogleString buffer = StrCat(annotation_, message);
   message_handler_->FileMessageS(type, filename, line, buffer);
 }

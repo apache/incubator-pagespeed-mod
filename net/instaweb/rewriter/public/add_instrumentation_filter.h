@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_ADD_INSTRUMENTATION_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_ADD_INSTRUMENTATION_FILTER_H_
 
@@ -46,20 +45,20 @@ class AddInstrumentationFilter : public CommonFilter {
   static const char kInstrumentationScriptAddedCount[];
 
   explicit AddInstrumentationFilter(RewriteDriver* driver);
-  virtual ~AddInstrumentationFilter();
+  ~AddInstrumentationFilter() override;
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual const char* Name() const { return "AddInstrumentation"; }
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
+  const char* Name() const override { return "AddInstrumentation"; }
 
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  protected:
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   // The total number of times instrumentation script is added.
   Variable* instrumentation_script_added_count_;

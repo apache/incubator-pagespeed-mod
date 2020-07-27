@@ -35,7 +35,9 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
 
-namespace Css { class Values; }
+namespace Css {
+class Values;
+}
 
 namespace net_instaweb {
 
@@ -45,25 +47,25 @@ class RewriteOptions;
 // A place storing a rewritable URL inside a CSS AST.
 class CssResourceSlot : public ResourceSlot {
  public:
-  virtual void Render();
-  virtual void Finished();
-  virtual GoogleString LocationString() const;
+  void Render() override;
+  void Finished() override;
+  GoogleString LocationString() const override;
 
-  virtual HtmlElement* element() const { return NULL; }
+  HtmlElement* element() const override { return NULL; }
   Css::Values* values() const { return values_; }
   size_t value_index() const { return value_index_; }
   UrlRelativity url_relativity() const { return url_relativity_; }
 
-  virtual bool DirectSetUrl(const StringPiece& url);
-  virtual bool CanDirectSetUrl() { return true; }
+  bool DirectSetUrl(const StringPiece& url) override;
+  bool CanDirectSetUrl() override { return true; }
 
  protected:
-  CssResourceSlot(const ResourcePtr& resource,
-                  const GoogleUrl& trim_url, const RewriteOptions* options,
-                  Css::Values* values, size_t value_index);
+  CssResourceSlot(const ResourcePtr& resource, const GoogleUrl& trim_url,
+                  const RewriteOptions* options, Css::Values* values,
+                  size_t value_index);
 
   REFCOUNT_FRIEND_DECLARATION(CssResourceSlot);
-  virtual ~CssResourceSlot();
+  ~CssResourceSlot() override;
 
  private:
   friend class CssResourceSlotFactory;
@@ -91,8 +93,8 @@ class CssResourceSlotFactory {
   // not modified while this exists.
   CssResourceSlotPtr GetSlot(const ResourcePtr& resource,
                              const GoogleUrl& trim_url,
-                             const RewriteOptions* options,
-                             Css::Values* values, size_t value_index);
+                             const RewriteOptions* options, Css::Values* values,
+                             size_t value_index);
   CssResourceSlotPtr UniquifySlot(CssResourceSlotPtr slot);
 
  private:

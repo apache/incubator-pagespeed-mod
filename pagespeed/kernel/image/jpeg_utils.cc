@@ -17,22 +17,20 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/jpeg_utils.h"
 
-#include <setjmp.h>  // for longjmp
+#include <csetjmp>  // for longjmp
 // 'stdio.h' provides FILE for jpeglib (needed for certain builds)
 
-#include <stdio.h>
-
+#include <cstdio>
 
 #include "pagespeed/kernel/image/jpeg_reader.h"
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG
-#include "jpeglib.h"                                                // NOLINT
+#include "jpeglib.h"  // NOLINT
 #else
-#include "third_party/libjpeg_turbo/src/jpeglib.h"
+#include "external/libjpeg_turbo/jpeglib.h"
 #endif
 }
 
@@ -64,8 +62,9 @@ static double ComputeQualityEntriesSum(JQUANT_TBL* quantization_table,
     } else {
       double scale_factor =
           static_cast<double>(quantization_table->quantval[i]) / std_table[i];
-      quality_entries_sum += (scale_factor > 1.0 ?
-                              (0.5/scale_factor) : ((2.0 - scale_factor)/2.0));
+      quality_entries_sum +=
+          (scale_factor > 1.0 ? (0.5 / scale_factor)
+                              : ((2.0 - scale_factor) / 2.0));
     }
   }
 
@@ -79,8 +78,7 @@ namespace image_compression {
 
 using net_instaweb::MessageHandler;
 
-JpegUtils::JpegUtils() {
-}
+JpegUtils::JpegUtils() {}
 
 int JpegUtils::GetImageQualityFromImage(const void* image_data,
                                         size_t image_length,
@@ -98,7 +96,7 @@ int JpegUtils::GetImageQualityFromImage(const void* image_data,
   }
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(&env);
+  jpeg_decompress->client_data = static_cast<void*>(&env);
 
   reader.PrepareForRead(image_data, image_length);
 
@@ -107,35 +105,25 @@ int JpegUtils::GetImageQualityFromImage(const void* image_data,
 
   // The standard tables are taken from JPEG spec section K.1.
   static const unsigned int std_luminance_quant_tbl[DCTSIZE2] = {
-      16,  11,  10,  16,  24,  40,  51,  61,
-      12,  12,  14,  19,  26,  58,  60,  55,
-      14,  13,  16,  24,  40,  57,  69,  56,
-      14,  17,  22,  29,  51,  87,  80,  62,
-      18,  22,  37,  56,  68, 109, 103,  77,
-      24,  35,  55,  64,  81, 104, 113,  92,
-      49,  64,  78,  87, 103, 121, 120, 101,
-      72,  92,  95,  98, 112, 100, 103,  99
-  };
+      16, 11, 10, 16, 24,  40,  51,  61,  12, 12, 14, 19, 26,  58,  60,  55,
+      14, 13, 16, 24, 40,  57,  69,  56,  14, 17, 22, 29, 51,  87,  80,  62,
+      18, 22, 37, 56, 68,  109, 103, 77,  24, 35, 55, 64, 81,  104, 113, 92,
+      49, 64, 78, 87, 103, 121, 120, 101, 72, 92, 95, 98, 112, 100, 103, 99};
   static const unsigned int std_chrominance_quant_tbl[DCTSIZE2] = {
-      17,  18,  24,  47,  99,  99,  99,  99,
-      18,  21,  26,  66,  99,  99,  99,  99,
-      24,  26,  56,  99,  99,  99,  99,  99,
-      47,  66,  99,  99,  99,  99,  99,  99,
-      99,  99,  99,  99,  99,  99,  99,  99,
-      99,  99,  99,  99,  99,  99,  99,  99,
-      99,  99,  99,  99,  99,  99,  99,  99,
-      99,  99,  99,  99,  99,  99,  99,  99
-  };
+      17, 18, 24, 47, 99, 99, 99, 99, 18, 21, 26, 66, 99, 99, 99, 99,
+      24, 26, 56, 99, 99, 99, 99, 99, 47, 66, 99, 99, 99, 99, 99, 99,
+      99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99,
+      99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99};
 
   double quality_entries_sum = 0;
   double quality_entries_count = 0;
-  if (jpeg_decompress->quant_tbl_ptrs[0] != NULL) {
+  if (jpeg_decompress->quant_tbl_ptrs[0] != nullptr) {
     quality_entries_sum += ComputeQualityEntriesSum(
         jpeg_decompress->quant_tbl_ptrs[0], std_luminance_quant_tbl);
     quality_entries_count += DCTSIZE2;
   }
 
-  if (jpeg_decompress->quant_tbl_ptrs[1] != NULL) {
+  if (jpeg_decompress->quant_tbl_ptrs[1] != nullptr) {
     quality_entries_sum += ComputeQualityEntriesSum(
         jpeg_decompress->quant_tbl_ptrs[1], std_chrominance_quant_tbl);
     quality_entries_count += DCTSIZE2;
@@ -151,9 +139,6 @@ int JpegUtils::GetImageQualityFromImage(const void* image_data,
   return -1;
 }
 
-
-
 }  // namespace image_compression
 
 }  // namespace pagespeed
-

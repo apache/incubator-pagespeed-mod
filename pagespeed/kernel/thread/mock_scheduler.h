@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_THREAD_MOCK_SCHEDULER_H_
 #define PAGESPEED_KERNEL_THREAD_MOCK_SCHEDULER_H_
 
@@ -40,13 +39,12 @@ class MockTimer;
 // has passed.
 class MockScheduler : public Scheduler {
  public:
-  MockScheduler(ThreadSystem* thread_system,
-                MockTimer* timer);
-  virtual ~MockScheduler();
+  MockScheduler(ThreadSystem* thread_system, MockTimer* timer);
+  ~MockScheduler() override;
 
-  virtual void RegisterWorker(QueuedWorkerPool::Sequence* w)
+  void RegisterWorker(QueuedWorkerPool::Sequence* w) override
       LOCKS_EXCLUDED(mutex());
-  virtual void UnregisterWorker(QueuedWorkerPool::Sequence* w)
+  void UnregisterWorker(QueuedWorkerPool::Sequence* w) override
       LOCKS_EXCLUDED(mutex());
 
   // Blocks until all work in registered workers is done.
@@ -62,7 +60,7 @@ class MockScheduler : public Scheduler {
   void SetTimeUs(int64 time_us) LOCKS_EXCLUDED(mutex());
 
  protected:
-  virtual void AwaitWakeupUntilUs(int64 wakeup_time_us)
+  void AwaitWakeupUntilUs(int64 wakeup_time_us) override
       EXCLUSIVE_LOCKS_REQUIRED(mutex());
 
  private:

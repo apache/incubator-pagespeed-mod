@@ -38,7 +38,7 @@ namespace {
 // Test fixture for MetaTagFilter unit tests.
 class MetaTagFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kConvertMetaTags);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();
@@ -47,9 +47,8 @@ class MetaTagFilterTest : public RewriteTestBase {
     headers_.Replace(HttpAttributes::kContentType, "text/html");
   }
 
-  ResponseHeaders* headers() {
-    return &headers_;
-  }
+  ResponseHeaders* headers() { return &headers_; }
+
  private:
   ResponseHeaders headers_;
 };
@@ -113,7 +112,6 @@ const char kMetaTagConflictDoc[] =
     "<meta http-equiv=\"Content-Type\" content=\"text/xml\">"
     "</head><body></body></html>";
 
-
 TEST_F(MetaTagFilterTest, TestConflictingTags) {
   ValidateNoChanges("convert_tags_first", kMetaTagConflictDoc);
   ConstStringStarVector values;
@@ -129,7 +127,6 @@ const char kMetaTagCharset[] =
     "<meta charset=\"UTF-8\">"
     "<meta http-equiv=\"Content-Type\" content=\"text/xml; charset=UTF-16\">"
     "</head><body></body></html>";
-
 
 TEST_F(MetaTagFilterTest, TestCharset) {
   ValidateNoChanges("convert_charset", kMetaTagCharset);
@@ -171,7 +168,6 @@ const char kMetaTagDoNothing[] =
     "<meta http-equiv=\"Content-Length\" content=\"123\">"
     "</head><body></body></html>";
 
-
 TEST_F(MetaTagFilterTest, TestDoNothing) {
   ValidateNoChanges("do_nothing", kMetaTagDoNothing);
   ASSERT_EQ(1, headers()->NumAttributes());
@@ -186,7 +182,7 @@ const char kMetaTagNoScriptDoc[] =
     "</head><body></body></html>";
 
 TEST_F(MetaTagFilterTest, TestNoScript) {
-  ValidateNoChanges("no_script", kMetaTagDoNothing);
+  ValidateNoChanges("no_script", kMetaTagNoScriptDoc);
   ASSERT_EQ(1, headers()->NumAttributes());
   EXPECT_STREQ("text/html", headers()->Lookup1(HttpAttributes::kContentType));
 }
@@ -211,8 +207,9 @@ TEST_F(MetaTagFilterTest, DoNotOverrideWithFakeXhtmlUnsure) {
   // We shouldn't override with XHTML even if mimetype is unknown.
   // This uses a bogus "XHTML" mimetype which we recognized for some versions.
   headers()->RemoveAll(HttpAttributes::kContentType);
-  ValidateNoChanges("no_override", "<meta http-equiv=\"Content-Type\" "
-                                   "content=\"text/xhtml; charset=UTF-8\">");
+  ValidateNoChanges("no_override",
+                    "<meta http-equiv=\"Content-Type\" "
+                    "content=\"text/xhtml; charset=UTF-8\">");
   ConstStringStarVector values;
   EXPECT_FALSE(headers()->Lookup(HttpAttributes::kContentType, &values));
 }
@@ -220,10 +217,10 @@ TEST_F(MetaTagFilterTest, DoNotOverrideWithFakeXhtmlUnsure) {
 TEST_F(MetaTagFilterTest, DoNotOverrideWithRealXhtmlUnsure) {
   // We shouldn't override with XHTML even if mimetype is unknown.
   headers()->RemoveAll(HttpAttributes::kContentType);
-  ValidateNoChanges("no_override",
-                    StrCat("<meta http-equiv=\"Content-Type\" content=\"",
-                           kContentTypeXhtml.mime_type(),
-                           " ;charset=UTF-8\">"));
+  ValidateNoChanges(
+      "no_override",
+      StrCat("<meta http-equiv=\"Content-Type\" content=\"",
+             kContentTypeXhtml.mime_type(), " ;charset=UTF-8\">"));
   ConstStringStarVector values;
   EXPECT_FALSE(headers()->Lookup(HttpAttributes::kContentType, &values));
 }
@@ -231,8 +228,9 @@ TEST_F(MetaTagFilterTest, DoNotOverrideWithRealXhtmlUnsure) {
 TEST_F(MetaTagFilterTest, DoNotOverrideWithFakeXhtmlKnown) {
   // We shouldn't override with XHTML if the server already knows it's HTML
   // This uses a bogus "XHTML" mimetype which we recognized for some versions.
-  ValidateNoChanges("no_override", "<meta http-equiv=\"Content-Type\" "
-                                   "content=\"text/xhtml; charset=UTF-8\">");
+  ValidateNoChanges("no_override",
+                    "<meta http-equiv=\"Content-Type\" "
+                    "content=\"text/xhtml; charset=UTF-8\">");
   ConstStringStarVector values;
   EXPECT_TRUE(headers()->Lookup(HttpAttributes::kContentType, &values));
   ASSERT_EQ(1, values.size());
@@ -253,14 +251,14 @@ TEST_F(MetaTagFilterTest, DoNotOverrideWithRealXhtmlKnown) {
 TEST_F(MetaTagFilterTest, DoNotOverrideCharsetBothXhtml) {
   // An XHTML document specifying a non-utf8 encoding via a http-equiv meta
   // should not take effect, either.
-  GoogleString initial_header = StrCat(kContentTypeXhtml.mime_type(),
-                                       "; charset=UTF-8");
+  GoogleString initial_header =
+      StrCat(kContentTypeXhtml.mime_type(), "; charset=UTF-8");
   headers()->Replace(HttpAttributes::kContentType, initial_header);
 
-  ValidateNoChanges("no_override",
-                    StrCat("<meta http-equiv=\"Content-Type\" content=\"",
-                           kContentTypeXhtml.mime_type(),
-                           "; charset=KOI8-R\">"));
+  ValidateNoChanges(
+      "no_override",
+      StrCat("<meta http-equiv=\"Content-Type\" content=\"",
+             kContentTypeXhtml.mime_type(), "; charset=KOI8-R\">"));
   ConstStringStarVector values;
   EXPECT_TRUE(headers()->Lookup(HttpAttributes::kContentType, &values));
   ASSERT_EQ(1, values.size());

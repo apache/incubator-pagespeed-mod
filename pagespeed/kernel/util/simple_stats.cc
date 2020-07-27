@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/simple_stats.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -27,11 +26,9 @@
 namespace net_instaweb {
 
 SimpleStats::SimpleStats(ThreadSystem* thread_system)
-    : thread_system_(thread_system) {
-}
+    : thread_system_(thread_system) {}
 
-SimpleStats::~SimpleStats() {
-}
+SimpleStats::~SimpleStats() {}
 
 CountHistogram* SimpleStats::NewHistogram(StringPiece /*name*/) {
   return new CountHistogram(thread_system_->NewMutex());
@@ -52,12 +49,9 @@ SimpleStats::UpDown* SimpleStats::NewUpDownCounter(StringPiece name) {
 SimpleStatsVariable::SimpleStatsVariable(StringPiece name, Statistics* stats)
     : value_(0) {}
 
-SimpleStatsVariable::~SimpleStatsVariable() {
-}
+SimpleStatsVariable::~SimpleStatsVariable() {}
 
-int64 SimpleStatsVariable::GetLockHeld() const {
-  return value_;
-}
+int64 SimpleStatsVariable::GetLockHeld() const { return value_; }
 
 int64 SimpleStatsVariable::SetReturningPreviousValueLockHeld(int64 value) {
   int64 previous_value = value_;

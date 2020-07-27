@@ -21,6 +21,8 @@
 #define PAGESPEED_KERNEL_BASE_DENSE_HASH_SET_H_
 
 #include "google/dense_hash_set"
-namespace net_instaweb { using google::dense_hash_set; }
+namespace net_instaweb {
+using google::dense_hash_set;
+}
 
 #endif  // PAGESPEED_KERNEL_BASE_DENSE_HASH_SET_H_

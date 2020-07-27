@@ -34,19 +34,20 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
-#include "pagespeed/kernel/cache/lru_cache.h"
-
 #include <vector>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/shared_string.h"
+#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/cache/lru_cache.h"
 #include "pagespeed/kernel/util/simple_random.h"
+// clang-format off
+#include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 namespace {
 
@@ -57,8 +58,8 @@ const int kPayloadSize = 100;
 class EmptyCallback : public net_instaweb::CacheInterface::Callback {
  public:
   EmptyCallback() {}
-  virtual ~EmptyCallback() {}
-  virtual void Done(net_instaweb::CacheInterface::KeyState state) {}
+  ~EmptyCallback() override {}
+  void Done(net_instaweb::CacheInterface::KeyState state) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyCallback);
@@ -94,7 +95,7 @@ class TestPayload {
 
   void OverwriteIndexAtEndOfString(GoogleString* buffer, int index) {
     GoogleString index_string =
-        net_instaweb::StrCat("_", net_instaweb::IntegerToString(index));
+        StrCat("_", net_instaweb::IntegerToString(index));
     DCHECK_LT(index_string.size(), buffer->size());
     char* ptr = &(*buffer)[buffer->size() - index_string.size()];
     memcpy(ptr, index_string.data(), index_string.size());
@@ -136,53 +137,54 @@ class TestPayload {
   DISALLOW_COPY_AND_ASSIGN(TestPayload);
 };
 
-static void LRUPuts(int iters) {
+static void LRUPuts(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, false);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.lru_cache()->Clear();
     payload.DoPuts(0);
   }
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_evictions()));
 }
 
-static void LRUReplaceSameValue(int iters) {
+static void LRUReplaceSameValue(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.DoPuts(0);
   }
   CHECK_LT(0, static_cast<int>(payload.lru_cache()->num_identical_reinserts()));
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_evictions()));
 }
 
-static void LRUReplaceNewValue(int iters) {
+static void LRUReplaceNewValue(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.DoPuts(i + 1);
   }
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_identical_reinserts()));
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_evictions()));
 }
 
-static void LRUGets(int iters) {
+static void LRUGets(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.DoGets();
   }
-  CHECK_EQ(kNumKeys * iters, static_cast<int>(payload.lru_cache()->num_hits()));
+  CHECK_EQ(kNumKeys * state.iterations(),
+           static_cast<int>(payload.lru_cache()->num_hits()));
 }
 
-static void LRUFailedGets(int iters) {
+static void LRUFailedGets(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
   payload.RegenerateKeys();
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.DoGets();
   }
   CHECK_EQ(0, static_cast<int>(payload.lru_cache()->num_hits()));
 }
 
-static void LRUEvictions(int iters) {
+static void LRUEvictions(benchmark::State& state) {
   TestPayload payload(kKeySize, kPayloadSize, kNumKeys, true);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     payload.RegenerateKeys();
     payload.DoPuts(0);
   }

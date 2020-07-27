@@ -17,15 +17,14 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/schedule_rewrite_rpc_context.h"
 
 #include <memory>
 
 #include "pagespeed/controller/controller.grpc.pb.h"
 #include "pagespeed/controller/controller.pb.h"
-#include "pagespeed/controller/schedule_rewrite_callback.h"
 #include "pagespeed/controller/request_result_rpc_client.h"
+#include "pagespeed/controller/schedule_rewrite_callback.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/grpc.h"
@@ -38,8 +37,7 @@ class ScheduleRewriteRpcContext::ScheduleRewriteRequestResultRpcClient
                                     ScheduleRewriteCallback> {
  public:
   ScheduleRewriteRequestResultRpcClient(
-      const GoogleString& key,
-      grpc::CentralControllerRpcService::StubInterface* stub,
+      const GoogleString& key, CentralControllerRpcService::StubInterface* stub,
       ::grpc::CompletionQueue* queue, ThreadSystem* thread_system,
       MessageHandler* handler, ScheduleRewriteCallback* callback)
       : RequestResultRpcClient(queue, thread_system, handler, callback),
@@ -49,15 +47,13 @@ class ScheduleRewriteRpcContext::ScheduleRewriteRequestResultRpcClient
   }
 
   std::unique_ptr<RequestResultRpcClient::ReaderWriter> StartRpc(
-      grpc::CentralControllerRpcService::StubInterface* stub,
+      CentralControllerRpcService::StubInterface* stub,
       ::grpc::ClientContext* context, ::grpc::CompletionQueue* queue,
       void* tag) override {
     return stub->AsyncScheduleRewrite(context, queue, tag);
   }
 
-  ~ScheduleRewriteRequestResultRpcClient() {
-    MarkSucceeded();
-  }
+  ~ScheduleRewriteRequestResultRpcClient() override { MarkSucceeded(); }
 
   void MarkFailed() {
     ScheduleRewriteRequest req;
@@ -80,7 +76,7 @@ class ScheduleRewriteRpcContext::ScheduleRewriteRequestResultRpcClient
 };
 
 ScheduleRewriteRpcContext::ScheduleRewriteRpcContext(
-    grpc::CentralControllerRpcService::StubInterface* stub,
+    CentralControllerRpcService::StubInterface* stub,
     ::grpc::CompletionQueue* queue, ThreadSystem* thread_system,
     MessageHandler* handler, ScheduleRewriteCallback* callback)
     : client_(new ScheduleRewriteRequestResultRpcClient(

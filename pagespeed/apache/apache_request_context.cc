@@ -25,14 +25,11 @@
 
 namespace net_instaweb {
 
-ApacheRequestContext::ApacheRequestContext(
-    AbstractMutex* logging_mutex, Timer* timer, request_rec* req)
-    : SystemRequestContext(
-          logging_mutex,
-          timer,
-          req->hostname,
-          req->connection->local_addr->port,
-          req->connection->local_ip) {
+ApacheRequestContext::ApacheRequestContext(AbstractMutex* logging_mutex,
+                                           Timer* timer, request_rec* req)
+    : SystemRequestContext(logging_mutex, timer, req->hostname,
+                           req->connection->local_addr->port,
+                           req->connection->local_ip) {
   // Note that at the time we create a RequestContext we have full
   // access to the Apache request_rec.  However, due to Cloning and (I
   // believe) Detaching, we can initiate fetches after the Apache
@@ -49,17 +46,17 @@ ApacheRequestContext::ApacheRequestContext(
   }
 }
 
-ApacheRequestContext::~ApacheRequestContext() {
-}
+ApacheRequestContext::~ApacheRequestContext() {}
 
 ApacheRequestContext* ApacheRequestContext::DynamicCast(RequestContext* rc) {
-  if (rc == NULL) {
-    return NULL;
+  if (rc == nullptr) {
+    return nullptr;
   }
   ApacheRequestContext* out = dynamic_cast<ApacheRequestContext*>(rc);
-  DCHECK(out != NULL) << "Invalid request conversion. Do not rely on RTTI for "
-                      << "functional behavior. Apache handling flows must use "
-                      << "ApacheRequestContexts.";
+  DCHECK(out != nullptr)
+      << "Invalid request conversion. Do not rely on RTTI for "
+      << "functional behavior. Apache handling flows must use "
+      << "ApacheRequestContexts.";
   return out;
 }
 

@@ -17,26 +17,24 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/image_converter.h"
 
 using net_instaweb::MessageHandler;
 
-
-#include <setjmp.h>
+#include <csetjmp>
 #include <cstddef>
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"
 #else
-#include "third_party/zlib/src/zlib.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zlib.h"
 #endif
 }  // extern "C"
 
@@ -71,26 +69,23 @@ const double kMinWebpSavingsRatio = 0.8;
 // 'new_image_type'.
 void SelectSmallerImage(
     pagespeed::image_compression::ImageConverter::ImageType new_image_type,
-    const GoogleString& new_image,
-    const double threshold_ratio,
+    const GoogleString& new_image, const double threshold_ratio,
     pagespeed::image_compression::ImageConverter::ImageType* const
-    best_image_type,
-    const GoogleString** const best_image,
-    MessageHandler* handler) {
+        best_image_type,
+    const GoogleString** const best_image, MessageHandler* handler) {
   size_t new_image_size = new_image.size();
   if (new_image_size > 0 &&
       ((*best_image_type ==
         pagespeed::image_compression::ImageConverter::IMAGE_NONE) ||
        ((new_image_type !=
          pagespeed::image_compression::ImageConverter::IMAGE_NONE) &&
-        (*best_image != NULL) &&
+        (*best_image != nullptr) &&
         (new_image_size < (*best_image)->size() * threshold_ratio)))) {
     *best_image_type = new_image_type;
     *best_image = &new_image;
 
-    PS_DLOG_INFO(handler, \
-        "%p best is now %d", static_cast<void *>(best_image_type), \
-        new_image_type);
+    PS_DLOG_INFO(handler, "%p best is now %d",
+                 static_cast<void*>(best_image_type), new_image_type);
   }
 }
 
@@ -161,8 +156,7 @@ namespace pagespeed {
 namespace image_compression {
 
 ScanlineStatus ImageConverter::ConvertImageWithStatus(
-    ScanlineReaderInterface* reader,
-    ScanlineWriterInterface* writer) {
+    ScanlineReaderInterface* reader, ScanlineWriterInterface* writer) {
   void* scan_row;
   while (reader->HasMoreScanLines()) {
     ScanlineStatus reader_status =
@@ -186,17 +180,15 @@ ScanlineStatus ImageConverter::ConvertImageWithStatus(
 }
 
 ScanlineStatus ImageConverter::ConvertMultipleFrameImage(
-    MultipleFrameReader* reader,
-    MultipleFrameWriter* writer) {
+    MultipleFrameReader* reader, MultipleFrameWriter* writer) {
   ImageSpec image_spec;
   FrameSpec frame_spec;
-  const void* scan_row = NULL;
+  const void* scan_row = nullptr;
 
   ScanlineStatus status;
   if (reader->GetImageSpec(&image_spec, &status) &&
       writer->PrepareImage(&image_spec, &status)) {
-    while (reader->HasMoreFrames() &&
-           reader->PrepareNextFrame(&status) &&
+    while (reader->HasMoreFrames() && reader->PrepareNextFrame(&status) &&
            reader->GetFrameSpec(&frame_spec, &status) &&
            writer->PrepareNextFrame(&frame_spec, &status)) {
       while (reader->HasMoreScanlines() &&
@@ -210,12 +202,9 @@ ScanlineStatus ImageConverter::ConvertMultipleFrameImage(
   return status;
 }
 
-
 bool ImageConverter::ConvertPngToJpeg(
-    const PngReaderInterface& png_struct_reader,
-    const GoogleString& in,
-    const JpegCompressionOptions& options,
-    GoogleString* out,
+    const PngReaderInterface& png_struct_reader, const GoogleString& in,
+    const JpegCompressionOptions& options, GoogleString* out,
     MessageHandler* handler) {
   DCHECK(out->empty());
   out->clear();
@@ -273,11 +262,10 @@ bool ImageConverter::ConvertPngToJpeg(
 
 bool ImageConverter::OptimizePngOrConvertToJpeg(
     const PngReaderInterface& png_struct_reader, const GoogleString& in,
-    const JpegCompressionOptions& options, GoogleString* out,
-    bool* is_out_png, MessageHandler* handler) {
-
-  bool jpeg_success = ConvertPngToJpeg(png_struct_reader, in, options, out,
-                                       handler);
+    const JpegCompressionOptions& options, GoogleString* out, bool* is_out_png,
+    MessageHandler* handler) {
+  bool jpeg_success =
+      ConvertPngToJpeg(png_struct_reader, in, options, out, handler);
 
   // Try Optimizing the PNG.
   // TODO(satyanarayana): Try reusing the PNG structs for png->jpeg and optimize
@@ -301,31 +289,25 @@ bool ImageConverter::OptimizePngOrConvertToJpeg(
 }
 
 bool ImageConverter::ConvertPngToWebp(
-    const PngReaderInterface& png_struct_reader,
-    const GoogleString& in,
-    const WebpConfiguration& webp_config,
-    GoogleString* const out,
-    bool* is_opaque,
-    MessageHandler* handler) {
-    ScanlineWriterInterface* webp_writer = NULL;
-    bool success = ConvertPngToWebp(png_struct_reader, in, webp_config,
-                                    out, is_opaque, &webp_writer, handler);
-    delete webp_writer;
-    return success;
+    const PngReaderInterface& png_struct_reader, const GoogleString& in,
+    const WebpConfiguration& webp_config, GoogleString* const out,
+    bool* is_opaque, MessageHandler* handler) {
+  ScanlineWriterInterface* webp_writer = nullptr;
+  bool success = ConvertPngToWebp(png_struct_reader, in, webp_config, out,
+                                  is_opaque, &webp_writer, handler);
+  delete webp_writer;
+  return success;
 }
 
 bool ImageConverter::ConvertPngToWebp(
-    const PngReaderInterface& png_struct_reader,
-    const GoogleString& in,
-    const WebpConfiguration& webp_config,
-    GoogleString* const out,
-    bool* is_opaque,
-    ScanlineWriterInterface** webp_writer,
+    const PngReaderInterface& png_struct_reader, const GoogleString& in,
+    const WebpConfiguration& webp_config, GoogleString* const out,
+    bool* is_opaque, ScanlineWriterInterface** webp_writer,
     MessageHandler* handler) {
   DCHECK(out->empty());
   out->clear();
 
-  if (*webp_writer != NULL) {
+  if (*webp_writer != nullptr) {
     PS_LOG_DFATAL(handler, "Expected *webp_writer == NULL");
     return false;
   }
@@ -339,9 +321,8 @@ bool ImageConverter::ConvertPngToWebp(
   //                         channels, and de-colormaps images.
   //   -PNG_TRANSFORM_STRIP_16 will strip 16 bit channels to get 8 bit/channel
   //   -PNG_TRANSFORM_GRAY_TO_RGB will transform grayscale to RGB
-  png_reader.set_transform(
-      PNG_TRANSFORM_EXPAND | PNG_TRANSFORM_STRIP_16 |
-      PNG_TRANSFORM_GRAY_TO_RGB);
+  png_reader.set_transform(PNG_TRANSFORM_EXPAND | PNG_TRANSFORM_STRIP_16 |
+                           PNG_TRANSFORM_GRAY_TO_RGB);
 
   // If alpha quality is zero, refuse to process transparent images.
   png_reader.set_require_opaque(webp_config.alpha_quality == 0);
@@ -374,21 +355,19 @@ bool ImageConverter::ConvertPngToWebp(
 }
 
 ImageConverter::ImageType ImageConverter::GetSmallestOfPngJpegWebp(
-    const PngReaderInterface& png_struct_reader,
-    const GoogleString& in,
+    const PngReaderInterface& png_struct_reader, const GoogleString& in,
     const JpegCompressionOptions* jpeg_options,
-    const WebpConfiguration* webp_config,
-    GoogleString* out,
+    const WebpConfiguration* webp_config, GoogleString* out,
     MessageHandler* handler) {
   GoogleString jpeg_out, png_out, webp_lossless_out, webp_lossy_out;
-  const GoogleString* best_lossless_image = NULL;
-  const GoogleString* best_lossy_image = NULL;
-  const GoogleString* best_image = NULL;
+  const GoogleString* best_lossless_image = nullptr;
+  const GoogleString* best_lossy_image = nullptr;
+  const GoogleString* best_image = nullptr;
   ImageType best_lossless_image_type = IMAGE_NONE;
   ImageType best_lossy_image_type = IMAGE_NONE;
   ImageType best_image_type = IMAGE_NONE;
 
-  ScanlineWriterInterface* webp_writer = NULL;
+  ScanlineWriterInterface* webp_writer = nullptr;
   WebpConfiguration webp_config_lossless;
   bool is_opaque = false;
   if (!ConvertPngToWebp(png_struct_reader, in, webp_config_lossless,
@@ -397,7 +376,7 @@ ImageConverter::ImageType ImageConverter::GetSmallestOfPngJpegWebp(
     PS_DLOG_INFO(handler, "Could not convert image to lossless WebP");
     webp_lossless_out.clear();
   }
-  if ((webp_config != NULL) &&
+  if ((webp_config != nullptr) &&
       (!webp_writer->InitializeWrite(webp_config, &webp_lossy_out) ||
        !webp_writer->FinalizeWrite())) {
     PS_DLOG_INFO(handler, "Could not convert image to custom WebP");
@@ -405,45 +384,45 @@ ImageConverter::ImageType ImageConverter::GetSmallestOfPngJpegWebp(
   }
   delete webp_writer;
 
-  if (!PngOptimizer::OptimizePngBestCompression(png_struct_reader, in,
-                                                &png_out, handler)) {
+  if (!PngOptimizer::OptimizePngBestCompression(png_struct_reader, in, &png_out,
+                                                handler)) {
     PS_DLOG_INFO(handler, "Could not optimize PNG");
     png_out.clear();
   }
 
   // If jpeg options are passed in and we haven't determined for sure
   // that the image has transparency, try jpeg conversion.
-  if ((jpeg_options != NULL) &&
-      (webp_lossy_out.empty() || is_opaque) &&
+  if ((jpeg_options != nullptr) && (webp_lossy_out.empty() || is_opaque) &&
       !ConvertPngToJpeg(png_struct_reader, in, *jpeg_options, &jpeg_out,
-      handler)) {
+                        handler)) {
     PS_DLOG_INFO(handler, "Could not convert image to JPEG");
     jpeg_out.clear();
   }
 
-  SelectSmallerImage(IMAGE_NONE, in, 1,
-                     &best_lossless_image_type, &best_lossless_image, handler);
+  SelectSmallerImage(IMAGE_NONE, in, 1, &best_lossless_image_type,
+                     &best_lossless_image, handler);
   SelectSmallerImage(IMAGE_WEBP, webp_lossless_out, 1,
                      &best_lossless_image_type, &best_lossless_image, handler);
-  SelectSmallerImage(IMAGE_PNG, png_out, 1,
-                     &best_lossless_image_type, &best_lossless_image, handler);
+  SelectSmallerImage(IMAGE_PNG, png_out, 1, &best_lossless_image_type,
+                     &best_lossless_image, handler);
 
-  SelectSmallerImage(IMAGE_WEBP, webp_lossy_out, 1,
-                     &best_lossy_image_type, &best_lossy_image, handler);
-  SelectSmallerImage(IMAGE_JPEG, jpeg_out, 1,
-                     &best_lossy_image_type, &best_lossy_image, handler);
+  SelectSmallerImage(IMAGE_WEBP, webp_lossy_out, 1, &best_lossy_image_type,
+                     &best_lossy_image, handler);
+  SelectSmallerImage(IMAGE_JPEG, jpeg_out, 1, &best_lossy_image_type,
+                     &best_lossy_image, handler);
 
   // To compensate for the lower quality, the lossy images must be
   // substantially smaller than the lossless images.
-  double threshold_ratio = (best_lossy_image_type == IMAGE_WEBP ?
-                            kMinWebpSavingsRatio : kMinJpegSavingsRatio);
+  double threshold_ratio =
+      (best_lossy_image_type == IMAGE_WEBP ? kMinWebpSavingsRatio
+                                           : kMinJpegSavingsRatio);
   best_image_type = best_lossless_image_type;
   best_image = best_lossless_image;
   SelectSmallerImage(best_lossy_image_type, *best_lossy_image, threshold_ratio,
                      &best_image_type, &best_image, handler);
 
   out->clear();
-  out->assign((best_image != NULL) ? *best_image : in);
+  out->assign((best_image != nullptr) ? *best_image : in);
 
   return best_image_type;
 }
@@ -454,17 +433,16 @@ bool GenerateBlankImage(size_t width, size_t height, bool has_transparency,
   PngCompressParams config(PNG_FILTER_NONE, Z_NO_COMPRESSION);
   PixelFormat pixel_format = (has_transparency ? RGBA_8888 : RGB_888);
 
-  net_instaweb::scoped_ptr<ScanlineWriterInterface> png_writer(
-      CreateScanlineWriter(IMAGE_PNG, pixel_format, width, height, &config,
-                           output, handler));
-  if (png_writer == NULL) {
+  std::unique_ptr<ScanlineWriterInterface> png_writer(CreateScanlineWriter(
+      IMAGE_PNG, pixel_format, width, height, &config, output, handler));
+  if (png_writer == nullptr) {
     PS_LOG_ERROR(handler, "Failed to create an image writer.");
     return false;
   }
 
   // Create a transparent scanline.
-  const size_t bytes_per_scanline = width *
-    GetNumChannelsFromPixelFormat(pixel_format, handler);
+  const size_t bytes_per_scanline =
+      width * GetNumChannelsFromPixelFormat(pixel_format, handler);
   net_instaweb::scoped_array<unsigned char> scanline(
       new unsigned char[bytes_per_scanline]);
   memset(scanline.get(), 0, bytes_per_scanline);
@@ -472,7 +450,7 @@ bool GenerateBlankImage(size_t width, size_t height, bool has_transparency,
   // Fill the entire image with the blank scanline.
   for (int row = 0; row < static_cast<int>(height); ++row) {
     if (!png_writer->WriteNextScanline(
-        reinterpret_cast<void*>(scanline.get()))) {
+            reinterpret_cast<void*>(scanline.get()))) {
       return false;
     }
   }
@@ -483,9 +461,8 @@ bool GenerateBlankImage(size_t width, size_t height, bool has_transparency,
   return true;
 }
 
-bool ShouldConvertToProgressive(int64 quality, int threshold,
-                                int num_bytes, int desired_width,
-                                int desired_height) {
+bool ShouldConvertToProgressive(int64 quality, int threshold, int num_bytes,
+                                int desired_width, int desired_height) {
   bool progressive = false;
 
   if (num_bytes >= threshold) {

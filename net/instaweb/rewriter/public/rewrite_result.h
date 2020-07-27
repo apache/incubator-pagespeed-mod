@@ -28,10 +28,10 @@ namespace net_instaweb {
 // RewriteContext::RewriteDone.
 enum RewriteResult {
   kRewriteFailed,  // rewrite is impossible or undesirable
-  kRewriteOk,  // rewrite went fine
-  kTooBusy   // the system is temporarily too busy to handle this
-             // rewrite request; no conclusion can be drawn on whether
-             // it's worth trying again or not.
+  kRewriteOk,      // rewrite went fine
+  kTooBusy         // the system is temporarily too busy to handle this
+                   // rewrite request; no conclusion can be drawn on whether
+                   // it's worth trying again or not.
 };
 
 }  // namespace net_instaweb

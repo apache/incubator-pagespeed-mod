@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
 
 #include <memory>
@@ -35,16 +34,14 @@
 namespace net_instaweb {
 
 const char
-RewrittenContentScanningFilter::kNumProxiedRewrittenResourcesProperty[] =
-    "num_proxied_rewritten_resources";
+    RewrittenContentScanningFilter::kNumProxiedRewrittenResourcesProperty[] =
+        "num_proxied_rewritten_resources";
 
 RewrittenContentScanningFilter::RewrittenContentScanningFilter(
     RewriteDriver* driver)
-    : driver_(driver),
-      num_proxied_rewritten_resources_(0) {}
+    : driver_(driver), num_proxied_rewritten_resources_(0) {}
 
-RewrittenContentScanningFilter::~RewrittenContentScanningFilter() {
-}
+RewrittenContentScanningFilter::~RewrittenContentScanningFilter() {}
 
 void RewrittenContentScanningFilter::StartDocument() {
   num_proxied_rewritten_resources_ = 0;
@@ -53,8 +50,7 @@ void RewrittenContentScanningFilter::StartDocument() {
 void RewrittenContentScanningFilter::EndDocument() {
   // Update number of rewritten resources in the property cahce.
   driver_->UpdatePropertyValueInDomCohort(
-      driver_->property_page(),
-      kNumProxiedRewrittenResourcesProperty,
+      driver_->property_page(), kNumProxiedRewrittenResourcesProperty,
       IntegerToString(num_proxied_rewritten_resources_));
 }
 

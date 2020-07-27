@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_outline_filter.h"
 
 #include "base/logging.h"
@@ -46,60 +45,59 @@ const char CssOutlineFilter::kFilterId[] = "co";
 
 CssOutlineFilter::CssOutlineFilter(RewriteDriver* driver)
     : CommonFilter(driver),
-      inline_element_(NULL),
-      inline_chars_(NULL),
-      size_threshold_bytes_(driver->options()->css_outline_min_bytes()) {
-}
+      inline_element_(nullptr),
+      inline_chars_(nullptr),
+      size_threshold_bytes_(driver->options()->css_outline_min_bytes()) {}
 
 CssOutlineFilter::~CssOutlineFilter() {}
 
 void CssOutlineFilter::StartDocumentImpl() {
-  inline_element_ = NULL;
-  inline_chars_ = NULL;
+  inline_element_ = nullptr;
+  inline_chars_ = nullptr;
 }
 
 void CssOutlineFilter::StartElementImpl(HtmlElement* element) {
   // No tags allowed inside style element.
-  if (inline_element_ != NULL) {
+  if (inline_element_ != nullptr) {
     // TODO(sligocki): Add negative unit tests to hit these errors.
     driver()->ErrorHere("Tag '%s' found inside style.",
                         CEscape(element->name_str()).c_str());
-    inline_element_ = NULL;  // Don't outline what we don't understand.
-    inline_chars_ = NULL;
+    inline_element_ = nullptr;  // Don't outline what we don't understand.
+    inline_chars_ = nullptr;
   }
   if (element->keyword() == HtmlName::kStyle &&
-      element->FindAttribute(HtmlName::kScoped) == NULL) {
+      element->FindAttribute(HtmlName::kScoped) == nullptr) {
     // <style scoped> can't be directly converted to a <link>. We could
     // theoretically convert it to a <style scoped>@import ... </style>, but
     // given the feature has very little browser support, it's probably not
     // worth the effort, so we just leave it alone.
     // All other <style> blocks are candidates for conversion.
     inline_element_ = element;
-    inline_chars_ = NULL;
+    inline_chars_ = nullptr;
   }
 }
 
 void CssOutlineFilter::EndElementImpl(HtmlElement* element) {
-  if (inline_element_ != NULL) {
+  if (inline_element_ != nullptr) {
     CHECK(element == inline_element_);
-    if (inline_chars_ != NULL &&
+    if (inline_chars_ != nullptr &&
         inline_chars_->contents().size() >= size_threshold_bytes_) {
       OutlineStyle(inline_element_, inline_chars_->contents());
     }
-    inline_element_ = NULL;
-    inline_chars_ = NULL;
+    inline_element_ = nullptr;
+    inline_chars_ = nullptr;
   }
 }
 
 void CssOutlineFilter::Flush() {
   // If we were flushed in a style element, we cannot outline it.
-  inline_element_ = NULL;
-  inline_chars_ = NULL;
+  inline_element_ = nullptr;
+  inline_chars_ = nullptr;
 }
 
 void CssOutlineFilter::Characters(HtmlCharactersNode* characters) {
-  if (inline_element_ != NULL) {
-    CHECK(inline_chars_ == NULL) << "Multiple character blocks in style.";
+  if (inline_element_ != nullptr) {
+    CHECK(inline_chars_ == nullptr) << "Multiple character blocks in style.";
     inline_chars_ = characters;
   }
 }
@@ -112,8 +110,8 @@ bool CssOutlineFilter::WriteResource(const StringPiece& content,
   // from the page.
   // TODO(morlovich) check for proper behavior in case of embedded BOM.
   // TODO(matterbury) but AFAICT you cannot have a BOM in a <style> tag.
-  return driver()->Write(
-      ResourceVector(), content, &kContentTypeCss, StringPiece(), resource);
+  return driver()->Write(ResourceVector(), content, &kContentTypeCss,
+                         StringPiece(), resource);
 }
 
 // Create file with style content and remove that element from DOM.
@@ -125,7 +123,7 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
     const char* type = style_element->AttributeValue(HtmlName::kType);
     // We only deal with CSS styles.  If no type specified, CSS is assumed.
     // See http://www.w3.org/TR/html5/semantics.html#the-style-element
-    if (type == NULL || strcmp(type, kContentTypeCss.mime_type()) == 0) {
+    if (type == nullptr || strcmp(type, kContentTypeCss.mime_type()) == 0) {
       MessageHandler* handler = driver()->message_handler();
       // Create outline resource at the document location,
       // not base URL location.
@@ -135,7 +133,7 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
               driver()->google_url(), kFilterId, "_", kOutlinedResource,
               &failure_reason));
 
-      if (output_resource.get() == NULL) {
+      if (output_resource.get() == nullptr) {
         driver()->InsertDebugComment(failure_reason, style_element);
       } else {
         // Rewrite URLs in content.
@@ -144,8 +142,7 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
         bool content_valid = true;
         switch (driver()->ResolveCssUrls(base_url(),
                                          output_resource->resolved_base(),
-                                         content,
-                                         &writer, handler)) {
+                                         content, &writer, handler)) {
           case RewriteDriver::kNoResolutionNeeded:
             break;
           case RewriteDriver::kWriteFailed:
@@ -157,11 +154,11 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
         }
         if (content_valid &&
             WriteResource(content, output_resource.get(), handler)) {
-          HtmlElement* link_element = driver()->NewElement(
-              style_element->parent(), HtmlName::kLink);
+          HtmlElement* link_element =
+              driver()->NewElement(style_element->parent(), HtmlName::kLink);
           driver()->AddAttribute(link_element, HtmlName::kRel, kStylesheet);
-          driver()->AddAttribute(
-              link_element, HtmlName::kHref, output_resource->url());
+          driver()->AddAttribute(link_element, HtmlName::kHref,
+                                 output_resource->url());
           // Add all style attributes to link.
           const HtmlElement::AttributeList& attrs = style_element->attributes();
           for (HtmlElement::AttributeConstIterator i(attrs.begin());
@@ -178,8 +175,9 @@ void CssOutlineFilter::OutlineStyle(HtmlElement* style_element,
         }
       }
     } else {
-      driver()->InsertDebugComment(StrCat(
-          "Cannot outline stylesheet with non-CSS type=", type), style_element);
+      driver()->InsertDebugComment(
+          StrCat("Cannot outline stylesheet with non-CSS type=", type),
+          style_element);
       GoogleString element_string = style_element->ToString();
       driver()->InfoHere("Cannot outline non-css stylesheet %s",
                          element_string.c_str());

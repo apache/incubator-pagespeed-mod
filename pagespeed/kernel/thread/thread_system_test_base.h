@@ -17,16 +17,14 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_THREAD_THREAD_SYSTEM_TEST_BASE_H_
 #define PAGESPEED_KERNEL_THREAD_THREAD_SYSTEM_TEST_BASE_H_
-
-#include "pagespeed/kernel/base/thread_system.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
+#include "pagespeed/kernel/base/thread_system.h"
 
 namespace net_instaweb {
 
@@ -51,7 +49,7 @@ class ThreadSystemTestBase : public testing::Test {
 
  private:
   bool ok_flag_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadSystemTestBase);
@@ -59,13 +57,13 @@ class ThreadSystemTestBase : public testing::Test {
 
 // Passes in the appropriate ThreadSystem to ThreadSystemTestBase via a template
 // param to help glue us to the test framework
-template<typename ToTest>
+template <typename ToTest>
 class ThreadSystemTestTemplate : public ThreadSystemTestBase {
  public:
   ThreadSystemTestTemplate() : ThreadSystemTestBase(new ToTest) {}
 };
 
-TYPED_TEST_CASE_P(ThreadSystemTestTemplate);
+TYPED_TEST_SUITE_P(ThreadSystemTestTemplate);
 
 TYPED_TEST_P(ThreadSystemTestTemplate, TestStartJoin) {
   ThreadSystemTestBase::TestStartJoin();
@@ -75,7 +73,7 @@ TYPED_TEST_P(ThreadSystemTestTemplate, TestSync) {
   ThreadSystemTestBase::TestSync();
 }
 
-REGISTER_TYPED_TEST_CASE_P(ThreadSystemTestTemplate, TestStartJoin, TestSync);
+REGISTER_TYPED_TEST_SUITE_P(ThreadSystemTestTemplate, TestStartJoin, TestSync);
 
 }  // namespace net_instaweb
 

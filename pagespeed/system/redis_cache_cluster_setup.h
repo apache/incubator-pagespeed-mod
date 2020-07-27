@@ -41,15 +41,13 @@ StringVector GetNodeConfig(TcpConnectionForTesting* conn);
 //
 // TODO(cheesy): node_ids, ports and connections should be collapsed onto a
 // single vector of struct { conn, port, node_id }.
-void ResetConfiguration(StringVector* node_ids,
-                        std::vector<int>* ports,
+void ResetConfiguration(StringVector* node_ids, std::vector<int>* ports,
                         ConnectionList* connections);
 
 // Populate node_ids, ports and connections with values suitable to be passed
 // into ResetClusterConfiguration. Config is loaded through environment
 // variables REDIS_CLUSTER_PORTS and REDIS_CLUSTER_IDS.
-bool LoadConfiguration(StringVector* node_ids,
-                       std::vector<int>* ports,
+bool LoadConfiguration(StringVector* node_ids, std::vector<int>* ports,
                        ConnectionList* connections);
 
 // Send redis FLUSHALL command, which removes all stored data.

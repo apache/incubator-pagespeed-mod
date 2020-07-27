@@ -28,8 +28,8 @@
 #include "net/instaweb/rewriter/public/js_combine_filter.h"
 
 #include <map>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -82,13 +82,10 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     js_file_count_reduction_ = stats->GetVariable(kJsFileCountReduction);
   }
 
-  virtual ~JsCombiner() {
-    STLDeleteValues(&code_blocks_);
-  }
+  ~JsCombiner() override { STLDeleteValues(&code_blocks_); }
 
-  virtual bool ResourceCombinable(
-      Resource* resource, GoogleString* failure_reason,
-      MessageHandler* handler) {
+  bool ResourceCombinable(Resource* resource, GoogleString* failure_reason,
+                          MessageHandler* handler) override {
     // Get the charset for the given resource.
     StringPiece this_charset = RewriteFilter::GetCharsetForScript(
         resource, attribute_charset_, rewrite_driver_->containing_charset());
@@ -119,8 +116,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
       return false;
     }
 
-    if (options->Enabled(
-            RewriteOptions::kCanonicalizeJavascriptLibraries)) {
+    if (options->Enabled(RewriteOptions::kCanonicalizeJavascriptLibraries)) {
       JavascriptCodeBlock* code_block = BlockForResource(resource);
       if (!code_block->ComputeJavascriptLibrary().empty()) {
         // TODO(morlovich): We may be double-counting some stats here.
@@ -134,22 +130,21 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
     return true;
   }
 
-  virtual bool ContentSizeTooBig() const {
+  bool ContentSizeTooBig() const override {
     int64 combined_js_max_size =
         rewrite_driver_->options()->max_combined_js_bytes();
 
-    if (combined_js_max_size >= 0 &&
-        combined_js_size_ > combined_js_max_size) {
+    if (combined_js_max_size >= 0 && combined_js_size_ > combined_js_max_size) {
       return true;
     }
     return false;
   }
 
-  virtual void AccumulateCombinedSize(const ResourcePtr& resource) {
+  void AccumulateCombinedSize(const ResourcePtr& resource) override {
     combined_js_size_ += resource->UncompressedContentsSize();
   }
 
-  virtual void Clear() {
+  void Clear() override {
     ResourceCombiner::Clear();
     STLDeleteValues(&code_blocks_);
     combined_js_size_ = 0;
@@ -182,13 +177,13 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
  private:
   typedef std::map<const Resource*, JavascriptCodeBlock*> CodeBlockMap;
 
-  virtual const ContentType* CombinationContentType() {
+  const ContentType* CombinationContentType() override {
     return &kContentTypeJavascript;
   }
 
-  virtual bool WritePiece(int index, int num_pieces, const Resource* input,
-                          OutputResource* combination, Writer* writer,
-                          MessageHandler* handler);
+  bool WritePiece(int index, int num_pieces, const Resource* input,
+                  OutputResource* combination, Writer* writer,
+                  MessageHandler* handler) override;
 
   JavascriptCodeBlock* BlockForResource(const Resource* input);
 
@@ -204,7 +199,7 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
   // The charset of the combination so far.
   StringPiece combined_charset_;
 
-  scoped_ptr<JavascriptRewriteConfig> config_;
+  std::unique_ptr<JavascriptRewriteConfig> config_;
   CodeBlockMap code_blocks_;
 
   DISALLOW_COPY_AND_ASSIGN(JsCombiner);
@@ -213,18 +208,17 @@ class JsCombineFilter::JsCombiner : public ResourceCombiner {
 class JsCombineFilter::Context : public RewriteContext {
  public:
   Context(RewriteDriver* driver, JsCombineFilter* filter)
-      : RewriteContext(driver, NULL, NULL),
+      : RewriteContext(driver, nullptr, nullptr),
         combiner_(filter, driver),
         filter_(filter),
-        fresh_combination_(true) {
-  }
+        fresh_combination_(true) {}
 
   // Create and add the slot that corresponds to this element.
   bool AddElement(HtmlElement* element, HtmlElement::Attribute* href) {
     ResourcePtr resource(filter_->CreateInputResourceOrInsertDebugComment(
         href->DecodedValueOrNull(), RewriteDriver::InputRole::kScript,
         element));
-    if (resource.get() == NULL) {
+    if (resource.get() == nullptr) {
       return false;
     }
     ResourceSlotPtr slot(Driver()->GetSlot(resource, element, href));
@@ -261,13 +255,13 @@ class JsCombineFilter::Context : public RewriteContext {
   }
 
  protected:
-  virtual void PartitionAsync(OutputPartitions* partitions,
-                              OutputResourceVector* outputs) {
+  void PartitionAsync(OutputPartitions* partitions,
+                      OutputResourceVector* outputs) override {
     // Partitioning here requires JS minification, so we want to
     // move it to a different thread.
-    Driver()->AddLowPriorityRewriteTask(MakeFunction(
-        this, &Context::PartitionImpl, &Context::PartitionCancel,
-        partitions, outputs));
+    Driver()->AddLowPriorityRewriteTask(
+        MakeFunction(this, &Context::PartitionImpl, &Context::PartitionCancel,
+                     partitions, outputs));
   }
 
   void PartitionCancel(OutputPartitions* partitions,
@@ -280,7 +274,7 @@ class JsCombineFilter::Context : public RewriteContext {
   void PartitionImpl(OutputPartitions* partitions,
                      OutputResourceVector* outputs) {
     MessageHandler* handler = Driver()->message_handler();
-    CachedResult* partition = NULL;
+    CachedResult* partition = nullptr;
     CHECK_EQ(static_cast<int>(elements_.size()), num_slots());
     CHECK_EQ(static_cast<int>(elements_charsets_.size()), num_slots());
 
@@ -294,34 +288,33 @@ class JsCombineFilter::Context : public RewriteContext {
         combiner_.set_resources_attribute_charset(elements_charsets_[i]);
         if (combiner_.AddResourceNoFetch(resource, handler).value) {
           add_input = true;
-        } else if (partition != NULL) {
+        } else if (partition != nullptr) {
           FinalizePartition(partitions, partition, outputs);
-          partition = NULL;
+          partition = nullptr;
           if (combiner_.AddResourceNoFetch(resource, handler).value) {
             add_input = true;
           }
         }
       } else {
         FinalizePartition(partitions, partition, outputs);
-        partition = NULL;
+        partition = nullptr;
       }
       if (add_input) {
-        if (partition == NULL) {
+        if (partition == nullptr) {
           partition = partitions->add_partition();
         }
-        resource->AddInputInfoToPartition(
-            Resource::kIncludeInputHash, i, partition);
+        resource->AddInputInfoToPartition(Resource::kIncludeInputHash, i,
+                                          partition);
       }
     }
     FinalizePartition(partitions, partition, outputs);
-    CrossThreadPartitionDone(partitions->partition_size() != 0 ?
-                                 kRewriteOk : kRewriteFailed);
+    CrossThreadPartitionDone(
+        partitions->partition_size() != 0 ? kRewriteOk : kRewriteFailed);
   }
 
   // Actually write the new resource.
-  virtual void Rewrite(int partition_index,
-                       CachedResult* partition,
-                       const OutputResourcePtr& output) {
+  void Rewrite(int partition_index, CachedResult* partition,
+               const OutputResourcePtr& output) override {
     RewriteResult result = kRewriteOk;
     if (!output->IsWritten()) {
       ResourceVector resources;
@@ -336,7 +329,7 @@ class JsCombineFilter::Context : public RewriteContext {
     RewriteDone(result, partition_index);
   }
 
-  bool PolicyPermitsRendering() const {
+  bool PolicyPermitsRendering() const override {
     return AreOutputsAllowedByCsp(CspDirective::kScriptSrc);
   }
 
@@ -344,7 +337,7 @@ class JsCombineFilter::Context : public RewriteContext {
   // combined resource.  Then create new script tags for each slot
   // in the partition that evaluate the variable that refers to the
   // original script for that tag.
-  virtual void Render() {
+  void Render() override {
     for (int p = 0, np = num_output_partitions(); p < np; ++p) {
       const CachedResult* partition = output_partition(p);
       int partition_size = partition->input_size();
@@ -375,17 +368,17 @@ class JsCombineFilter::Context : public RewriteContext {
             slot(partition->input(i).index())->set_disable_rendering(true);
           }
         }  // if (can_rewrite)
-      }  // if (partition_size > 1)
+      }    // if (partition_size > 1)
     }
   }
 
-  virtual const UrlSegmentEncoder* encoder() const {
+  const UrlSegmentEncoder* encoder() const override {
     return filter_->encoder();
   }
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
 
-  virtual GoogleString CacheKeySuffix() const {
+  GoogleString CacheKeySuffix() const override {
     // Updated to make sure certain bugfixes actually deploy, and we don't
     // end up using old broken cached version.
     return "v4";
@@ -395,12 +388,11 @@ class JsCombineFilter::Context : public RewriteContext {
   // If we can combine, put the result into outputs and then reset
   // the context (and the combiner) so we start with a fresh slate
   // for any new slots.
-  void FinalizePartition(OutputPartitions* partitions,
-                         CachedResult* partition,
+  void FinalizePartition(OutputPartitions* partitions, CachedResult* partition,
                          OutputResourceVector* outputs) {
-    if (partition != NULL) {
+    if (partition != nullptr) {
       OutputResourcePtr combination_output(combiner_.MakeOutput());
-      if (combination_output.get() == NULL) {
+      if (combination_output.get() == nullptr) {
         partitions->mutable_partition()->RemoveLast();
       } else {
         combination_output->UpdateCachedResultPreservingInputInfo(partition);
@@ -417,30 +409,30 @@ class JsCombineFilter::Context : public RewriteContext {
     HtmlResourceSlot* first_slot =
         static_cast<HtmlResourceSlot*>(slot(first_index).get());
     HtmlElement* combine_element =
-        Driver()->NewElement(NULL,  // no parent yet.
+        Driver()->NewElement(nullptr,  // no parent yet.
                              HtmlName::kScript);
     Driver()->InsertNodeBeforeNode(first_slot->element(), combine_element);
-    Driver()->AddAttribute(combine_element, HtmlName::kSrc,
-                           ResourceSlot::RelativizeOrPassthrough(
-                               Driver()->options(), partition->url(),
-                               first_slot->url_relativity(),
-                               Driver()->base_url()));
+    Driver()->AddAttribute(
+        combine_element, HtmlName::kSrc,
+        ResourceSlot::RelativizeOrPassthrough(
+            Driver()->options(), partition->url(), first_slot->url_relativity(),
+            Driver()->base_url()));
   }
 
   // Make a script element with eval(<variable name>), and replace
   // the existing element with it.
   void MakeScriptElement(int slot_index) {
-    HtmlResourceSlot* html_slot = static_cast<HtmlResourceSlot*>(
-        slot(slot_index).get());
+    HtmlResourceSlot* html_slot =
+        static_cast<HtmlResourceSlot*>(slot(slot_index).get());
     // Create a new element that doesn't have any children the
     // original element had.
     HtmlElement* original = html_slot->element();
-    HtmlElement* element = Driver()->NewElement(NULL, HtmlName::kScript);
+    HtmlElement* element = Driver()->NewElement(nullptr, HtmlName::kScript);
     Driver()->InsertNodeBeforeNode(original, element);
-    GoogleString var_name = filter_->VarName(Driver(),
-                                             html_slot->resource()->url());
-    HtmlNode* script_code = Driver()->NewCharactersNode(
-        element, StrCat("eval(", var_name, ");"));
+    GoogleString var_name =
+        filter_->VarName(Driver(), html_slot->resource()->url());
+    HtmlNode* script_code =
+        Driver()->NewCharactersNode(element, StrCat("eval(", var_name, ");"));
     Driver()->AppendChild(element, script_code);
     html_slot->RequestDeleteElement();
   }
@@ -457,9 +449,11 @@ class JsCombineFilter::Context : public RewriteContext {
   StringVector elements_charsets_;  // charset for each element added, if any.
 };
 
-bool JsCombineFilter::JsCombiner::WritePiece(
-    int index, int num_pieces, const Resource* input,
-    OutputResource* combination, Writer* writer, MessageHandler* handler) {
+bool JsCombineFilter::JsCombiner::WritePiece(int index, int num_pieces,
+                                             const Resource* input,
+                                             OutputResource* combination,
+                                             Writer* writer,
+                                             MessageHandler* handler) {
   // Minify if needed.
   StringPiece not_escaped = input->ExtractUncompressedContents();
 
@@ -474,11 +468,10 @@ bool JsCombineFilter::JsCombiner::WritePiece(
   }
 
   // We write out code of each script into a variable.
-  writer->Write(StrCat("var ",
-                       JsCombineFilter::VarName(
-                           rewrite_driver_, input->url()),
-                       " = "),
-                handler);
+  writer->Write(
+      StrCat("var ", JsCombineFilter::VarName(rewrite_driver_, input->url()),
+             " = "),
+      handler);
 
   GoogleString escaped;
   JavascriptCodeBlock::ToJsStringLiteral(not_escaped, &escaped);
@@ -495,11 +488,11 @@ JavascriptCodeBlock* JsCombineFilter::JsCombiner::BlockForResource(
 
   if (insert_result.second) {
     // Actually inserted, so we need a value.
-    if (config_.get() == NULL) {
+    if (config_.get() == nullptr) {
       config_.reset(JavascriptFilter::InitializeConfig(rewrite_driver_));
     }
 
-    scoped_ptr<JavascriptCodeBlock> new_block(new JavascriptCodeBlock(
+    std::unique_ptr<JavascriptCodeBlock> new_block(new JavascriptCodeBlock(
         input->ExtractUncompressedContents(), config_.get(), input->url(),
         rewrite_driver_->message_handler()));
     new_block->Rewrite();
@@ -512,12 +505,10 @@ JsCombineFilter::JsCombineFilter(RewriteDriver* driver)
     : RewriteFilter(driver),
       script_scanner_(driver),
       script_depth_(0),
-      current_js_script_(NULL),
-      context_(MakeContext()) {
-}
+      current_js_script_(nullptr),
+      context_(MakeContext()) {}
 
-JsCombineFilter::~JsCombineFilter() {
-}
+JsCombineFilter::~JsCombineFilter() {}
 
 void JsCombineFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kJsFileCountReduction);
@@ -560,11 +551,10 @@ bool JsCombineFilter::IsLikelyStrictMode(
   }
 }
 
-void JsCombineFilter::StartDocumentImpl() {
-}
+void JsCombineFilter::StartDocumentImpl() {}
 
 void JsCombineFilter::StartElementImpl(HtmlElement* element) {
-  HtmlElement::Attribute* src = NULL;
+  HtmlElement::Attribute* src = nullptr;
   ScriptTagScanner::ScriptClassification classification =
       script_scanner_.ParseScriptElement(element, &src);
   switch (classification) {
@@ -597,7 +587,7 @@ void JsCombineFilter::EndElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kScript) {
     --script_depth_;
     if (script_depth_ == 0) {
-      current_js_script_ = NULL;
+      current_js_script_ = nullptr;
     }
   }
 }
@@ -658,20 +648,20 @@ void JsCombineFilter::ConsiderJsForCombination(HtmlElement* element,
 
   // If our current script may be inside a noscript, which means
   // we should not be making it runnable.
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     NextCombination();
     return;
   }
 
   // An inline script.
-  if (src == NULL || src->DecodedValueOrNull() == NULL) {
+  if (src == nullptr || src->DecodedValueOrNull() == nullptr) {
     NextCombination();
     return;
   }
 
   // Don't combine scripts with the data-pagespeed-no-defer attribute.
-  if (element->FindAttribute(HtmlName::kDataPagespeedNoDefer) != NULL ||
-      element->FindAttribute(HtmlName::kPagespeedNoDefer) != NULL) {
+  if (element->FindAttribute(HtmlName::kDataPagespeedNoDefer) != nullptr ||
+      element->FindAttribute(HtmlName::kPagespeedNoDefer) != nullptr) {
     NextCombination();
     return;
   }
@@ -699,27 +689,22 @@ GoogleString JsCombineFilter::VarName(const RewriteDriver* driver,
   // We can't generally use the preexisting UrlPartnership in the
   // ResourceCombiner since during the .pagespeed. resource fetch it's not
   // filled in.
-  UrlPartnership::FindResourceDomain(driver->base_url(),
-                                     driver->server_context()->url_namer(),
-                                     driver->options(),
-                                     &resource_url,
-                                     &domain_out,
-                                     driver->message_handler());
+  UrlPartnership::FindResourceDomain(
+      driver->base_url(), driver->server_context()->url_namer(),
+      driver->options(), &resource_url, &domain_out, driver->message_handler());
   if (resource_url.IsWebValid()) {
     resource_url.Spec().CopyToString(&output_url);
   } else {
     LOG(DFATAL) << "Somehow got invalid URL in JsCombineFilter::VarName:"
-                << resource_url.UncheckedSpec() << " starting from:"
-                << url;
+                << resource_url.UncheckedSpec() << " starting from:" << url;
     output_url = url;
   }
 
   // We hash the non-host portion of URL to keep it consistent when sharding.
   // This is safe since we never include URLs from different hosts in a single
   // combination.
-  GoogleString url_hash =
-      JavascriptCodeBlock::JsUrlHash(output_url,
-                                     driver->server_context()->hasher());
+  GoogleString url_hash = JavascriptCodeBlock::JsUrlHash(
+      output_url, driver->server_context()->hasher());
 
   return StrCat("mod_pagespeed_", url_hash);
 }
@@ -728,9 +713,7 @@ JsCombineFilter::Context* JsCombineFilter::MakeContext() {
   return new Context(driver(), this);
 }
 
-RewriteContext* JsCombineFilter::MakeRewriteContext() {
-  return MakeContext();
-}
+RewriteContext* JsCombineFilter::MakeRewriteContext() { return MakeContext(); }
 
 JsCombineFilter::JsCombiner* JsCombineFilter::combiner() const {
   return context_->combiner();
@@ -741,8 +724,7 @@ JsCombineFilter::JsCombiner* JsCombineFilter::combiner() const {
 // In sync flow, just write out what we have so far, and then
 // reset the context.
 void JsCombineFilter::NextCombination() {
-  if (!context_->empty() &&
-      driver()->content_security_policy().PermitsEval()) {
+  if (!context_->empty() && driver()->content_security_policy().PermitsEval()) {
     driver()->InitiateRewrite(context_.release());
     context_.reset(MakeContext());
   }

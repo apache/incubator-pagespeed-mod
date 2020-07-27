@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // The Google Analytics writer filter by scanning all the <script> elements.
 // The rewriter follows these steps:
 //     1. Match fixed strings that represent a synchronous load
@@ -59,18 +58,15 @@ const char kGaJsDocumentWriteEnd[] = "%3C/script%3E\"));";
 const char kGaJsGetTracker[] = "_gat._getTracker(";
 const char kGaJsCreateTracker[] = "_gat._createTracker(";
 
-
 const char GoogleAnalyticsFilter::kPageLoadCount[] =
     "google_analytics_page_load_count";
 const char GoogleAnalyticsFilter::kRewrittenCount[] =
     "google_analytics_rewritten_count";
 
-
 ScriptEditor::ScriptEditor(HtmlElement* script_element,
-                           HtmlCharactersNode *characters_node,
+                           HtmlCharactersNode* characters_node,
                            GoogleString::size_type pos,
-                           GoogleString::size_type len,
-                           Type editor_type)
+                           GoogleString::size_type len, Type editor_type)
     : script_element_(script_element),
       script_characters_node_(characters_node),
       pos_(pos),
@@ -86,20 +82,19 @@ void ScriptEditor::NewContents(const StringPiece& replacement,
     contents->clear();
     contents->append(old_contents.data(), pos_);
     contents->append(replacement.data(), replacement.size());
-    StringPiece suffix = old_contents.substr(pos_ + len_,
-                                             old_contents.size() - pos_ - len_);
+    StringPiece suffix =
+        old_contents.substr(pos_ + len_, old_contents.size() - pos_ - len_);
     contents->append(suffix.data(), suffix.size());
   }
 }
 
-
-GoogleAnalyticsFilter::GoogleAnalyticsFilter(
-    HtmlParse* html_parse, Statistics* stats)
+GoogleAnalyticsFilter::GoogleAnalyticsFilter(HtmlParse* html_parse,
+                                             Statistics* stats)
     : glue_methods_(new MethodVector),
       unhandled_methods_(new MethodVector),
       html_parse_(html_parse),
-      script_element_(NULL),
-      script_characters_node_(NULL),
+      script_element_(nullptr),
+      script_characters_node_(nullptr),
       page_load_count_(stats->GetVariable(kPageLoadCount)),
       rewritten_count_(stats->GetVariable(kRewrittenCount)) {
   // The following are the methods that need to be forwarded to the asyn
@@ -169,7 +164,7 @@ GoogleAnalyticsFilter::GoogleAnalyticsFilter(
   unhandled_methods_->push_back("_createEventTracker");  // getter method
   unhandled_methods_->push_back("_createXObj");          // getter method
   unhandled_methods_->push_back("_require");
-  unhandled_methods_->push_back("_visitCode");           // getter method
+  unhandled_methods_->push_back("_visitCode");  // getter method
   unhandled_methods_->push_back("_get");
   unhandled_methods_->push_back("_getAccount");
   unhandled_methods_->push_back("_getClientInfo");
@@ -187,20 +182,19 @@ GoogleAnalyticsFilter::GoogleAnalyticsFilter(
   unhandled_methods_->push_back("_setAccount");  // async only
 }
 
-
-GoogleAnalyticsFilter::GoogleAnalyticsFilter(
-    HtmlParse* html_parse, Statistics* stats,
-    MethodVector* glue_methods, MethodVector* unhandled_methods)
+GoogleAnalyticsFilter::GoogleAnalyticsFilter(HtmlParse* html_parse,
+                                             Statistics* stats,
+                                             MethodVector* glue_methods,
+                                             MethodVector* unhandled_methods)
     : glue_methods_(glue_methods),
       unhandled_methods_(unhandled_methods),
       html_parse_(html_parse),
-      script_element_(NULL),
-      script_characters_node_(NULL),
-      page_load_count_((stats == NULL) ? NULL :
-                       stats->GetVariable(kPageLoadCount)),
-      rewritten_count_((stats == NULL) ? NULL :
-                       stats->GetVariable(kRewrittenCount))
-    { }
+      script_element_(nullptr),
+      script_characters_node_(nullptr),
+      page_load_count_((stats == nullptr) ? nullptr
+                                          : stats->GetVariable(kPageLoadCount)),
+      rewritten_count_(
+          (stats == nullptr) ? nullptr : stats->GetVariable(kRewrittenCount)) {}
 
 GoogleAnalyticsFilter::~GoogleAnalyticsFilter() {}
 
@@ -233,9 +227,11 @@ void GoogleAnalyticsFilter::EndDocument() {
 
 void GoogleAnalyticsFilter::StartElement(HtmlElement* element) {
   // No tags allowed inside script element.
-  if (script_element_ != NULL) {
-    html_parse_->ErrorHere("Google Analytics reset: Tag '%s' found inside "
-                           "script.", CEscape(element->name_str()).c_str());
+  if (script_element_ != nullptr) {
+    html_parse_->ErrorHere(
+        "Google Analytics reset: Tag '%s' found inside "
+        "script.",
+        CEscape(element->name_str()).c_str());
     ResetFilter();
   }
   if (element->keyword() == HtmlName::kScript) {
@@ -244,69 +240,72 @@ void GoogleAnalyticsFilter::StartElement(HtmlElement* element) {
 }
 
 void GoogleAnalyticsFilter::EndElement(HtmlElement* element) {
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     if (element != script_element_) {
-      html_parse_->ErrorHere("Google Analytics reset: Unexpected tag '%s' "
-                             "inside a script.",
-                             CEscape(element->name_str()).c_str());
+      html_parse_->ErrorHere(
+          "Google Analytics reset: Unexpected tag '%s' "
+          "inside a script.",
+          CEscape(element->name_str()).c_str());
       ResetFilter();
     } else {
       FindRewritableScripts();
-      script_element_ = NULL;
-      script_characters_node_ = NULL;
+      script_element_ = nullptr;
+      script_characters_node_ = nullptr;
     }
   }
 }
 
 void GoogleAnalyticsFilter::Flush() {
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     html_parse_->InfoHere("Google Analytics reset: flush in a script.");
     ResetFilter();
   }
 }
 
 void GoogleAnalyticsFilter::Characters(HtmlCharactersNode* characters_node) {
-  if (script_element_ != NULL) {
-    if (script_characters_node_ == NULL) {
+  if (script_element_ != nullptr) {
+    if (script_characters_node_ == nullptr) {
       script_characters_node_ = characters_node;
     } else {
-      html_parse_->ErrorHere("Google Analytics reset: multiple character "
-                             "nodes in script.");
+      html_parse_->ErrorHere(
+          "Google Analytics reset: multiple character "
+          "nodes in script.");
       ResetFilter();
     }
   }
 }
 
 void GoogleAnalyticsFilter::Comment(HtmlCommentNode* comment) {
-  if (script_element_ != NULL) {
-    html_parse_->InfoHere("Google Analytics reset: comment found inside "
-                          "script.");
+  if (script_element_ != nullptr) {
+    html_parse_->InfoHere(
+        "Google Analytics reset: comment found inside "
+        "script.");
     ResetFilter();
   }
 }
 
 void GoogleAnalyticsFilter::Cdata(HtmlCdataNode* cdata) {
-  if (script_element_ != NULL) {
+  if (script_element_ != nullptr) {
     html_parse_->InfoHere("Google Analytics reset: CDATA found inside script.");
     ResetFilter();
   }
 }
 
 void GoogleAnalyticsFilter::IEDirective(HtmlIEDirectiveNode* directive) {
-  if (script_element_ != NULL) {
-    html_parse_->ErrorHere("Google Analytics reset: IE Directive found "
-                           "inside script.");
+  if (script_element_ != nullptr) {
+    html_parse_->ErrorHere(
+        "Google Analytics reset: IE Directive found "
+        "inside script.");
     ResetFilter();
   }
 }
 
 void GoogleAnalyticsFilter::ResetFilter() {
-  script_element_ = NULL;
-  script_characters_node_ = NULL;
+  script_element_ = nullptr;
+  script_characters_node_ = nullptr;
   is_init_found_ = false;
   is_load_found_ = false;
-  STLDeleteContainerPointers(script_editors_.begin(),
-                             script_editors_.end());
+  STLDeleteContainerPointers(script_editors_.begin(), script_editors_.end());
   script_editors_.clear();
 }
 
@@ -323,15 +322,14 @@ bool GoogleAnalyticsFilter::MatchSyncLoad(StringPiece contents,
         url_pos < max_distance ? 0 : url_pos - max_distance;
     StringPiece write_start(contents.data() + write_start_pos,
                             url_pos - write_start_pos);
-    GoogleString::size_type write_pos = write_start.find(
-        kGaJsDocumentWriteStart);
+    GoogleString::size_type write_pos =
+        write_start.find(kGaJsDocumentWriteStart);
     if (write_pos == GoogleString::npos) {
       html_parse_->InfoHere("Found ga.js without a matching document.write");
     } else {
       write_pos += write_start_pos;
       GoogleString::size_type write_end_pos = contents.find(
-          kGaJsDocumentWriteEnd,
-          url_pos + StringPiece(kGaJsUrlSuffix).size());
+          kGaJsDocumentWriteEnd, url_pos + StringPiece(kGaJsUrlSuffix).size());
       if (write_end_pos != GoogleString::npos) {
         write_end_pos += StringPiece(kGaJsDocumentWriteEnd).size();
         *pos = write_pos;
@@ -349,8 +347,8 @@ bool GoogleAnalyticsFilter::MatchSyncInit(StringPiece contents,
                                           GoogleString::size_type* pos,
                                           GoogleString::size_type* len) const {
   StringPiece tracker_method(kGaJsGetTracker);
-  GoogleString::size_type tracker_method_pos = contents.find(
-      tracker_method, start_pos);
+  GoogleString::size_type tracker_method_pos =
+      contents.find(tracker_method, start_pos);
   if (tracker_method_pos == GoogleString::npos) {
     tracker_method = StringPiece(kGaJsCreateTracker);
     tracker_method_pos = contents.find(tracker_method, start_pos);
@@ -401,27 +399,26 @@ void GoogleAnalyticsFilter::FindRewritableScripts() {
         html_parse_->InfoHere("Found ga.js load: script src");
         is_load_found_ = true;
         script_editors_.push_back(new ScriptEditor(
-            script_element_, script_characters_node_,
-            GoogleString::npos, GoogleString::npos,
-            ScriptEditor::kGaJsScriptSrcLoad));
+            script_element_, script_characters_node_, GoogleString::npos,
+            GoogleString::npos, ScriptEditor::kGaJsScriptSrcLoad));
       }
-    } else if (script_characters_node_ != NULL) {
+    } else if (script_characters_node_ != nullptr) {
       StringPiece contents = script_characters_node_->contents();
       if (!contents.empty()) {
         GoogleString::size_type start_pos = 0;
         GoogleString::size_type pos, len;
         if (MatchSyncLoad(contents, &pos, &len)) {
           is_load_found_ = true;
-          script_editors_.push_back(new ScriptEditor(
-              script_element_, script_characters_node_, pos, len,
-              ScriptEditor::kGaJsDocWriteLoad));
+          script_editors_.push_back(
+              new ScriptEditor(script_element_, script_characters_node_, pos,
+                               len, ScriptEditor::kGaJsDocWriteLoad));
           start_pos = pos + len;
         }
         if (is_load_found_ && MatchSyncInit(contents, start_pos, &pos, &len)) {
           is_init_found_ = true;
-          script_editors_.push_back(new ScriptEditor(
-              script_element_, script_characters_node_, pos, len,
-              ScriptEditor::kGaJsInit));
+          script_editors_.push_back(
+              new ScriptEditor(script_element_, script_characters_node_, pos,
+                               len, ScriptEditor::kGaJsInit));
           start_pos = pos + len;
         }
         if (is_init_found_ && MatchUnhandledCalls(contents, start_pos)) {
@@ -434,7 +431,7 @@ void GoogleAnalyticsFilter::FindRewritableScripts() {
   }
 }
 
-void GoogleAnalyticsFilter::GetSyncToAsyncScript(GoogleString *buffer) const {
+void GoogleAnalyticsFilter::GetSyncToAsyncScript(GoogleString* buffer) const {
   buffer->clear();
   buffer->append(kGaSnippetPrefix);
   int last_index = glue_methods_->size() - 1;
@@ -489,9 +486,8 @@ bool GoogleAnalyticsFilter::RewriteAsAsync() {
   GoogleString glue_script;
   GetSyncToAsyncScript(&glue_script);
   if (first_type == ScriptEditor::kGaJsScriptSrcLoad) {
-    html_parse_->PrependChild(
-        first_script,
-        html_parse_->NewCharactersNode(first_script, glue_script));
+    html_parse_->PrependChild(first_script, html_parse_->NewCharactersNode(
+                                                first_script, glue_script));
     first_script->DeleteAttribute(HtmlName::kSrc);
     html_parse_->InfoHere("Replaced script src load");
   } else {

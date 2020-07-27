@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/image_optimizer.h"
 
 #include <algorithm>
@@ -27,7 +26,7 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 }  // extern "C"
 
@@ -50,29 +49,29 @@ extern "C" {
 
 using net_instaweb::MessageHandler;
 using net_instaweb::Timer;
-using pagespeed::image_compression::ImageDimensions;
-using pagespeed::image_compression::WebpConfiguration;
+using pagespeed::image_compression::ComputeImageType;
 using pagespeed::image_compression::ConversionTimeoutHandler;
-using pagespeed::image_compression::JpegCompressionOptions;
-using pagespeed::image_compression::PngCompressParams;
-using pagespeed::image_compression::ScanlineWriterConfig;
+using pagespeed::image_compression::IMAGE_GIF;
+using pagespeed::image_compression::IMAGE_JPEG;
+using pagespeed::image_compression::IMAGE_PNG;
+using pagespeed::image_compression::IMAGE_UNKNOWN;
+using pagespeed::image_compression::IMAGE_WEBP;
+using pagespeed::image_compression::ImageConverter;
+using pagespeed::image_compression::ImageDimensions;
 using pagespeed::image_compression::ImageFormat;
+using pagespeed::image_compression::ImageOptions;
+using pagespeed::image_compression::JpegCompressionOptions;
 using pagespeed::image_compression::MultipleFrameReader;
 using pagespeed::image_compression::MultipleFrameWriter;
-using pagespeed::image_compression::ScanlineStatus;
-using pagespeed::image_compression::ImageOptions;
-using pagespeed::image_compression::ShouldConvertToProgressive;
 using pagespeed::image_compression::PixelFormatOptimizer;
+using pagespeed::image_compression::PngCompressParams;
 using pagespeed::image_compression::ScanlineReaderInterface;
 using pagespeed::image_compression::ScanlineResizer;
+using pagespeed::image_compression::ScanlineStatus;
+using pagespeed::image_compression::ScanlineWriterConfig;
 using pagespeed::image_compression::ScanlineWriterInterface;
-using pagespeed::image_compression::ImageConverter;
-using pagespeed::image_compression::ComputeImageType;
-using pagespeed::image_compression::IMAGE_GIF;
-using pagespeed::image_compression::IMAGE_PNG;
-using pagespeed::image_compression::IMAGE_JPEG;
-using pagespeed::image_compression::IMAGE_WEBP;
-using pagespeed::image_compression::IMAGE_UNKNOWN;
+using pagespeed::image_compression::ShouldConvertToProgressive;
+using pagespeed::image_compression::WebpConfiguration;
 
 namespace pagespeed {
 
@@ -96,9 +95,8 @@ bool ImageOptimizer::ComputeDesiredFormat() {
     }
   } else {
     // single frame and opaque
-    if (is_photo_ &&
-        (original_format_ == IMAGE_JPEG ||
-         options_.allow_convert_lossless_to_lossy())) {
+    if (is_photo_ && (original_format_ == IMAGE_JPEG ||
+                      options_.allow_convert_lossless_to_lossy())) {
       // We can use lossy format.
       if (options_.allow_webp_lossy()) {
         optimized_format_ = IMAGE_WEBP;
@@ -173,10 +171,9 @@ bool ImageOptimizer::ComputeDesiredQualityProgressive() {
   if (optimized_format_ == IMAGE_JPEG) {
     quality = std::min(quality, options_.max_jpeg_quality());
     const int kMinJpegProgressiveBytes = 10240;
-    desired_progressive_ =
-        ShouldConvertToProgressive(
-            quality, kMinJpegProgressiveBytes,
-            original_contents_.length(), optimized_width_, optimized_height_);
+    desired_progressive_ = ShouldConvertToProgressive(
+        quality, kMinJpegProgressiveBytes, original_contents_.length(),
+        optimized_width_, optimized_height_);
 
   } else if (is_animated_) {
     quality = std::min(quality, options_.max_webp_animated_quality());
@@ -230,15 +227,15 @@ bool ImageOptimizer::ConfigureWriter() {
     case IMAGE_GIF:
       break;
     case IMAGE_PNG:
-      png_config.reset(
-          new PngCompressParams(
-              options_.try_best_compression_for_png(),
-              false /* never use progressive format */));
+      png_config = std::make_unique<PngCompressParams>(
+
+          options_.try_best_compression_for_png(),
+          false /* never use progressive format */);
       writer_config_.reset(png_config.release());
       result = true;
       break;
     case IMAGE_JPEG:
-      jpeg_config.reset(new JpegCompressionOptions);
+      jpeg_config = std::make_unique<JpegCompressionOptions>();
       jpeg_config->retain_color_profile = false;
       jpeg_config->retain_exif_data = false;
       jpeg_config->lossy = true;
@@ -248,7 +245,7 @@ bool ImageOptimizer::ConfigureWriter() {
       result = true;
       break;
     case IMAGE_WEBP:
-      webp_config.reset(new WebpConfiguration);
+      webp_config = std::make_unique<WebpConfiguration>();
       // Quality/speed trade-off (0=fast, 6=slower-better).
       // This is the default value in libpagespeed. We should evaluate
       // whether this is the optimal value, and consider making it
@@ -308,7 +305,7 @@ bool ImageOptimizer::RewriteSingleFrameImage() {
   ScanlineReaderInterface* processor = nullptr;
   std::unique_ptr<ScanlineResizer> resizer;
   if (need_resizing) {
-    resizer.reset(new ScanlineResizer(message_handler_));
+    resizer = std::make_unique<ScanlineResizer>(message_handler_);
     if (!resizer->Initialize(optimizer.get(), optimized_width_,
                              optimized_height_)) {
       return false;
@@ -318,15 +315,12 @@ bool ImageOptimizer::RewriteSingleFrameImage() {
     processor = optimizer.get();
   }
 
-  std::unique_ptr<ScanlineWriterInterface> writer(
-      CreateScanlineWriter(optimized_format_, processor->GetPixelFormat(),
-                           processor->GetImageWidth(),
-                           processor->GetImageHeight(),
-                           writer_config_.get(), optimized_contents_,
-                           message_handler_));
+  std::unique_ptr<ScanlineWriterInterface> writer(CreateScanlineWriter(
+      optimized_format_, processor->GetPixelFormat(),
+      processor->GetImageWidth(), processor->GetImageHeight(),
+      writer_config_.get(), optimized_contents_, message_handler_));
   if (writer == nullptr) {
-    PS_LOG_INFO(message_handler_,
-                "Cannot create an image for output.");
+    PS_LOG_INFO(message_handler_, "Cannot create an image for output.");
     return false;
   }
 
@@ -341,26 +335,20 @@ bool ImageOptimizer::RewriteSingleFrameImage() {
 // image.
 bool ImageOptimizer::RewriteAnimatedImage() {
   ScanlineStatus status;
-  std::unique_ptr<MultipleFrameReader>
-      reader(
-          CreateImageFrameReader(
-              IMAGE_GIF,
-              original_contents_.data(), original_contents_.length(),
-              message_handler_, &status));
+  std::unique_ptr<MultipleFrameReader> reader(CreateImageFrameReader(
+      IMAGE_GIF, original_contents_.data(), original_contents_.length(),
+      message_handler_, &status));
   if (!status.Success()) {
     PS_LOG_INFO(message_handler_, "Cannot read the animated GIF image.");
     return false;
   }
 
-  std::unique_ptr<MultipleFrameWriter>
-      writer(
-          CreateImageFrameWriter(
-              IMAGE_WEBP,
-              writer_config_.get(), optimized_contents_, message_handler_,
-              &status));
+  std::unique_ptr<MultipleFrameWriter> writer(
+      CreateImageFrameWriter(IMAGE_WEBP, writer_config_.get(),
+                             optimized_contents_, message_handler_, &status));
   if (!status.Success()) {
     PS_LOG_INFO(message_handler_,
-                 "Cannot create an animated WebP image for output.");
+                "Cannot create an animated WebP image for output.");
     return false;
   }
 
@@ -371,9 +359,8 @@ bool ImageOptimizer::RewriteAnimatedImage() {
 
 bool ImageOptimizer::Run() {
   if (options_.max_timeout_ms() > 0 && timer_ != nullptr) {
-    timeout_handler_.reset(
-        new ConversionTimeoutHandler(options_.max_timeout_ms(), timer_,
-                                     message_handler_));
+    timeout_handler_ = std::make_unique<ConversionTimeoutHandler>(
+        options_.max_timeout_ms(), timer_, message_handler_);
     if (timeout_handler_ != nullptr) {
       timeout_handler_->Start(optimized_contents_);
     }
@@ -395,10 +382,8 @@ bool ImageOptimizer::Run() {
     return false;
   }
 
-  if (!ComputeDesiredFormat() ||
-      !ComputeResizedDimension() ||
-      !ComputeDesiredQualityProgressive() ||
-      !ConfigureWriter()) {
+  if (!ComputeDesiredFormat() || !ComputeResizedDimension() ||
+      !ComputeDesiredQualityProgressive() || !ConfigureWriter()) {
     return false;
   }
 
@@ -425,9 +410,9 @@ bool ImageOptimizer::Run() {
   return result;
 }
 
-bool ImageOptimizer::Optimize(
-    StringPiece original_contents, GoogleString* optimized_contents,
-    ImageFormat* optimized_format) {
+bool ImageOptimizer::Optimize(StringPiece original_contents,
+                              GoogleString* optimized_contents,
+                              ImageFormat* optimized_format) {
   // This method can only be called once.
   CHECK(is_valid_);
   is_valid_ = false;

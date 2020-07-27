@@ -17,13 +17,13 @@
  * under the License.
  */
 
-
 // TODO(huibao): Rename GoogleMessageHandler and google_message_handler
 // to reflect the fact that they are not google specific.
 
 #include "pagespeed/kernel/base/google_message_handler.h"
 
 #include <cstdarg>
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
@@ -66,8 +66,9 @@ void GoogleMessageHandler::MessageVImpl(MessageType type, const char* msg,
   }
 }
 
-void GoogleMessageHandler::FileMessageSImpl(
-    MessageType type, const char* file, int line, const GoogleString& message) {
+void GoogleMessageHandler::FileMessageSImpl(MessageType type, const char* file,
+                                            int line,
+                                            const GoogleString& message) {
   switch (type) {
     case kInfo:
       LOG(INFO) << file << ":" << line << ": " << message;

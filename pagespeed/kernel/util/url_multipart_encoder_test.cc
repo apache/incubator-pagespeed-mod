@@ -17,11 +17,11 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/util/url_multipart_encoder.h"
 
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/util/url_multipart_encoder.h"
 
 namespace net_instaweb {
 
@@ -38,9 +38,9 @@ TEST_F(UrlMultipartEncoderTest, EscapeSeparatorsAndEscapes) {
   url_vector_.push_back("def");
   url_vector_.push_back("a=b+c");  // escape and separate characters
   GoogleString encoding;
-  encoder_.Encode(url_vector_, NULL, &encoding);
+  encoder_.Encode(url_vector_, nullptr, &encoding);
   url_vector_.clear();
-  ASSERT_TRUE(encoder_.Decode(encoding, &url_vector_, NULL, &handler_));
+  ASSERT_TRUE(encoder_.Decode(encoding, &url_vector_, nullptr, &handler_));
   ASSERT_EQ(3, url_vector_.size());
   EXPECT_EQ(GoogleString("abc"), url_vector_[0]);
   EXPECT_EQ(GoogleString("def"), url_vector_[1]);
@@ -49,12 +49,12 @@ TEST_F(UrlMultipartEncoderTest, EscapeSeparatorsAndEscapes) {
 
 TEST_F(UrlMultipartEncoderTest, Empty) {
   StringVector urls;
-  ASSERT_TRUE(encoder_.Decode("", &url_vector_, NULL, &handler_));
+  ASSERT_TRUE(encoder_.Decode("", &url_vector_, nullptr, &handler_));
   EXPECT_EQ(0, url_vector_.size());
 }
 
 TEST_F(UrlMultipartEncoderTest, LastIsEmpty) {
-  ASSERT_TRUE(encoder_.Decode("a+b+", &url_vector_, NULL, &handler_));
+  ASSERT_TRUE(encoder_.Decode("a+b+", &url_vector_, nullptr, &handler_));
   ASSERT_EQ(3, url_vector_.size());
   EXPECT_EQ(GoogleString("a"), url_vector_[0]);
   EXPECT_EQ(GoogleString("b"), url_vector_[1]);
@@ -62,7 +62,7 @@ TEST_F(UrlMultipartEncoderTest, LastIsEmpty) {
 }
 
 TEST_F(UrlMultipartEncoderTest, One) {
-  ASSERT_TRUE(encoder_.Decode("a", &url_vector_, NULL, &handler_));
+  ASSERT_TRUE(encoder_.Decode("a", &url_vector_, nullptr, &handler_));
   ASSERT_EQ(1, url_vector_.size());
   EXPECT_EQ(GoogleString("a"), url_vector_[0]);
 }
@@ -70,7 +70,7 @@ TEST_F(UrlMultipartEncoderTest, One) {
 TEST_F(UrlMultipartEncoderTest, PercentEncoding) {
   // Check that we can still multipart-decode if the browser
   // replaces + with %20.
-  ASSERT_TRUE(encoder_.Decode("a%20b%20", &url_vector_, NULL, &handler_));
+  ASSERT_TRUE(encoder_.Decode("a%20b%20", &url_vector_, nullptr, &handler_));
   EXPECT_EQ(GoogleString("a"), url_vector_[0]);
   EXPECT_EQ(GoogleString("b"), url_vector_[1]);
   EXPECT_EQ(GoogleString(""), url_vector_[2]);

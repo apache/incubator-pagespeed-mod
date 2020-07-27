@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_IMAGE_UTIL_H_
 #define PAGESPEED_KERNEL_IMAGE_IMAGE_UTIL_H_
 
@@ -32,7 +31,7 @@
 namespace net_instaweb {
 class MessageHandler;
 class Timer;
-}
+}  // namespace net_instaweb
 
 namespace pagespeed {
 
@@ -42,11 +41,7 @@ namespace image_compression {
 // away from what is in the spec to emulate or adapt to the
 // idiosyncratic behavior of real renderers in the wild. This enum
 // allow those classes to parametrize that quirky behavior.
-enum QuirksMode {
-  QUIRKS_NONE = 0,
-  QUIRKS_CHROME,
-  QUIRKS_FIREFOX
-};
+enum QuirksMode { QUIRKS_NONE = 0, QUIRKS_CHROME, QUIRKS_FIREFOX };
 
 enum ImageFormat {
   IMAGE_UNKNOWN,
@@ -85,21 +80,12 @@ typedef uint8_t PixelRgbaChannels[RGBA_NUM_CHANNELS];
 
 // Packs four uint8_ts into a single uint32_t in the high-to-low order
 // given.
-inline uint32_t PackHiToLo(uint8_t i3,
-                           uint8_t i2,
-                           uint8_t i1,
-                           uint8_t i0) {
-  return
-      (static_cast<uint32_t>(i3) << 24) |
-      (i2 << 16) |
-      (i1 << 8) |
-      (i0);
+inline uint32_t PackHiToLo(uint8_t i3, uint8_t i2, uint8_t i1, uint8_t i0) {
+  return (static_cast<uint32_t>(i3) << 24) | (i2 << 16) | (i1 << 8) | (i0);
 }
 
 // Packs the given A, R, G, B values into a single ARGB uint32.
-inline uint32_t PackAsArgb(uint8_t alpha,
-                           uint8_t red,
-                           uint8_t green,
+inline uint32_t PackAsArgb(uint8_t alpha, uint8_t red, uint8_t green,
                            uint8_t blue) {
   return PackHiToLo(alpha, red, green, blue);
 }
@@ -107,28 +93,21 @@ inline uint32_t PackAsArgb(uint8_t alpha,
 // Packs a pixel's color channel data in RGBA format to a single
 // uint32_t in ARGB format.
 inline uint32_t RgbaToPackedArgb(const PixelRgbaChannels rgba) {
-  return PackAsArgb(rgba[RGBA_ALPHA],
-                    rgba[RGBA_RED],
-                    rgba[RGBA_GREEN],
+  return PackAsArgb(rgba[RGBA_ALPHA], rgba[RGBA_RED], rgba[RGBA_GREEN],
                     rgba[RGBA_BLUE]);
 }
 
 // Packs a pixel's color channel data in RGB format to a single
 // uint32_t in ARGB format.
 inline uint32_t RgbToPackedArgb(const PixelRgbaChannels rgba) {
-  return PackAsArgb(kAlphaOpaque,
-                    rgba[RGBA_RED],
-                    rgba[RGBA_GREEN],
+  return PackAsArgb(kAlphaOpaque, rgba[RGBA_RED], rgba[RGBA_GREEN],
                     rgba[RGBA_BLUE]);
 }
 
 // Converts a pixel's grayscale data into a single uint32_t in ARGB
 // format.
 inline uint32_t GrayscaleToPackedArgb(const uint8_t luminance) {
-  return PackAsArgb(kAlphaOpaque,
-                    luminance,
-                    luminance,
-                    luminance);
+  return PackAsArgb(kAlphaOpaque, luminance, luminance, luminance);
 }
 
 // Sizes that can be measured in units of pixels: width, height,
@@ -159,15 +138,14 @@ net_instaweb::ImageType ComputeImageType(const StringPiece& buf);
 // Class for managing image conversion timeouts.
 class ConversionTimeoutHandler {
  public:
-  ConversionTimeoutHandler(int64 time_allowed_ms,
-                           net_instaweb::Timer* timer,
-                           net_instaweb::MessageHandler* handler) :
-    countdown_timer_(timer, NULL, time_allowed_ms),
-    time_allowed_ms_(time_allowed_ms),
-    time_elapsed_ms_(0),
-    was_timed_out_(false),
-    output_(NULL),
-    handler_(handler) {}
+  ConversionTimeoutHandler(int64 time_allowed_ms, net_instaweb::Timer* timer,
+                           net_instaweb::MessageHandler* handler)
+      : countdown_timer_(timer, NULL, time_allowed_ms),
+        time_allowed_ms_(time_allowed_ms),
+        time_elapsed_ms_(0),
+        was_timed_out_(false),
+        output_(NULL),
+        handler_(handler) {}
 
   // Returns true if (1) the timer has not expired, or (2) the timer has
   // expired but "output_" is not empty which means that some data are
@@ -181,9 +159,7 @@ class ConversionTimeoutHandler {
     countdown_timer_.Reset(time_allowed_ms_);
   }
 
-  void Stop() {
-    time_elapsed_ms_ = countdown_timer_.TimeElapsedMs();
-  }
+  void Stop() { time_elapsed_ms_ = countdown_timer_.TimeElapsedMs(); }
 
   bool was_timed_out() const { return was_timed_out_; }
   int64 time_elapsed_ms() const { return time_elapsed_ms_; }

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/resource_namer.h"
 
 #include <cctype>
@@ -112,9 +111,8 @@ bool ResourceNamer::Decode(const StringPiece& encoded_string, int hash_length,
   if ((system_id_index >= 1) &&      // at least 1 segment before the system ID.
       (n - system_id_index >= 4)) {  // at least 3 segments after the system ID.
     name_.clear();
-    AppendJoinIterator(&name_,
-                       segments.begin(), segments.begin() + system_id_index,
-                       kSeparatorString);
+    AppendJoinIterator(&name_, segments.begin(),
+                       segments.begin() + system_id_index, kSeparatorString);
     // Looking from the right, we should see ext, hash[signature], id
     // If the hash/signature segment is not of the exact length specified, we
     // take the entire segment as the hash and set the signature to an empty
@@ -137,11 +135,9 @@ bool ResourceNamer::Decode(const StringPiece& encoded_string, int hash_length,
     int experiment_or_options_start = system_id_index + 1;
     if (experiment_or_options_start < n) {
       GoogleString experiment_or_options;
-      AppendJoinIterator(
-          &experiment_or_options,
-          segments.begin() + experiment_or_options_start,
-          segments.begin() + n,
-          kSeparatorString);
+      AppendJoinIterator(&experiment_or_options,
+                         segments.begin() + experiment_or_options_start,
+                         segments.begin() + n, kSeparatorString);
       if (experiment_or_options.size() == 1) {
         if ((experiment_or_options[0] >= 'a') &&
             (experiment_or_options[0] <= 'z')) {
@@ -166,7 +162,7 @@ bool ResourceNamer::Decode(const StringPiece& encoded_string, int hash_length,
 bool ResourceNamer::LegacyDecode(const StringPiece& encoded_string) {
   bool ret = false;
   // First check that this URL has a known extension type
-  if (NameExtensionToContentType(encoded_string) != NULL) {
+  if (NameExtensionToContentType(encoded_string) != nullptr) {
     StringPieceVector names;
     SplitStringPieceToVector(encoded_string, kSeparatorString, &names, true);
     if (names.size() == 4) {

@@ -47,14 +47,14 @@ class AddHeadersFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
         options_(thread_system_.get()) {
     options_.AddCustomFetchHeader("Custom", "custom-header");
     options_.AddCustomFetchHeader("Extra", "extra-header");
-    add_headers_fetcher_.reset(new AddHeadersFetcher(
-        &options_, &reflecting_fetcher_));
+    add_headers_fetcher_.reset(
+        new AddHeadersFetcher(&options_, &reflecting_fetcher_));
   }
 
  protected:
-  scoped_ptr<AddHeadersFetcher> add_headers_fetcher_;
+  std::unique_ptr<AddHeadersFetcher> add_headers_fetcher_;
   GoogleMessageHandler handler_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   RewriteOptions options_;
   ReflectingTestFetcher reflecting_fetcher_;
 };
@@ -88,4 +88,3 @@ TEST_F(AddHeadersFetcherTest, ReplacesHeaders) {
 }  // namespace
 
 }  // namespace net_instaweb
-

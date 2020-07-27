@@ -38,10 +38,9 @@ namespace input_info_utils {
 
 namespace {
 
-bool MatchesFileSystemMetadataCacheEntry(
-    const InputInfo& input_info,
-    const InputInfo& fsmdc_info,
-    int64 mtime_ms) {
+bool MatchesFileSystemMetadataCacheEntry(const InputInfo& input_info,
+                                         const InputInfo& fsmdc_info,
+                                         int64 mtime_ms) {
   return (fsmdc_info.has_last_modified_time_ms() &&
           fsmdc_info.has_input_content_hash() &&
           fsmdc_info.last_modified_time_ms() == mtime_ms &&
@@ -81,8 +80,8 @@ bool IsFilesystemMetadataCacheCurrent(CacheInterface* fsmdc,
       // We have a filesystem metadata cache entry: if its timestamp equals
       // the file's, and its contents hash equals the metadata caches's, then
       // the input is valid.
-      return MatchesFileSystemMetadataCacheEntry(
-          input_info, fsmdc_info, mtime_ms);
+      return MatchesFileSystemMetadataCacheEntry(input_info, fsmdc_info,
+                                                 mtime_ms);
     }
   }
   return false;
@@ -92,11 +91,10 @@ bool IsFilesystemMetadataCacheCurrent(CacheInterface* fsmdc,
 // of the given input's file (which is read from disk to compute the hash).
 // Returns false if the file cannot be read.
 bool UpdateFilesystemMetadataCache(ServerContext* server_context,
-                                    const GoogleString& file_key,
-                                    const InputInfo& input_info,
-                                    int64 mtime_ms,
-                                    CacheInterface* fsmdc,
-                                    InputInfo* fsmdc_info) {
+                                   const GoogleString& file_key,
+                                   const InputInfo& input_info, int64 mtime_ms,
+                                   CacheInterface* fsmdc,
+                                   InputInfo* fsmdc_info) {
   GoogleString contents;
   if (!server_context->file_system()->ReadFile(
           input_info.filename().c_str(), &contents,
@@ -122,10 +120,9 @@ bool UpdateFilesystemMetadataCache(ServerContext* server_context,
 }  // namespace
 
 // Checks whether the given input is still unchanged.
-bool IsInputValid(
-    ServerContext* server_context, const RewriteOptions* options,
-    bool nested_rewrite, const InputInfo& input_info,
-    int64 now_ms, bool* purged, bool* stale_rewrite) {
+bool IsInputValid(ServerContext* server_context, const RewriteOptions* options,
+                  bool nested_rewrite, const InputInfo& input_info,
+                  int64 now_ms, bool* purged, bool* stale_rewrite) {
   switch (input_info.type()) {
     case InputInfo::CACHED: {
       // It is invalid if cacheable inputs have expired or ...
@@ -146,9 +143,9 @@ bool IsInputValid(
       int64 ttl_ms = input_info.expiration_time_ms() - now_ms;
       if (ttl_ms > 0) {
         return true;
-      } else if (
-          !nested_rewrite &&
-          ttl_ms + options->metadata_cache_staleness_threshold_ms() > 0) {
+      } else if (!nested_rewrite &&
+                 ttl_ms + options->metadata_cache_staleness_threshold_ms() >
+                     0) {
         *stale_rewrite = true;
         return true;
       }
@@ -157,14 +154,14 @@ bool IsInputValid(
     case InputInfo::FILE_BASED: {
       // ... if file-based inputs have changed.
       DCHECK(input_info.has_last_modified_time_ms() &&
-              input_info.has_filename());
+             input_info.has_filename());
       if (!input_info.has_last_modified_time_ms() ||
           !input_info.has_filename()) {
         return false;
       }
       int64 mtime_sec;
       server_context->file_system()->Mtime(input_info.filename(), &mtime_sec,
-                                            server_context->message_handler());
+                                           server_context->message_handler());
       int64 mtime_ms = mtime_sec * Timer::kSecondMs;
 
       CacheInterface* fsmdc = server_context->filesystem_metadata_cache();
@@ -181,19 +178,18 @@ bool IsInputValid(
         StrAppend(&file_key, "file://", server_context->hostname(),
                   input_info.filename());
         if (IsFilesystemMetadataCacheCurrent(fsmdc, file_key, input_info,
-                                              mtime_ms)) {
+                                             mtime_ms)) {
           return true;
         }
         InputInfo fsmdc_info;
-        if (!UpdateFilesystemMetadataCache(server_context, file_key,
-                                            input_info, mtime_ms, fsmdc,
-                                            &fsmdc_info)) {
+        if (!UpdateFilesystemMetadataCache(server_context, file_key, input_info,
+                                           mtime_ms, fsmdc, &fsmdc_info)) {
           return false;
         }
         // Check again now that we KNOW we have the most up-to-date data
         // in the filesystem metadata cache.
-        return MatchesFileSystemMetadataCacheEntry(
-            input_info, fsmdc_info, mtime_ms);
+        return MatchesFileSystemMetadataCacheEntry(input_info, fsmdc_info,
+                                                   mtime_ms);
       } else {
         DCHECK_LT(0, input_info.last_modified_time_ms());
         return (mtime_ms == input_info.last_modified_time_ms());

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the write-through cache
 
 #include "pagespeed/kernel/cache/write_through_cache.h"
@@ -34,15 +33,14 @@ class WriteThroughCacheTest : public CacheTestBase {
   WriteThroughCacheTest()
       : small_cache_(15),
         big_cache_(1000),
-        write_through_cache_(&small_cache_, &big_cache_) {
-  }
+        write_through_cache_(&small_cache_, &big_cache_) {}
 
   LRUCache small_cache_;
   LRUCache big_cache_;
   WriteThroughCache write_through_cache_;
 
-  virtual CacheInterface* Cache() { return &write_through_cache_; }
-  virtual void PostOpCleanup() {
+  CacheInterface* Cache() override { return &write_through_cache_; }
+  void PostOpCleanup() override {
     small_cache_.SanityCheck();
     big_cache_.SanityCheck();
   }

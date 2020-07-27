@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MOCK_HASHER_H_
 #define PAGESPEED_KERNEL_BASE_MOCK_HASHER_H_
 
@@ -31,17 +30,15 @@ namespace net_instaweb {
 class MockHasher : public Hasher {
  public:
   MockHasher()
-      : Hasher(kint32max),
-        hash_value_("\xd0") {  // base64-encodes to "0"
+      : Hasher(kint32max), hash_value_("\xd0") {  // base64-encodes to "0"
   }
   explicit MockHasher(StringPiece hash_value)
       : Hasher(hash_value.size()),
-        hash_value_(hash_value.data(), hash_value.size()) {
-  }
+        hash_value_(hash_value.data(), hash_value.size()) {}
 
-  virtual ~MockHasher();
+  ~MockHasher() override;
 
-  virtual GoogleString RawHash(const StringPiece& content) const {
+  GoogleString RawHash(const StringPiece& content) const override {
     return hash_value_;
   }
 
@@ -49,7 +46,7 @@ class MockHasher : public Hasher {
     hash_value_ = new_hash_value;
   }
 
-  virtual int RawHashSizeInBytes() const { return hash_value_.length(); }
+  int RawHashSizeInBytes() const override { return hash_value_.length(); }
 
  private:
   GoogleString hash_value_;

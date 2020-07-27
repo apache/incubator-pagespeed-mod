@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_APACHE_WRITER_H_
 #define PAGESPEED_APACHE_APACHE_WRITER_H_
 
@@ -40,10 +39,10 @@ class ResponseHeaders;
 class ApacheWriter : public Writer {
  public:
   ApacheWriter(request_rec* r, ThreadSystem* thread_system);
-  virtual ~ApacheWriter();
+  ~ApacheWriter() override;
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 
   // Copies the contents of the specified response_headers to the Apache
   // headers_out structure.  This must be done before any bytes are flushed.
@@ -65,9 +64,7 @@ class ApacheWriter : public Writer {
   // Removes 'Set-Cookie' and 'Set-Cookie2' from the response headers
   // once they are complete.  Default is false.
   // TODO(jefftk): Doesn't actually do anything, because of an old bug.
-  void set_strip_cookies(bool x) {
-    strip_cookies_ = x;
-  }
+  void set_strip_cookies(bool x) { strip_cookies_ = x; }
 
  private:
   request_rec* request_;
@@ -76,7 +73,7 @@ class ApacheWriter : public Writer {
   bool strip_cookies_;
   int64 content_length_;
   ThreadSystem* thread_system_;
-  scoped_ptr<ThreadSystem::ThreadId> apache_request_thread_;
+  std::unique_ptr<ThreadSystem::ThreadId> apache_request_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(ApacheWriter);
 };

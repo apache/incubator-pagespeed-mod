@@ -42,41 +42,39 @@ class FallbackPropertyPage : public AbstractPropertyPage {
   // FallbackPropertyPage takes the ownership of both the property pages.
   FallbackPropertyPage(PropertyPage* actual_property_page,
                        PropertyPage* property_page_with_fallback_values);
-  virtual ~FallbackPropertyPage();
+  ~FallbackPropertyPage() override;
 
   // Gets a property given the property name. It returns the property
   // from fallback property cache if actual property page has no value.
-  virtual PropertyValue* GetProperty(
-      const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name);
+  PropertyValue* GetProperty(const PropertyCache::Cohort* cohort,
+                             const StringPiece& property_name) override;
 
   // Gets the property from property page with fallback values. It can return
   // NULL if property page with fallback values is NULL.
-  PropertyValue* GetFallbackProperty(
-        const PropertyCache::Cohort* cohort,
-        const StringPiece& property_name);
+  PropertyValue* GetFallbackProperty(const PropertyCache::Cohort* cohort,
+                                     const StringPiece& property_name);
 
   // Updates the value of a property for both actual property page and fallback
   // property page.
-  virtual void UpdateValue(
-      const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-      const StringPiece& value);
+  void UpdateValue(const PropertyCache::Cohort* cohort,
+                   const StringPiece& property_name,
+                   const StringPiece& value) override;
 
   // Updates a Cohort of properties into the cache. It will also update for
   // fallback property cache.
-  virtual void WriteCohort(const PropertyCache::Cohort* cohort);
+  void WriteCohort(const PropertyCache::Cohort* cohort) override;
 
   // Gets the cache state for the actual property page.
-  virtual CacheInterface::KeyState GetCacheState(
-      const PropertyCache::Cohort* cohort);
+  CacheInterface::KeyState GetCacheState(
+      const PropertyCache::Cohort* cohort) override;
 
   // Gets the cache state of the property page with fallback values.
   virtual CacheInterface::KeyState GetFallbackCacheState(
-        const PropertyCache::Cohort* cohort);
+      const PropertyCache::Cohort* cohort);
 
   // Deletes a property given the property name from both the pages.
-  virtual void DeleteProperty(const PropertyCache::Cohort* cohort,
-                              const StringPiece& property_name);
+  void DeleteProperty(const PropertyCache::Cohort* cohort,
+                      const StringPiece& property_name) override;
 
   PropertyPage* actual_property_page() { return actual_property_page_.get(); }
   PropertyPage* property_page_with_fallback_values() {
@@ -91,8 +89,8 @@ class FallbackPropertyPage : public AbstractPropertyPage {
   static bool IsFallbackUrl(const GoogleString& url);
 
  private:
-  scoped_ptr<PropertyPage> actual_property_page_;
-  scoped_ptr<PropertyPage> property_page_with_fallback_values_;
+  std::unique_ptr<PropertyPage> actual_property_page_;
+  std::unique_ptr<PropertyPage> property_page_with_fallback_values_;
   DISALLOW_COPY_AND_ASSIGN(FallbackPropertyPage);
 };
 

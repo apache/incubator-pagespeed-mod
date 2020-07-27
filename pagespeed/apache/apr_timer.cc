@@ -17,22 +17,19 @@
  * under the License.
  */
 
+#include "pagespeed/apache/apr_timer.h"
 
 #include "apr_time.h"
-#include "pagespeed/apache/apr_timer.h"
 
 namespace net_instaweb {
 
-AprTimer::~AprTimer() {
-}
+AprTimer::~AprTimer() {}
 
 int64 AprTimer::NowUs() const {
   // apr_time_now returns microseconds.
   return apr_time_now();
 }
 
-void AprTimer::SleepUs(int64 us) {
-  apr_sleep(us);
-}
+void AprTimer::SleepUs(int64 us) { apr_sleep(us); }
 
 }  // namespace net_instaweb

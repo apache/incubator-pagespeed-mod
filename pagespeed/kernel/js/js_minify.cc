@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/js/js_minify.h"
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/source_map.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -49,10 +48,10 @@ namespace legacy {
 const int kEOF = -1;  // represents the end of the input
 
 // A token can either be a character (0-255) or one of these constants:
-const int kStartToken = 256;  // the start of the input
+const int kStartToken = 256;      // the start of the input
 const int kCCCommentToken = 257;  // a conditional compilation comment
-const int kRegexToken = 258;  // a regular expression literal
-const int kStringToken = 259;  // a string literal
+const int kRegexToken = 258;      // a regular expression literal
+const int kStringToken = 259;     // a string literal
 // We have to differentiate between the keywords that can precede a regex
 // (such as throw) and those that can't to ensure that we don't treat return or
 // throw as a primary expression (which could mess up linebreak removal or
@@ -63,7 +62,7 @@ const int kKeywordCanPrecedeRegExToken = 261;
 // we need to track them carefully in order to get whitespace removal right.
 // Other multicharacter operators (such as += or ===) can just be treated as
 // multiple single character operators, and it'll all come out okay.
-const int kPlusPlusToken = 262;  // a ++ token
+const int kPlusPlusToken = 262;    // a ++ token
 const int kMinusMinusToken = 263;  // a -- token
 
 // Is this a character that can appear in identifiers?
@@ -124,24 +123,22 @@ bool EndsPrimaryExpression(int token) {
 bool CanSuppressLinebreak(int prev_token, int next_token) {
   // We can suppress the linebreak if the previous token can't possibly be
   // the end of a statement.
-  if (CannotBeginOrEndStatement(prev_token) ||
-      prev_token == '(' || prev_token == '[' || prev_token == '{' ||
-      prev_token == '!' || prev_token == '~' ||
-      prev_token == '+' || prev_token == '-') {
+  if (CannotBeginOrEndStatement(prev_token) || prev_token == '(' ||
+      prev_token == '[' || prev_token == '{' || prev_token == '!' ||
+      prev_token == '~' || prev_token == '+' || prev_token == '-') {
     return true;
   }
   // We can suppress the linebreak if the next token can't possibly be the
   // beginning of a statement.
-  if (CannotBeginOrEndStatement(next_token) ||
-      next_token == ')' || next_token == ']' ||
-      next_token == '}') {
+  if (CannotBeginOrEndStatement(next_token) || next_token == ')' ||
+      next_token == ']' || next_token == '}') {
     return true;
   }
   // We can suppress the linebreak if one-token lookahead tells us that we
   // could keep parsing without inserting a semicolon.
   if (EndsPrimaryExpression(prev_token) &&
-      (next_token == '(' || next_token == '[' ||
-       next_token == '+' || next_token == '-')) {
+      (next_token == '(' || next_token == '[' || next_token == '+' ||
+       next_token == '-')) {
     return true;
   }
   // Otherwise, we should leave the linebreak there, to be safe.
@@ -151,28 +148,20 @@ bool CanSuppressLinebreak(int prev_token, int next_token) {
 class StringConsumer {
  public:
   explicit StringConsumer(GoogleString* output) : output_(output) {}
-  void push_back(char character) {
-    output_->push_back(character);
-  }
-  void append(const StringPiece& str) {
-    str.AppendToString(output_);
-  }
+  void push_back(char character) { output_->push_back(character); }
+  void append(const StringPiece& str) { str.AppendToString(output_); }
   GoogleString* output_;
 };
 
 class SizeConsumer {
  public:
   explicit SizeConsumer(GoogleString* ignored) : size_(0) {}
-  void push_back(char character) {
-    ++size_;
-  }
-  void append(const StringPiece& str) {
-    size_ += str.size();
-  }
+  void push_back(char character) { ++size_; }
+  void append(const StringPiece& str) { size_ += str.size(); }
   int size_;
 };
 
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 class Minifier {
  public:
   Minifier(const StringPiece& input, GoogleString* output);
@@ -210,27 +199,27 @@ class Minifier {
   bool collapse_string_;
 };
 
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 Minifier<OutputConsumer>::Minifier(const StringPiece& input,
                                    GoogleString* output)
-  : input_(input),
-    index_(0),
-    output_(output),
-    whitespace_(kNoWhitespace),
-    prev_token_(kStartToken),
-    error_(false),
-    collapse_string_(false) {}
+    : input_(input),
+      index_(0),
+      output_(output),
+      whitespace_(kNoWhitespace),
+      prev_token_(kStartToken),
+      error_(false),
+      collapse_string_(false) {}
 
 // Return the next character after index_, or kEOF if there aren't any more.
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 int Minifier<OutputConsumer>::Peek() {
-  return (index_ + 1 < input_size() ?
-          static_cast<int>(input_[index_ + 1]) : kEOF);
+  return (index_ + 1 < input_size() ? static_cast<int>(input_[index_ + 1])
+                                    : kEOF);
 }
 
 // Switch to a new prev_token, and insert a newline if necessary.  Call this
 // right before appending a token onto the output.
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 void Minifier<OutputConsumer>::ChangeToken(int next_token) {
   // If there've been any linebreaks since the previous token, we may need to
   // insert a linebreak here to avoid running afoul of semicolon insertion
@@ -246,7 +235,7 @@ void Minifier<OutputConsumer>::ChangeToken(int next_token) {
 
 // If there's been any whitespace since the previous token, insert some
 // whitespace now to separate the previous token from the next token.
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 void Minifier<OutputConsumer>::InsertSpaceIfNeeded() {
   switch (whitespace_) {
     case kSpace:
@@ -261,7 +250,7 @@ void Minifier<OutputConsumer>::InsertSpaceIfNeeded() {
   whitespace_ = kNoWhitespace;
 }
 
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 void Minifier<OutputConsumer>::ConsumeBlockComment() {
   DCHECK(index_ + 1 < input_size());
   DCHECK_EQ(input_[index_], '/');
@@ -289,7 +278,7 @@ void Minifier<OutputConsumer>::ConsumeBlockComment() {
   error_ = true;
 }
 
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 void Minifier<OutputConsumer>::ConsumeLineComment() {
   while (index_ < input_size() && input_[index_] != '\n' &&
          input_[index_] != '\r') {
@@ -299,7 +288,7 @@ void Minifier<OutputConsumer>::ConsumeLineComment() {
 }
 
 // Consume a keyword, name, or number.
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 void Minifier<OutputConsumer>::ConsumeNameOrNumber() {
   if (prev_token_ == kNameNumberToken ||
       prev_token_ == kKeywordCanPrecedeRegExToken ||
@@ -323,7 +312,7 @@ void Minifier<OutputConsumer>::ConsumeNameOrNumber() {
   output_.append(token);
 }
 
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 void Minifier<OutputConsumer>::ConsumeRegex() {
   DCHECK(index_ < input_size());
   DCHECK_EQ(input_[index_], '/');
@@ -363,7 +352,7 @@ void Minifier<OutputConsumer>::ConsumeRegex() {
   error_ = true;
 }
 
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 void Minifier<OutputConsumer>::ConsumeString() {
   DCHECK(index_ < input_size());
   const int begin = index_;
@@ -392,7 +381,7 @@ void Minifier<OutputConsumer>::ConsumeString() {
   error_ = true;
 }
 
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 void Minifier<OutputConsumer>::Minify() {
   while (index_ < input_size() && !error_) {
     const char ch = input_[index_];
@@ -501,22 +490,22 @@ void Minifier<OutputConsumer>::Minify() {
   }
 }
 
-template<typename OutputConsumer>
+template <typename OutputConsumer>
 OutputConsumer* Minifier<OutputConsumer>::GetOutput() {
   Minify();
   if (!error_) {
     return &output_;
   }
-  return NULL;
+  return nullptr;
 }
 
 bool MinifyJs(const StringPiece& input, GoogleString* out) {
   Minifier<StringConsumer> minifier(input, out);
-  return (minifier.GetOutput() != NULL);
+  return (minifier.GetOutput() != nullptr);
 }
 
 bool GetMinifiedJsSize(const StringPiece& input, int* minimized_size) {
-  Minifier<SizeConsumer> minifier(input, NULL);
+  Minifier<SizeConsumer> minifier(input, nullptr);
   SizeConsumer* output = minifier.GetOutput();
   if (output) {
     *minimized_size = output->size_;
@@ -526,16 +515,15 @@ bool GetMinifiedJsSize(const StringPiece& input, int* minimized_size) {
   }
 }
 
-bool MinifyJsAndCollapseStrings(const StringPiece& input,
-                               GoogleString* out) {
+bool MinifyJsAndCollapseStrings(const StringPiece& input, GoogleString* out) {
   Minifier<StringConsumer> minifier(input, out);
   minifier.EnableStringCollapse();
-  return (minifier.GetOutput() != NULL);
+  return (minifier.GetOutput() != nullptr);
 }
 
 bool GetMinifiedStringCollapsedJsSize(const StringPiece& input,
                                       int* minimized_size) {
-  Minifier<SizeConsumer> minifier(input, NULL);
+  Minifier<SizeConsumer> minifier(input, nullptr);
   minifier.EnableStringCollapse();
   SizeConsumer* output = minifier.GetOutput();
   if (output) {
@@ -581,9 +569,8 @@ void UpdateLineAndCol(StringPiece text, int* line, int* col) {
   }
 }
 
-bool ShouldRecordStep(
-    const net_instaweb::source_map::MappingVector& mapping,
-    const net_instaweb::source_map::Mapping& next) {
+bool ShouldRecordStep(const net_instaweb::source_map::MappingVector& mapping,
+                      const net_instaweb::source_map::Mapping& next) {
   // Should record first mapping.
   if (mapping.empty()) {
     return true;
@@ -602,28 +589,35 @@ bool ShouldRecordStep(
 
 }  // namespace
 
-JsMinifyingTokenizer::JsMinifyingTokenizer(
-    const JsTokenizerPatterns* patterns, StringPiece input)
-    : tokenizer_(patterns, input), whitespace_(kNoWhitespace),
-      prev_type_(JsKeywords::kEndOfInput), prev_token_(),
-      next_type_(JsKeywords::kEndOfInput), next_token_(),
-      mappings_(NULL) {}
+JsMinifyingTokenizer::JsMinifyingTokenizer(const JsTokenizerPatterns* patterns,
+                                           StringPiece input)
+    : tokenizer_(patterns, input),
+      whitespace_(kNoWhitespace),
+      prev_type_(JsKeywords::kEndOfInput),
+      prev_token_(),
+      next_type_(JsKeywords::kEndOfInput),
+      next_token_(),
+      mappings_(nullptr) {}
 
 JsMinifyingTokenizer::JsMinifyingTokenizer(
     const JsTokenizerPatterns* patterns, StringPiece input,
     net_instaweb::source_map::MappingVector* mappings)
-    : tokenizer_(patterns, input), whitespace_(kNoWhitespace),
-      prev_type_(JsKeywords::kEndOfInput), prev_token_(),
-      next_type_(JsKeywords::kEndOfInput), next_token_(),
+    : tokenizer_(patterns, input),
+      whitespace_(kNoWhitespace),
+      prev_type_(JsKeywords::kEndOfInput),
+      prev_token_(),
+      next_type_(JsKeywords::kEndOfInput),
+      next_token_(),
       mappings_(mappings),
-      current_position_(0, 0, 0, 0, 0), next_position_(0, 0, 0, 0, 0) {}
+      current_position_(0, 0, 0, 0, 0),
+      next_position_(0, 0, 0, 0, 0) {}
 
 JsMinifyingTokenizer::~JsMinifyingTokenizer() {}
 
 JsKeywords::Type JsMinifyingTokenizer::NextToken(StringPiece* token_out) {
   net_instaweb::source_map::Mapping token_out_position;
   const JsKeywords::Type type = NextTokenHelper(token_out, &token_out_position);
-  if (mappings_ != NULL && type != JsKeywords::kEndOfInput &&
+  if (mappings_ != nullptr && type != JsKeywords::kEndOfInput &&
       ShouldRecordStep(*mappings_, token_out_position)) {
     mappings_->push_back(token_out_position);
   }
@@ -690,8 +684,7 @@ JsKeywords::Type JsMinifyingTokenizer::NextTokenHelper(
     } else {
       const JsWhitespace whitespace = whitespace_;
       whitespace_ = kNoWhitespace;
-      if (whitespace != kNoWhitespace &&
-          WhitespaceNeededBefore(type, token)) {
+      if (whitespace != kNoWhitespace && WhitespaceNeededBefore(type, token)) {
         next_type_ = type;
         next_token_ = token;
         next_position_ = token_position;
@@ -713,8 +706,8 @@ JsKeywords::Type JsMinifyingTokenizer::NextTokenHelper(
   }
 }
 
-bool JsMinifyingTokenizer::WhitespaceNeededBefore(
-    JsKeywords::Type type, StringPiece token) {
+bool JsMinifyingTokenizer::WhitespaceNeededBefore(JsKeywords::Type type,
+                                                  StringPiece token) {
   // Whitespace is needed 1) to separate words and numbers, 2) to prevent from
   // glomming a period onto the end of numeric literal that will absorb it as a
   // decimal point, and 3) to prevent us from joining operators together to
@@ -746,15 +739,14 @@ bool JsMinifyingTokenizer::WhitespaceNeededBefore(
   return false;
 }
 
-bool MinifyUtf8Js(const JsTokenizerPatterns* patterns,
-                  StringPiece input, GoogleString* output) {
-  return MinifyUtf8JsWithSourceMap(patterns, input, output, NULL);
+bool MinifyUtf8Js(const JsTokenizerPatterns* patterns, StringPiece input,
+                  GoogleString* output) {
+  return MinifyUtf8JsWithSourceMap(patterns, input, output, nullptr);
 }
 
 bool MinifyUtf8JsWithSourceMap(
-    const JsTokenizerPatterns* patterns,
-    StringPiece input, GoogleString* output,
-    net_instaweb::source_map::MappingVector* mappings) {
+    const JsTokenizerPatterns* patterns, StringPiece input,
+    GoogleString* output, net_instaweb::source_map::MappingVector* mappings) {
   JsMinifyingTokenizer tokenizer(patterns, input, mappings);
   while (true) {
     StringPiece token;
@@ -782,8 +774,7 @@ bool GetMinifiedJsSize(const StringPiece& input, int* minimized_size) {
   return legacy::GetMinifiedJsSize(input, minimized_size);
 }
 
-bool MinifyJsAndCollapseStrings(const StringPiece& input,
-                               GoogleString* out) {
+bool MinifyJsAndCollapseStrings(const StringPiece& input, GoogleString* out) {
   return legacy::MinifyJsAndCollapseStrings(input, out);
 }
 

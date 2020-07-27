@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_keywords.h"
 
 #include <algorithm>
@@ -43,107 +42,40 @@ struct HtmlKeywordsSequence {
 
 // TODO(jmarantz): the multi-byte sequences are not working yet.
 HtmlKeywordsSequence kHtmlKeywordsSequences[] = {
-  { "AElig", {0xC6, 0x0} },
-  { "Aacute", {0xC1, 0x0} },
-  { "Acirc", {0xC2, 0x0} },
-  { "Agrave", {0xC0, 0x0} },
-  { "Aring", {0xC5, 0x0} },
-  { "Atilde", {0xC3, 0x0} },
-  { "Auml", {0xC4, 0x0} },
-  { "Ccedil", {0xC7, 0x0} },
-  { "ETH", {0xD0, 0x0} },
-  { "Eacute", {0xC9, 0x0} },
-  { "Ecirc", {0xCA, 0x0} },
-  { "Egrave", {0xC8, 0x0} },
-  { "Euml", {0xCB, 0x0} },
-  { "Iacute", {0xCD, 0x0} },
-  { "Icirc", {0xCE, 0x0} },
-  { "Igrave", {0xCC, 0x0} },
-  { "Iuml", {0xCF, 0x0} },
-  { "Ntilde", {0xD1, 0x0} },
-  { "Oacute", {0xD3, 0x0} },
-  { "Ocirc", {0xD4, 0x0} },
-  { "Ograve", {0xD2, 0x0} },
-  { "Oslash", {0xD8, 0x0} },
-  { "Otilde", {0xD5, 0x0} },
-  { "Ouml", {0xD6, 0x0} },
-  { "THORN", {0xDE, 0x0} },
-  { "Uacute", {0xDA, 0x0} },
-  { "Ucirc", {0xDB, 0x0} },
-  { "Ugrave", {0xD9, 0x0} },
-  { "Uuml", {0xDC, 0x0} },
-  { "Yacute", {0xDD, 0x0} },
-  { "aacute", {0xE1, 0x0} },
-  { "acirc", {0xE2, 0x0} },
-  { "acute", {0xB4, 0x0} },
-  { "aelig", {0xE6, 0x0} },
-  { "agrave", {0xE0, 0x0} },
-  { "amp", {0x26, 0x0} },
-  { "aring", {0xE5, 0x0} },
-  { "atilde", {0xE3, 0x0} },
-  { "auml", {0xE4, 0x0} },
-  { "brvbar", {0xA6, 0x0} },
-  { "ccedil", {0xE7, 0x0} },
-  { "cedil", {0xB8, 0x0} },
-  { "cent", {0xA2, 0x0} },
-  { "copy", {0xA9, 0x0} },
-  { "curren", {0xA4, 0x0} },
-  { "deg", {0xB0, 0x0} },
-  { "divide", {0xF7, 0x0} },
-  { "eacute", {0xE9, 0x0} },
-  { "ecirc", {0xEA, 0x0} },
-  { "egrave", {0xE8, 0x0} },
-  { "eth", {0xF0, 0x0} },
-  { "euml", {0xEB, 0x0} },
-  { "frac12", {0xBD, 0x0} },
-  { "frac14", {0xBC, 0x0} },
-  { "frac34", {0xBE, 0x0} },
-  { "gt", {0x3E, 0x0} },
-  { "iacute", {0xED, 0x0} },
-  { "icirc", {0xEE, 0x0} },
-  { "iexcl", {0xA1, 0x0} },
-  { "igrave", {0xEC, 0x0} },
-  { "iquest", {0xBF, 0x0} },
-  { "iuml", {0xEF, 0x0} },
-  { "laquo", {0xAB, 0x0} },
-  { "lt", {0x3C, 0x0} },
-  { "macr", {0xAF, 0x0} },
-  { "micro", {0xB5, 0x0} },
-  { "middot", {0xB7, 0x0} },
-  { "nbsp", {0xA0, 0x0} },
-  { "not", {0xAC, 0x0} },
-  { "ntilde", {0xF1, 0x0} },
-  { "oacute", {0xF3, 0x0} },
-  { "ocirc", {0xF4, 0x0} },
-  { "ograve", {0xF2, 0x0} },
-  { "ordf", {0xAA, 0x0} },
-  { "ordm", {0xBA, 0x0} },
-  { "oslash", {0xF8, 0x0} },
-  { "otilde", {0xF5, 0x0} },
-  { "ouml", {0xF6, 0x0} },
-  { "para", {0xB6, 0x0} },
-  { "plusmn", {0xB1, 0x0} },
-  { "pound", {0xA3, 0x0} },
-  { "quot", {0x22, 0x0} },
-  { "raquo", {0xBB, 0x0} },
-  { "reg", {0xAE, 0x0} },
-  { "sect", {0xA7, 0x0} },
-  { "shy", {0xAD, 0x0} },
-  { "sup1", {0xB9, 0x0} },
-  { "sup2", {0xB2, 0x0} },
-  { "sup3", {0xB3, 0x0} },
-  { "szlig", {0xDF, 0x0} },
-  { "thorn", {0xFE, 0x0} },
-  { "times", {0xD7, 0x0} },
-  { "uacute", {0xFA, 0x0} },
-  { "ucirc", {0xFB, 0x0} },
-  { "ugrave", {0xF9, 0x0} },
-  { "uml", {0xA8, 0x0} },
-  { "uuml", {0xFC, 0x0} },
-  { "yacute", {0xFD, 0x0} },
-  { "yen", {0xA5, 0x0} },
-  { "yuml", {0xFF, 0x0} }
-};
+    {"AElig", {0xC6, 0x0}},  {"Aacute", {0xC1, 0x0}}, {"Acirc", {0xC2, 0x0}},
+    {"Agrave", {0xC0, 0x0}}, {"Aring", {0xC5, 0x0}},  {"Atilde", {0xC3, 0x0}},
+    {"Auml", {0xC4, 0x0}},   {"Ccedil", {0xC7, 0x0}}, {"ETH", {0xD0, 0x0}},
+    {"Eacute", {0xC9, 0x0}}, {"Ecirc", {0xCA, 0x0}},  {"Egrave", {0xC8, 0x0}},
+    {"Euml", {0xCB, 0x0}},   {"Iacute", {0xCD, 0x0}}, {"Icirc", {0xCE, 0x0}},
+    {"Igrave", {0xCC, 0x0}}, {"Iuml", {0xCF, 0x0}},   {"Ntilde", {0xD1, 0x0}},
+    {"Oacute", {0xD3, 0x0}}, {"Ocirc", {0xD4, 0x0}},  {"Ograve", {0xD2, 0x0}},
+    {"Oslash", {0xD8, 0x0}}, {"Otilde", {0xD5, 0x0}}, {"Ouml", {0xD6, 0x0}},
+    {"THORN", {0xDE, 0x0}},  {"Uacute", {0xDA, 0x0}}, {"Ucirc", {0xDB, 0x0}},
+    {"Ugrave", {0xD9, 0x0}}, {"Uuml", {0xDC, 0x0}},   {"Yacute", {0xDD, 0x0}},
+    {"aacute", {0xE1, 0x0}}, {"acirc", {0xE2, 0x0}},  {"acute", {0xB4, 0x0}},
+    {"aelig", {0xE6, 0x0}},  {"agrave", {0xE0, 0x0}}, {"amp", {0x26, 0x0}},
+    {"aring", {0xE5, 0x0}},  {"atilde", {0xE3, 0x0}}, {"auml", {0xE4, 0x0}},
+    {"brvbar", {0xA6, 0x0}}, {"ccedil", {0xE7, 0x0}}, {"cedil", {0xB8, 0x0}},
+    {"cent", {0xA2, 0x0}},   {"copy", {0xA9, 0x0}},   {"curren", {0xA4, 0x0}},
+    {"deg", {0xB0, 0x0}},    {"divide", {0xF7, 0x0}}, {"eacute", {0xE9, 0x0}},
+    {"ecirc", {0xEA, 0x0}},  {"egrave", {0xE8, 0x0}}, {"eth", {0xF0, 0x0}},
+    {"euml", {0xEB, 0x0}},   {"frac12", {0xBD, 0x0}}, {"frac14", {0xBC, 0x0}},
+    {"frac34", {0xBE, 0x0}}, {"gt", {0x3E, 0x0}},     {"iacute", {0xED, 0x0}},
+    {"icirc", {0xEE, 0x0}},  {"iexcl", {0xA1, 0x0}},  {"igrave", {0xEC, 0x0}},
+    {"iquest", {0xBF, 0x0}}, {"iuml", {0xEF, 0x0}},   {"laquo", {0xAB, 0x0}},
+    {"lt", {0x3C, 0x0}},     {"macr", {0xAF, 0x0}},   {"micro", {0xB5, 0x0}},
+    {"middot", {0xB7, 0x0}}, {"nbsp", {0xA0, 0x0}},   {"not", {0xAC, 0x0}},
+    {"ntilde", {0xF1, 0x0}}, {"oacute", {0xF3, 0x0}}, {"ocirc", {0xF4, 0x0}},
+    {"ograve", {0xF2, 0x0}}, {"ordf", {0xAA, 0x0}},   {"ordm", {0xBA, 0x0}},
+    {"oslash", {0xF8, 0x0}}, {"otilde", {0xF5, 0x0}}, {"ouml", {0xF6, 0x0}},
+    {"para", {0xB6, 0x0}},   {"plusmn", {0xB1, 0x0}}, {"pound", {0xA3, 0x0}},
+    {"quot", {0x22, 0x0}},   {"raquo", {0xBB, 0x0}},  {"reg", {0xAE, 0x0}},
+    {"sect", {0xA7, 0x0}},   {"shy", {0xAD, 0x0}},    {"sup1", {0xB9, 0x0}},
+    {"sup2", {0xB2, 0x0}},   {"sup3", {0xB3, 0x0}},   {"szlig", {0xDF, 0x0}},
+    {"thorn", {0xFE, 0x0}},  {"times", {0xD7, 0x0}},  {"uacute", {0xFA, 0x0}},
+    {"ucirc", {0xFB, 0x0}},  {"ugrave", {0xF9, 0x0}}, {"uml", {0xA8, 0x0}},
+    {"uuml", {0xFC, 0x0}},   {"yacute", {0xFD, 0x0}}, {"yen", {0xA5, 0x0}},
+    {"yuml", {0xFF, 0x0}}};
 
 // http://www.w3.org/TR/html4/sgml/entities.html contains a list of multi-byte
 // codes.  When we see any of these in an HTML attribute, we cannot currently
@@ -187,158 +119,44 @@ struct HtmlMultiByteSequenceCompare {
 };
 
 HtmlMultiByteSequence kHtmlKeywordsSequencesMultiByte[] = {
-  { "alefsym", 8501 },
-  { "Alpha", 913 },
-  { "alpha", 945 },
-  { "and", 8743 },
-  { "ang", 8736 },
-  { "asymp", 8776 },
-  { "bdquo", 8222 },
-  { "Beta", 914 },
-  { "beta", 946 },
-  { "bull", 8226 },
-  { "cap", 8745 },
-  { "Chi", 935 },
-  { "chi", 967 },
-  { "circ", 710 },
-  { "clubs", 9827 },
-  { "cong", 8773 },
-  { "crarr", 8629 },
-  { "cup", 8746 },
-  { "dagger", 8224 },
-  { "Dagger", 8225 },
-  { "darr", 8595 },
-  { "dArr", 8659 },
-  { "Delta", 916 },
-  { "delta", 948 },
-  { "diams", 9830 },
-  { "empty", 8709 },
-  { "emsp", 8195 },
-  { "ensp", 8194 },
-  { "Epsilon", 917 },
-  { "epsilon", 949 },
-  { "equiv", 8801 },
-  { "Eta", 919 },
-  { "eta", 951 },
-  { "euro", 8364 },
-  { "exist", 8707 },
-  { "fnof", 402 },
-  { "forall", 8704 },
-  { "frasl", 8260 },
-  { "Gamma", 915 },
-  { "gamma", 947 },
-  { "ge", 8805 },
-  { "harr", 8596 },
-  { "hArr", 8660 },
-  { "hearts", 9829 },
-  { "hellip", 8230 },
-  { "image", 8465 },
-  { "infin", 8734 },
-  { "int", 8747 },
-  { "Iota", 921 },
-  { "iota", 953 },
-  { "isin", 8712 },
-  { "Kappa", 922 },
-  { "kappa", 954 },
-  { "Lambda", 923 },
-  { "lambda", 955 },
-  { "lang", 9001 },
-  { "larr", 8592 },
-  { "lArr", 8656 },
-  { "lceil", 8968 },
-  { "ldquo", 8220 },
-  { "le", 8804 },
-  { "lfloor", 8970 },
-  { "lowast", 8727 },
-  { "loz", 9674 },
-  { "lrm", 8206 },
-  { "lsaquo", 8249 },
-  { "lsquo", 8216 },
-  { "mdash", 8212 },
-  { "minus", 8722 },
-  { "Mu", 924 },
-  { "mu", 956 },
-  { "nabla", 8711 },
-  { "ndash", 8211 },
-  { "ne", 8800 },
-  { "ni", 8715 },
-  { "notin", 8713 },
-  { "nsub", 8836 },
-  { "Nu", 925 },
-  { "nu", 957 },
-  { "OElig", 338 },
-  { "oelig", 339 },
-  { "oline", 8254 },
-  { "Omega", 937 },
-  { "omega", 969 },
-  { "Omicron", 927 },
-  { "omicron", 959 },
-  { "oplus", 8853 },
-  { "or", 8744 },
-  { "otimes", 8855 },
-  { "part", 8706 },
-  { "permil", 8240 },
-  { "perp", 8869 },
-  { "Phi", 934 },
-  { "phi", 966 },
-  { "Pi", 928 },
-  { "pi", 960 },
-  { "piv", 982 },
-  { "prime", 8242 },
-  { "Prime", 8243 },
-  { "prod", 8719 },
-  { "prop", 8733 },
-  { "Psi", 936 },
-  { "psi", 968 },
-  { "radic", 8730 },
-  { "rang", 9002 },
-  { "rarr", 8594 },
-  { "rArr", 8658 },
-  { "rceil", 8969 },
-  { "rdquo", 8221 },
-  { "real", 8476 },
-  { "rfloor", 8971 },
-  { "Rho", 929 },
-  { "rho", 961 },
-  { "rlm", 8207 },
-  { "rsaquo", 8250 },
-  { "rsquo", 8217 },
-  { "sbquo", 8218 },
-  { "Scaron", 352 },
-  { "scaron", 353 },
-  { "sdot", 8901 },
-  { "Sigma", 931 },
-  { "sigma", 963 },
-  { "sigmaf", 962 },
-  { "sim", 8764 },
-  { "spades", 9824 },
-  { "sub", 8834 },
-  { "sube", 8838 },
-  { "sum", 8721 },
-  { "sup", 8835 },
-  { "supe", 8839 },
-  { "Tau", 932 },
-  { "tau", 964 },
-  { "there4", 8756 },
-  { "Theta", 920 },
-  { "theta", 952 },
-  { "thetasym", 977 },
-  { "thinsp", 8201 },
-  { "tilde", 732 },
-  { "trade", 8482 },
-  { "uarr", 8593 },
-  { "uArr", 8657 },
-  { "upsih", 978 },
-  { "Upsilon", 933 },
-  { "upsilon", 965 },
-  { "weierp", 8472 },
-  { "Xi", 926 },
-  { "xi", 958 },
-  { "Yuml", 376 },
-  { "Zeta", 918 },
-  { "zeta", 950 },
-  { "zwj", 8205 },
-  { "zwnj", 8204 },
+    {"alefsym", 8501}, {"Alpha", 913},   {"alpha", 945},   {"and", 8743},
+    {"ang", 8736},     {"asymp", 8776},  {"bdquo", 8222},  {"Beta", 914},
+    {"beta", 946},     {"bull", 8226},   {"cap", 8745},    {"Chi", 935},
+    {"chi", 967},      {"circ", 710},    {"clubs", 9827},  {"cong", 8773},
+    {"crarr", 8629},   {"cup", 8746},    {"dagger", 8224}, {"Dagger", 8225},
+    {"darr", 8595},    {"dArr", 8659},   {"Delta", 916},   {"delta", 948},
+    {"diams", 9830},   {"empty", 8709},  {"emsp", 8195},   {"ensp", 8194},
+    {"Epsilon", 917},  {"epsilon", 949}, {"equiv", 8801},  {"Eta", 919},
+    {"eta", 951},      {"euro", 8364},   {"exist", 8707},  {"fnof", 402},
+    {"forall", 8704},  {"frasl", 8260},  {"Gamma", 915},   {"gamma", 947},
+    {"ge", 8805},      {"harr", 8596},   {"hArr", 8660},   {"hearts", 9829},
+    {"hellip", 8230},  {"image", 8465},  {"infin", 8734},  {"int", 8747},
+    {"Iota", 921},     {"iota", 953},    {"isin", 8712},   {"Kappa", 922},
+    {"kappa", 954},    {"Lambda", 923},  {"lambda", 955},  {"lang", 9001},
+    {"larr", 8592},    {"lArr", 8656},   {"lceil", 8968},  {"ldquo", 8220},
+    {"le", 8804},      {"lfloor", 8970}, {"lowast", 8727}, {"loz", 9674},
+    {"lrm", 8206},     {"lsaquo", 8249}, {"lsquo", 8216},  {"mdash", 8212},
+    {"minus", 8722},   {"Mu", 924},      {"mu", 956},      {"nabla", 8711},
+    {"ndash", 8211},   {"ne", 8800},     {"ni", 8715},     {"notin", 8713},
+    {"nsub", 8836},    {"Nu", 925},      {"nu", 957},      {"OElig", 338},
+    {"oelig", 339},    {"oline", 8254},  {"Omega", 937},   {"omega", 969},
+    {"Omicron", 927},  {"omicron", 959}, {"oplus", 8853},  {"or", 8744},
+    {"otimes", 8855},  {"part", 8706},   {"permil", 8240}, {"perp", 8869},
+    {"Phi", 934},      {"phi", 966},     {"Pi", 928},      {"pi", 960},
+    {"piv", 982},      {"prime", 8242},  {"Prime", 8243},  {"prod", 8719},
+    {"prop", 8733},    {"Psi", 936},     {"psi", 968},     {"radic", 8730},
+    {"rang", 9002},    {"rarr", 8594},   {"rArr", 8658},   {"rceil", 8969},
+    {"rdquo", 8221},   {"real", 8476},   {"rfloor", 8971}, {"Rho", 929},
+    {"rho", 961},      {"rlm", 8207},    {"rsaquo", 8250}, {"rsquo", 8217},
+    {"sbquo", 8218},   {"Scaron", 352},  {"scaron", 353},  {"sdot", 8901},
+    {"Sigma", 931},    {"sigma", 963},   {"sigmaf", 962},  {"sim", 8764},
+    {"spades", 9824},  {"sub", 8834},    {"sube", 8838},   {"sum", 8721},
+    {"sup", 8835},     {"supe", 8839},   {"Tau", 932},     {"tau", 964},
+    {"there4", 8756},  {"Theta", 920},   {"theta", 952},   {"thetasym", 977},
+    {"thinsp", 8201},  {"tilde", 732},   {"trade", 8482},  {"uarr", 8593},
+    {"uArr", 8657},    {"upsih", 978},   {"Upsilon", 933}, {"upsilon", 965},
+    {"weierp", 8472},  {"Xi", 926},      {"xi", 958},      {"Yuml", 376},
+    {"Zeta", 918},     {"zeta", 950},    {"zwj", 8205},    {"zwnj", 8204},
 };
 
 // String constants used to populate maps at initialization time.
@@ -377,7 +195,7 @@ const char kParagraphTerminators[] =
 
 }  // namespace
 
-HtmlKeywords* HtmlKeywords::singleton_ = NULL;
+HtmlKeywords* HtmlKeywords::singleton_ = nullptr;
 
 HtmlKeywords::HtmlKeywords() {
   InitEscapeSequences();
@@ -438,21 +256,20 @@ void HtmlKeywords::InitEscapeSequences() {
   // are OK to account for case differences.
   for (size_t i = 1; i < arraysize(kHtmlKeywordsSequencesMultiByte); ++i) {
     DCHECK(StringCaseCompare(kHtmlKeywordsSequencesMultiByte[i - 1].sequence,
-                             kHtmlKeywordsSequencesMultiByte[i].sequence)
-           <= 0);
+                             kHtmlKeywordsSequencesMultiByte[i].sequence) <= 0);
   }
 }
 
 void HtmlKeywords::Init() {
-  if (singleton_ == NULL) {
+  if (singleton_ == nullptr) {
     singleton_ = new HtmlKeywords();
   }
 }
 
 void HtmlKeywords::ShutDown() {
-  if (singleton_ != NULL) {
+  if (singleton_ != nullptr) {
     delete singleton_;
-    singleton_ = NULL;
+    singleton_ = nullptr;
   }
 }
 
@@ -503,7 +320,7 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
         accumulate_numeric_code = false;
         hex_mode = false;
       } else if (ch > 127) {
-        return StringPiece(NULL, 0);
+        return StringPiece(nullptr, 0);
       } else if (found_ampersand) {
         *buf += ch;
       }
@@ -515,13 +332,13 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
         ++i;
       }
     } else if (ch == ';') {
-      if (!TryUnescape(accumulate_numeric_code, numeric_value, escape,
-                       true, buf)) {
-        return StringPiece(NULL, 0);
+      if (!TryUnescape(accumulate_numeric_code, numeric_value, escape, true,
+                       buf)) {
+        return StringPiece(nullptr, 0);
       }
       in_escape = false;
     } else if (ch > 127) {
-      return StringPiece(NULL, 0);
+      return StringPiece(nullptr, 0);
     } else {
       // Accumulate an escape code based on the current mode (symbolic, decimal,
       // or hex).  If the character is not plausible to accumulate into the
@@ -542,7 +359,7 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
           --i;  // re-examine ch now that we've unescaped what came before it.
           in_escape = false;
         } else {
-          return StringPiece(NULL, 0);
+          return StringPiece(nullptr, 0);
         }
       } else {
         escape += ch;
@@ -556,9 +373,9 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
   if (in_escape) {
     if (escape.empty()) {
       buf->push_back('&');
-    } else if (!TryUnescape(accumulate_numeric_code, numeric_value,
-                            escape, false, buf)) {
-      return StringPiece(NULL, 0);
+    } else if (!TryUnescape(accumulate_numeric_code, numeric_value, escape,
+                            false, buf)) {
+      return StringPiece(nullptr, 0);
     }
   }
   *decoding_error = false;
@@ -566,10 +383,8 @@ StringPiece HtmlKeywords::UnescapeHelper(const StringPiece& escaped,
 }
 
 bool HtmlKeywords::TryUnescape(bool accumulate_numeric_code,
-                               uint32 numeric_value,
-                               const GoogleString& escape,
-                               bool was_terminated,
-                               GoogleString* buf) const {
+                               uint32 numeric_value, const GoogleString& escape,
+                               bool was_terminated, GoogleString* buf) const {
   if (accumulate_numeric_code && (escape.size() > 1)) {
     // See the table in the Description in
     // http://en.wikipedia.org/wiki/UTF-8#Codepage_layout .
@@ -593,11 +408,10 @@ bool HtmlKeywords::TryUnescape(bool accumulate_numeric_code,
       // byte and "Yuml" is multi-byte, and we first look in our multi-byte
       // set before allowing doing the case-insensitive lookup in our
       // single-byte encodings list.
-      if (std::binary_search(
-              kHtmlKeywordsSequencesMultiByte,
-              (kHtmlKeywordsSequencesMultiByte +
-               arraysize(kHtmlKeywordsSequencesMultiByte)),
-              escape.c_str(), HtmlMultiByteSequenceCompare())) {
+      if (std::binary_search(kHtmlKeywordsSequencesMultiByte,
+                             (kHtmlKeywordsSequencesMultiByte +
+                              arraysize(kHtmlKeywordsSequencesMultiByte)),
+                             escape.c_str(), HtmlMultiByteSequenceCompare())) {
         // Reject known multi-byte
         // sequences e.g. (&hellip;), as we would wind up adding an extra &amp;
         // e.g. (&amp;&hellip;).
@@ -643,7 +457,7 @@ bool HtmlKeywords::TryUnescape(bool accumulate_numeric_code,
 
 StringPiece HtmlKeywords::EscapeHelper(const StringPiece& unescaped,
                                        GoogleString* buf) const {
-  if (unescaped.data() == NULL) {
+  if (unescaped.data() == nullptr) {
     return unescaped;
   }
   buf->clear();
@@ -667,7 +481,7 @@ StringPiece HtmlKeywords::EscapeHelper(const StringPiece& unescaped,
       StringStringSparseHashMapSensitive::const_iterator p =
           escape_map_.find(char_to_escape);
       if (p == escape_map_.end()) {
-        StringAppendF(buf, "&#%02d;", static_cast<int>(ch));
+        absl::StrAppendFormat(buf, "&#%02d;", static_cast<int>(ch));
       } else {
         *buf += '&';
         *buf += p->second;
@@ -716,7 +530,7 @@ namespace {
 // take that comparator.
 //
 // vec must not be empty.
-template<class T>
+template <class T>
 void PrepareForBinarySearch(std::vector<T>* vec) {
   CHECK(!vec->empty());
   std::sort(vec->begin(), vec->end());
@@ -760,8 +574,8 @@ void HtmlKeywords::InitAutoClose() {
   AddAutoClose("rp rt", "rp rt");
   AddAutoClose("optgroup", "optgroup");
   AddAutoClose("option", "optgroup option");
-  AddAutoClose(kFormattingElements, StrCat("tr ", kListElements,
-                                           kDeclarationElements));
+  AddAutoClose(kFormattingElements,
+               StrCat("tr ", kListElements, kDeclarationElements));
   PrepareForBinarySearch(&auto_close_);
 }
 
@@ -802,8 +616,8 @@ void HtmlKeywords::InitOptionallyClosedKeywords() {
   PrepareForBinarySearch(&optionally_closed_);
 }
 
-bool HtmlKeywords::WritePre(StringPiece str, StringPiece style,
-                            Writer* writer, MessageHandler* handler) {
+bool HtmlKeywords::WritePre(StringPiece str, StringPiece style, Writer* writer,
+                            MessageHandler* handler) {
   GoogleString tag, escaped;
   if (style.empty()) {
     tag = "<pre>";

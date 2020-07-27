@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESPONSIVE_IMAGE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESPONSIVE_IMAGE_FILTER_H_
 
@@ -61,7 +60,7 @@ struct ResponsiveVirtualImages {
   ResponsiveImageCandidate fullsized_candidate;
 };
 typedef std::map<HtmlElement*, ResponsiveVirtualImages>
-        ResponsiveImageCandidateMap;
+    ResponsiveImageCandidateMap;
 
 // Filter which converts <img> tags into responsive srcset= counterparts by
 // rewriting the images at multiple resolutions.
@@ -79,19 +78,19 @@ class ResponsiveImageFirstFilter : public CommonFilter {
   static const char kFullsizedVirtualImage[];
 
   explicit ResponsiveImageFirstFilter(RewriteDriver* driver);
-  virtual ~ResponsiveImageFirstFilter();
+  ~ResponsiveImageFirstFilter() override;
 
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void StartDocumentImpl();
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override {}
+  void StartDocumentImpl() override;
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "ResponsiveImageFirst"; }
+  const char* Name() const override { return "ResponsiveImageFirst"; }
 
  private:
   void AddHiResImages(HtmlElement* element);
   ResponsiveImageCandidate AddHiResVersion(
-      HtmlElement* img, const HtmlElement::Attribute& src_attr,
-      int orig_width, int orig_height, StringPiece responsive_attribute_value,
+      HtmlElement* img, const HtmlElement::Attribute& src_attr, int orig_width,
+      int orig_height, StringPiece responsive_attribute_value,
       double resolution);
 
   friend class ResponsiveImageSecondFilter;
@@ -104,16 +103,16 @@ class ResponsiveImageFirstFilter : public CommonFilter {
 
 class ResponsiveImageSecondFilter : public CommonFilter {
  public:
-  ResponsiveImageSecondFilter(
-      RewriteDriver* driver, const ResponsiveImageFirstFilter* first_filter);
-  virtual ~ResponsiveImageSecondFilter();
+  ResponsiveImageSecondFilter(RewriteDriver* driver,
+                              const ResponsiveImageFirstFilter* first_filter);
+  ~ResponsiveImageSecondFilter() override;
 
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void StartDocumentImpl();
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void EndDocument();
+  void StartElementImpl(HtmlElement* element) override {}
+  void StartDocumentImpl() override;
+  void EndElementImpl(HtmlElement* element) override;
+  void EndDocument() override;
 
-  virtual const char* Name() const { return "ResponsiveImageSecond"; }
+  const char* Name() const override { return "ResponsiveImageSecond"; }
 
   // Injects scripts only when option responsive_images_zoom is enabled, and
   // the current document is not AMP.
@@ -124,8 +123,8 @@ class ResponsiveImageSecondFilter : public CommonFilter {
                           const ResponsiveVirtualImages& candidates);
   void Cleanup(HtmlElement* orig_element,
                const ResponsiveVirtualImages& candidates);
-  void InsertPlaceholderDebugComment(
-      const ResponsiveImageCandidate& candidate, const char* qualifier);
+  void InsertPlaceholderDebugComment(const ResponsiveImageCandidate& candidate,
+                                     const char* qualifier);
 
   const GoogleString responsive_js_url_;
   const ResponsiveImageFirstFilter* first_filter_;

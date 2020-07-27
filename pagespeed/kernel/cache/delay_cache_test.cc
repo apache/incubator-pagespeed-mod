@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test for DelayCache
 
 #include "pagespeed/kernel/cache/delay_cache.h"
@@ -46,11 +45,11 @@ class DelayCacheTest : public CacheTestBase {
         thread_system_(Platform::CreateThreadSystem()),
         cache_(&lru_cache_, thread_system_.get()) {}
 
-  virtual CacheInterface* Cache() { return &cache_; }
+  CacheInterface* Cache() override { return &cache_; }
 
  protected:
   LRUCache lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   DelayCache cache_;
 
  private:
@@ -113,7 +112,7 @@ TEST_F(DelayCacheTest, DelayOpsNotFound) {
 }
 
 TEST_F(DelayCacheTest, DelayOpsFoundInSequence) {
-  scoped_ptr<ThreadSystem> thread_system(Platform::CreateThreadSystem());
+  std::unique_ptr<ThreadSystem> thread_system(Platform::CreateThreadSystem());
   QueuedWorkerPool pool(1, "test", thread_system.get());
   QueuedWorkerPool::Sequence* sequence = pool.NewSequence();
   WorkerTestBase::SyncPoint sync_point(thread_system.get());

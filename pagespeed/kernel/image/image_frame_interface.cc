@@ -17,10 +17,10 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/image_frame_interface.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/image/image_frame_interface.h"
 #include "pagespeed/kernel/image/image_util.h"
 
 namespace pagespeed {
@@ -29,18 +29,16 @@ namespace image_compression {
 
 ////////// ImageSpec
 
-ImageSpec::ImageSpec() {
-    Reset();
-}
+ImageSpec::ImageSpec() { Reset(); }
 
 void ImageSpec::Reset() {
-    width = 0;
-    height = 0;
-    num_frames = 0;
-    loop_count = 1;
-    memset(bg_color, 0, sizeof(bg_color));
-    use_bg_color = true;
-    image_size_adjusted = false;
+  width = 0;
+  height = 0;
+  num_frames = 0;
+  loop_count = 1;
+  memset(bg_color, 0, sizeof(bg_color));
+  use_bg_color = true;
+  image_size_adjusted = false;
 }
 
 size_px ImageSpec::TruncateXIndex(const size_px x) const {
@@ -63,16 +61,15 @@ bool ImageSpec::CanContainFrame(const FrameSpec& frame_spec) const {
 }
 
 GoogleString ImageSpec::ToString() const {
-  return StringPrintf(
+  return absl::StrFormat(
       "Image: %d x %d : %u frames, repeated %u times; "
       "bg_color: %s, RGBA: 0x%08X",
-      width, height, num_frames, loop_count,
-      use_bg_color ? "ON":"OFF", RgbaToPackedArgb(bg_color));
+      width, height, num_frames, loop_count, use_bg_color ? "ON" : "OFF",
+      RgbaToPackedArgb(bg_color));
 }
 
 bool ImageSpec::Equals(const ImageSpec& other) const {
-  return ((width == other.width) &&
-          (height == other.height) &&
+  return ((width == other.width) && (height == other.height) &&
           (num_frames == other.num_frames) &&
           (loop_count == other.loop_count) &&
           (memcmp(bg_color, other.bg_color, sizeof(bg_color)) == 0) &&
@@ -82,11 +79,9 @@ bool ImageSpec::Equals(const ImageSpec& other) const {
 
 ////////// FrameSpec
 
-FrameSpec::FrameSpec() {
-    Reset();
-}
+FrameSpec::FrameSpec() { Reset(); }
 
-void  FrameSpec::Reset() {
+void FrameSpec::Reset() {
   width = 0;
   height = 0;
   top = 0;
@@ -99,7 +94,7 @@ void  FrameSpec::Reset() {
 }
 
 GoogleString FrameSpec::ToString() const {
-  return StringPrintf(
+  return absl::StrFormat(
       "Frame: size %u x %u at (%u, %u) "
       "pixel_format: %s, duration_ms: %lu, disposal: %d, progressive: %s",
       width, height, top, left, GetPixelFormatString(pixel_format),
@@ -108,36 +103,33 @@ GoogleString FrameSpec::ToString() const {
 }
 
 bool FrameSpec::Equals(const FrameSpec& other) const {
-  return ((width == other.width) &&
-          (height == other.height) &&
-          (top == other.top) &&
-          (left == other.left) &&
+  return ((width == other.width) && (height == other.height) &&
+          (top == other.top) && (left == other.left) &&
           (pixel_format == other.pixel_format) &&
-          (duration_ms == other.duration_ms) &&
-          (disposal == other.disposal) &&
+          (duration_ms == other.duration_ms) && (disposal == other.disposal) &&
           (hint_progressive == other.hint_progressive));
 }
 
 ////////// MultipleFrameReader
 
 MultipleFrameReader::MultipleFrameReader(MessageHandler* const handler)
-    : image_buffer_(NULL), buffer_length_(0), message_handler_(handler),
+    : image_buffer_(nullptr),
+      buffer_length_(0),
+      message_handler_(handler),
       quirks_mode_(QUIRKS_NONE) {
-  CHECK(handler != NULL);
+  CHECK(handler != nullptr);
 }
 
-MultipleFrameReader::~MultipleFrameReader() {
-}
+MultipleFrameReader::~MultipleFrameReader() {}
 
 ////////// MultipleFrameWriter
 
 MultipleFrameWriter::MultipleFrameWriter(MessageHandler* const handler)
     : message_handler_(handler) {
-  CHECK(handler != NULL);
+  CHECK(handler != nullptr);
 }
 
-MultipleFrameWriter::~MultipleFrameWriter() {
-}
+MultipleFrameWriter::~MultipleFrameWriter() {}
 
 }  // namespace image_compression
 

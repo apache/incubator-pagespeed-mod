@@ -21,10 +21,11 @@
 // Implementation of the Thread class, which routes things to an underlying
 // ThreadImpl.
 
+#include "pagespeed/kernel/base/thread.h"
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/base/thread_system.h"
 
 namespace net_instaweb {

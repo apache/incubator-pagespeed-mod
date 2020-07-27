@@ -19,6 +19,8 @@
 
 #include "net/instaweb/http/public/simulated_delay_fetcher.h"
 
+#include <memory>
+
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/request_context.h"
@@ -39,9 +41,9 @@ const char kConfigPath[] = "hosts.txt";
 const char kLogPath[] = "request_log.txt";
 
 const char kHostA[] = "foo.com";
-const int  kDelayMsA = 200;
+const int kDelayMsA = 200;
 const char kHostB[] = "bar.com";
-const int  kDelayMsB = 100;
+const int kDelayMsB = 100;
 
 class SimulatedDelayFetcherTest : public ::testing::Test {
  protected:
@@ -56,32 +58,29 @@ class SimulatedDelayFetcherTest : public ::testing::Test {
     StrAppend(&config, kHostB, "= ", IntegerToString(kDelayMsB), ";\n");
     file_system_.WriteFile(kConfigPath, config, &handler_);
 
-    fetcher_.reset(
-        new SimulatedDelayFetcher(thread_system_.get(), &timer_, &scheduler_,
-                                  &handler_, &file_system_, kConfigPath,
-                                  kLogPath, 2 /* flush after 2 requests */));
+    fetcher_ = std::make_unique<SimulatedDelayFetcher>(
+        thread_system_.get(), &timer_, &scheduler_, &handler_, &file_system_,
+        kConfigPath, kLogPath, 2 /* flush after 2 requests */);
   }
 
-  virtual ~SimulatedDelayFetcherTest() {}
+  ~SimulatedDelayFetcherTest() override {}
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   GoogleMessageHandler handler_;
   MockTimer timer_;
   MockScheduler scheduler_;
   MemFileSystem file_system_;
-  scoped_ptr<SimulatedDelayFetcher> fetcher_;
+  std::unique_ptr<SimulatedDelayFetcher> fetcher_;
 };
 
 TEST_F(SimulatedDelayFetcherTest, BasicOperation) {
   GoogleString result_a;
   StringAsyncFetch fetch_a(
-      RequestContext::NewTestRequestContext(thread_system_.get()),
-      &result_a);
+      RequestContext::NewTestRequestContext(thread_system_.get()), &result_a);
 
   GoogleString result_b;
   StringAsyncFetch fetch_b(
-      RequestContext::NewTestRequestContext(thread_system_.get()),
-      &result_b);
+      RequestContext::NewTestRequestContext(thread_system_.get()), &result_b);
 
   fetcher_->Fetch(StrCat("http://", kHostA), &handler_, &fetch_a);
 

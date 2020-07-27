@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/collapse_whitespace_filter.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -33,7 +32,7 @@ class CollapseWhitespaceFilterTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&filter_);
   }
 
-  virtual bool AddBody() const { return true; }
+  bool AddBody() const override { return true; }
 
  private:
   CollapseWhitespaceFilter filter_;

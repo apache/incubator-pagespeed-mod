@@ -41,7 +41,7 @@ class QueuedWorker : public Worker {
   QueuedWorker(StringPiece thread_name, ThreadSystem* runtime);
 
   // This waits for the running task to terminate.
-  virtual ~QueuedWorker();
+  ~QueuedWorker() override;
 
   // Runs the given closure in the work thread. Not that it's possible for the
   // closure to be deleted without running in case where the system is shutting
@@ -51,7 +51,7 @@ class QueuedWorker : public Worker {
   void RunInWorkThread(Function* closure);
 
  private:
-  virtual bool IsPermitted(Function* closure);
+  bool IsPermitted(Function* closure) override;
 
   DISALLOW_COPY_AND_ASSIGN(QueuedWorker);
 };

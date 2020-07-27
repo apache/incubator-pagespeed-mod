@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_ASYNC_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_ASYNC_CACHE_H_
 
@@ -62,15 +61,15 @@ class AsyncCache : public CacheInterface {
   // to the underlying cache (e.g. AprMemCache supports this), so we
   // take the pool as the constructor arg.
   AsyncCache(CacheInterface* cache, QueuedWorkerPool* pool);
-  virtual ~AsyncCache();
+  ~AsyncCache() override;
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
-  virtual void MultiGet(MultiGetRequest* request);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
+  void MultiGet(MultiGetRequest* request) override;
   static GoogleString FormatName(StringPiece cache);
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
-  virtual bool IsBlocking() const { return false; }
+  GoogleString Name() const override { return FormatName(cache_->Name()); }
+  bool IsBlocking() const override { return false; }
 
   // Prevent the AsyncCache from issuing any more Gets.  Any subsequent
   // Gets will have their callback invoked immediately with kNotFound.
@@ -79,14 +78,14 @@ class AsyncCache : public CacheInterface {
   // This can be called during the process Shutdown flow to avoid
   // introducing more work asynchronously that will have to be
   // completed prior to Shutdown.
-  virtual void ShutDown();
+  void ShutDown() override;
 
   // Cancels all pending cache operations.  Puts and Deletes are dropped.
   // Gets and MultiGets are retired by calling their callbacks with
   // kNotFound.
   void CancelPendingOperations() { sequence_->CancelPendingFunctions(); }
 
-  virtual bool IsHealthy() const {
+  bool IsHealthy() const override {
     return !stopped_.value() && cache_->IsHealthy();
   }
 

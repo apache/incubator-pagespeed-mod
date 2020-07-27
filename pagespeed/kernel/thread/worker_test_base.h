@@ -42,10 +42,10 @@ class WorkerTestBase : public ::testing::Test {
   class FailureFunction;
 
   WorkerTestBase();
-  ~WorkerTestBase();
+  ~WorkerTestBase() override;
 
  protected:
-  scoped_ptr<ThreadSystem> thread_runtime_;
+  std::unique_ptr<ThreadSystem> thread_runtime_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(WorkerTestBase);
@@ -56,13 +56,9 @@ class WorkerTestBase::CountFunction : public Function {
  public:
   explicit CountFunction(int* variable) : variable_(variable) {}
 
-  virtual void Run() {
-    ++*variable_;
-  }
+  void Run() override { ++*variable_; }
 
-  virtual void Cancel() {
-    *variable_ -= 100;
-  }
+  void Cancel() override { *variable_ -= 100; }
 
  private:
   int* variable_;
@@ -79,8 +75,8 @@ class WorkerTestBase::SyncPoint {
 
  private:
   bool done_;
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> notify_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> notify_;
   DISALLOW_COPY_AND_ASSIGN(SyncPoint);
 };
 
@@ -88,7 +84,7 @@ class WorkerTestBase::SyncPoint {
 class WorkerTestBase::NotifyRunFunction : public Function {
  public:
   explicit NotifyRunFunction(SyncPoint* sync);
-  virtual void Run();
+  void Run() override;
 
  private:
   SyncPoint* sync_;
@@ -99,7 +95,7 @@ class WorkerTestBase::NotifyRunFunction : public Function {
 class WorkerTestBase::WaitRunFunction : public Function {
  public:
   explicit WaitRunFunction(SyncPoint* sync);
-  virtual void Run();
+  void Run() override;
 
  private:
   SyncPoint* sync_;
@@ -111,13 +107,9 @@ class DeleteNotifyFunction : public Function {
  public:
   explicit DeleteNotifyFunction(WorkerTestBase::SyncPoint* sync)
       : sync_(sync) {}
-  virtual ~DeleteNotifyFunction() {
-    sync_->Notify();
-  }
+  ~DeleteNotifyFunction() override { sync_->Notify(); }
 
-  virtual void Run() {
-    LOG(FATAL) << "DeleteNotifyFunction ran.";
-  }
+  void Run() override { LOG(FATAL) << "DeleteNotifyFunction ran."; }
 
  private:
   WorkerTestBase::SyncPoint* sync_;

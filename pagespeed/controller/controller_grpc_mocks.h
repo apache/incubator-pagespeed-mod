@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_CONTROLLER_GRPC_MOCKS_H_
 #define PAGESPEED_CONTROLLER_CONTROLLER_GRPC_MOCKS_H_
 
@@ -35,11 +34,12 @@
 // CentralController gRPC stuff.
 
 using testing::_;
+using testing::DoAll;
 using testing::Eq;
 using testing::Invoke;
-using testing::WithArgs;
 using testing::Return;
 using testing::SetArgPointee;
+using testing::WithArgs;
 
 namespace net_instaweb {
 
@@ -141,8 +141,18 @@ class MockReaderWriterT
   MOCK_METHOD1(ReadInitialMetadata, void(void* tag));
   MOCK_METHOD2(Finish, void(::grpc::Status* status, void* tag));
   MOCK_METHOD2_T(Write, void(const RequestT& resp, void* tag));
-  MOCK_METHOD3_T(Write, void(const RequestT& resp, ::grpc::WriteOptions options, void* tag));
+  MOCK_METHOD3_T(Write, void(const RequestT& resp, ::grpc::WriteOptions options,
+                             void* tag));
   MOCK_METHOD2_T(Read, void(ResponseT* resp, void* tag));
+  MOCK_METHOD1(StartCall, void(void* tag));
+
+  /*
+
+    virtual void StartCall(void* tag) = 0;
+    virtual void ReadInitialMetadata(void* tag) = 0;
+    virtual void Finish(Status* status, void* tag) = 0;
+
+   */
 
  private:
   void QueueVoidFunction(void* fv) {
@@ -167,7 +177,7 @@ class MockReaderWriterT
 // a MockReaderWriterT, this also features deferred execution to mimic gRPC.
 
 class MockCentralControllerRpcServiceStub
-    : public grpc::CentralControllerRpcService::StubInterface {
+    : public CentralControllerRpcService::StubInterface {
  public:
   MockCentralControllerRpcServiceStub(Sequence* sequence)
       : sequence_(sequence) {
@@ -177,12 +187,11 @@ class MockCentralControllerRpcServiceStub
     EXPECT_CALL(*this, AsyncScheduleRewriteRaw(_, _, _)).Times(0);
   }
 
-  MOCK_METHOD1(
-      ScheduleExpensiveOperationRaw,
-      ::grpc::ClientReaderWriterInterface<
-          ::net_instaweb::ScheduleExpensiveOperationRequest,
-          ::net_instaweb::
-              ScheduleExpensiveOperationResponse>*(::grpc::ClientContext*));
+  MOCK_METHOD1(ScheduleExpensiveOperationRaw,
+               ::grpc::ClientReaderWriterInterface<
+                   ::net_instaweb::ScheduleExpensiveOperationRequest,
+                   ::net_instaweb::ScheduleExpensiveOperationResponse>*(
+                   ::grpc::ClientContext*));
 
   MOCK_METHOD1(
       ScheduleRewriteRaw,
@@ -190,22 +199,31 @@ class MockCentralControllerRpcServiceStub
           ::net_instaweb::ScheduleRewriteRequest,
           ::net_instaweb::ScheduleRewriteResponse>*(::grpc::ClientContext*));
 
-  MOCK_METHOD3(
-      AsyncScheduleExpensiveOperationRaw,
-      ::grpc::ClientAsyncReaderWriterInterface<
-          ::net_instaweb::ScheduleExpensiveOperationRequest,
-          net_instaweb::
-              ScheduleExpensiveOperationResponse>*(::grpc::ClientContext*,
-                                                   ::grpc::CompletionQueue*,
-                                                   void*));
+  MOCK_METHOD3(AsyncScheduleExpensiveOperationRaw,
+               ::grpc::ClientAsyncReaderWriterInterface<
+                   ::net_instaweb::ScheduleExpensiveOperationRequest,
+                   net_instaweb::ScheduleExpensiveOperationResponse>*(
+                   ::grpc::ClientContext*, ::grpc::CompletionQueue*, void*));
 
-  MOCK_METHOD3(
-      AsyncScheduleRewriteRaw,
-      ::grpc::ClientAsyncReaderWriterInterface<
-          ::net_instaweb::ScheduleRewriteRequest,
-          ::net_instaweb::ScheduleRewriteResponse>*(::grpc::ClientContext*,
-                                                    ::grpc::CompletionQueue*,
-                                                    void*));
+  MOCK_METHOD3(AsyncScheduleRewriteRaw,
+               ::grpc::ClientAsyncReaderWriterInterface<
+                   ::net_instaweb::ScheduleRewriteRequest,
+                   ::net_instaweb::ScheduleRewriteResponse>*(
+                   ::grpc::ClientContext*, ::grpc::CompletionQueue*, void*));
+
+  MOCK_METHOD2(PrepareAsyncScheduleExpensiveOperationRaw,
+               ::grpc::ClientAsyncReaderWriterInterface<
+                   ::net_instaweb::ScheduleExpensiveOperationRequest,
+                   ::net_instaweb::ScheduleExpensiveOperationResponse>*(
+                   ::grpc::ClientContext* context,
+                   ::grpc::CompletionQueue* cq));
+
+  MOCK_METHOD2(PrepareAsyncScheduleRewriteRaw,
+               ::grpc::ClientAsyncReaderWriterInterface<
+                   ::net_instaweb::ScheduleRewriteRequest,
+                   ::net_instaweb::ScheduleRewriteResponse>*(
+                   ::grpc::ClientContext* context,
+                   ::grpc::CompletionQueue* cq));
 
   void ExpectAsyncScheduleExpensiveOperation(
       ::grpc::ClientAsyncReaderWriterInterface<
@@ -243,8 +261,7 @@ class MockCentralControllerRpcServiceStub
           ::net_instaweb::ScheduleRewriteResponse>* rw) {
     // Configure the stub to invoke the callback and return rw in response to
     // a client initiating a request.
-    EXPECT_CALL(*this,
-                AsyncScheduleRewriteRaw(_, nullptr /* queue */, _))
+    EXPECT_CALL(*this, AsyncScheduleRewriteRaw(_, nullptr /* queue */, _))
         .WillOnce(DoAll(WithArgs<2>(Invoke([this](void* fv) {
                           sequence_->Add(static_cast<Function*>(fv));
                         })),
@@ -257,8 +274,7 @@ class MockCentralControllerRpcServiceStub
           ::net_instaweb::ScheduleRewriteResponse>* rw) {
     // Configure the stub to invoke the Cancel callback and return rw in
     // response to a client initiating a request.
-    EXPECT_CALL(*this,
-                AsyncScheduleRewriteRaw(_, nullptr /* queue */, _))
+    EXPECT_CALL(*this, AsyncScheduleRewriteRaw(_, nullptr /* queue */, _))
         .WillOnce(DoAll(WithArgs<2>(Invoke([this](void* fv) {
                           sequence_->Add(
                               MakeFunction(static_cast<Function*>(fv),

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_FETCHER_H_
 
@@ -55,33 +54,28 @@ class HttpDumpUrlFetcher : public UrlAsyncFetcher {
 
   HttpDumpUrlFetcher(const StringPiece& root_dir, FileSystem* file_system,
                      Timer* timer);
-  virtual ~HttpDumpUrlFetcher();
+  ~HttpDumpUrlFetcher() override;
 
   // Converts URL into filename the way that Latency Lab does.
   // Note: root_dir_ must be standardized to have a / at end already.
   static bool GetFilenameFromUrl(const StringPiece& root_dir,
-                                 const GoogleUrl& url,
-                                 GoogleString* filename,
+                                 const GoogleUrl& url, GoogleString* filename,
                                  MessageHandler* message_handler);
 
   // Non-static version that uses the fetcher's root dir.
-  bool GetFilename(const GoogleUrl& url,
-                   GoogleString* filename,
+  bool GetFilename(const GoogleUrl& url, GoogleString* filename,
                    MessageHandler* message_handler) {
     return GetFilenameFromUrl(root_dir_, url, filename, message_handler);
   }
 
   // This is a synchronous/blocking implementation.
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
   // Parse file into response_headers and response_writer as if it were bytes
   // off the wire.
-  bool ParseFile(FileSystem::InputFile* file,
-                 ResponseHeaders* response_headers,
-                 Writer* response_writer,
-                 MessageHandler* handler);
+  bool ParseFile(FileSystem::InputFile* file, ResponseHeaders* response_headers,
+                 Writer* response_writer, MessageHandler* handler);
 
   // Helper function to return a generic error response.
   void RespondError(ResponseHeaders* response_headers, Writer* response_writer,
@@ -98,7 +92,7 @@ class HttpDumpUrlFetcher : public UrlAsyncFetcher {
   // Response to use if something goes wrong.
   GoogleString error_body_;
 
-  scoped_ptr<StringSet> urls_;
+  std::unique_ptr<StringSet> urls_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpDumpUrlFetcher);
 };

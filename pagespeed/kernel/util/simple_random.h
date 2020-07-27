@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_SIMPLE_RANDOM_H_
 #define PAGESPEED_KERNEL_UTIL_SIMPLE_RANDOM_H_
 
@@ -38,8 +37,7 @@ class SimpleRandom {
  public:
   // Mutex should be created specifically for this instance, this class takes
   // ownership.
-  explicit SimpleRandom(AbstractMutex* mutex)
-      : z_(10), w_(25), mutex_(mutex) {}
+  explicit SimpleRandom(AbstractMutex* mutex) : z_(10), w_(25), mutex_(mutex) {}
   ~SimpleRandom() {}
   uint32 Next();
   inline uint32 NextLockHeld();
@@ -49,7 +47,7 @@ class SimpleRandom {
  private:
   uint32 z_;
   uint32 w_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   // Copy & assign are OK.
 };
 

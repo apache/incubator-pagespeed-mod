@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -68,18 +67,18 @@ TEST_F(FileLoadPolicyTest, EmptyPolicy) {
   // Empty policy. Don't map anything.
   EXPECT_FALSE(TryLoadFromFile("http://www.example.com/static/foo.png"));
   EXPECT_FALSE(TryLoadFromFile("http://www.example.com/static/bar/"));
-  EXPECT_FALSE(TryLoadFromFile(
-      "http://www.example.com/static/some/more/dirs/b.css"));
-  EXPECT_FALSE(TryLoadFromFile(
-      "http://www.example.com/static/foo.png?version=3.1"));
-  EXPECT_FALSE(TryLoadFromFile(
-      "http://www.example.com/static/foo.png?a?b#/c?foo"));
+  EXPECT_FALSE(
+      TryLoadFromFile("http://www.example.com/static/some/more/dirs/b.css"));
+  EXPECT_FALSE(
+      TryLoadFromFile("http://www.example.com/static/foo.png?version=3.1"));
+  EXPECT_FALSE(
+      TryLoadFromFile("http://www.example.com/static/foo.png?a?b#/c?foo"));
   EXPECT_FALSE(TryLoadFromFile("http://www.example.com/static/foo%20bar.png"));
   EXPECT_FALSE(TryLoadFromFile("http://www.example.com/static/foo%2Fbar.png"));
 
   EXPECT_FALSE(TryLoadFromFile("http://www.example.com/images/another.gif"));
-  EXPECT_FALSE(TryLoadFromFile(
-      "http://www.some-site.com/with/many/dirs/a/b.js"));
+  EXPECT_FALSE(
+      TryLoadFromFile("http://www.some-site.com/with/many/dirs/a/b.js"));
 
   EXPECT_FALSE(TryLoadFromFile("http://www.other-site.com/foo.png"));
   EXPECT_FALSE(TryLoadFromFile("http://www.example.com/foo.png"));
@@ -109,8 +108,8 @@ TEST_F(FileLoadPolicyTest, OnePrefix) {
 
   // Don't map other URLs
   EXPECT_FALSE(TryLoadFromFile("http://www.example.com/images/another.gif"));
-  EXPECT_FALSE(TryLoadFromFile(
-      "http://www.some-site.com/with/many/dirs/a/b.js"));
+  EXPECT_FALSE(
+      TryLoadFromFile("http://www.some-site.com/with/many/dirs/a/b.js"));
 
   EXPECT_FALSE(TryLoadFromFile("http://www.other-site.com/foo.png"));
   EXPECT_FALSE(TryLoadFromFile("http://www.example.com/foo.png"));
@@ -200,8 +199,7 @@ TEST_F(FileLoadPolicyTest, OverlappingPrefixes) {
   policy_.Associate("http://www.example.com/static/sub/dir/", "/3/");
 
   // Later associations take precedence over earlier ones.
-  EXPECT_EQ("/2/foo.png",
-            LoadFromFile("http://www.example.com/foo.png"));
+  EXPECT_EQ("/2/foo.png", LoadFromFile("http://www.example.com/foo.png"));
   EXPECT_EQ("/2/static/foo.png",
             LoadFromFile("http://www.example.com/static/foo.png"));
   EXPECT_EQ("/3/foo.png",
@@ -224,11 +222,10 @@ TEST_F(FileLoadPolicyTest, Rules) {
   EXPECT_TRUE(error.empty());
   EXPECT_EQ("/www/cgi-bin/guestbook.js",
             LoadFromFile("http://example.com/cgi-bin/guestbook.js"));
-  policy_.AddRule("\\.ssi.js$",
-                  true /* regexp */, false /* disallow */, &error);
+  policy_.AddRule("\\.ssi.js$", true /* regexp */, false /* disallow */,
+                  &error);
   EXPECT_TRUE(error.empty());
-  EXPECT_FALSE(
-      TryLoadFromFile("http://example.com/cgi-bin/guestbook.ssi.js"));
+  EXPECT_FALSE(TryLoadFromFile("http://example.com/cgi-bin/guestbook.ssi.js"));
   policy_.AddRule("/www/cgi-bin/allow", false /* literal */, true /* allow */,
                   &error);
   EXPECT_TRUE(error.empty());
@@ -244,14 +241,13 @@ TEST_F(FileLoadPolicyTest, Merge) {
   policy1.Associate("http://www.example.com/1/", "/1/");
   EXPECT_EQ("/1/foo.png",
             LoadFromFile("http://www.example.com/1/foo.png", &policy1));
-  EXPECT_TRUE(
-      policy1.AssociateRegexp("^http://www\\.example\\.com/([^/]*)/",
-                              "/\\1/a/", &error));
+  EXPECT_TRUE(policy1.AssociateRegexp("^http://www\\.example\\.com/([^/]*)/",
+                                      "/\\1/a/", &error));
   EXPECT_TRUE(error.empty());
   // The regexp match is added later so takes precendence over the literal one.
 
-  EXPECT_TRUE(policy1.AddRule("/5/", false /* literal */,
-                              false /* disallow */, &error));
+  EXPECT_TRUE(policy1.AddRule("/5/", false /* literal */, false /* disallow */,
+                              &error));
   EXPECT_TRUE(error.empty());
   EXPECT_TRUE(policy1.AddRule("\\.jpg$", true /* regexp */,
                               false /* disallow */, &error));
@@ -324,4 +320,3 @@ TEST_F(FileLoadPolicyTest, OnlyStatic) {
 }
 
 }  // namespace net_instaweb
-

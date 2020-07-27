@@ -40,12 +40,9 @@ namespace net_instaweb {
 
 RedirectOnSizeLimitFilter::RedirectOnSizeLimitFilter(
     RewriteDriver* rewrite_driver)
-    : CommonFilter(rewrite_driver),
-      redirect_inserted_(false) {
-}
+    : CommonFilter(rewrite_driver), redirect_inserted_(false) {}
 
-RedirectOnSizeLimitFilter::~RedirectOnSizeLimitFilter() {
-}
+RedirectOnSizeLimitFilter::~RedirectOnSizeLimitFilter() {}
 
 void RedirectOnSizeLimitFilter::StartDocumentImpl() {
   redirect_inserted_ = false;
@@ -55,26 +52,24 @@ void RedirectOnSizeLimitFilter::StartElementImpl(HtmlElement* element) {
   InsertScriptIfNeeded(element, true);
 }
 
-
 void RedirectOnSizeLimitFilter::EndElementImpl(HtmlElement* element) {
   InsertScriptIfNeeded(element, false);
 }
 
 void RedirectOnSizeLimitFilter::InsertScriptIfNeeded(HtmlElement* element,
                                                      bool is_start) {
-  if (!redirect_inserted_ && noscript_element() == NULL &&
+  if (!redirect_inserted_ && noscript_element() == nullptr &&
       driver()->size_limit_exceeded()) {
-    scoped_ptr<GoogleUrl> url_with_psa_off(
-        driver()->google_url().CopyAndAddQueryParam(
-            RewriteQuery::kPageSpeed, "off"));
+    std::unique_ptr<GoogleUrl> url_with_psa_off(
+        driver()->google_url().CopyAndAddQueryParam(RewriteQuery::kPageSpeed,
+                                                    "off"));
     GoogleString url_str;
     EscapeToJsStringLiteral(url_with_psa_off->Spec(), false, &url_str);
 
-    HtmlElement* script = driver()->NewElement(
-        element, HtmlName::kScript);
+    HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
     driver()->AddAttribute(script, HtmlName::kType, "text/javascript");
     HtmlNode* script_code = driver()->NewCharactersNode(
-      script, StringPrintf(kScript, url_str.c_str()));
+        script, absl::StrFormat(kScript, url_str.c_str()));
     // For HTML elements, add the script as a child. Otherwise, insert the
     // script before or after the element.
     if (element->keyword() == HtmlName::kHtml) {

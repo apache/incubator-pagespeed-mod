@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_CACHE_INTERFACE_H_
 #define PAGESPEED_KERNEL_BASE_CACHE_INTERFACE_H_
 
@@ -54,9 +53,7 @@ class CacheInterface {
       return ValidateCandidate(key, state);
     }
 
-    void DelegatedDone(KeyState state) {
-      Done(state);
-    }
+    void DelegatedDone(KeyState state) { Done(state); }
 
    protected:
     friend class CacheInterface;
@@ -74,8 +71,9 @@ class CacheInterface {
     //
     // Note that implementations may not invoke any cache operations,
     // as it may be invoked with locks held.
-    virtual bool ValidateCandidate(const GoogleString& key,
-                                   KeyState state) { return true; }
+    virtual bool ValidateCandidate(const GoogleString& key, KeyState state) {
+      return true;
+    }
 
     // This method is called once the cache implementation has found
     // a match that was accepted by ValidateCandidate (in which
@@ -106,7 +104,7 @@ class CacheInterface {
       set_value(empty);
     }
 
-    virtual void Done(CacheInterface::KeyState state) {
+    void Done(CacheInterface::KeyState state) override {
       called_ = true;
       state_ = state;
     }

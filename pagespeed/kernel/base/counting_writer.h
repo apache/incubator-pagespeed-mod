@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_COUNTING_WRITER_H_
 #define PAGESPEED_KERNEL_BASE_COUNTING_WRITER_H_
 
@@ -31,10 +30,10 @@ class MessageHandler;
 // Delegates to another writer, but counts bytes along the way.
 class CountingWriter : public Writer {
  public:
-  explicit CountingWriter(Writer* writer) : byte_count_(0), writer_(writer) { }
+  explicit CountingWriter(Writer* writer) : byte_count_(0), writer_(writer) {}
   virtual ~CountingWriter();
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
   int byte_count() const { return byte_count_; }
 
  private:

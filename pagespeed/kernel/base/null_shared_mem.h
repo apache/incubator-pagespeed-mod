@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_NULL_SHARED_MEM_H_
 #define PAGESPEED_KERNEL_BASE_NULL_SHARED_MEM_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
@@ -35,23 +35,24 @@ class MessageHandler;
 class NullSharedMem : public AbstractSharedMem {
  public:
   NullSharedMem();
-  virtual ~NullSharedMem();
+  ~NullSharedMem() override;
 
-  virtual size_t SharedMutexSize() const;
+  size_t SharedMutexSize() const override;
 
-  virtual AbstractSharedMemSegment* CreateSegment(
-      const GoogleString& name, size_t size, MessageHandler* handler);
+  AbstractSharedMemSegment* CreateSegment(const GoogleString& name, size_t size,
+                                          MessageHandler* handler) override;
 
   // Attaches to an existing segment, which must have been created already.
   // May return NULL on failure
-  virtual AbstractSharedMemSegment* AttachToSegment(
-      const GoogleString& name, size_t size, MessageHandler* handler);
+  AbstractSharedMemSegment* AttachToSegment(const GoogleString& name,
+                                            size_t size,
+                                            MessageHandler* handler) override;
 
-  virtual void DestroySegment(const GoogleString& name,
-                              MessageHandler* handler);
+  void DestroySegment(const GoogleString& name,
+                      MessageHandler* handler) override;
 
   // Does not actually support any operations.
-  virtual bool IsDummy() { return true; }
+  bool IsDummy() override { return true; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullSharedMem);

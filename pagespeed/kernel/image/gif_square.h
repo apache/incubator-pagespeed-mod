@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_GIF_SQUARE_H_
 #define PAGESPEED_KERNEL_IMAGE_GIF_SQUARE_H_
 
@@ -28,7 +27,7 @@
 #include "pagespeed/kernel/image/image_util.h"
 
 extern "C" {
-#include "third_party/giflib/src/lib/gif_lib.h"
+#include "external/giflib/gif_lib.h"
 }
 
 namespace net_instaweb {
@@ -73,16 +72,15 @@ class GifSquare {
   //
   // Returns true on success.
   bool PutImage(size_px left, size_px top, size_px width, size_px height,
-                const GifColorType* colormap, int num_colors,
-                int color_index, int transparent_idx,
-                bool interlace, int delay_cs, int disposal_method);
+                const GifColorType* colormap, int num_colors, int color_index,
+                int transparent_idx, bool interlace, int delay_cs,
+                int disposal_method);
 
   // Animates all GIF images by specifying that they should each be
   // displayed for 'delay_cs' centiseconds, be disposed according to
   // 'disposal_method', and have the 'transparent_idx' color of the
   // previously-specified colormap be transparent
-  bool AnimateAllImages(int delay_cs, int transparent_idx,
-                        int disposal_method);
+  bool AnimateAllImages(int delay_cs, int transparent_idx, int disposal_method);
 
   // Flushes and closes the GIF file.
   bool Close();
@@ -117,9 +115,7 @@ class GifSquare {
   // false, and returns false.
   bool Fail(const char* prefix, const char* message);
 
-  bool CanProceed() {
-    return success_ && !closed_;
-  }
+  bool CanProceed() { return success_ && !closed_; }
 };
 
 }  // namespace image_compression

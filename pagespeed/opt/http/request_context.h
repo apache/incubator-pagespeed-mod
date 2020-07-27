@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_OPT_HTTP_REQUEST_CONTEXT_H_
 #define PAGESPEED_OPT_HTTP_REQUEST_CONTEXT_H_
 
@@ -158,12 +157,8 @@ class RequestContext : public RefCounted<RequestContext> {
   void SetAcceptsGzip(bool x);
   bool accepts_gzip() const { return accepts_gzip_; }
 
-  int64 request_id() const {
-    return request_id_;
-  }
-  void set_request_id(int64 x) {
-    request_id_ = x;
-  }
+  int64 request_id() const { return request_id_; }
+  void set_request_id(int64 x) { request_id_ = x; }
 
   const GoogleString& sticky_query_parameters_token() const {
     return sticky_query_parameters_token_;
@@ -186,8 +181,8 @@ class RequestContext : public RefCounted<RequestContext> {
   // Returns true for exactly the origins that were authorized for this
   // particular session by calls to AddSessionAuthorizedFetchOrigin()
   bool IsSessionAuthorizedFetchOrigin(const GoogleString& origin) const {
-    return session_authorized_fetch_origins_.find(origin)
-           != session_authorized_fetch_origins_.end();
+    return session_authorized_fetch_origins_.find(origin) !=
+           session_authorized_fetch_origins_.end();
   }
 
   // Prepare the AbstractLogRecord for a subsequent call to WriteLog.  This
@@ -200,11 +195,10 @@ class RequestContext : public RefCounted<RequestContext> {
 
   // Return the log record for background rewrites. If it doesn't exist, create
   // a new one.
-  AbstractLogRecord* GetBackgroundRewriteLog(
-      ThreadSystem* thread_system,
-      bool log_urls,
-      bool log_url_indices,
-      int max_rewrite_info_log_size);
+  AbstractLogRecord* GetBackgroundRewriteLog(ThreadSystem* thread_system,
+                                             bool log_urls,
+                                             bool log_url_indices,
+                                             int max_rewrite_info_log_size);
 
   const RequestTimingInfo& timing_info() const { return timing_info_; }
   RequestTimingInfo* mutable_timing_info() { return &timing_info_; }
@@ -233,8 +227,8 @@ class RequestContext : public RefCounted<RequestContext> {
   // TODO(gee): Fix this, it sucks.
   // The default constructor will not create a LogRecord. Subclass constructors
   // must do this explicitly.
-  RequestContext(const HttpOptions& options, AbstractMutex* mutex,
-                 Timer* timer, AbstractLogRecord* log_record);
+  RequestContext(const HttpOptions& options, AbstractMutex* mutex, Timer* timer,
+                 AbstractLogRecord* log_record);
   // Destructors in refcounted classes should be protected.
   virtual ~RequestContext();
   REFCOUNT_FRIEND_DECLARATION(RequestContext);
@@ -243,15 +237,15 @@ class RequestContext : public RefCounted<RequestContext> {
   void Init();
 
   // Always non-NULL.
-  scoped_ptr<AbstractLogRecord> log_record_;
+  std::unique_ptr<AbstractLogRecord> log_record_;
 
   RequestTimingInfo timing_info_;
 
   // Logs tracing events associated with the root request.
-  scoped_ptr<RequestTrace> root_trace_context_;
+  std::unique_ptr<RequestTrace> root_trace_context_;
 
   // Log for recording background rewritings.
-  scoped_ptr<AbstractLogRecord> background_rewrite_log_record_;
+  std::unique_ptr<AbstractLogRecord> background_rewrite_log_record_;
 
   StringSet session_authorized_fetch_origins_;
 

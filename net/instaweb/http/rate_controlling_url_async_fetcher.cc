@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/rate_controlling_url_async_fetcher.h"
 
 #include "net/instaweb/http/public/rate_controller.h"
@@ -27,23 +26,16 @@
 namespace net_instaweb {
 
 RateControllingUrlAsyncFetcher::RateControllingUrlAsyncFetcher(
-    UrlAsyncFetcher* fetcher,
-    int max_global_queue_size,
+    UrlAsyncFetcher* fetcher, int max_global_queue_size,
     int per_host_outgoing_request_threshold,
-    int per_host_queued_request_threshold,
-    ThreadSystem* thread_system,
+    int per_host_queued_request_threshold, ThreadSystem* thread_system,
     Statistics* statistics)
     : base_fetcher_(fetcher),
       rate_controller_(new RateController(
-          max_global_queue_size,
-          per_host_outgoing_request_threshold,
-          per_host_queued_request_threshold,
-          thread_system,
-          statistics)) {
-}
+          max_global_queue_size, per_host_outgoing_request_threshold,
+          per_host_queued_request_threshold, thread_system, statistics)) {}
 
-RateControllingUrlAsyncFetcher::~RateControllingUrlAsyncFetcher() {
-}
+RateControllingUrlAsyncFetcher::~RateControllingUrlAsyncFetcher() {}
 
 void RateControllingUrlAsyncFetcher::Fetch(const GoogleString& url,
                                            MessageHandler* message_handler,

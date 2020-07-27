@@ -35,17 +35,17 @@ class RewriteDriver;
 class InsertDnsPrefetchFilter : public CommonFilter {
  public:
   explicit InsertDnsPrefetchFilter(RewriteDriver* driver);
-  virtual ~InsertDnsPrefetchFilter();
+  ~InsertDnsPrefetchFilter() override;
 
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "InsertDnsPrefetchFilter"; }
+  const char* Name() const override { return "InsertDnsPrefetchFilter"; }
   // Override DetermineEnabled to enable writing of the property cache DOM
   // cohort in the RewriteDriver.
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
   virtual const char* id() const { return "idp"; }
 
  private:

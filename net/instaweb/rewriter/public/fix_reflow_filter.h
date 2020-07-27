@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_FIX_REFLOW_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_FIX_REFLOW_FILTER_H_
 
@@ -38,15 +37,13 @@ class FixReflowFilter : public EmptyHtmlFilter {
   static const char kElementRenderedHeightPropertyName[];
 
   explicit FixReflowFilter(RewriteDriver* driver);
-  virtual ~FixReflowFilter();
+  ~FixReflowFilter() override;
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
 
-  virtual const char* Name() const {
-    return "FixReflowFilter";
-  }
+  const char* Name() const override { return "FixReflowFilter"; }
 
  private:
   typedef StringStringMap ElementHeightMap;

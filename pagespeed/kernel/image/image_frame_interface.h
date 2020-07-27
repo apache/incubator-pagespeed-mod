@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // This file defines the MultipleFrame API for reading
 // and writing static and animated images.
 
@@ -25,6 +24,7 @@
 #define PAGESPEED_KERNEL_IMAGE_IMAGE_FRAME_INTERFACE_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_util.h"
@@ -119,11 +119,11 @@ struct FrameSpec {
 // error, and returns a bool indicating success or failure of the
 // preceding state as well as _CALL, if invoked. Note that this
 // snippet returns from the function in which it is embedded.
-#define IF_OK_RUN(_STATUS, _CALL)                               \
-  if (!_STATUS->Success()) {                                    \
-    return false;                                               \
-  }                                                             \
-  *_STATUS = _CALL;                                             \
+#define IF_OK_RUN(_STATUS, _CALL) \
+  if (!_STATUS->Success()) {      \
+    return false;                 \
+  }                               \
+  *_STATUS = _CALL;               \
   return _STATUS->Success();
 
 // Interface for reading both animated and static images.
@@ -202,34 +202,26 @@ class MultipleFrameReader {
 
   // The message handler used by this class. Neither the caller nor
   // this class have ownership.
-  MessageHandler* message_handler() const {
-    return message_handler_;
-  }
+  MessageHandler* message_handler() const { return message_handler_; }
 
   virtual ScanlineStatus set_quirks_mode(QuirksMode quirks_mode) {
     quirks_mode_ = quirks_mode;
     return ScanlineStatus(SCANLINE_STATUS_SUCCESS);
   }
 
-  virtual QuirksMode quirks_mode() const {
-    return quirks_mode_;
-  }
+  virtual QuirksMode quirks_mode() const { return quirks_mode_; }
 
   // Convenience forms of the methods above. If 'status' indicates an
   // error on entry, each of these methods does nothing and returns
   // false. Otherwise, it calls the corresponding method above,
   // updates 'status', and returns true iff the call succeeded.
 
-  bool Reset(ScanlineStatus* status) {
-    IF_OK_RUN(status, Reset());
-  }
+  bool Reset(ScanlineStatus* status) { IF_OK_RUN(status, Reset()); }
   bool Initialize(const void* image_buffer, size_t buffer_length,
                   ScanlineStatus* status) {
     IF_OK_RUN(status, Initialize(image_buffer, buffer_length));
   }
-  bool Initialize(ScanlineStatus* status) {
-    IF_OK_RUN(status, Initialize());
-  }
+  bool Initialize(ScanlineStatus* status) { IF_OK_RUN(status, Initialize()); }
   bool PrepareNextFrame(ScanlineStatus* status) {
     IF_OK_RUN(status, PrepareNextFrame());
   }
@@ -237,17 +229,14 @@ class MultipleFrameReader {
                         ScanlineStatus* status) {
     IF_OK_RUN(status, ReadNextScanline(out_scanline_bytes));
   }
-  bool GetFrameSpec(FrameSpec* frame_spec,
-                    ScanlineStatus* status) {
+  bool GetFrameSpec(FrameSpec* frame_spec, ScanlineStatus* status) {
     IF_OK_RUN(status, GetFrameSpec(frame_spec));
   }
-  bool GetImageSpec(ImageSpec* image_spec,
-                    ScanlineStatus* status) {
+  bool GetImageSpec(ImageSpec* image_spec, ScanlineStatus* status) {
     IF_OK_RUN(status, GetImageSpec(image_spec));
   }
 
-  bool set_quirks_mode(QuirksMode quirks_mode,
-                       ScanlineStatus* status) {
+  bool set_quirks_mode(QuirksMode quirks_mode, ScanlineStatus* status) {
     IF_OK_RUN(status, set_quirks_mode(quirks_mode));
   }
 
@@ -264,7 +253,6 @@ class MultipleFrameReader {
 
   DISALLOW_COPY_AND_ASSIGN(MultipleFrameReader);
 };
-
 
 // Interface for writing both animated and static images.
 //
@@ -287,8 +275,7 @@ class MultipleFrameWriter {
   // in 'config' to write an image to 'out'. It is up to the client to
   // ensure 'config' points to data of the right type for the given
   // child class it invokes.
-  virtual ScanlineStatus Initialize(const void* config,
-                                    GoogleString* out) = 0;
+  virtual ScanlineStatus Initialize(const void* config, GoogleString* out) = 0;
 
   // Prepares to write an image with the characteristics in
   // 'image_spec'.
@@ -304,16 +291,14 @@ class MultipleFrameWriter {
   // its width in bytes) are as set in the preceding call to
   // PrepareNextFrame(); that many bytes from '*scanline_bytes' are
   // read.
-  virtual ScanlineStatus WriteNextScanline(const void *scanline_bytes) = 0;
+  virtual ScanlineStatus WriteNextScanline(const void* scanline_bytes) = 0;
 
   // Finalizes the image once all the frames have been written.
   virtual ScanlineStatus FinalizeWrite() = 0;
 
   // The message handler used by this class. Neither the caller nor
   // this class have ownership.
-  MessageHandler* message_handler() const {
-    return message_handler_;
-  }
+  MessageHandler* message_handler() const { return message_handler_; }
 
   // Convenience forms of the methods above. If 'status' indicates an
   // error on entry, each of these methods does nothing and returns

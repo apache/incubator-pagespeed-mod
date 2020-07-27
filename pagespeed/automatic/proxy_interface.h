@@ -52,7 +52,7 @@ class ProxyInterface : public UrlAsyncFetcher {
  public:
   ProxyInterface(StringPiece stats_prefix, StringPiece hostname, int port,
                  ServerContext* server_context, Statistics* stats);
-  virtual ~ProxyInterface();
+  ~ProxyInterface() override;
 
   // Initializes statistics variables associated with this class.
   static void InitStats(StringPiece stats_prefix, Statistics* statistics);
@@ -60,9 +60,8 @@ class ProxyInterface : public UrlAsyncFetcher {
   // All requests use this interface. We decide internally whether the
   // request is a pagespeed resource, HTML page to be rewritten or another
   // resource to be proxied directly.
-  virtual void Fetch(const GoogleString& requested_url,
-                     MessageHandler* handler,
-                     AsyncFetch* async_fetch);
+  void Fetch(const GoogleString& requested_url, MessageHandler* handler,
+             AsyncFetch* async_fetch) override;
 
   // Is this url_string well-formed enough to proxy through?
   bool IsWellFormedUrl(const GoogleUrl& url);
@@ -71,10 +70,8 @@ class ProxyInterface : public UrlAsyncFetcher {
 
   // Initiates the PropertyCache look up.
   virtual ProxyFetchPropertyCallbackCollector* InitiatePropertyCacheLookup(
-      bool is_resource_fetch,
-      const GoogleUrl& request_url,
-      RewriteOptions* options,
-      AsyncFetch* async_fetch);
+      bool is_resource_fetch, const GoogleUrl& request_url,
+      RewriteOptions* options, AsyncFetch* async_fetch);
 
  protected:
   // Needed by subclasses when overriding InitiatePropertyCacheLookup.
@@ -86,10 +83,8 @@ class ProxyInterface : public UrlAsyncFetcher {
   // Handle requests that are being proxied.
   // * HTML requests are rewritten.
   // * Resource requests are proxied verbatim.
-  void ProxyRequest(bool is_resource_fetch,
-                    const GoogleUrl& requested_url,
-                    AsyncFetch* async_fetch,
-                    MessageHandler* handler);
+  void ProxyRequest(bool is_resource_fetch, const GoogleUrl& requested_url,
+                    AsyncFetch* async_fetch, MessageHandler* handler);
 
   // Callback function which runs once we have rewrite_options for requests that
   // are being proxied.
@@ -123,7 +118,7 @@ class ProxyInterface : public UrlAsyncFetcher {
   // Number of resource requests without domain-specific config.
   TimedVariable* resource_requests_without_domain_config_;
 
-  scoped_ptr<ProxyFetchFactory> proxy_fetch_factory_;
+  std::unique_ptr<ProxyFetchFactory> proxy_fetch_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyInterface);
 };

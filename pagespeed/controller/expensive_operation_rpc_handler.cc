@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/expensive_operation_rpc_handler.h"
 
 namespace net_instaweb {
 
 ExpensiveOperationRpcHandler::ExpensiveOperationRpcHandler(
-    grpc::CentralControllerRpcService::AsyncService* service,
+    CentralControllerRpcService::AsyncService* service,
     ::grpc::ServerCompletionQueue* cq, ExpensiveOperationController* controller)
     : RequestResultRpcHandler(service, cq, controller) {}
 
@@ -42,7 +41,7 @@ void ExpensiveOperationRpcHandler::HandleOperationFailed() {
 }
 
 void ExpensiveOperationRpcHandler::InitResponder(
-    grpc::CentralControllerRpcService::AsyncService* service,
+    CentralControllerRpcService::AsyncService* service,
     ::grpc::ServerContext* ctx, ReaderWriterT* responder,
     ::grpc::ServerCompletionQueue* cq, void* callback) {
   service->RequestScheduleExpensiveOperation(ctx, responder, cq, cq, callback);

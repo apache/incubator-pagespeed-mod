@@ -17,18 +17,14 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/abstract_mutex.h"
 
 namespace net_instaweb {
 
-AbstractMutex::~AbstractMutex() {
-}
+AbstractMutex::~AbstractMutex() {}
 
-void AbstractMutex::DCheckLocked() {
-}
+void AbstractMutex::DCheckLocked() {}
 
-void AbstractMutex::DCheckUnlocked() {
-}
+void AbstractMutex::DCheckUnlocked() {}
 
 }  // namespace net_instaweb

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_FILE_WRITER_H_
 #define PAGESPEED_KERNEL_BASE_FILE_WRITER_H_
 
@@ -33,10 +32,11 @@ class MessageHandler;
 // Writer implementation for directing HTML output to a file.
 class FileWriter : public Writer {
  public:
-  explicit FileWriter(FileSystem::OutputFile* f) : file_(f) { }
-  virtual ~FileWriter();
-  virtual bool Write(const StringPiece& str, MessageHandler* message_handler);
-  virtual bool Flush(MessageHandler* message_handler);
+  explicit FileWriter(FileSystem::OutputFile* f) : file_(f) {}
+  ~FileWriter() override;
+  bool Write(const StringPiece& str, MessageHandler* message_handler) override;
+  bool Flush(MessageHandler* message_handler) override;
+
  private:
   FileSystem::OutputFile* file_;
 

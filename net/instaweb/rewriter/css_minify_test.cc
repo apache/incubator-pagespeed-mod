@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_minify.h"
 
 #include "pagespeed/kernel/base/google_message_handler.h"
@@ -27,7 +26,6 @@
 #include "pagespeed/kernel/base/string_writer.h"
 #include "webutil/css/parser.h"
 
-
 namespace net_instaweb {
 
 namespace {
@@ -35,16 +33,18 @@ namespace {
 class CssMinifyTest : public ::testing::Test {
  protected:
   CssMinifyTest() {}
-  virtual ~CssMinifyTest() {}
+  ~CssMinifyTest() override {}
 
   void RewriteCss(const StringPiece& in_text, GoogleString* out_text) {
     out_text->clear();
 
     // Parse CSS.
-    Css::Parser parser(in_text);
+    // XXX(oschaaf): css
+    CssStringPiece tmp(in_text.data(), in_text.size());
+    Css::Parser parser(tmp);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
-    scoped_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
+    std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
 
     if (parser.errors_seen_mask() != Css::Parser::kNoError) {
       in_text.CopyToString(out_text);
@@ -59,14 +59,12 @@ class CssMinifyTest : public ::testing::Test {
   GoogleMessageHandler handler_;
 };
 
-
 TEST_F(CssMinifyTest, RewriteCssIncompleteUnicode) {
   // Test that a css string with an incomplete unicode character doesn't hang.
   // This string should not get minified either due to the error in it.
   static const unsigned char kCssStringData[] = {
-      64, 109, 101, 100, 105, 97,  32,  40, 106,
-      97, 120, 45,  119, 105, 100, 116, 104, 58,
-      32, 88,  200, 194, 143, 135, 41,  32, 0};
+      64,  109, 101, 100, 105, 97, 32,  40,  106, 97,  120, 45, 119, 105,
+      100, 116, 104, 58,  32,  88, 200, 194, 143, 135, 41,  32, 0};
   const char* css_string(reinterpret_cast<const char*>(kCssStringData));
   // This string is `echo "QG1lZGlhIChqYXgtd2lkdGg6IFjIwo+HKSA=" |base64 -d`
   GoogleString rewritten;
@@ -232,9 +230,10 @@ TEST_F(CssMinifyTest, StraySingleQuote2) {
   StringVector urls;
   minify.set_url_collector(&urls);
   ASSERT_TRUE(minify.ParseStylesheet(kCss));
-  EXPECT_STREQ(".view_all a{display:block;'width: 100%;\n"
-               "  padding: 5px 0 1px 0}",
-               minified);
+  EXPECT_STREQ(
+      ".view_all a{display:block;'width: 100%;\n"
+      "  padding: 5px 0 1px 0}",
+      minified);
 }
 
 TEST_F(CssMinifyTest, StraySingleQuote3) {
@@ -285,7 +284,7 @@ TEST_F(CssMinifyTest, CssUnicodeRangeDescriptor) {
 
   EXPECT_TRUE(minify.ParseStylesheet(kCss));
   EXPECT_HAS_SUBSTR("unicode-range:U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116",
-      minified);
+                    minified);
 }
 
 }  // namespace

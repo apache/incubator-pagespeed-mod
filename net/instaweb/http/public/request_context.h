@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_REQUEST_CONTEXT_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_REQUEST_CONTEXT_H_
 

@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/image_resizer.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -25,7 +26,6 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/image/image_resizer.h"
 #include "pagespeed/kernel/image/jpeg_optimizer.h"
 #include "pagespeed/kernel/image/png_optimizer.h"
 #include "pagespeed/kernel/image/read_image.h"
@@ -38,13 +38,17 @@ namespace {
 using net_instaweb::MessageHandler;
 using net_instaweb::MockMessageHandler;
 using net_instaweb::NullMutex;
-using pagespeed::image_compression::PixelFormat;
 using pagespeed::image_compression::GRAY_8;
+using pagespeed::image_compression::PixelFormat;
 using pagespeed::image_compression::RGB_888;
 using pagespeed::image_compression::RGBA_8888;
 // Readers and writers
 using pagespeed::image_compression::JpegCompressionOptions;
 using pagespeed::image_compression::JpegScanlineWriter;
+using pagespeed::image_compression::kMessagePatternPixelFormat;
+using pagespeed::image_compression::kMessagePatternStats;
+using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
+using pagespeed::image_compression::kMessagePatternWritingToWebp;
 using pagespeed::image_compression::kPngSuiteTestDir;
 using pagespeed::image_compression::kPngTestDir;
 using pagespeed::image_compression::kResizedTestDir;
@@ -53,10 +57,6 @@ using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::ScanlineResizer;
 using pagespeed::image_compression::ScanlineWriterInterface;
 using pagespeed::image_compression::WebpConfiguration;
-using pagespeed::image_compression::kMessagePatternPixelFormat;
-using pagespeed::image_compression::kMessagePatternStats;
-using pagespeed::image_compression::kMessagePatternUnexpectedEOF;
-using pagespeed::image_compression::kMessagePatternWritingToWebp;
 
 const size_t kPreserveAspectRatio =
     pagespeed::image_compression::ScanlineResizer::kPreserveAspectRatio;
@@ -80,8 +80,8 @@ const char kLarge4096x2048[] = "large";
 // is 32-by-32. We would like to test resizing ratios of both integers
 // and non-integers.
 const size_t kOutputSize[][2] = {
-    {16, kPreserveAspectRatio},   // Shrink image by 2 times in both directions.
-    {kPreserveAspectRatio, 8},    // Shrink image by 4 times in both directions.
+    {16, kPreserveAspectRatio},  // Shrink image by 2 times in both directions.
+    {kPreserveAspectRatio, 8},   // Shrink image by 4 times in both directions.
     {3, 3},    // Shrink image by 32/3 times in both directions.
     {16, 25},  // Shrink image by [2, 32/25] times.
     {32, 5},   // Shrink image by [1, 32/5] times.
@@ -95,22 +95,20 @@ const size_t KOutputSizeCount = arraysize(kOutputSize);
 
 class ScanlineResizerTest : public testing::Test {
  public:
-  ScanlineResizerTest() :
-      message_handler_(new NullMutex),
-      reader_(&message_handler_),
-      resizer_(&message_handler_),
-      scanline_(NULL) {
-  }
+  ScanlineResizerTest()
+      : message_handler_(new NullMutex),
+        reader_(&message_handler_),
+        resizer_(&message_handler_),
+        scanline_(nullptr) {}
 
  protected:
   void InitializeReader(const char* file_name) {
-    ASSERT_TRUE(ReadTestFile(kPngSuiteTestDir, file_name, "png",
-                             &input_image_));
+    ASSERT_TRUE(
+        ReadTestFile(kPngSuiteTestDir, file_name, "png", &input_image_));
     ASSERT_TRUE(reader_.Initialize(input_image_.data(), input_image_.length()));
   }
 
   void ResizeAndValidateImage(const char* file_name, const GoogleString& image);
-
 
   MockMessageHandler message_handler_;
   PngScanlineReaderRaw reader_;
@@ -124,21 +122,18 @@ class ScanlineResizerTest : public testing::Test {
 
 // Read the gold file. Size of the gold file is embedded in its name.
 // For example 'testdata/resized/basi0g04_w16_h16.png'.
-bool ReadGoldImageToString(const char* file_name,
-                           size_t width,
-                           size_t height,
+bool ReadGoldImageToString(const char* file_name, size_t width, size_t height,
                            GoogleString* image_data) {
-  GoogleString gold_file_name = StringPrintf("%s_w%d_h%d", file_name,
-      static_cast<int>(width), static_cast<int>(height));
+  GoogleString gold_file_name =
+      absl::StrFormat("%s_w%d_h%d", file_name, static_cast<int>(width),
+                      static_cast<int>(height));
   return ReadTestFile(kResizedTestDir, gold_file_name.c_str(), "png",
                       image_data);
 }
 
 // Return JPEG writer for Gray_8, or WebP writer for RGB_888 or RGBA_8888.
-ScanlineWriterInterface* CreateWriter(PixelFormat pixel_format,
-                                      size_t width,
-                                      size_t height,
-                                      GoogleString* image_data,
+ScanlineWriterInterface* CreateWriter(PixelFormat pixel_format, size_t width,
+                                      size_t height, GoogleString* image_data,
                                       GoogleString* file_ext,
                                       MessageHandler* handler) {
   if (pixel_format == GRAY_8) {
@@ -146,17 +141,15 @@ ScanlineWriterInterface* CreateWriter(PixelFormat pixel_format,
     JpegCompressionOptions jpeg_config;
     jpeg_config.lossy = true;
     jpeg_config.lossy_options.quality = 100;
-    return reinterpret_cast<ScanlineWriterInterface*>(
-        CreateScanlineWriter(pagespeed::image_compression::IMAGE_JPEG,
-                             pixel_format, width, height, &jpeg_config,
-                             image_data, handler));
+    return reinterpret_cast<ScanlineWriterInterface*>(CreateScanlineWriter(
+        pagespeed::image_compression::IMAGE_JPEG, pixel_format, width, height,
+        &jpeg_config, image_data, handler));
   } else {
     *file_ext = "webp";
     WebpConfiguration webp_config;  // Use lossless by default
-    return reinterpret_cast<ScanlineWriterInterface*>(
-        CreateScanlineWriter(pagespeed::image_compression::IMAGE_WEBP,
-                             pixel_format, width, height, &webp_config,
-                             image_data, handler));
+    return reinterpret_cast<ScanlineWriterInterface*>(CreateScanlineWriter(
+        pagespeed::image_compression::IMAGE_WEBP, pixel_format, width, height,
+        &webp_config, image_data, handler));
   }
 }
 
@@ -185,8 +178,8 @@ void ScanlineResizerTest::ResizeAndValidateImage(const char* file_name,
     ASSERT_EQ(gold_reader.GetPixelFormat(), resizer_.GetPixelFormat());
 
     while (resizer_.HasMoreScanLines() && gold_reader.HasMoreScanLines()) {
-      uint8* resized_scanline = NULL;
-      uint8* gold_scanline = NULL;
+      uint8* resized_scanline = nullptr;
+      uint8* gold_scanline = nullptr;
       ASSERT_TRUE(resizer_.ReadNextScanline(
           reinterpret_cast<void**>(&resized_scanline)));
       ASSERT_TRUE(gold_reader.ReadNextScanline(
@@ -208,14 +201,14 @@ TEST_F(ScanlineResizerTest, Accuracy) {
   // suite have 32-by-32 pixels.
   for (size_t index_image = 0; index_image < kValidImageCount; ++index_image) {
     const char* file_name = kValidImages[index_image];
-    ASSERT_TRUE(ReadTestFile(kPngSuiteTestDir, file_name, "png",
-                             &input_image_));
+    ASSERT_TRUE(
+        ReadTestFile(kPngSuiteTestDir, file_name, "png", &input_image_));
     ResizeAndValidateImage(file_name, input_image_);
   }
 
   // Test accuracy of resizing for an image with 33-by-34 pixels.
-  ASSERT_TRUE(ReadTestFile(kPngTestDir, kImagePageSpeed33x34, "png",
-                           &input_image_));
+  ASSERT_TRUE(
+      ReadTestFile(kPngTestDir, kImagePageSpeed33x34, "png", &input_image_));
   ResizeAndValidateImage(kImagePageSpeed33x34, input_image_);
 }
 
@@ -226,25 +219,22 @@ TEST_F(ScanlineResizerTest, ResizeAndWrite) {
   message_handler_.AddPatternToSkipPrinting(kMessagePatternWritingToWebp);
   for (size_t index_image = 0; index_image < kValidImageCount; ++index_image) {
     const char* file_name = kValidImages[index_image];
-    ASSERT_TRUE(ReadTestFile(kPngSuiteTestDir, file_name, "png",
-                             &input_image_));
+    ASSERT_TRUE(
+        ReadTestFile(kPngSuiteTestDir, file_name, "png", &input_image_));
 
     for (size_t index_size = 0; index_size < KOutputSizeCount; ++index_size) {
       const size_t width = kOutputSize[index_size][0];
       const size_t height = kOutputSize[index_size][1];
-      ASSERT_TRUE(reader_.Initialize(input_image_.data(),
-                                     input_image_.length()));
+      ASSERT_TRUE(
+          reader_.Initialize(input_image_.data(), input_image_.length()));
       ASSERT_TRUE(resizer_.Initialize(&reader_, width, height));
 
       GoogleString output_image;
       GoogleString file_ext;
-      net_instaweb::scoped_ptr<ScanlineWriterInterface> writer(
-         CreateWriter(resizer_.GetPixelFormat(),
-                      resizer_.GetImageWidth(),
-                      resizer_.GetImageHeight(),
-                      &output_image,
-                      &file_ext,
-                      &message_handler_));
+      std::unique_ptr<ScanlineWriterInterface> writer(
+          CreateWriter(resizer_.GetPixelFormat(), resizer_.GetImageWidth(),
+                       resizer_.GetImageHeight(), &output_image, &file_ext,
+                       &message_handler_));
 
       while (resizer_.HasMoreScanLines()) {
         ASSERT_TRUE(resizer_.ReadNextScanline(&scanline_));
@@ -318,8 +308,8 @@ TEST_F(ScanlineResizerTest, ReadNextScanline) {
 // The resizer should return false when the reader failes.
 TEST_F(ScanlineResizerTest, BadReader) {
   message_handler_.AddPatternToSkipPrinting(kMessagePatternUnexpectedEOF);
-  ASSERT_TRUE(ReadTestFile(kPngSuiteTestDir, kValidImages[0], "png",
-                           &input_image_));
+  ASSERT_TRUE(
+      ReadTestFile(kPngSuiteTestDir, kValidImages[0], "png", &input_image_));
   ASSERT_TRUE(reader_.Initialize(input_image_.data(), 100));
   ASSERT_TRUE(resizer_.Initialize(&reader_, 10, 20));
   ASSERT_FALSE(resizer_.ReadNextScanline(&scanline_));

@@ -36,10 +36,7 @@
 
 namespace {
 
-using net_instaweb::StrCat;
-
-void ReadFileToStringOrDie(const char* filename,
-                           GoogleString* dest) {
+void ReadFileToStringOrDie(const char* filename, GoogleString* dest) {
   std::ifstream file_stream;
   file_stream.open(filename, std::ifstream::in | std::ifstream::binary);
   CHECK(!file_stream.fail());
@@ -49,8 +46,7 @@ void ReadFileToStringOrDie(const char* filename,
   CHECK(!file_stream.fail());
 }
 
-void WriteStringToFileOrDie(const GoogleString& src,
-                            const char* filename) {
+void WriteStringToFileOrDie(const GoogleString& src, const char* filename) {
   std::ofstream file_stream;
   file_stream.open(filename, std::ifstream::out | std::ifstream::binary);
   CHECK(!file_stream.fail());
@@ -65,8 +61,7 @@ class HtmlMinifier {
   ~HtmlMinifier();
 
   // Return true if successful, false on error.
-  bool MinifyHtml(const GoogleString& input_name,
-                  const GoogleString& input,
+  bool MinifyHtml(const GoogleString& input_name, const GoogleString& input,
                   GoogleString* output);
 
  private:
@@ -99,8 +94,7 @@ HtmlMinifier::HtmlMinifier()
 HtmlMinifier::~HtmlMinifier() {}
 
 bool HtmlMinifier::MinifyHtml(const GoogleString& input_name,
-                              const GoogleString& input,
-                              GoogleString* output) {
+                              const GoogleString& input, GoogleString* output) {
   net_instaweb::StringWriter string_writer(output);
   html_writer_filter_.set_writer(&string_writer);
 
@@ -109,7 +103,7 @@ bool HtmlMinifier::MinifyHtml(const GoogleString& input_name,
   html_parse_.ParseText(input.data(), input.size());
   html_parse_.FinishParse();
 
-  html_writer_filter_.set_writer(NULL);
+  html_writer_filter_.set_writer(nullptr);
 
   return true;
 }

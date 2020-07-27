@@ -40,11 +40,10 @@ class MessageHandler;
 class UserAgentSensitiveTestFetcher : public UrlAsyncFetcher {
  public:
   explicit UserAgentSensitiveTestFetcher(UrlAsyncFetcher* base_fetcher);
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
-  virtual bool SupportsHttps() const;
+  bool SupportsHttps() const override;
 
  private:
   UrlAsyncFetcher* base_fetcher_;

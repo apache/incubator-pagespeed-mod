@@ -45,12 +45,9 @@ enum PropertyCacheDecodeResult {
 // Returns PropertyValue object for given cohort and property name,
 // setting *status and returning NULL if any errors were found.
 const PropertyValue* DecodeFromPropertyCacheHelper(
-    const PropertyCache* cache,
-    AbstractPropertyPage* page,
-    const PropertyCache::Cohort* cohort,
-    StringPiece property_name,
-    int64 cache_ttl_ms,
-    PropertyCacheDecodeResult* status);
+    const PropertyCache* cache, AbstractPropertyPage* page,
+    const PropertyCache::Cohort* cohort, StringPiece property_name,
+    int64 cache_ttl_ms, PropertyCacheDecodeResult* status);
 
 // Decodes a protobuf of type T from the property named 'property_name' in the
 // cohort 'cohort_name' in the given property cache, and makes sure it has not
@@ -59,22 +56,20 @@ const PropertyValue* DecodeFromPropertyCacheHelper(
 // *status will denote the decoding state; if it's kPropertyCacheDecodeOk
 // then a pointer to a freshly allocated decoded proto is returned; otherwise
 // NULL is returned.
-template<typename T>
+template <typename T>
 T* DecodeFromPropertyCache(const PropertyCache* cache,
                            AbstractPropertyPage* page,
                            const PropertyCache::Cohort* cohort,
-                           StringPiece property_name,
-                           int64 cache_ttl_ms,
+                           StringPiece property_name, int64 cache_ttl_ms,
                            PropertyCacheDecodeResult* status) {
-  const PropertyValue* property_value =
-      DecodeFromPropertyCacheHelper(cache, page, cohort, property_name,
-                                    cache_ttl_ms, status);
+  const PropertyValue* property_value = DecodeFromPropertyCacheHelper(
+      cache, page, cohort, property_name, cache_ttl_ms, status);
   if (property_value == NULL) {
     // *status set by helper
     return NULL;
   }
 
-  scoped_ptr<T> result(new T);
+  std::unique_ptr<T> result(new T);
   ArrayInputStream input(property_value->value().data(),
                          property_value->value().size());
   if (!result->ParseFromZeroCopyStream(&input)) {
@@ -88,19 +83,14 @@ T* DecodeFromPropertyCache(const PropertyCache* cache,
 
 // Wrapper version of the above function that gets the property cache and the
 // property page from the given driver.
-template<typename T>
+template <typename T>
 T* DecodeFromPropertyCache(RewriteDriver* driver,
                            const PropertyCache::Cohort* cohort,
-                           StringPiece property_name,
-                           int64 cache_ttl_ms,
+                           StringPiece property_name, int64 cache_ttl_ms,
                            PropertyCacheDecodeResult* status) {
   return DecodeFromPropertyCache<T>(
-      driver->server_context()->page_property_cache(),
-      driver->property_page(),
-      cohort,
-      property_name,
-      cache_ttl_ms,
-      status);
+      driver->server_context()->page_property_cache(), driver->property_page(),
+      cohort, property_name, cache_ttl_ms, status);
 }
 
 enum PropertyCacheUpdateResult {
@@ -110,11 +100,8 @@ enum PropertyCacheUpdateResult {
 };
 
 PropertyCacheUpdateResult UpdateInPropertyCache(
-    const protobuf::MessageLite& value,
-    const PropertyCache::Cohort* cohort,
-    StringPiece property_name,
-    bool write_cohort,
-    AbstractPropertyPage* page);
+    const protobuf::MessageLite& value, const PropertyCache::Cohort* cohort,
+    StringPiece property_name, bool write_cohort, AbstractPropertyPage* page);
 
 // Updates the property 'property_name' in cohort 'cohort_name' of the property
 // cache managed by the rewrite driver with the new value of the proto T.
@@ -125,8 +112,8 @@ inline PropertyCacheUpdateResult UpdateInPropertyCache(
     const PropertyCache::Cohort* cohort, StringPiece property_name,
     bool write_cohort) {
   AbstractPropertyPage* page = driver->property_page();
-  return UpdateInPropertyCache(
-      value, cohort, property_name, write_cohort, page);
+  return UpdateInPropertyCache(value, cohort, property_name, write_cohort,
+                               page);
 }
 
 }  // namespace net_instaweb

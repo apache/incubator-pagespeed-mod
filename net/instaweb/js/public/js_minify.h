@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_JS_PUBLIC_JS_MINIFY_H_
 #define NET_INSTAWEB_JS_PUBLIC_JS_MINIFY_H_
 

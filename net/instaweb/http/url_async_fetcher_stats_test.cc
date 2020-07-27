@@ -53,28 +53,25 @@ class StatsMaker {
         timer_(threads_->NewMutex(), MockTimer::kApr_5_2010_ms),
         fs_(threads_.get(), &timer_),
         mem_runtime_(new InProcessSharedMem(threads_.get())),
-        stats_(new SharedMemStatistics(3000 /* log dump interval */,
-                                       100000 /* max log size kb */,
-                                       "/stats.log", false /* no log */,
-                                       "in_mem", mem_runtime_.get(),
-                                       &message_handler_, &fs_, &timer_)) {
+        stats_(new SharedMemStatistics(
+            3000 /* log dump interval */, 100000 /* max log size kb */,
+            "/stats.log", false /* no log */, "in_mem", mem_runtime_.get(),
+            &message_handler_, &fs_, &timer_)) {
     UrlAsyncFetcherStats::InitStats("test", stats_.get());
     stats_->Init(true, &message_handler_);
   }
 
-  ~StatsMaker() {
-    stats_->GlobalCleanup(&message_handler_);
-  }
+  ~StatsMaker() { stats_->GlobalCleanup(&message_handler_); }
 
   Statistics* stats() { return stats_.get(); }
 
  protected:
-  scoped_ptr<ThreadSystem> threads_;
+  std::unique_ptr<ThreadSystem> threads_;
   MockTimer timer_;
   MemFileSystem fs_;
   GoogleMessageHandler message_handler_;
-  scoped_ptr<InProcessSharedMem> mem_runtime_;
-  scoped_ptr<SharedMemStatistics> stats_;
+  std::unique_ptr<InProcessSharedMem> mem_runtime_;
+  std::unique_ptr<SharedMemStatistics> stats_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StatsMaker);
@@ -94,24 +91,24 @@ class UrlAsyncFetcherStatsTest : public testing::Test {
   // We use per-fixture (rather than per-test) setup and teardown to
   // manage the stats to better model their real-life use and better cover
   // ::Initialize.
-  static void SetUpTestCase() {
-    testing::Test::SetUpTestCase();
+  static void SetUpTestSuite() {
+    testing::Test::SetUpTestSuite();
     stats_maker_ = new StatsMaker();
     stats_ = stats_maker_->stats();
   }
 
-  static void TearDownTestCase() {
+  static void TearDownTestSuite() {
     delete stats_maker_;
-    stats_maker_ = NULL;
-    stats_ = NULL;
-    testing::Test::TearDownTestCase();
+    stats_maker_ = nullptr;
+    stats_ = nullptr;
+    testing::Test::TearDownTestSuite();
   }
 
   static StatsMaker* stats_maker_;
   static Statistics* stats_;
 
   GoogleMessageHandler message_handler_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   MockUrlFetcher mock_fetcher_;
   WaitUrlAsyncFetcher wait_fetcher_;

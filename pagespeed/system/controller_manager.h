@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_MANAGER_H_
 #define PAGESPEED_CONTROLLER_MANAGER_H_
 
@@ -74,12 +73,11 @@ class ControllerManager {
    public:
     // Takes ownership of parent_read_fd, in that it will be closed on
     // destruction.
-    ProcessDeathWatcherThread(ThreadSystem* thread_system,
-                              int parent_read_fd,
+    ProcessDeathWatcherThread(ThreadSystem* thread_system, int parent_read_fd,
                               ControllerProcess* process,
                               MessageHandler* handler);
 
-    ~ProcessDeathWatcherThread();
+    ~ProcessDeathWatcherThread() override;
 
     void Run() override;
 

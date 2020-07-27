@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SIMPLE_BUFFERED_APACHE_FETCH_H_
 #define PAGESPEED_SIMPLE_BUFFERED_APACHE_FETCH_H_
 
@@ -50,12 +49,10 @@ class SimpleBufferedApacheFetch : public AsyncFetch {
  public:
   // Takes ownership of request_headers. req is expected to survive at least
   // until Wait() returns.
-  SimpleBufferedApacheFetch(
-      const RequestContextPtr& request_context,
-      RequestHeaders* request_headers,
-      ThreadSystem* thread_system,
-      request_rec* req,
-      MessageHandler* handler);
+  SimpleBufferedApacheFetch(const RequestContextPtr& request_context,
+                            RequestHeaders* request_headers,
+                            ThreadSystem* thread_system, request_rec* req,
+                            MessageHandler* handler);
   ~SimpleBufferedApacheFetch() override;
 
   // Blocks waiting for the fetch to complete.
@@ -72,12 +69,7 @@ class SimpleBufferedApacheFetch : public AsyncFetch {
       LOCKS_EXCLUDED(mutex_);
 
  private:
-  enum Op {
-    kOpHeadersComplete,
-    kOpWrite,
-    kOpFlush,
-    kOpDone
-  };
+  enum Op { kOpHeadersComplete, kOpWrite, kOpFlush, kOpDone };
 
   typedef std::pair<Op, GoogleString> OpInfo;
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/wildcard.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -35,8 +34,8 @@ class WildcardTest : public testing::Test {
     return CheckMatch(spec, wildcard, str);
   }
   // Match a wildcard whose spec will alter after canonicalization.
-  bool WildcardMatchNonCanonical(
-      const StringPiece& spec, const StringPiece& str) {
+  bool WildcardMatchNonCanonical(const StringPiece& spec,
+                                 const StringPiece& str) {
     Wildcard wildcard(spec);
     return CheckMatch(spec, wildcard, str);
   }
@@ -44,7 +43,7 @@ class WildcardTest : public testing::Test {
  private:
   bool CheckMatch(const StringPiece& spec, const Wildcard& wildcard,
                   const StringPiece& str) {
-    scoped_ptr<Wildcard> duplicate(wildcard.Duplicate());
+    std::unique_ptr<Wildcard> duplicate(wildcard.Duplicate());
     bool is_simple = spec.find_first_of("*?") == StringPiece::npos;
     EXPECT_EQ(is_simple, wildcard.IsSimple());
     bool result = wildcard.Match(str);
@@ -55,9 +54,7 @@ class WildcardTest : public testing::Test {
   }
 };
 
-TEST_F(WildcardTest, Identity) {
-  EXPECT_TRUE(WildcardMatch("Hello", "Hello"));
-}
+TEST_F(WildcardTest, Identity) { EXPECT_TRUE(WildcardMatch("Hello", "Hello")); }
 
 TEST_F(WildcardTest, IdentityExtra) {
   EXPECT_FALSE(WildcardMatch("Hello", "xHello"));

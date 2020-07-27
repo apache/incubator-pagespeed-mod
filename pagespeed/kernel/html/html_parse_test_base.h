@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Infrastructure for testing html parsing and rewriting.
 
 #ifndef PAGESPEED_KERNEL_HTML_HTML_PARSE_TEST_BASE_H_
@@ -41,14 +40,13 @@ namespace net_instaweb {
 class HtmlParseTestBaseNoAlloc : public testing::Test {
  protected:
   static const char kTestDomain[];
-  static const char kXhtmlDtd[];    // DOCTYPE string for claiming XHTML
+  static const char kXhtmlDtd[];  // DOCTYPE string for claiming XHTML
 
   HtmlParseTestBaseNoAlloc()
       : message_handler_(new NullMutex),
         write_to_string_(&output_buffer_),
-        added_filter_(false) {
-  }
-  virtual ~HtmlParseTestBaseNoAlloc();
+        added_filter_(false) {}
+  ~HtmlParseTestBaseNoAlloc() override;
 
   // To make the tests more concise, we generally omit the <html>...</html>
   // tags bracketing the input.  The libxml parser will add those in
@@ -100,11 +98,9 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
     ValidateExpectedFail(case_id, html_input, html_input);
   }
 
-  virtual void SetupWriter() {
-    SetupWriter(&html_writer_filter_);
-  }
+  virtual void SetupWriter() { SetupWriter(&html_writer_filter_); }
 
-  void SetupWriter(scoped_ptr<HtmlWriterFilter>* html_writer_filter) {
+  void SetupWriter(std::unique_ptr<HtmlWriterFilter>* html_writer_filter) {
     output_buffer_.clear();
     if (html_writer_filter->get() == NULL) {
       html_writer_filter->reset(new HtmlWriterFilter(html_parse()));
@@ -127,18 +123,15 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
   // Validate that the output HTML serializes as specified in
   // 'expected', which might not be identical to the input.
   // Also, returns true if result came out as expected.
-  bool ValidateExpected(StringPiece case_id,
-                        StringPiece html_input,
+  bool ValidateExpected(StringPiece case_id, StringPiece html_input,
                         StringPiece expected);
 
   // Same as ValidateExpected, but with an explicit URL rather than an id.
-  bool ValidateExpectedUrl(StringPiece url,
-                           StringPiece html_input,
+  bool ValidateExpectedUrl(StringPiece url, StringPiece html_input,
                            StringPiece expected);
 
   // Fail to ValidateExpected.
-  void ValidateExpectedFail(StringPiece case_id,
-                            StringPiece html_input,
+  void ValidateExpectedFail(StringPiece case_id, StringPiece html_input,
                             StringPiece expected);
 
   virtual HtmlParse* html_parse() = 0;
@@ -149,7 +142,7 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
   StringWriter write_to_string_;
   GoogleString output_buffer_;
   bool added_filter_;
-  scoped_ptr<HtmlWriterFilter> html_writer_filter_;
+  std::unique_ptr<HtmlWriterFilter> html_writer_filter_;
   GoogleString doctype_string_;
 
  private:
@@ -158,9 +151,10 @@ class HtmlParseTestBaseNoAlloc : public testing::Test {
 
 class HtmlParseTestBase : public HtmlParseTestBaseNoAlloc {
  public:
-  HtmlParseTestBase() : html_parse_(&message_handler_) { }
+  HtmlParseTestBase() : html_parse_(&message_handler_) {}
+
  protected:
-  virtual HtmlParse* html_parse() { return &html_parse_; }
+  HtmlParse* html_parse() override { return &html_parse_; }
 
   HtmlParse html_parse_;
 

@@ -17,12 +17,11 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/url_escaper.h"
 
 #include <cctype>
 #include <cstddef>
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -58,7 +57,7 @@ bool ReplaceSubstring(const StringPiece& search, const char* replacement,
 
 void UrlEscaper::EncodeToUrlSegment(const StringPiece& in,
                                     GoogleString* url_segment) {
-  for (StringPiece src = in; src.size() != 0; ) {
+  for (StringPiece src = in; !src.empty();) {
     char c = src[0];
     src.remove_prefix(1);
     // TODO(jmarantz): put these in a static table, to make it
@@ -99,15 +98,15 @@ void UrlEscaper::EncodeToUrlSegment(const StringPiece& in,
         }
         break;
       default:
-        if (isalnum(c) || (strchr(kPassThroughChars, c) != NULL)) {
+        if ((isalnum(c) != 0) || (strchr(kPassThroughChars, c) != nullptr)) {
           url_segment->push_back(c);
         } else {
-          StringAppendF(url_segment, ",%02X", static_cast<unsigned char>(c));
+          absl::StrAppendFormat(url_segment, ",%02X",
+                                static_cast<unsigned char>(c));
         }
     }
   }
 }
-
 
 namespace {
 
@@ -116,9 +115,8 @@ namespace {
 // false to indicate encoding failure.
 bool DecodeHexEncoding(const StringPiece& buffer, size_t i, char* result) {
   uint32 char_val = 0;
-  if ((i + 1 < buffer.size()) &&
-      AccumulateHexValue(buffer[i], &char_val) &&
-      AccumulateHexValue(buffer[i+1], &char_val)) {
+  if ((i + 1 < buffer.size()) && AccumulateHexValue(buffer[i], &char_val) &&
+      AccumulateHexValue(buffer[i + 1], &char_val)) {
     *result = static_cast<char>(char_val);
     return true;
   }
@@ -127,13 +125,12 @@ bool DecodeHexEncoding(const StringPiece& buffer, size_t i, char* result) {
 
 }  // namespace
 
-
 bool UrlEscaper::DecodeFromUrlSegment(const StringPiece& url_segment,
                                       GoogleString* out) {
   size_t size = url_segment.size();
   for (size_t i = 0; i < size; ++i) {
     char c = url_segment[i];
-    if (isalnum(c) || (strchr(kPassThroughChars, c) != NULL)) {
+    if ((isalnum(c) != 0) || (strchr(kPassThroughChars, c) != nullptr)) {
       out->push_back(c);
       continue;
     }
@@ -171,38 +168,80 @@ bool UrlEscaper::DecodeFromUrlSegment(const StringPiece& url_segment,
     // TODO(jmaessen): Worry about %-encoding here, if that ever comes up.
     // To our knowledge it never has.
     switch (url_segment[i]) {
-      case '_': *out += "/"; break;
-      case '-': *out += "\\"; break;
-      case ',': *out += ","; break;
-      case 'a': *out += "&"; break;
-      case 'M': *out += ".pagespeed."; break;
-      case 'P': *out += "%"; break;
-      case 'q': *out += "?"; break;
-      case 'u': *out += "^"; break;
+      case '_':
+        *out += "/";
+        break;
+      case '-':
+        *out += "\\";
+        break;
+      case ',':
+        *out += ",";
+        break;
+      case 'a':
+        *out += "&";
+        break;
+      case 'M':
+        *out += ".pagespeed.";
+        break;
+      case 'P':
+        *out += "%";
+        break;
+      case 'q':
+        *out += "?";
+        break;
+      case 'u':
+        *out += "^";
+        break;
 
       // The following legacy encodings are no longer made.  However we should
       // continue to decode what we previously encoded in November 2010 to
       // avoid (for example) breaking image search.
-      case 'c': *out += ".com"; break;
-      case 'e': *out += ".edu"; break;
-      case 'g': *out += ".gif"; break;
-      case 'h': *out += "http://"; break;
-      case 'j': *out += ".jpg"; break;
-      case 'k': *out += ".jpeg"; break;
-      case 'l': *out += ".js"; break;
-      case 'n': *out += ".net"; break;
-      case 'o': *out += "."; break;
-      case 'p': *out += ".png"; break;
-      case 's': *out += ".css"; break;
-      case 't': *out += ".html"; break;
-      case 'w': *out += "www."; break;
+      case 'c':
+        *out += ".com";
+        break;
+      case 'e':
+        *out += ".edu";
+        break;
+      case 'g':
+        *out += ".gif";
+        break;
+      case 'h':
+        *out += "http://";
+        break;
+      case 'j':
+        *out += ".jpg";
+        break;
+      case 'k':
+        *out += ".jpeg";
+        break;
+      case 'l':
+        *out += ".js";
+        break;
+      case 'n':
+        *out += ".net";
+        break;
+      case 'o':
+        *out += ".";
+        break;
+      case 'p':
+        *out += ".png";
+        break;
+      case 's':
+        *out += ".css";
+        break;
+      case 't':
+        *out += ".html";
+        break;
+      case 'w':
+        *out += "www.";
+        break;
 
       default:
         if (DecodeHexEncoding(url_segment, i, &c)) {
           ++i;
           out->push_back(c);
         } else {
-            return false;
+          return false;
         }
         break;
     }

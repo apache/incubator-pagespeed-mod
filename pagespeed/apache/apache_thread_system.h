@@ -33,8 +33,8 @@ class Timer;
 class ApacheThreadSystem : public SystemThreadSystem {
  public:
   ApacheThreadSystem() {}
-  virtual ~ApacheThreadSystem() {}
-  virtual Timer* NewTimer();
+  ~ApacheThreadSystem() override {}
+  Timer* NewTimer() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ApacheThreadSystem);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_NAMER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_RESOURCE_NAMER_H_
 
@@ -105,7 +104,7 @@ class ResourceNamer {
   // Utility functions
 
   // Name suitable for debugging and logging
-  GoogleString PrettyName() const {return  InternalEncode(); }
+  GoogleString PrettyName() const { return InternalEncode(); }
 
  private:
   GoogleString InternalEncode() const;

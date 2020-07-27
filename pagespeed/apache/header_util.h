@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_HEADER_UTIL_H_
 #define PAGESPEED_APACHE_HEADER_UTIL_H_
 
@@ -45,7 +44,7 @@ typedef Callback2<StringPiece, bool*> HeaderPredicateFn;
 // If the predicate is NULL, then all the headers are transferred.
 //
 // The predicate should be created with NewPermanentCallback and stored
-// in a scoped_ptr<Callback2>, so that it is deleted after this function
+// in a std::unique_ptr<Callback2>, so that it is deleted after this function
 // completes.
 void ApacheRequestToRequestHeaders(const request_rec& request,
                                    RequestHeaders* request_headers,

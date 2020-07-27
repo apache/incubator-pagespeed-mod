@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the srcset slot.
 
 #include "net/instaweb/rewriter/public/srcset_slot.h"
@@ -67,9 +66,8 @@ TEST(SrcSetSlotParseTest, ParseAndSerialize) {
             SrcSetSlotCollection::Serialize(out));
 
   std::vector<SrcSetSlotCollection::ImageCandidate> out2;
-  SrcSetSlotCollection::ParseSrcSet(
-      "a.jpg ,b.jpg 100w , c.jpg 200w, d.jpg",
-      &out2);
+  SrcSetSlotCollection::ParseSrcSet("a.jpg ,b.jpg 100w , c.jpg 200w, d.jpg",
+                                    &out2);
   ASSERT_EQ(4, out2.size());
   EXPECT_EQ("a.jpg", out2[0].url);
   EXPECT_EQ("", out2[0].descriptor);
@@ -96,8 +94,8 @@ class SrcSetSlotTest : public RewriteTestBase {
 
     RewriteDriver* driver = rewrite_driver();
     driver->AddFilters();
-    ASSERT_TRUE(driver->StartParseId(kHtmlUrl, "srcset_slot_test",
-                                     kContentTypeHtml));
+    ASSERT_TRUE(
+        driver->StartParseId(kHtmlUrl, "srcset_slot_test", kContentTypeHtml));
     element_ = driver->NewElement(nullptr, HtmlName::kImg);
     driver->AddAttribute(element_, HtmlName::kSrcset,
                          "a.jpg, b.jpg 100w, c.png 1000w");
@@ -123,10 +121,8 @@ class SrcSetSlotTest : public RewriteTestBase {
 
 TEST_F(SrcSetSlotTest, BasicOperation) {
   SetupWriter();
-  RefCountedPtr<SrcSetSlotCollection> collection(new SrcSetSlotCollection(
-      rewrite_driver(),
-      element_,
-      attribute_));
+  RefCountedPtr<SrcSetSlotCollection> collection(
+      new SrcSetSlotCollection(rewrite_driver(), element_, attribute_));
   collection->Initialize(rewrite_driver()->FindFilter("ic"));
   ASSERT_EQ(3, collection->num_image_candidates());
   EXPECT_EQ("a.jpg", collection->url(0));
@@ -146,19 +142,16 @@ TEST_F(SrcSetSlotTest, BasicOperation) {
   // from rendering.
   bool unused;
   GoogleUrl optimized_a("http://www.example.com/dir/a.pagespeed.webp");
-  slot0->SetResource(
-    rewrite_driver()->CreateInputResource(
-        optimized_a, RewriteDriver::InputRole::kImg, &unused));
+  slot0->SetResource(rewrite_driver()->CreateInputResource(
+      optimized_a, RewriteDriver::InputRole::kImg, &unused));
 
   GoogleUrl optimized_b("http://www.example.com/dir/b.pagespeed.webp");
-  slot1->SetResource(
-    rewrite_driver()->CreateInputResource(
-        optimized_b, RewriteDriver::InputRole::kImg, &unused));
+  slot1->SetResource(rewrite_driver()->CreateInputResource(
+      optimized_b, RewriteDriver::InputRole::kImg, &unused));
 
   GoogleUrl optimized_c("http://www.example.com/dir/c.pagespeed.png");
-  slot2->SetResource(
-    rewrite_driver()->CreateInputResource(
-        optimized_c, RewriteDriver::InputRole::kImg, &unused));
+  slot2->SetResource(rewrite_driver()->CreateInputResource(
+      optimized_c, RewriteDriver::InputRole::kImg, &unused));
 
   slot0->set_disable_rendering(true);
   slot0->Render();

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MEM_LOCK_H_
 #define PAGESPEED_KERNEL_BASE_MEM_LOCK_H_
 
@@ -36,12 +35,12 @@ class MemLock : public NamedLock {
   static const int64 kNotHeld = -1;
   static const int64 kNotPending = -1;
 
-  virtual void LockTimedWait(int64 wait_ms, Function* callback);
-  virtual void LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms,
-                                     Function* callback);
-  virtual void Unlock();
-  virtual GoogleString name() const;
-  virtual bool Held() { return grant_time_ms_ != kNotHeld; }
+  void LockTimedWait(int64 wait_ms, Function* callback) override;
+  void LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms,
+                             Function* callback) override;
+  void Unlock() override;
+  GoogleString name() const override;
+  bool Held() override { return grant_time_ms_ != kNotHeld; }
 
   // Entry-point for the lock-manager to wake up this lock, stealing it or
   // canceling as needed.
@@ -67,7 +66,7 @@ class MemLock : public NamedLock {
 
   // Only MemLockState can construct MemLocks.
   MemLock(int64 sequence, MemLockState* lock_state);
-  virtual ~MemLock();
+  ~MemLock() override;
 
   // The time this lock was granted, or kNotHeld if not held.
   int64 grant_time_ms() const { return grant_time_ms_; }

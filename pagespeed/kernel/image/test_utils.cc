@@ -17,12 +17,11 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/test_utils.h"
 
-#include <math.h>
-#include <cstdlib>
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -37,7 +36,6 @@
 #include "pagespeed/kernel/image/read_image.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_utils.h"
-
 
 namespace pagespeed {
 
@@ -54,8 +52,8 @@ const uint8_t kAlphaTransparent = 0;
 // third_party/libwebp/tests/check_psnr.cc.
 // However, this implementation supports image with different number of
 // channels. It also allows padding at the end of scanlines.
-double ComputePSNR(const uint8_t* pixels1, const uint8_t* pixels2,
-                   int width, int height, int num_channels, int stride) {
+double ComputePSNR(const uint8_t* pixels1, const uint8_t* pixels2, int width,
+                   int height, int num_channels, int stride) {
   double error = 0.0;
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
@@ -82,74 +80,61 @@ namespace image_compression {
 
 using net_instaweb::MessageHandler;
 
-bool ReadFile(const GoogleString& file_name,
-              GoogleString* content) {
+bool ReadFile(const GoogleString& file_name, GoogleString* content) {
   content->clear();
   net_instaweb::StdioFileSystem file_system;
   net_instaweb::MockMessageHandler message_handler(new net_instaweb::NullMutex);
   net_instaweb::StringWriter writer(content);
-  return(file_system.ReadFile(file_name.c_str(), &writer, &message_handler));
+  return (file_system.ReadFile(file_name.c_str(), &writer, &message_handler));
 }
 
-bool ReadTestFile(const GoogleString& path,
-                  const char* name,
-                  const char* extension,
-                  GoogleString* content) {
+bool ReadTestFile(const GoogleString& path, const char* name,
+                  const char* extension, GoogleString* content) {
   content->clear();
-  GoogleString file_name = net_instaweb::StrCat(net_instaweb::GTestSrcDir(),
-       kTestRootDir, path, name, ".", extension);
+  GoogleString file_name = StrCat(net_instaweb::GTestSrcDir(), kTestRootDir,
+                                  path, name, ".", extension);
   return ReadFile(file_name, content);
 }
 
 bool ReadTestFileWithExt(const GoogleString& path,
                          const char* name_with_extension,
                          GoogleString* content) {
-  GoogleString file_name = net_instaweb::StrCat(net_instaweb::GTestSrcDir(),
-       kTestRootDir, path, name_with_extension);
+  GoogleString file_name = StrCat(net_instaweb::GTestSrcDir(), kTestRootDir,
+                                  path, name_with_extension);
   return ReadFile(file_name, content);
 }
 
 void DecodeAndCompareImages(
     pagespeed::image_compression::ImageFormat image_format1,
-    const void* image_buffer1,
-    size_t buffer_length1,
+    const void* image_buffer1, size_t buffer_length1,
     pagespeed::image_compression::ImageFormat image_format2,
-    const void* image_buffer2,
-    size_t buffer_length2,
-    bool ignore_transparent_rgb,
-    MessageHandler* message_handler) {
+    const void* image_buffer2, size_t buffer_length2,
+    bool ignore_transparent_rgb, MessageHandler* message_handler) {
   DecodeAndCompareImagesByPSNR(image_format1, image_buffer1, buffer_length1,
                                image_format2, image_buffer2, buffer_length2,
                                kMaxPSNR, ignore_transparent_rgb,
-                               true /* expand colors */,
-                               message_handler);
+                               true /* expand colors */, message_handler);
 }
 
 void DecodeAndCompareImagesByPSNR(
     pagespeed::image_compression::ImageFormat image_format1,
-    const void* image_buffer1,
-    size_t buffer_length1,
+    const void* image_buffer1, size_t buffer_length1,
     pagespeed::image_compression::ImageFormat image_format2,
-    const void* image_buffer2,
-    size_t buffer_length2,
-    double min_psnr,
-    bool ignore_transparent_rgb,
-    bool expand_colors,
+    const void* image_buffer2, size_t buffer_length2, double min_psnr,
+    bool ignore_transparent_rgb, bool expand_colors,
     MessageHandler* message_handler) {
-  uint8_t* pixels1 = NULL;
-  uint8_t* pixels2 = NULL;
+  uint8_t* pixels1 = nullptr;
+  uint8_t* pixels2 = nullptr;
   PixelFormat pixel_format1, pixel_format2;
   size_t width1, height1, stride1, width2, height2, stride2;
 
   // Decode the images.
   ASSERT_TRUE(ReadImage(image_format1, image_buffer1, buffer_length1,
-                        reinterpret_cast<void**>(&pixels1),
-                        &pixel_format1, &width1, &height1, &stride1,
-                        message_handler));
+                        reinterpret_cast<void**>(&pixels1), &pixel_format1,
+                        &width1, &height1, &stride1, message_handler));
   ASSERT_TRUE(ReadImage(image_format2, image_buffer2, buffer_length2,
-                        reinterpret_cast<void**>(&pixels2),
-                        &pixel_format2, &width2, &height2, &stride2,
-                        message_handler));
+                        reinterpret_cast<void**>(&pixels2), &pixel_format2,
+                        &width2, &height2, &stride2, message_handler));
 
   // Verify that the pixel format and sizes are the same.
   ASSERT_EQ(width1, width2);
@@ -159,10 +144,10 @@ void DecodeAndCompareImagesByPSNR(
     ASSERT_EQ(stride1, stride2);
   }
 
-  CompareImageRegionsByPSNR(pixels1, pixel_format1, stride1, 0, 0,
-                            pixels2, pixel_format2, stride2, 0, 0,
-                            width1, height1, min_psnr, ignore_transparent_rgb,
-                            expand_colors, message_handler);
+  CompareImageRegionsByPSNR(pixels1, pixel_format1, stride1, 0, 0, pixels2,
+                            pixel_format2, stride2, 0, 0, width1, height1,
+                            min_psnr, ignore_transparent_rgb, expand_colors,
+                            message_handler);
 
   free(pixels1);
   free(pixels2);
@@ -178,12 +163,12 @@ void CompareImageReaders(ScanlineReaderInterface* reader1,
   ASSERT_EQ(reader1->GetBytesPerScanline(), reader2->GetBytesPerScanline());
 
   while (reader1->HasMoreScanLines() && reader2->HasMoreScanLines()) {
-    uint8_t* scanline1 = NULL;
-    uint8_t* scanline2 = NULL;
-    ASSERT_TRUE(reader1->ReadNextScanline(
-        reinterpret_cast<void**>(&scanline1)));
-    ASSERT_TRUE(reader2->ReadNextScanline(
-        reinterpret_cast<void**>(&scanline2)));
+    uint8_t* scanline1 = nullptr;
+    uint8_t* scanline2 = nullptr;
+    ASSERT_TRUE(
+        reader1->ReadNextScanline(reinterpret_cast<void**>(&scanline1)));
+    ASSERT_TRUE(
+        reader2->ReadNextScanline(reinterpret_cast<void**>(&scanline2)));
     EXPECT_EQ(0, memcmp(scanline1, scanline2, reader1->GetBytesPerScanline()));
   }
 
@@ -216,18 +201,15 @@ void ComparePixelsByPSNR(const uint8_t* image1, const uint8_t* image2,
           for (; ch < 4; ++ch) {
             int index = row * bytes_per_line + col * 4 + ch;
             EXPECT_EQ(image1[index], image2[index])
-                << "  row: " << row
-                << "  col: " << col
-                << "  ch: " << ch
+                << "  row: " << row << "  col: " << col << "  ch: " << ch
                 << "  index: " << index;
           }
         }
       }
     }
   } else {
-    double psnr =
-        ComputePSNR(image1, image2, num_cols, num_rows, num_channels,
-                    bytes_per_line);
+    double psnr = ComputePSNR(image1, image2, num_cols, num_rows, num_channels,
+                              bytes_per_line);
     EXPECT_LE(min_psnr, psnr);
   }
 }
@@ -237,13 +219,11 @@ void CompareImageRegionsByPSNR(const uint8_t* image1, PixelFormat format1,
                                const uint8_t* image2, PixelFormat format2,
                                int bytes_per_row2, int col2, int row2,
                                int num_cols, int num_rows, double min_psnr,
-                               bool ignore_transparent_rgb,
-                               bool expand_colors, MessageHandler* handler) {
+                               bool ignore_transparent_rgb, bool expand_colors,
+                               MessageHandler* handler) {
   ASSERT_TRUE(format1 != UNSUPPORTED && format2 != UNSUPPORTED);
-  const int num_channels1 =
-    GetNumChannelsFromPixelFormat(format1, handler);
-  const int num_channels2 =
-    GetNumChannelsFromPixelFormat(format2, handler);
+  const int num_channels1 = GetNumChannelsFromPixelFormat(format1, handler);
+  const int num_channels2 = GetNumChannelsFromPixelFormat(format2, handler);
 
   PixelFormat format;
   int num_channels;
@@ -257,11 +237,11 @@ void CompareImageRegionsByPSNR(const uint8_t* image1, PixelFormat format1,
   int bytes_per_line = num_cols * num_channels;
 
   int bytes_per_image = bytes_per_line * num_rows;
-  net_instaweb::scoped_array<uint8_t>
-      image_buffer1(new uint8_t[bytes_per_image]);
-  net_instaweb::scoped_array<uint8_t>
-      image_buffer2(new uint8_t[bytes_per_image]);
-  ASSERT_TRUE(image_buffer1 != NULL && image_buffer2 != NULL);
+  net_instaweb::scoped_array<uint8_t> image_buffer1(
+      new uint8_t[bytes_per_image]);
+  net_instaweb::scoped_array<uint8_t> image_buffer2(
+      new uint8_t[bytes_per_image]);
+  ASSERT_TRUE(image_buffer1 != nullptr && image_buffer2 != nullptr);
 
   memset(image_buffer1.get(), 0, bytes_per_image);
   memset(image_buffer2.get(), 0, bytes_per_image);
@@ -285,35 +265,34 @@ void CompareImageRegionsByPSNR(const uint8_t* image1, PixelFormat format1,
     }
   }
 
-  ComparePixelsByPSNR(image_buffer1.get(), image_buffer2.get(),
-                      format, num_rows, num_cols, min_psnr,
-                      ignore_transparent_rgb, handler);
+  ComparePixelsByPSNR(image_buffer1.get(), image_buffer2.get(), format,
+                      num_rows, num_cols, min_psnr, ignore_transparent_rgb,
+                      handler);
 }
 
 void CompareImageRegions(const uint8_t* image1, PixelFormat format1,
                          int bytes_per_row1, int col1, int row1,
                          const uint8_t* image2, PixelFormat format2,
-                         int bytes_per_row2, int col2, int row2,
-                         int num_cols, int num_rows, MessageHandler* handler) {
-  CompareImageRegionsByPSNR(image1, format1, bytes_per_row1, col1, row1,
-                            image2, format2, bytes_per_row2, col2, row2,
-                            num_cols, num_rows, kMaxPSNR,
+                         int bytes_per_row2, int col2, int row2, int num_cols,
+                         int num_rows, MessageHandler* handler) {
+  CompareImageRegionsByPSNR(image1, format1, bytes_per_row1, col1, row1, image2,
+                            format2, bytes_per_row2, col2, row2, num_cols,
+                            num_rows, kMaxPSNR,
                             false,  // ignore_transparent_rgb
-                            true,  // Expand colors
+                            true,   // Expand colors
                             handler);
 }
 
 void SynthesizeImage(int width, int height, int bytes_per_line,
                      int num_channels, const uint8_t* seed_value,
                      const int* delta_x, const int* delta_y, uint8_t* image) {
-  ASSERT_TRUE(image != NULL);
+  ASSERT_TRUE(image != nullptr);
   ASSERT_GT(width, 0);
   ASSERT_GT(height, 0);
   ASSERT_GE(bytes_per_line, width);
 
   net_instaweb::scoped_array<uint8_t> current_value(new uint8_t[num_channels]);
-  memcpy(current_value.get(), seed_value,
-         num_channels * sizeof(seed_value[0]));
+  memcpy(current_value.get(), seed_value, num_channels * sizeof(seed_value[0]));
 
   for (int y = 0; y < height; ++y) {
     uint8_t* pixel = image + y * bytes_per_line;

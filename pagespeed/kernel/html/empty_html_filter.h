@@ -17,9 +17,7 @@
  * under the License.
  */
 
-
-#ifndef PAGESPEED_KERNEL_HTML_EMPTY_HTML_FILTER_H_
-#define PAGESPEED_KERNEL_HTML_EMPTY_HTML_FILTER_H_
+#pragma once
 
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/html/html_filter.h"
@@ -39,23 +37,23 @@ class HtmlIEDirectiveNode;
 class EmptyHtmlFilter : public HtmlFilter {
  public:
   EmptyHtmlFilter();
-  virtual ~EmptyHtmlFilter();
+  ~EmptyHtmlFilter() override;
 
-  virtual void StartDocument();
-  virtual void EndDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual void Cdata(HtmlCdataNode* cdata);
-  virtual void Comment(HtmlCommentNode* comment);
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void Directive(HtmlDirectiveNode* directive);
-  virtual void Flush();
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void StartDocument() override;
+  void EndDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  void Cdata(HtmlCdataNode* cdata) override;
+  void Comment(HtmlCommentNode* comment) override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  void Directive(HtmlDirectiveNode* directive) override;
+  void Flush() override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   // This filter and derived classes will not rewrite urls.  If a derived filter
   // wants to rewrite urls, override this function.
-  virtual bool CanModifyUrls() { return false; }
+  bool CanModifyUrls() override { return false; }
 
   // Invoked by the rewrite driver to query whether this filter may
   // inject scripts.
@@ -66,5 +64,3 @@ class EmptyHtmlFilter : public HtmlFilter {
 };
 
 }  // namespace net_instaweb
-
-#endif  // PAGESPEED_KERNEL_HTML_EMPTY_HTML_FILTER_H_

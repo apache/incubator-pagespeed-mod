@@ -69,8 +69,7 @@ class ResourceCombiner {
   static const int kUrlSlack = 100;
 
   // Note: extension should not include the leading dot here.
-  ResourceCombiner(RewriteDriver* rewrite_driver,
-                   const StringPiece& extension,
+  ResourceCombiner(RewriteDriver* rewrite_driver, const StringPiece& extension,
                    RewriteFilter* filter);
 
   virtual ~ResourceCombiner();

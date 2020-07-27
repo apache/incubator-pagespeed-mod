@@ -1,52 +1,38 @@
 language: c++
 compiler:
-  - gcc
-
+  - clang
+dist: focal
 git:
-  # It takes a while to clone our submodules, so we'd like to use --jobs to
-  # speed it up. Here we prevent travis from using git clone --recursive, so
-  # below in before_install we can manually update including --jobs.
+  # Dependencies will be fetched via bazel. So no submodules here.
   submodules: false
   depth: 10
 
-cache:
-  ccache: true
-  directories:
-    - .git/modules/
-
-addons:
-  # Unfortunately, the version of git we get by default is too low to support
-  # --jobs on subdmodule, so update git before pulling in the submodules.
-  apt:
-    sources:
-      - git-core
-    packages:
-      - git
-
 before_install:
-  # git.apache.org is the canonical repo but throttles network connections.
-  # using github.com seems to reduce network errors a lot.
-  - git config --global url.https://github.com/apache/.insteadOf https://git.apache.org/
-  - git submodule update --init --recursive --jobs=2
+  - sudo add-apt-repository -y ppa:git-core/ppa
+  - sudo apt-get update -q
+  - sudo apt-get install -q -y git
+  - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake gperf memcached apache2-dev python2 clang-10
+  - wget https://github.com/bazelbuild/bazel/releases/download/3.3.1/bazel-3.3.1-installer-linux-x86_64.sh
+  - chmod +x bazel-3.3.1-installer-linux-x86_64.sh
+  - ./bazel-3.3.1-installer-linux-x86_64.sh --user
+  - sudo service memcached start
+  - sudo service redis-server start
 env:
   global:
     - MAKEFLAGS=-j3
-    - PATH="/usr/lib/ccache/:$PATH"
+    - CXX=clang++-10
+    - CC=clang-10
   matrix:
     - BIT_FLAG=
-    # This would do another build for 32-bit, but we're already borderline
-    # too slow on faster 64-bit, so skip this for now.
-    # - BIT_FLAG=--32bit
 
 script:
-  # Travis will time out our build if doesn't output anything for > 10 mintes,
-  # but --verbose sometimes outputs more than 4 MB of data, which will also
-  # cause our build to be killed. travis_wait allows the command to be silent
-  # for longer, but has the downside of not producing output if we timeout. See:
-  # https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received
-  # For now, stick with --verbose and keep an eye on the logs.
-  - install/build_release.sh --verbose --skip_psol --debug $BIT_FLAG
-
+  - bazel build -c dbg -- //... -//pagespeed/envoy/... | grep -iv warning
+  - bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 -c dbg -- //... -//pagespeed/envoy/...
+    
+after_failure:
+  # dump the last 2000 lines of our build, and hope the error is in that!
+  - tail --lines=2000 build.log
+  
 notifications:
   email:
     - pagespeed-ci@googlegroups.com

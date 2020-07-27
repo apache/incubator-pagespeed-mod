@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_GFLAGS_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_GFLAGS_H_
 
@@ -67,8 +66,7 @@ class RewriteGflags {
   bool SetRewriters(const char* rewriters_flag_name,
                     const char* rewriters_value,
                     const char* rewrite_level_flag_name,
-                    const char* rewrite_level_value,
-                    RewriteOptions* options,
+                    const char* rewrite_level_value, RewriteOptions* options,
                     MessageHandler* handler) const;
 
  private:

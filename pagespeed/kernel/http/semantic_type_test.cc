@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/http/semantic_type.h"
 
 #include "pagespeed/kernel/base/gtest.h"

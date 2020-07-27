@@ -37,7 +37,7 @@ class Declarations;
 class MediaQueries;
 class MediaQuery;
 class Selector;
-}
+}  // namespace Css
 
 namespace net_instaweb {
 
@@ -72,7 +72,6 @@ class StyleExtractor {
   explicit StyleExtractor(HtmlElement* element);
   virtual ~StyleExtractor();
 
-
   DimensionState state() const { return state_; }
 
   // If a value was not found, it will be populated with kNoValue.
@@ -87,7 +86,7 @@ class StyleExtractor {
 
  private:
   static Css::Declarations* GetDeclsFromElement(HtmlElement* element);
-  scoped_ptr<Css::Declarations> decls_;
+  std::unique_ptr<Css::Declarations> decls_;
   int width_px_;
   int height_px_;
   DimensionState state_;
@@ -148,7 +147,7 @@ GoogleString JsDetectableSelector(const Css::Selector& selector);
 // then no elements are removed from the first vector, and if the first vector
 // is empty then the second vector is copied into it. Both vectors must be
 // sorted on entry.
-template<typename T>
+template <typename T>
 void EliminateElementsNotIn(std::vector<T>* sorted_inner,
                             const std::vector<T>& sorted_outer) {
   if (!sorted_outer.empty()) {

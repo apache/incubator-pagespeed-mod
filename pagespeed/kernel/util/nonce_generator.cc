@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/util/nonce_generator.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -26,8 +24,7 @@
 
 namespace net_instaweb {
 
-NonceGenerator::~NonceGenerator() {
-}
+NonceGenerator::~NonceGenerator() {}
 
 uint64 NonceGenerator::NewNonce() {
   ScopedMutex lock(mutex_.get());

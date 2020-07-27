@@ -34,8 +34,7 @@
 namespace net_instaweb {
 
 // Test fixture for ScanFilter unit tests.
-class ScanFilterTest : public RewriteTestBase {
-};
+class ScanFilterTest : public RewriteTestBase {};
 
 TEST_F(ScanFilterTest, EmptyPage) {
   // By default the base is the URL, which is set by ValidateNoChanges.
@@ -50,10 +49,11 @@ TEST_F(ScanFilterTest, SetBase) {
   // The default base (the URL) is overridden by a base tag.
   const char kTestName[] = "set_base";
   const char kNewBase[] = "http://example.com/index.html";
-  ValidateNoChanges(kTestName,
-                    StrCat("<head>"
-                           "<base href=\"", kNewBase, "\">"
-                           "</head>"));
+  ValidateNoChanges(kTestName, StrCat("<head>"
+                                      "<base href=\"",
+                                      kNewBase,
+                                      "\">"
+                                      "</head>"));
   EXPECT_STREQ(kNewBase, rewrite_driver()->base_url().Spec());
   EXPECT_FALSE(rewrite_driver()->refs_before_base());
 }
@@ -62,11 +62,12 @@ TEST_F(ScanFilterTest, RefsAfterBase) {
   // Check that we don't flag refs after the base tag.
   const char kTestName[] = "refs_after_base";
   const char kNewBase[] = "http://example.com/index.html";
-  ValidateNoChanges(kTestName,
-                    StrCat("<head profile='no problem'>"
-                           "<base href=\"", kNewBase, "\">"
-                           "<a href=\"help.html\">link</a>"
-                           "</head>"));
+  ValidateNoChanges(kTestName, StrCat("<head profile='no problem'>"
+                                      "<base href=\"",
+                                      kNewBase,
+                                      "\">"
+                                      "<a href=\"help.html\">link</a>"
+                                      "</head>"));
   EXPECT_STREQ(kNewBase, rewrite_driver()->base_url().Spec());
   EXPECT_FALSE(rewrite_driver()->refs_before_base());
 }
@@ -75,11 +76,12 @@ TEST_F(ScanFilterTest, RefsBeforeBase) {
   // Check that we do flag refs before the base tag.
   const char kTestName[] = "refs_after_base";
   const char kNewBase[] = "http://example.com/index.html";
-  ValidateNoChanges(kTestName,
-                    StrCat("<head>"
-                           "<a href=\"help.html\">link</a>"
-                           "<base href=\"", kNewBase, "\">"
-                           "</head>"));
+  ValidateNoChanges(kTestName, StrCat("<head>"
+                                      "<a href=\"help.html\">link</a>"
+                                      "<base href=\"",
+                                      kNewBase,
+                                      "\">"
+                                      "</head>"));
   EXPECT_STREQ(kNewBase, rewrite_driver()->base_url().Spec());
   EXPECT_TRUE(rewrite_driver()->refs_before_base());
 }
@@ -160,7 +162,7 @@ TEST_F(ScanFilterTest, CharsetFromFirstMetaTag) {
   ValidateNoChanges(kTestName,
                     "<head>"
                     "<meta http-equiv=\"Content-Type\" "
-                          "content=\"text/xml; charset=us-ascii\">"
+                    "content=\"text/xml; charset=us-ascii\">"
                     "<meta charset=\"UTF-8\">"
                     "</head>");
   EXPECT_STREQ("us-ascii", rewrite_driver()->containing_charset());
@@ -183,12 +185,11 @@ TEST_F(ScanFilterTest, CharsetFromMetaTagMissingQuotes) {
   ValidateNoChanges(kTestName,
                     "<head>"
                     "<meta http-equiv=Content-Type "
-                          "content=text/html; charset=us-ascii>"
+                    "content=text/html; charset=us-ascii>"
                     "<meta charset=\"UTF-8\">"
                     "</head>");
   EXPECT_STREQ("us-ascii", rewrite_driver()->containing_charset());
 }
-
 
 TEST_F(ScanFilterTest, CspParse) {
   ResponseHeaders headers;
@@ -234,16 +235,14 @@ TEST_F(ScanFilterTest, CspBase1) {
   // The default base (the URL) is overridden by a base tag.
   static const char kTestName[] = "set_base";
   static const char kNewBase[] = "http://example.com/index.html";
-  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
-                             "content=\"img-src www.example.com\">";
-  ValidateNoChanges(kTestName,
-                    StrCat("<head>",
-                           kCsp,
-                           "<base href=\"", kNewBase, "\">"
-                           "</head>"));
+  static const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"img-src www.example.com\">";
+  ValidateNoChanges(kTestName, StrCat("<head>", kCsp, "<base href=\"", kNewBase,
+                                      "\">"
+                                      "</head>"));
   EXPECT_FALSE(rewrite_driver()->other_base_problem());
 }
-
 
 TEST_F(ScanFilterTest, CspBase2) {
   rewrite_driver()->AddFilters();
@@ -251,20 +250,19 @@ TEST_F(ScanFilterTest, CspBase2) {
   // The default base (the URL) is overridden by a base tag.
   static const char kTestName[] = "set_base";
   static const char kNewBase[] = "http://example.com/index.html";
-  static const char kCsp[] = "<meta http-equiv=\"Content-Security-Policy\" "
-                             "content=\"base-uri www.example.com\">";
+  static const char kCsp[] =
+      "<meta http-equiv=\"Content-Security-Policy\" "
+      "content=\"base-uri www.example.com\">";
   ValidateExpected(
       kTestName,
-      StrCat("<head>",
-            kCsp,
-            "<base href=\"", kNewBase, "\">"
-            "</head>"),
-      StrCat("<head>",
-            kCsp,
-            "<base href=\"", kNewBase, "\">"
-            "<!--Unable to check safety of a base with CSP base-uri, "
-            "proceeding conservatively.-->"
-            "</head>"));
+      StrCat("<head>", kCsp, "<base href=\"", kNewBase,
+             "\">"
+             "</head>"),
+      StrCat("<head>", kCsp, "<base href=\"", kNewBase,
+             "\">"
+             "<!--Unable to check safety of a base with CSP base-uri, "
+             "proceeding conservatively.-->"
+             "</head>"));
   EXPECT_TRUE(rewrite_driver()->other_base_problem());
 }
 

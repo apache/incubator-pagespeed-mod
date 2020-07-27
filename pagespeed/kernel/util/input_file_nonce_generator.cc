@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/util/input_file_nonce_generator.h"
 
 #include "pagespeed/kernel/base/basictypes.h"

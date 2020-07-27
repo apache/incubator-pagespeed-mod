@@ -53,37 +53,30 @@ class CachePropertyStore : public PropertyStore {
   // L2-only caches should be used for CachePropertyStore.  We cannot use the L1
   // cache because this data can get stale quickly.
   CachePropertyStore(const GoogleString& cache_key_prefix,
-                     CacheInterface* cache,
-                     Timer* timer,
-                     Statistics* stats,
+                     CacheInterface* cache, Timer* timer, Statistics* stats,
                      ThreadSystem* thread_system);
-  virtual ~CachePropertyStore();
+  ~CachePropertyStore() override;
 
   // Cache lookup is initiated for the given cohort and results are populated
   // in PropertyPage if it is valid.
   // callback parameter can be set to NULL if cohort_list is empty.
-  virtual void Get(const GoogleString& url,
-                   const GoogleString& options_signature_hash,
-                   const GoogleString& cache_key_suffix,
-                   const PropertyCache::CohortVector& cohort_list,
-                   PropertyPage* page,
-                   BoolCallback* done,
-                   AbstractPropertyStoreGetCallback** callback);
+  void Get(const GoogleString& url, const GoogleString& options_signature_hash,
+           const GoogleString& cache_key_suffix,
+           const PropertyCache::CohortVector& cohort_list, PropertyPage* page,
+           BoolCallback* done,
+           AbstractPropertyStoreGetCallback** callback) override;
 
   // Write to cache.
-  virtual void Put(const GoogleString& url,
-                   const GoogleString& options_signature_hash,
-                   const GoogleString& cache_key_suffix,
-                   const PropertyCache::Cohort* cohort,
-                   const PropertyCacheValues* values,
-                   BoolCallback* done);
+  void Put(const GoogleString& url, const GoogleString& options_signature_hash,
+           const GoogleString& cache_key_suffix,
+           const PropertyCache::Cohort* cohort,
+           const PropertyCacheValues* values, BoolCallback* done) override;
 
   // Establishes a Cohort backed by the CacheInteface passed to the constructor.
   void AddCohort(const GoogleString& cohort);
   // Establishes a Cohort to be backed by the specified CacheInterface.
   // Does not take the ownership of cache.
-  void AddCohortWithCache(const GoogleString& cohort,
-                          CacheInterface* cache);
+  void AddCohortWithCache(const GoogleString& cohort, CacheInterface* cache);
 
   // Gets the underlying key associated with cache_key and a Cohort.
   // This is the key used for the CacheInterface provided to the
@@ -97,7 +90,7 @@ class CachePropertyStore : public PropertyStore {
   // Returns default cache backend associated with CachePropertyStore.
   const CacheInterface* cache_backend() { return default_cache_; }
 
-  virtual GoogleString Name() const;
+  GoogleString Name() const override;
 
   static GoogleString FormatName3(StringPiece cohort_name1,
                                   StringPiece cohort_cache1,

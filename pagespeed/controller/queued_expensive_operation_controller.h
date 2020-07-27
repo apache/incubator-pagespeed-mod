@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_QUEUED_EXPENSIVE_OPERATION_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_QUEUED_EXPENSIVE_OPERATION_CONTROLLER_H_
 
@@ -41,8 +40,7 @@ namespace net_instaweb {
 // process/multi-threaded environment, or through an external RPC system.
 // See WorkBoundExpensiveOperationController for an alternate implementation
 // that does not have this limitation.
-class QueuedExpensiveOperationController
-    : public ExpensiveOperationController {
+class QueuedExpensiveOperationController : public ExpensiveOperationController {
  public:
   static const char kActiveExpensiveOperations[];
   static const char kQueuedExpensiveOperations[];
@@ -51,11 +49,11 @@ class QueuedExpensiveOperationController
   QueuedExpensiveOperationController(int max_expensive_operations,
                                      ThreadSystem* thread_system,
                                      Statistics* stats);
-  virtual ~QueuedExpensiveOperationController();
+  ~QueuedExpensiveOperationController() override;
 
   // ExpensiveOperationController interface.
-  virtual void ScheduleExpensiveOperation(Function* callback);
-  virtual void NotifyExpensiveOperationComplete();
+  void ScheduleExpensiveOperation(Function* callback) override;
+  void NotifyExpensiveOperationComplete() override;
 
   static void InitStats(Statistics* stats);
 
@@ -69,7 +67,7 @@ class QueuedExpensiveOperationController
   const int max_in_progress_;
   std::queue<Function*> queue_ GUARDED_BY(mutex_);
   int num_in_progress_ GUARDED_BY(mutex_);
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   UpDownCounter* active_operations_counter_;
   UpDownCounter* queued_operations_counter_;
   TimedVariable* permitted_operations_counter_;

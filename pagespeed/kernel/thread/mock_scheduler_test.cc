@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/mock_scheduler.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -44,7 +43,7 @@ const int64 kWaitMs = 100 * Timer::kYearMs;
 class TestAlarm : public Function {
  public:
   TestAlarm() {}
-  virtual void Run() { }
+  void Run() override {}
 };
 
 // This is an alarm implementation which adds new alarms and optionally advances
@@ -55,11 +54,9 @@ class ChainedAlarm : public Function {
   // between each alarm.  If 'advance' is set, it will advance time forward
   // by 100ms on each call so that the chain unwinds itself.
   ChainedAlarm(MockScheduler* scheduler, int* count, bool advance)
-      : scheduler_(scheduler),
-        count_(count),
-        advance_(advance) {}
+      : scheduler_(scheduler), count_(count), advance_(advance) {}
 
-  virtual void Run() {
+  void Run() override {
     if (--*count_ > 0) {
       int64 next_time_us = scheduler_->timer()->NowUs();
       scheduler_->AddAlarmAtUs(next_time_us,
@@ -91,22 +88,19 @@ class MockSchedulerTest : public testing::Test {
 
   Scheduler::Alarm* AddTask(int64 wakeup_time_us, char c) {
     // TODO(jefftk): switch to using MakeFunction without template qualification
-    Function* append_char = MakeFunction<GoogleString, char>(
-        &string_, &GoogleString::push_back, c);
+    Function* append_char =
+        MakeFunction<GoogleString, char>(&string_, &GoogleString::push_back, c);
     return scheduler_->AddAlarmAtUs(wakeup_time_us, append_char);
   }
 
-  void Run() {
-    was_run_ = true;
-  }
+  void Run() { was_run_ = true; }
 
-  void Cancel() {
-    was_cancelled_ = true;
-  }
+  void Cancel() { was_cancelled_ = true; }
 
   Scheduler::Alarm* AddRunCancelAlarmUs(int64 wakeup_time_us) {
-    return scheduler_->AddAlarmAtUs(wakeup_time_us, MakeFunction(
-        this, &MockSchedulerTest::Run, &MockSchedulerTest::Cancel));
+    return scheduler_->AddAlarmAtUs(wakeup_time_us,
+                                    MakeFunction(this, &MockSchedulerTest::Run,
+                                                 &MockSchedulerTest::Cancel));
   }
 
   void AdvanceTimeMs(int64 interval_ms) {
@@ -118,9 +112,9 @@ class MockSchedulerTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
-  scoped_ptr<MockScheduler> scheduler_;
+  std::unique_ptr<MockScheduler> scheduler_;
   GoogleString string_;
   bool was_run_;
   bool was_cancelled_;
@@ -175,8 +169,8 @@ TEST_F(MockSchedulerTest, Cancellation) {
 // Verifies that we can add a new alarm from an Alarm::Run() method.
 TEST_F(MockSchedulerTest, ChainedAlarms) {
   int count = 10;
-  scheduler_->AddAlarmAtUs(
-      100, new ChainedAlarm(scheduler_.get(), &count, false));
+  scheduler_->AddAlarmAtUs(100,
+                           new ChainedAlarm(scheduler_.get(), &count, false));
   AdvanceTimeUs(1000);
   EXPECT_EQ(0, count);
 }
@@ -184,8 +178,8 @@ TEST_F(MockSchedulerTest, ChainedAlarms) {
 // Verifies that we can advance time from an Alarm::Run() method.
 TEST_F(MockSchedulerTest, AdvanceFromRun) {
   int count = 10;
-  scheduler_->AddAlarmAtUs(
-      100, new ChainedAlarm(scheduler_.get(), &count, true));
+  scheduler_->AddAlarmAtUs(100,
+                           new ChainedAlarm(scheduler_.get(), &count, true));
   AdvanceTimeUs(100);
   EXPECT_EQ(0, count);
 }

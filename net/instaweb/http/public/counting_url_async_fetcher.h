@@ -45,15 +45,14 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
         mutex_(thread_system_->NewMutex()) {
     Clear();
   }
-  virtual ~CountingUrlAsyncFetcher();
+  ~CountingUrlAsyncFetcher() override;
 
   void set_fetcher(UrlAsyncFetcher* fetcher) { fetcher_ = fetcher; }
 
-  virtual bool SupportsHttps() const { return fetcher_->SupportsHttps(); }
+  bool SupportsHttps() const override { return fetcher_->SupportsHttps(); }
 
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
   // number of completed fetches.
   int fetch_count() const {
@@ -91,8 +90,8 @@ class CountingUrlAsyncFetcher : public UrlAsyncFetcher {
   int byte_count_;
   int failure_count_;
   GoogleString most_recent_fetched_url_;
-  scoped_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
-  scoped_ptr<AbstractMutex> mutex_;         // Mutex Protect.
+  std::unique_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
+  std::unique_ptr<AbstractMutex> mutex_;         // Mutex Protect.
 
   DISALLOW_COPY_AND_ASSIGN(CountingUrlAsyncFetcher);
 };

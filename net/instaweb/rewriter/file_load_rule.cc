@@ -25,6 +25,7 @@
 // Tests are in file_load_policy_test.
 
 #include "net/instaweb/rewriter/public/file_load_rule.h"
+
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/util/re2.h"

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_SYSTEM_REWRITE_DRIVER_FACTORY_H_
 #define PAGESPEED_SYSTEM_SYSTEM_REWRITE_DRIVER_FACTORY_H_
 
@@ -74,7 +73,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
                              SystemThreadSystem* thread_system,
                              AbstractSharedMem* shared_mem_runtime,
                              StringPiece hostname, int port);
-  virtual ~SystemRewriteDriverFactory();
+  ~SystemRewriteDriverFactory() override;
   void Init();
 
   // If the server using this isn't using APR natively, call this to initialize
@@ -94,7 +93,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   virtual void NonStaticInitStats(Statistics* statistics) = 0;
 
   // Creates a HashedNonceGenerator initialized with data from /dev/random.
-  NonceGenerator* DefaultNonceGenerator();
+  NonceGenerator* DefaultNonceGenerator() override;
 
   // For shared memory resources the general setup we follow is to have the
   // first running process (aka the root) create the necessary segments and
@@ -135,8 +134,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // - global_statistics is lazily initialized to a shared memory statistics
   //   owned by this factory if any of the server contexts require it.
   void PostConfig(const std::vector<SystemServerContext*>& server_contexts,
-                  GoogleString* error_message,
-                  int* error_index,
+                  GoogleString* error_message, int* error_index,
                   Statistics** global_statistics);
 
   // Initialize SharedCircularBuffer and pass it to SystemMessageHandler and
@@ -155,41 +153,30 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // kOptionValueInvalid or kOptionOk is returned: invalid if the parser should
   // abort with an error, ok if parsing should continue past the error.
   virtual RewriteOptions::OptionSettingResult ParseAndSetOption1(
-      StringPiece option,
-      StringPiece arg,
-      bool process_scope,
-      GoogleString* msg,
-      MessageHandler* handler);
+      StringPiece option, StringPiece arg, bool process_scope,
+      GoogleString* msg, MessageHandler* handler);
   virtual RewriteOptions::OptionSettingResult ParseAndSetOption2(
-      StringPiece option,
-      StringPiece arg1,
-      StringPiece arg2,
-      bool process_scope,
-      GoogleString* msg,
-      MessageHandler* handler);
+      StringPiece option, StringPiece arg1, StringPiece arg2,
+      bool process_scope, GoogleString* msg, MessageHandler* handler);
 
-  virtual Hasher* NewHasher();
-  virtual Timer* DefaultTimer();
-  virtual ServerContext* NewServerContext();
+  Hasher* NewHasher() override;
+  Timer* DefaultTimer() override;
+  ServerContext* NewServerContext() override;
 
   // Hook so implementations may disable the property cache.
-  virtual bool enable_property_cache() const {
-    return true;
-  }
+  virtual bool enable_property_cache() const { return true; }
 
   GoogleString hostname_identifier() { return hostname_identifier_; }
 
   // Release all the resources. It also calls the base class ShutDown to release
   // the base class resources.
-  virtual void ShutDown();
+  void ShutDown() override;
 
-  virtual void StopCacheActivity();
+  void StopCacheActivity() override;
 
   SystemCaches* caches() { return caches_.get(); }
 
-  virtual void set_message_buffer_size(int x) {
-    message_buffer_size_ = x;
-  }
+  virtual void set_message_buffer_size(int x) { message_buffer_size_ = x; }
 
   // Finds a fetcher for the settings in this config, sharing with
   // existing fetchers if possible, otherwise making a new one (and
@@ -233,24 +220,14 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   void set_num_expensive_rewrite_threads(int x) {
     num_expensive_rewrite_threads_ = x;
   }
-  bool use_per_vhost_statistics() const {
-    return use_per_vhost_statistics_;
-  }
-  void set_use_per_vhost_statistics(bool x) {
-    use_per_vhost_statistics_ = x;
-  }
-  bool install_crash_handler() const {
-    return install_crash_handler_;
-  }
-  void set_install_crash_handler(bool x) {
-    install_crash_handler_ = x;
-  }
+  bool use_per_vhost_statistics() const { return use_per_vhost_statistics_; }
+  void set_use_per_vhost_statistics(bool x) { use_per_vhost_statistics_ = x; }
+  bool install_crash_handler() const { return install_crash_handler_; }
+  void set_install_crash_handler(bool x) { install_crash_handler_ = x; }
 
   // mod_pagespeed uses a beacon handler to collect data for critical images,
   // css, etc., so filters should be configured accordingly.
-  virtual bool UseBeaconResultsInFilters() const {
-    return true;
-  }
+  bool UseBeaconResultsInFilters() const override { return true; }
 
   // Check whether the server is threaded.  For example, Nginx uses an event
   // loop and can keep with the default of false, while Apache with a threaded
@@ -261,9 +238,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
 
   // Threaded implementing servers should return the maximum number of threads
   // that might be used for handling user requests.
-  virtual int LookupThreadLimit() {
-    return 1;
-  }
+  virtual int LookupThreadLimit() { return 1; }
 
   // By default this uses the ControllerManager to fork off some processes to
   // handle the Controller.  If you're on a system where fork doesn't make
@@ -292,11 +267,12 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   static void InitStats(Statistics* statistics);
 
   // Initializes the StaticAssetManager.
-  virtual void InitStaticAssetManager(StaticAssetManager* static_asset_manager);
+  void InitStaticAssetManager(
+      StaticAssetManager* static_asset_manager) override;
 
-  virtual void SetupCaches(ServerContext* server_context);
-  virtual QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,
-                                             StringPiece name);
+  void SetupCaches(ServerContext* server_context) override;
+  QueuedWorkerPool* CreateWorkerPool(WorkerPoolCategory pool,
+                                     StringPiece name) override;
 
   // TODO(jefftk): create SystemMessageHandler and get rid of these hooks.
   virtual void SetupMessageHandlers() {}
@@ -322,8 +298,8 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // either a serf fetcher or an nginx-native fetcher depending on options.
   virtual UrlAsyncFetcher* AllocateFetcher(SystemRewriteOptions* config);
 
-  virtual FileSystem* DefaultFileSystem();
-  virtual NamedLockManager* DefaultLockManager();
+  FileSystem* DefaultFileSystem() override;
+  NamedLockManager* DefaultLockManager() override;
 
   // Updates num_rewrite_threads_ and num_expensive_rewrite_threads_
   // with sensible values if they are not explicitly set.
@@ -353,14 +329,14 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   // method for GetFetcher that reuses fetchers as much as possible.
   UrlAsyncFetcher* GetBaseFetcher(SystemRewriteOptions* config);
 
-  virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
+  UrlAsyncFetcher* DefaultAsyncUrlFetcher() override;
 
-  scoped_ptr<SharedMemStatistics> shared_mem_statistics_;
+  std::unique_ptr<SharedMemStatistics> shared_mem_statistics_;
   // While split statistics in the ServerContext cleans up the actual objects,
   // we do the segment cleanup for local stats here.
   StringVector local_shm_stats_segment_names_;
-  scoped_ptr<AbstractSharedMem> shared_mem_runtime_;
-  scoped_ptr<SharedCircularBuffer> shared_circular_buffer_;
+  std::unique_ptr<AbstractSharedMem> shared_mem_runtime_;
+  std::unique_ptr<SharedCircularBuffer> shared_circular_buffer_;
 
   bool statistics_frozen_;
   bool is_root_process_;
@@ -375,7 +351,7 @@ class SystemRewriteDriverFactory : public RewriteDriverFactory {
   int message_buffer_size_;
 
   // Manages all our caches & lock managers.
-  scoped_ptr<SystemCaches> caches_;
+  std::unique_ptr<SystemCaches> caches_;
 
   bool track_original_content_length_;
   bool list_outstanding_urls_on_error_;

@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/condvar.h"
 
 #include "pagespeed/kernel/base/thread_system.h"
 
 namespace net_instaweb {
 
-ThreadSystem::Condvar::~Condvar() { }
+ThreadSystem::Condvar::~Condvar() {}
 
 }  // namespace net_instaweb

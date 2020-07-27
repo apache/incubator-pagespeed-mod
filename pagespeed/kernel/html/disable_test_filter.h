@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_DISABLED_TEST_FILTER_H_
 #define PAGESPEED_KERNEL_HTML_DISABLED_TEST_FILTER_H_
 
@@ -36,7 +35,7 @@ class DisableTestFilter : public EmptyHtmlFilter {
         is_enabled_(is_enabled),
         disabled_reason_(disabled_reason) {}
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason) {
+  void DetermineEnabled(GoogleString* disabled_reason) override {
     set_is_enabled(is_enabled_);
     // Note that disabled_reason is always set, even if is_enabled is false.
     // This allows us to verify that it will be ignored when is_enabled is
@@ -52,7 +51,7 @@ class DisableTestFilter : public EmptyHtmlFilter {
     return message;
   }
 
-  virtual const char* Name() const { return name_.c_str(); }
+  const char* Name() const override { return name_.c_str(); }
 
  private:
   GoogleString name_;

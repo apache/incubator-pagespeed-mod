@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/apache_fetch.h"
 
 #include <algorithm>
@@ -71,9 +70,7 @@ ApacheFetch::ApacheFetch(const GoogleString& mapped_url, StringPiece debug_info,
   scheduler_ = driver_->scheduler();
 }
 
-ApacheFetch::~ApacheFetch() {
-  driver_->DecrementAsyncEventsCount();
-}
+ApacheFetch::~ApacheFetch() { driver_->DecrementAsyncEventsCount(); }
 
 // Called by other threads unless buffered=false.
 void ApacheFetch::HandleHeadersComplete() {
@@ -210,15 +207,15 @@ void ApacheFetch::Wait() {
     // We pick the 'max' of those two values because that will ensure we don't
     // get a large number of spurious messages as a result of (say) configuring
     // the in-place rewrite deadline to be much higher than the fetcher timeout.
-    int64 fetch_timeout_ms = std::max(
-        options_->blocking_fetch_timeout_ms(),
-        static_cast<int64>(options_->in_place_rewrite_deadline_ms()));
+    int64 fetch_timeout_ms =
+        std::max(options_->blocking_fetch_timeout_ms(),
+                 static_cast<int64>(options_->in_place_rewrite_deadline_ms()));
     Scheduler::Sequence* scheduler_sequence = driver_->scheduler_sequence();
     while (!scheduler_sequence->RunTasksUntil(fetch_timeout_ms, &done_)) {
       int64 elapsed_ms = timer->NowMs() - start_ms;
-      message_handler_->Message(
-          kWarning, "Waiting for completion of URL %s for %g sec.",
-          mapped_url_.c_str(), elapsed_ms / 1000.0);
+      message_handler_->Message(kWarning,
+                                "Waiting for completion of URL %s for %g sec.",
+                                mapped_url_.c_str(), elapsed_ms / 1000.0);
     }
     CHECK(done_);
 

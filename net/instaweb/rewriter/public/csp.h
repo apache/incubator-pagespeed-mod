@@ -46,17 +46,22 @@ namespace net_instaweb {
 class CspSourceExpression {
  public:
   enum Kind {
-    kSelf, kSchemeSource, kHostSource,
-    kUnsafeInline, kUnsafeEval, kStrictDynamic, kUnsafeHashedAttributes,
-    kHashOrNonce, kUnknown
+    kSelf,
+    kSchemeSource,
+    kHostSource,
+    kUnsafeInline,
+    kUnsafeEval,
+    kStrictDynamic,
+    kUnsafeHashedAttributes,
+    kHashOrNonce,
+    kUnknown
   };
 
   struct UrlData {
     UrlData() : path_exact_match(false) {}
     // Constructor for tests, assumes already normalized.
-    UrlData(StringPiece in_scheme, StringPiece in_host,
-            StringPiece in_port, StringPiece in_path,
-            bool exact_match = false)
+    UrlData(StringPiece in_scheme, StringPiece in_host, StringPiece in_port,
+            StringPiece in_path, bool exact_match = false)
         : scheme_part(in_scheme.as_string()),
           host_part(in_host.as_string()),
           port_part(in_port.as_string()),
@@ -85,22 +90,20 @@ class CspSourceExpression {
     GoogleString DebugString() const {
       return StrCat("scheme:", scheme_part, " host:", host_part,
                     " port:", port_part,
-                    " path:",  JoinCollection(path_part, "/"),
+                    " path:", JoinCollection(path_part, "/"),
                     " path_exact_match:", BoolToString(path_exact_match));
     }
 
     // For convenience of unit testing.
     bool operator==(const UrlData& other) const {
-      return scheme_part == other.scheme_part &&
-             host_part == other.host_part &&
-             port_part == other.port_part &&
-             path_part == other.path_part &&
+      return scheme_part == other.scheme_part && host_part == other.host_part &&
+             port_part == other.port_part && path_part == other.path_part &&
              path_exact_match == other.path_exact_match;
     }
   };
 
   CspSourceExpression() : kind_(kUnknown) {}
-  explicit CspSourceExpression(Kind kind): kind_(kind) {}
+  explicit CspSourceExpression(Kind kind) : kind_(kind) {}
   CspSourceExpression(Kind kind, const UrlData& url_data) : kind_(kind) {
     *mutable_url_data() = url_data;
   }
@@ -110,8 +113,8 @@ class CspSourceExpression {
   bool Matches(const GoogleUrl& origin_url, const GoogleUrl& url) const;
 
   GoogleString DebugString() const {
-    return StrCat("kind:", IntegerToString(kind_),
-                  " url_data:{", url_data().DebugString(), "}");
+    return StrCat("kind:", IntegerToString(kind_), " url_data:{",
+                  url_data().DebugString(), "}");
   }
 
   bool operator==(const CspSourceExpression& other) const {
@@ -155,8 +158,10 @@ class CspSourceExpression {
 class CspSourceList {
  public:
   CspSourceList()
-      : saw_unsafe_inline_(false), saw_unsafe_eval_(false),
-        saw_strict_dynamic_(false), saw_unsafe_hashed_attributes_(false),
+      : saw_unsafe_inline_(false),
+        saw_unsafe_eval_(false),
+        saw_strict_dynamic_(false),
+        saw_unsafe_hashed_attributes_(false),
         saw_hash_or_nonce_(false) {}
 
   static std::unique_ptr<CspSourceList> Parse(StringPiece input);
@@ -222,9 +227,7 @@ class CspPolicy {
 // seems like it would keep the page author informed about our effects as it is.
 class CspContext {
  public:
-  bool PermitsEval() const {
-    return AllPermit(&CspPolicy::PermitsEval);
-  }
+  bool PermitsEval() const { return AllPermit(&CspPolicy::PermitsEval); }
 
   bool PermitsInlineScript() const {
     return AllPermit(&CspPolicy::PermitsInlineScript);

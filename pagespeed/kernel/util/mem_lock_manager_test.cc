@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit test the MemLockManager.  Note that the lock-server is designed to be
 // run in a separate process, but we are testing it all in-process.  It
 // is intended to be run with some sort of scheduling infrastructure (not
@@ -62,38 +61,36 @@ class MemLockManagerTest : public testing::Test {
         tester_(thread_system_.get()) {
     tester_.set_quiesce(MakeFunction(this, &MemLockManagerTest::Quiesce));
   }
-  virtual ~MemLockManagerTest() { }
+  ~MemLockManagerTest() override {}
 
   NamedLock* MakeLock(const StringPiece& name) {
     return lock_manager_->CreateNamedLock(name);
   }
 
-  void AllLocksFail(const scoped_ptr<NamedLock>& lock) {
-    scoped_ptr<NamedLock> lock2(MakeLock(lock->name()));
+  void AllLocksFail(const std::unique_ptr<NamedLock>& lock) {
+    std::unique_ptr<NamedLock> lock2(MakeLock(lock->name()));
     EXPECT_FALSE(TryLock(lock2));
     EXPECT_FALSE(TryLockStealOld(kStealMs, lock2));
     EXPECT_FALSE(LockTimedWaitStealOld(kWaitMs, kStealMs, lock2));
     EXPECT_FALSE(LockTimedWait(kWaitMs, lock2));
   }
 
-  MockTimer* timer() {
-    return &timer_;
-  }
+  MockTimer* timer() { return &timer_; }
 
-  bool TryLock(const scoped_ptr<NamedLock>& lock) {
+  bool TryLock(const std::unique_ptr<NamedLock>& lock) {
     return tester_.TryLock(lock.get());
   }
 
-  bool TryLockStealOld(int64 steal_ms, const scoped_ptr<NamedLock>& lock) {
+  bool TryLockStealOld(int64 steal_ms, const std::unique_ptr<NamedLock>& lock) {
     return tester_.LockTimedWaitStealOld(0 /* wait_ms */, steal_ms, lock.get());
   }
 
   bool LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms,
-                             const scoped_ptr<NamedLock>& lock) {
+                             const std::unique_ptr<NamedLock>& lock) {
     return tester_.LockTimedWaitStealOld(wait_ms, steal_ms, lock.get());
   }
 
-  bool LockTimedWait(int64 wait_ms, const scoped_ptr<NamedLock>& lock) {
+  bool LockTimedWait(int64 wait_ms, const std::unique_ptr<NamedLock>& lock) {
     return tester_.LockTimedWait(wait_ms, lock.get());
   }
 
@@ -106,26 +103,19 @@ class MemLockManagerTest : public testing::Test {
     }
   }
 
-  void LogGrant(const char* name) {
-    StrAppend(&log_, name, "(grant) ");
-  }
+  void LogGrant(const char* name) { StrAppend(&log_, name, "(grant) "); }
 
-  void LogDeny(const char* name) {
-    StrAppend(&log_, name, "(deny) ");
-  }
+  void LogDeny(const char* name) { StrAppend(&log_, name, "(deny) "); }
 
   Function* LogFunction(const char* name) {
-    return MakeFunction(this,
-                        &MemLockManagerTest::LogGrant,
-                        &MemLockManagerTest::LogDeny,
-                        name);
+    return MakeFunction(this, &MemLockManagerTest::LogGrant,
+                        &MemLockManagerTest::LogDeny, name);
   }
 
- protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   GoogleMessageHandler handler_;
-  scoped_ptr<MemLockManager> lock_manager_;
+  std::unique_ptr<MemLockManager> lock_manager_;
   NamedLockTester tester_;
   GoogleString log_;
 
@@ -134,7 +124,7 @@ class MemLockManagerTest : public testing::Test {
 };
 
 TEST_F(MemLockManagerTest, LockUnlock) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
   // Just do pairs of matched lock / unlock, making sure
   // we can't lock while the lock is held.
   EXPECT_TRUE(TryLock(lock1));
@@ -174,8 +164,8 @@ TEST_F(MemLockManagerTest, LockUnlock) {
 }
 
 TEST_F(MemLockManagerTest, DoubleLockUnlock) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock11(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock11(MakeLock(kLock1));
   // Just do pairs of matched lock / unlock, but make sure
   // we hold a separate lock object with the same lock name.
   EXPECT_TRUE(TryLock(lock1));
@@ -224,9 +214,9 @@ TEST_F(MemLockManagerTest, DoubleLockUnlock) {
 // their timeout behaviors are correct.
 
 TEST_F(MemLockManagerTest, UnlockOnDestruct) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
   {
-    scoped_ptr<NamedLock> lock11(MakeLock(kLock1));
+    std::unique_ptr<NamedLock> lock11(MakeLock(kLock1));
     EXPECT_TRUE(TryLock(lock11));
     EXPECT_FALSE(TryLock(lock1));
     // Should implicitly unlock on lock11 destructor call.
@@ -236,10 +226,10 @@ TEST_F(MemLockManagerTest, UnlockOnDestruct) {
 
 TEST_F(MemLockManagerTest, LockIndependence) {
   // Differently-named locks are different.
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock1a(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock2(MakeLock(kLock2));
-  scoped_ptr<NamedLock> lock2a(MakeLock(kLock2));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1a(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock2(MakeLock(kLock2));
+  std::unique_ptr<NamedLock> lock2a(MakeLock(kLock2));
   EXPECT_TRUE(TryLock(lock1));
   EXPECT_TRUE(TryLock(lock2));
   EXPECT_FALSE(TryLock(lock1a));
@@ -250,11 +240,12 @@ TEST_F(MemLockManagerTest, LockIndependence) {
 }
 
 TEST_F(MemLockManagerTest, TimeoutFail) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
   EXPECT_TRUE(TryLock(lock1));
   EXPECT_TRUE(lock1->Held());
   int64 start_ms = timer()->NowMs();
-  scoped_ptr<NamedLock> lock1a(MakeLock(kLock1));  // Same name, new object.
+  std::unique_ptr<NamedLock> lock1a(
+      MakeLock(kLock1));  // Same name, new object.
   EXPECT_FALSE(LockTimedWait(kWaitMs, lock1a));
   EXPECT_TRUE(lock1->Held());  // was never unlocked...
   int64 end_ms = timer()->NowMs();
@@ -262,10 +253,10 @@ TEST_F(MemLockManagerTest, TimeoutFail) {
 }
 
 TEST_F(MemLockManagerTest, StealOld) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock1a(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock1b(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock1c(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1a(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1b(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1c(MakeLock(kLock1));
   EXPECT_TRUE(TryLock(lock1));
   // Now we can't steal the lock until after >kStealMs has elapsed.
   EXPECT_FALSE(TryLockStealOld(kStealMs, lock1a));
@@ -291,10 +282,10 @@ TEST_F(MemLockManagerTest, StealOld) {
 }
 
 TEST_F(MemLockManagerTest, BlockingStealOld) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock1a(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock1b(MakeLock(kLock1));
-  scoped_ptr<NamedLock> lock1c(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1a(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1b(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1c(MakeLock(kLock1));
   EXPECT_TRUE(TryLock(lock1));
   // Now a call to LockTimedWaitStealOld should block until kStealMs has
   // elapsed.
@@ -312,11 +303,12 @@ TEST_F(MemLockManagerTest, BlockingStealOld) {
 }
 
 TEST_F(MemLockManagerTest, WaitStealOld) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
   EXPECT_TRUE(TryLock(lock1));
   int64 start_ms = timer()->NowMs();
   // If we start now, we'll time out with time to spare.
-  scoped_ptr<NamedLock> lock1a(MakeLock(kLock1));  // Same name, new object.
+  std::unique_ptr<NamedLock> lock1a(
+      MakeLock(kLock1));  // Same name, new object.
   EXPECT_FALSE(LockTimedWaitStealOld(kWaitMs, kStealMs, lock1a));
   int64 end_ms = timer()->NowMs();
   EXPECT_LE(start_ms + kWaitMs, end_ms);
@@ -331,14 +323,14 @@ TEST_F(MemLockManagerTest, WaitStealOld) {
 }
 
 TEST_F(MemLockManagerTest, NoWaitUnlockDeletesOld) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
   EXPECT_TRUE(TryLock(lock1));
   NamedLock* lock1a = MakeLock(kLock1);  // Same name, new object.
   EXPECT_TRUE(tester_.UnlockWithDelete(lock1.release(), lock1a));
 }
 
 TEST_F(MemLockManagerTest, NoWaitStealDeletesOld) {
-  scoped_ptr<NamedLock> lock1(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
   EXPECT_TRUE(TryLock(lock1));
   NamedLock* lock1a = MakeLock(kLock1);  // Same name, new object.
   timer()->AdvanceMs(kStealMs + 1);
@@ -346,11 +338,11 @@ TEST_F(MemLockManagerTest, NoWaitStealDeletesOld) {
 }
 
 TEST_F(MemLockManagerTest, MultipleLocksSameTimeouts) {
-  scoped_ptr<NamedLock> a(MakeLock(kLock1));
-  scoped_ptr<NamedLock> b(MakeLock(kLock1));
-  scoped_ptr<NamedLock> c(MakeLock(kLock1));
-  scoped_ptr<NamedLock> d(MakeLock(kLock2));
-  scoped_ptr<NamedLock> e(MakeLock(kLock2));
+  std::unique_ptr<NamedLock> a(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> b(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> c(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> d(MakeLock(kLock2));
+  std::unique_ptr<NamedLock> e(MakeLock(kLock2));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
   c->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("c"));
@@ -375,9 +367,9 @@ TEST_F(MemLockManagerTest, MultipleLocksSameTimeouts) {
 }
 
 TEST_F(MemLockManagerTest, OverrideSteal) {
-  scoped_ptr<NamedLock> a(MakeLock(kLock1));
-  scoped_ptr<NamedLock> b(MakeLock(kLock1));
-  scoped_ptr<NamedLock> c(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> a(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> b(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> c(MakeLock(kLock1));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   timer()->SetTimeMs(kStealMs - (kWaitMs / 2) /* 45000 */);
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
@@ -391,45 +383,45 @@ TEST_F(MemLockManagerTest, OverrideSteal) {
 }
 
 TEST_F(MemLockManagerTest, UnlockRevealingNewStealer) {
-  scoped_ptr<NamedLock> a(MakeLock(kLock1));
-  scoped_ptr<NamedLock> b(MakeLock(kLock1));
-  scoped_ptr<NamedLock> c(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> a(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> b(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> c(MakeLock(kLock1));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
-  c->LockTimedWaitStealOld(2*kStealMs, kStealMs, LogFunction("c"));
+  c->LockTimedWaitStealOld(2 * kStealMs, kStealMs, LogFunction("c"));
   timer()->SetTimeMs(1);
   lock_manager_->Wakeup();
   EXPECT_TRUE(a->Held());
   timer()->SetTimeMs(kStealMs - (kWaitMs / 2) /* 45000 */);
-  a->Unlock();                                // grants B, C is stealer
-  Quiesce();                                  // C steals cause it has long wait
+  a->Unlock();  // grants B, C is stealer
+  Quiesce();    // C steals cause it has long wait
   EXPECT_STREQ("a(grant) b(grant) c(grant) ", log_);
 }
 
 TEST_F(MemLockManagerTest, CloseManagerWithActiveLocks) {
-  scoped_ptr<NamedLock> a(MakeLock(kLock1));
-  scoped_ptr<NamedLock> b(MakeLock(kLock1));
-  scoped_ptr<NamedLock> c(MakeLock(kLock1));
-  scoped_ptr<NamedLock> d(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> a(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> b(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> c(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> d(MakeLock(kLock1));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
   c->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("c"));
-  lock_manager_.reset(NULL);  // Locks still active.
+  lock_manager_.reset(nullptr);  // Locks still active.
   EXPECT_STREQ("a(grant) b(deny) c(deny) ", log_);
 }
 
 TEST_F(MemLockManagerTest, DeletePendingLock) {
-  scoped_ptr<NamedLock> a(MakeLock(kLock1));
-  scoped_ptr<NamedLock> b(MakeLock(kLock1));
-  scoped_ptr<NamedLock> c(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> a(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> b(MakeLock(kLock1));
+  std::unique_ptr<NamedLock> c(MakeLock(kLock1));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
   c->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("c"));
   timer()->SetTimeMs(1);
   lock_manager_->Wakeup();
   EXPECT_TRUE(a->Held());
-  b.reset(NULL);                              // Denies B.
-  a->Unlock();                                // Grants C.
+  b.reset(nullptr);  // Denies B.
+  a->Unlock();       // Grants C.
   Quiesce();
   EXPECT_STREQ("a(grant) b(deny) c(grant) ", log_);
 }

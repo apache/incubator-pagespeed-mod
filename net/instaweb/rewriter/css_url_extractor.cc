@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_url_extractor.h"
 
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -27,8 +26,7 @@
 
 namespace net_instaweb {
 
-CssUrlExtractor::~CssUrlExtractor() {
-}
+CssUrlExtractor::~CssUrlExtractor() {}
 
 void CssUrlExtractor::ExtractUrl(const StringPiece& in_text,
                                  StringVector* urls) {

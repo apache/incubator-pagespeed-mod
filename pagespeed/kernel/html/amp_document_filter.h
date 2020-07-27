@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_AMP_DOCUMENT_FILTER_H_
 #define PAGESPEED_KERNEL_HTML_AMP_DOCUMENT_FILTER_H_
 
@@ -55,7 +54,7 @@ class AmpDocumentFilter : public EmptyHtmlFilter {
   // be allocated with NewPermanentCallback.  Ownership is tranferred to
   // the filter.
   AmpDocumentFilter(HtmlParse* html_parse, BoolCallback* discovered);
-  virtual ~AmpDocumentFilter();
+  ~AmpDocumentFilter() override;
 
   void StartDocument() override;
   void EndDocument() override;

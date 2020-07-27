@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/opt/logging/request_timing_info.h"
 
 #include "base/logging.h"
@@ -38,7 +37,6 @@ bool SetValueIfGEZero(int64 in, int64* out) {
 }
 
 }  // namespace
-
 
 RequestTimingInfo::RequestTimingInfo(Timer* timer, AbstractMutex* mutex)
     : timer_(timer),
@@ -120,16 +118,14 @@ bool RequestTimingInfo::GetProcessingElapsedMs(
   return true;
 }
 
-bool RequestTimingInfo::GetTimeToStartFetchMs(
-    int64* elapsed_ms) const {
+bool RequestTimingInfo::GetTimeToStartFetchMs(int64* elapsed_ms) const {
   ScopedMutex l(mu_);
   return GetTimeFromStart(fetch_start_ts_ms_, elapsed_ms);
 }
 
-bool RequestTimingInfo::GetFetchHeaderLatencyMs(
-    int64* elapsed_ms) const {
+bool RequestTimingInfo::GetFetchHeaderLatencyMs(int64* elapsed_ms) const {
   ScopedMutex l(mu_);
-  if (fetch_header_ts_ms_ < 0 || fetch_start_ts_ms_< 0) {
+  if (fetch_header_ts_ms_ < 0 || fetch_start_ts_ms_ < 0) {
     return false;
   }
 
@@ -163,7 +159,7 @@ bool RequestTimingInfo::GetTimeToFirstByte(int64* latency_ms) const {
 }
 
 int64 RequestTimingInfo::NowMs() const {
-  if (timer_ == NULL) {
+  if (timer_ == nullptr) {
     return 0;
   }
 
@@ -175,8 +171,7 @@ void RequestTimingInfo::SetToNow(int64* ts) const {
   *ts = NowMs();
 }
 
-bool RequestTimingInfo::GetTimeFromStart(
-    int64 ts_ms, int64* elapsed_ms) const {
+bool RequestTimingInfo::GetTimeFromStart(int64 ts_ms, int64* elapsed_ms) const {
   if (ts_ms < 0 || start_ts_ms_ < 0) {
     return false;
   }
@@ -185,14 +180,12 @@ bool RequestTimingInfo::GetTimeFromStart(
   return true;
 }
 
-bool RequestTimingInfo::GetHTTPCacheLatencyMs(
-    int64* latency_ms) const {
+bool RequestTimingInfo::GetHTTPCacheLatencyMs(int64* latency_ms) const {
   ScopedMutex l(mu_);
   return SetValueIfGEZero(http_cache_latency_ms_, latency_ms);
 }
 
-bool RequestTimingInfo::GetL2HTTPCacheLatencyMs(
-    int64* latency_ms) const {
+bool RequestTimingInfo::GetL2HTTPCacheLatencyMs(int64* latency_ms) const {
   ScopedMutex l(mu_);
   return SetValueIfGEZero(l2http_cache_latency_ms_, latency_ms);
 }

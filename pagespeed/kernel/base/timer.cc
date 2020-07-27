@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/timer.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -36,15 +35,10 @@ const int64 Timer::kWeekMs;
 const int64 Timer::kMonthMs;
 const int64 Timer::kYearMs;
 
-Timer::~Timer() {
-}
+Timer::~Timer() {}
 
-int64 Timer::NowMs() const {
-  return NowUs() / 1000;
-}
+int64 Timer::NowMs() const { return NowUs() / 1000; }
 
-void Timer::SleepMs(int64 ms) {
-  SleepUs(ms * 1000);
-}
+void Timer::SleepMs(int64 ms) { SleepUs(ms * 1000); }
 
 }  // namespace net_instaweb

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_TEST_BASE_H_
 
@@ -103,6 +102,8 @@ class SharedMemTestBase : public testing::Test {
 
   AbstractSharedMemSegment* CreateDefault();
   AbstractSharedMemSegment* AttachDefault();
+  AbstractMutex* AttachDefaultMutex(AbstractSharedMemSegment* segment);
+
   void DestroyDefault();
 
   // writes '1' to the default segment's base location.
@@ -120,9 +121,9 @@ class SharedMemTestBase : public testing::Test {
 
   void MutexChild();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemTestBase);
@@ -130,14 +131,13 @@ class SharedMemTestBase : public testing::Test {
 
 // Passes in the SharedMemTestEnv to SharedMemTestBase via a template param
 // to help glue us to the test framework
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemTestTemplate : public SharedMemTestBase {
  public:
-  SharedMemTestTemplate() : SharedMemTestBase(new ConcreteTestEnv) {
-  }
+  SharedMemTestTemplate() : SharedMemTestBase(new ConcreteTestEnv) {}
 };
 
-TYPED_TEST_CASE_P(SharedMemTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemTestTemplate);
 
 TYPED_TEST_P(SharedMemTestTemplate, TestRewrite) {
   SharedMemTestBase::TestReadWrite(false);
@@ -171,10 +171,10 @@ TYPED_TEST_P(SharedMemTestTemplate, TestMutex) {
   SharedMemTestBase::TestMutex();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemTestTemplate, TestRewrite,
-                           TestRewriteReattach, TestLarge, TestDistinct,
-                           TestDestroy, TestCreateTwice, TestTwoKids,
-                           TestMutex);
+REGISTER_TYPED_TEST_SUITE_P(SharedMemTestTemplate, TestRewrite,
+                            TestRewriteReattach, TestLarge, TestDistinct,
+                            TestDestroy, TestCreateTwice, TestTwoKids,
+                            TestMutex);
 
 }  // namespace net_instaweb
 

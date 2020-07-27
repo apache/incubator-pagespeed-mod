@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_THREAD_PTHREAD_MUTEX_H_
 #define PAGESPEED_KERNEL_THREAD_PTHREAD_MUTEX_H_
 
 #include <pthread.h>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/thread_system.h"
 
@@ -31,11 +31,11 @@ namespace net_instaweb {
 class PthreadMutex : public ThreadSystem::CondvarCapableMutex {
  public:
   PthreadMutex();
-  virtual ~PthreadMutex();
-  virtual bool TryLock();
-  virtual void Lock();
-  virtual void Unlock();
-  virtual ThreadSystem::Condvar* NewCondvar();
+  ~PthreadMutex() override;
+  bool TryLock() override;
+  void Lock() override;
+  void Unlock() override;
+  ThreadSystem::Condvar* NewCondvar() override;
 
  private:
   friend class PthreadCondvar;

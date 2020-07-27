@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_PIXEL_FORMAT_OPTIMIZER_H_
 #define PAGESPEED_KERNEL_IMAGE_PIXEL_FORMAT_OPTIMIZER_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -48,54 +48,42 @@ namespace image_compression {
 class PixelFormatOptimizer : public ScanlineReaderInterface {
  public:
   explicit PixelFormatOptimizer(net_instaweb::MessageHandler* handler);
-  virtual ~PixelFormatOptimizer();
+  ~PixelFormatOptimizer() override;
 
   // PixelFormatOptimizer acquires ownership of reader, even in case of failure.
   ScanlineStatus Initialize(ScanlineReaderInterface* reader);
 
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
 
   // Resets the resizer to its initial state. Always returns true.
-  virtual bool Reset();
+  bool Reset() override;
 
   // Returns number of bytes required to store a scanline.
-  virtual size_t GetBytesPerScanline() {
-    return bytes_per_row_;
-  }
+  size_t GetBytesPerScanline() override { return bytes_per_row_; }
 
   // Returns true if there are more scanlines to read. Returns false if the
   // object has not been initialized or all of the scanlines have been read.
-  virtual bool HasMoreScanLines() {
-    return (output_row_ < GetImageHeight());
-  }
+  bool HasMoreScanLines() override { return (output_row_ < GetImageHeight()); }
 
   // Returns the height of the image.
-  virtual size_t GetImageHeight() {
-    return reader_->GetImageHeight();
-  }
+  size_t GetImageHeight() override { return reader_->GetImageHeight(); }
 
   // Returns the width of the image.
-  virtual size_t GetImageWidth() {
-    return reader_->GetImageWidth();
-  }
+  size_t GetImageWidth() override { return reader_->GetImageWidth(); }
 
   // Returns the pixel format of the image.
-  virtual PixelFormat GetPixelFormat() {
-    return pixel_format_;
-  }
+  PixelFormat GetPixelFormat() override { return pixel_format_; }
 
   // Returns true if the image is encoded in progressive / interlacing format.
-  virtual bool IsProgressive() {
-    return reader_->IsProgressive();
-  }
+  bool IsProgressive() override { return reader_->IsProgressive(); }
 
   // This method should not be called. If it does get called, in DEBUG mode it
   // will throw a FATAL error and in RELEASE mode it does nothing.
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                      size_t buffer_length) override;
 
  private:
-  net_instaweb::scoped_ptr<ScanlineReaderInterface> reader_;
+  std::unique_ptr<ScanlineReaderInterface> reader_;
   size_t bytes_per_row_;
   PixelFormat pixel_format_;
   size_t output_row_;

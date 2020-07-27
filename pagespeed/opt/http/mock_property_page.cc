@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/opt/http/mock_property_page.h"
 
 namespace net_instaweb {
 
-MockPropertyPage::~MockPropertyPage() {
-}
+MockPropertyPage::~MockPropertyPage() {}
 
 }  // namespace net_instaweb

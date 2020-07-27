@@ -17,12 +17,11 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_QUERY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_QUERY_H_
 
-#include "net/instaweb/rewriter/public/device_properties.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/rewriter/public/device_properties.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest_prod.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -57,11 +56,7 @@ class RewriteQuery {
   // * Enables filter kHandleNoscriptRedirect.
   static const char kNoscriptValue[];
 
-  enum Status {
-    kSuccess,
-    kInvalid,
-    kNoneFound
-  };
+  enum Status { kSuccess, kInvalid, kNoneFound };
 
   RewriteQuery();
   ~RewriteQuery();
@@ -96,12 +91,9 @@ class RewriteQuery {
               bool allow_options_to_be_specified_by_cookies,
               const GoogleString& request_option_override,
               const RequestContextPtr& request_context,
-              RewriteDriverFactory* factory,
-              ServerContext* server_context,
-              GoogleUrl* request_url,
-              RequestHeaders* request_headers,
-              ResponseHeaders* response_headers,
-              MessageHandler* handler);
+              RewriteDriverFactory* factory, ServerContext* server_context,
+              GoogleUrl* request_url, RequestHeaders* request_headers,
+              ResponseHeaders* response_headers, MessageHandler* handler);
 
   // Performs the request and response header scanning for Scan(). If any
   // "ModPagespeed" or "PageSpeed" options are found in the headers they are
@@ -116,9 +108,7 @@ class RewriteQuery {
                            const RequestContextPtr& request_context,
                            HeaderT* headers,
                            RequestProperties* request_properties,
-                           RewriteOptions* options,
-                           MessageHandler* handler);
-
+                           RewriteOptions* options, MessageHandler* handler);
 
   // Given a two-letter filter ID string, generates a query-param for
   // any in the driver's options that are related to the filter, and
@@ -186,13 +176,11 @@ class RewriteQuery {
       const RequestHeaders::CookieMultimap& cookies);
 
   // Examines a name/value pair for options.
-  static Status ScanNameValue(const StringPiece& name,
-                              const StringPiece& value,
+  static Status ScanNameValue(const StringPiece& name, const StringPiece& value,
                               bool allow_options,
                               const RequestContextPtr& request_context,
                               RequestProperties* request_properties,
-                              RewriteOptions* options,
-                              MessageHandler* handler);
+                              RewriteOptions* options, MessageHandler* handler);
 
   // Parses a resource option based on the specified filter's related options.
   static Status ParseResourceOption(StringPiece value, RewriteOptions* options,
@@ -201,16 +189,14 @@ class RewriteQuery {
   // Returns true if a kXPsaClientOptions header is found, parsed successfully,
   // and valid proxy_mode and image_quality are returned.
   static bool ParseClientOptions(
-      const StringPiece& client_options,
-      ProxyMode* proxy_mode,
+      const StringPiece& client_options, ProxyMode* proxy_mode,
       DeviceProperties::ImageQualityPreference* image_quality);
 
   // Set image qualities in options.
   // Returns true if any option is explicitly set.
   static bool SetEffectiveImageQualities(
       DeviceProperties::ImageQualityPreference quality_preference,
-      RequestProperties* request_properties,
-      RewriteOptions* options);
+      RequestProperties* request_properties, RewriteOptions* options);
 
   // Returns true if any option is explicitly set.
   static bool UpdateRewriteOptionsWithClientOptions(
@@ -228,7 +214,7 @@ class RewriteQuery {
   QueryParams query_params_;
   QueryParams pagespeed_query_params_;
   QueryParams pagespeed_option_cookies_;
-  scoped_ptr<RewriteOptions> options_;
+  std::unique_ptr<RewriteOptions> options_;
 
   DISALLOW_COPY_AND_ASSIGN(RewriteQuery);
 };

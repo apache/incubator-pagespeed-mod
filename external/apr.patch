@@ -1,0 +1,37 @@
+diff --git a/memory/unix/apr_pools.c b/memory/unix/apr_pools.c
+index b9cdee7..025e435 100644
+--- a/memory/unix/apr_pools.c
++++ b/memory/unix/apr_pools.c
+@@ -300,15 +300,28 @@ apr_memnode_t *allocator_alloc(apr_allocator_t *allocator, apr_size_t in_size)
+         return NULL;
+     }
+ 
++// TODO(oschaaf): take a closer look at this. TSAN will complain
++// here about the read of allocator->max_index being unsafe.
++// For now make the complaints go away by grabbing a copy with the
++// allocator lock held.
++// START PATCH
++#if APR_HAS_THREADS
++    if (allocator->mutex) apr_thread_mutex_lock(allocator->mutex);
++#endif /* APR_HAS_THREADS */
++    apr_size_t test_index = allocator->max_index;
++#if APR_HAS_THREADS
++    if (allocator->mutex) apr_thread_mutex_unlock(allocator->mutex);
++#endif /* APR_HAS_THREADS */
++// END PATCH
++
+     /* First see if there are any nodes in the area we know
+      * our node will fit into.
+      */
+-    if (index <= allocator->max_index) {
+-#if APR_HAS_THREADS
++    if (index <= test_index) {
++    #if APR_HAS_THREADS
+         if (allocator->mutex)
+             apr_thread_mutex_lock(allocator->mutex);
+-#endif /* APR_HAS_THREADS */
+-
++    #endif /* APR_HAS_THREADS */
+         /* Walk the free list to see if there are
+          * any nodes on it of the requested size
+          *

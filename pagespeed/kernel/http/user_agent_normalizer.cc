@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/http/user_agent_normalizer.h"
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/util/re2.h"
 
@@ -42,14 +40,18 @@ GoogleString UserAgentNormalizer::NormalizeWithAll(
 
 // Samples:
 // Dalvik/1.4.0 (Linux; U; Android 2.3.7; M5 Build/GRK39F)
-// Mozilla/5.0 (Linux; Android 4.1.1; Nexus 7 Build/JRO03L) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.58 Safari/537.31
-// Mozilla/5.0 (Linux; Android 4.2.2; Nexus 4 Build/JDQ39) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.58 Mobile Safari/537.31
-// Some of Samsung's phones also seem to throw in Version/1.0 before Chrome/
-// Mozilla/5.0 (Linux; U; Android 4.1.2; ar-ae; GT-I9300 Build/JZO54K) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30"
+// Mozilla/5.0 (Linux; Android 4.1.1; Nexus 7 Build/JRO03L) AppleWebKit/537.31
+// (KHTML, like Gecko) Chrome/26.0.1410.58 Safari/537.31 Mozilla/5.0 (Linux;
+// Android 4.2.2; Nexus 4 Build/JDQ39) AppleWebKit/537.31 (KHTML, like Gecko)
+// Chrome/26.0.1410.58 Mobile Safari/537.31 Some of Samsung's phones also seem
+// to throw in Version/1.0 before Chrome/ Mozilla/5.0 (Linux; U; Android 4.1.2;
+// ar-ae; GT-I9300 Build/JZO54K) AppleWebKit/534.30 (KHTML, like Gecko)
+// Version/4.0 Mobile Safari/534.30"
 
 AndroidUserAgentNormalizer::AndroidUserAgentNormalizer()
-    : dalvik_ua_("(Dalvik/[\\d\\.]+ \\(Linux; U; Android "
-                 "[^\\s;]+)[\\s;][^)]+\\)"),
+    : dalvik_ua_(
+          "(Dalvik/[\\d\\.]+ \\(Linux; U; Android "
+          "[^\\s;]+)[\\s;][^)]+\\)"),
       chrome_android_ua_(
           "(Mozilla/5.0 \\(Linux; Android [\\d\\.]+; )[^)]+(\\) "
           "AppleWebKit/[\\d\\.]+ \\(KHTML, like Gecko\\) )"
@@ -64,8 +66,7 @@ AndroidUserAgentNormalizer::AndroidUserAgentNormalizer()
   CHECK(android_browser_ua_.ok()) << android_browser_ua_.error();
 }
 
-AndroidUserAgentNormalizer::~AndroidUserAgentNormalizer() {
-}
+AndroidUserAgentNormalizer::~AndroidUserAgentNormalizer() {}
 
 GoogleString AndroidUserAgentNormalizer::Normalize(
     const GoogleString& in) const {
@@ -84,17 +85,18 @@ GoogleString AndroidUserAgentNormalizer::Normalize(
 }
 
 // Samples:
-// "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; Trident/4.0; SV1; SE 2.X MetaSr 1.0)", 69838, 0.75695
-// "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; WOW64; Trident/6.0; Touch)", 48308, 0.777381
+// "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; Trident/4.0; SV1; SE 2.X
+// MetaSr 1.0)", 69838, 0.75695 "Mozilla/5.0 (compatible; MSIE 10.0; Windows
+// NT 6.2; WOW64; Trident/6.0; Touch)", 48308, 0.777381
 
 IEUserAgentNormalizer::IEUserAgentNormalizer()
-    : ie_ua_("(Mozilla/\\d.0 \\(compatible; MSIE [\\d\\.]+)"
-             "([^)]+)\\)") {
+    : ie_ua_(
+          "(Mozilla/\\d.0 \\(compatible; MSIE [\\d\\.]+)"
+          "([^)]+)\\)") {
   CHECK(ie_ua_.ok()) << ie_ua_.error();
 }
 
-IEUserAgentNormalizer::~IEUserAgentNormalizer() {
-}
+IEUserAgentNormalizer::~IEUserAgentNormalizer() {}
 
 GoogleString IEUserAgentNormalizer::Normalize(const GoogleString& in) const {
   Re2StringPiece match, match2;

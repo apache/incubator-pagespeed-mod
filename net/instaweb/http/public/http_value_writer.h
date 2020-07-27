@@ -35,9 +35,7 @@ class ResponseHeaders;
 class HTTPValueWriter {
  public:
   HTTPValueWriter(HTTPValue* value, HTTPCache* cache)
-      : value_(value),
-        cache_(cache),
-        has_buffered_(true) {}
+      : value_(value), cache_(cache), has_buffered_(true) {}
 
   void SetHeaders(ResponseHeaders* headers);
 

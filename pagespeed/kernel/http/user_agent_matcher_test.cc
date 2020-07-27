@@ -17,17 +17,16 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/http/user_agent_matcher.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/http/request_headers.h"
-#include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 namespace net_instaweb {
 
-class UserAgentMatcherTest : public UserAgentMatcherTestBase {
-};
+class UserAgentMatcherTest : public UserAgentMatcherTestBase {};
 
 TEST_F(UserAgentMatcherTest, IsIeTest) {
   EXPECT_TRUE(user_agent_matcher_->IsIe(kIe6UserAgent));
@@ -46,85 +45,62 @@ TEST_F(UserAgentMatcherTest, SupportsImageInlining) {
 }
 
 TEST_F(UserAgentMatcherTest, SupportsLazyloadImages) {
-  EXPECT_TRUE(user_agent_matcher_->SupportsLazyloadImages(
-      kChromeUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsLazyloadImages(
-      kFirefoxUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsLazyloadImages(
-      kIPhoneUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsLazyloadImages(
-      kBlackBerryOS6UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsLazyloadImages(
-      kBlackBerryOS5UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsLazyloadImages(
-      kGooglePlusUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsLazyloadImages(kChromeUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsLazyloadImages(kFirefoxUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsLazyloadImages(kIPhoneUserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsLazyloadImages(kBlackBerryOS6UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsLazyloadImages(kBlackBerryOS5UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsLazyloadImages(kGooglePlusUserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, NotSupportsImageInlining) {
-  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(
-      kIe6UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(
-      kFirefox1UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(
-      kNokiaUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(
-      kOpera5UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(
-      kPSPUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(
-      kGooglePlusUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsImageInlining(
-      kAndroidChrome18UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(kIe6UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(kFirefox1UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(kNokiaUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(kOpera5UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsImageInlining(kPSPUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsImageInlining(kGooglePlusUserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsImageInlining(kAndroidChrome18UserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, SupportsJsDefer) {
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kIe9UserAgent, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kIe9UserAgent, false));
   for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-        kIe11UserAgents[i], false)) << i << ": " << kIe11UserAgents[i];
+    EXPECT_FALSE(
+        user_agent_matcher_->SupportsJsDefer(kIe11UserAgents[i], false))
+        << i << ": " << kIe11UserAgents[i];
   }
-  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(
-      kChromeUserAgent, false));
-  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(
-      kFirefoxUserAgent, false));
-  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(
-      kSafariUserAgent, false));
+  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(kChromeUserAgent, false));
+  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(kFirefoxUserAgent, false));
+  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(kSafariUserAgent, false));
 }
 
 TEST_F(UserAgentMatcherTest, SupportsJsDeferAllowMobile) {
-  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(
-      kAndroidHCUserAgent, true));
-  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(
-      kIPhone4Safari, true));
+  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(kAndroidHCUserAgent, true));
+  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(kIPhone4Safari, true));
   // Desktop is also supported.
-  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(
-      kChromeUserAgent, true));
+  EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(kChromeUserAgent, true));
 }
 
 TEST_F(UserAgentMatcherTest, NotSupportsJsDefer) {
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kIe6UserAgent, false));
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kIe8UserAgent, false));
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kFirefox1UserAgent, false));
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kFirefox3UserAgent, false));
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kNokiaUserAgent, false));
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kOpera5UserAgent, false));
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kPSPUserAgent, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kIe6UserAgent, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kIe8UserAgent, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kFirefox1UserAgent, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kFirefox3UserAgent, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kNokiaUserAgent, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kOpera5UserAgent, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kPSPUserAgent, false));
   // Mobile is not supported too.
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kIPhone4Safari, false));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kIPhone4Safari, false));
 }
 
 TEST_F(UserAgentMatcherTest, NotSupportsJsDeferAllowMobile) {
-  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(
-      kOperaMobi9, true));
+  EXPECT_FALSE(user_agent_matcher_->SupportsJsDefer(kOperaMobi9, true));
 }
 
 // Googlebot for mobile generally includes the UA for the mobile device
@@ -161,8 +137,7 @@ TEST_F(UserAgentMatcherTest, MobileBotSupportsJsDefer) {
   "(compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 TEST_F(UserAgentMatcherTest, DesktopBotSupportsJsDefer) {
   // https://support.google.com/webmasters/answer/1061943?hl=en
-  const char kGooglebotNormal[] =
-      "Mozilla/5.0 " GOOGLEBOT_DESKTOP;
+  const char kGooglebotNormal[] = "Mozilla/5.0 " GOOGLEBOT_DESKTOP;
   EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(kGooglebotNormal, true));
 
   const char kGooglebotRare[] =
@@ -186,112 +161,70 @@ TEST_F(UserAgentMatcherTest, DesktopBotSupportsJsDefer) {
 
   // This UA was extrapolated from the snippet when google-searching for
   // "what's my user agent" from Firefox.
-  const char kGoogleBotFirefoxUA[] =
-      "Mozilla/5.0 " GOOGLEBOT_DESKTOP " Mozilla/5.0 (Windows NT 6.1; WOW64; "
-      "rv:24.0) Gecko/20100101 Firefox/24.0";
+  const char kGoogleBotFirefoxUA[] = "Mozilla/5.0 " GOOGLEBOT_DESKTOP
+                                     " Mozilla/5.0 (Windows NT 6.1; WOW64; "
+                                     "rv:24.0) Gecko/20100101 Firefox/24.0";
   EXPECT_TRUE(user_agent_matcher_->SupportsJsDefer(kGoogleBotFirefoxUA, true));
 }
 
 TEST_F(UserAgentMatcherTest, WebpCapableLackingAcceptHeader) {
   EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kTestingWebp));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kTestingWebpLosslessAlpha));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kTestingWebpLosslessAlpha));
 
-  EXPECT_TRUE(user_agent_matcher_->LegacyWebp(
-      kAndroidICSUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kChrome12UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kChrome18UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kOpera1110UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIPadChrome29UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIPadChrome36UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIPhoneChrome36UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kOperaWithFirefoxUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->LegacyWebp(kAndroidICSUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kChrome12UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kChrome18UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kOpera1110UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIPadChrome29UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIPadChrome36UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIPhoneChrome36UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kOperaWithFirefoxUserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, DoesntSupportWebp) {
   // The most interesting tests here are the recent but slightly older versions
   // of Chrome and Opera that can't display webp.
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kAndroidHCUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kChromeUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kChrome9UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kChrome15UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kOpera1101UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kFirefoxUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kFirefox1UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kFirefox42AndroidUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIe6UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIe7UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIe8UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIe9UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kAndroidHCUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kChromeUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kChrome9UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kChrome15UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kOpera1101UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kFirefoxUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kFirefox1UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kFirefox42AndroidUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIe6UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIe7UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIe8UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIe9UserAgent));
   for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-        kIe11UserAgents[i]));
+    EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIe11UserAgents[i]));
   }
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIPhoneUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kNokiaUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kOpera5UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kOpera8UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kPSPUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kSafariUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIPhoneChrome21UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kIPadChrome28UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(
-      kWindowsPhoneUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIPhoneUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kNokiaUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kOpera5UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kOpera8UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kPSPUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kSafariUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIPhoneChrome21UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kIPadChrome28UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->LegacyWebp(kWindowsPhoneUserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, IsAndroidUserAgentTest) {
-  EXPECT_TRUE(user_agent_matcher_->IsAndroidUserAgent(
-      kAndroidHCUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->IsAndroidUserAgent(
-      kIe6UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsAndroidUserAgent(kAndroidHCUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->IsAndroidUserAgent(kIe6UserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, IsiOSUserAgentTest) {
-  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(
-      kIPhoneUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(
-      kIPadUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(
-      kIPodSafari));
-  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(
-      kIPhoneChrome21UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(
-      kIPadChrome28UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(
-      kIPadChrome29UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(
-      kIPadChrome36UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(
-      kIPhoneChrome36UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->IsiOSUserAgent(
-      kIe6UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(kIPhoneUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(kIPadUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(kIPodSafari));
+  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(kIPhoneChrome21UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(kIPadChrome28UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(kIPadChrome29UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(kIPadChrome36UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->IsiOSUserAgent(kIPhoneChrome36UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->IsiOSUserAgent(kIe6UserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, ChromeBuildNumberTest) {
@@ -308,8 +241,7 @@ TEST_F(UserAgentMatcherTest, ChromeBuildNumberTest) {
 
   // On iOS it's "CriOS", not "Chrome".
   EXPECT_TRUE(user_agent_matcher_->GetChromeBuildNumber(
-      kIPhoneChrome21UserAgent, &major, &minor, &build,
-      &patch));
+      kIPhoneChrome21UserAgent, &major, &minor, &build, &patch));
   EXPECT_EQ(major, 21);
   EXPECT_EQ(minor, 0);
   EXPECT_EQ(build, 1180);
@@ -351,48 +283,36 @@ TEST_F(UserAgentMatcherTest, ExceedsChromeBuildAndPatchTest) {
 }
 
 TEST_F(UserAgentMatcherTest, SupportsDnsPrefetch) {
-  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(
-      kChromeUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(
-      kIe9UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(
-      kFirefox5UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(
-      kSafari6UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(
-      kSafari9UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(kChromeUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(kIe9UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(kFirefox5UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(kSafari6UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(kSafari9UserAgent));
   for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(
-        kIe11UserAgents[i]));
+    EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetch(kIe11UserAgents[i]));
   }
 }
 
 TEST_F(UserAgentMatcherTest, DoesntSupportDnsPrefetch) {
-  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(
-      kFirefox1UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(
-      kIe6UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(
-      kIe7UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(
-      kIe8UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(
-      kSafariUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(kFirefox1UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(kIe6UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(kIe7UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(kIe8UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetch(kSafariUserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, SupportsWebpLosslessAlpha) {
   EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
       kTestingWebpLosslessAlpha));
-  EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIPadChrome29UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIPadChrome36UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIPhoneChrome36UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kNexus10ChromeUserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      XT907UserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kIPadChrome29UserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kIPadChrome36UserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kIPhoneChrome36UserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kNexus10ChromeUserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(XT907UserAgent));
   EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
       kPagespeedInsightsMobileUserAgent));
   EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
@@ -404,75 +324,66 @@ TEST_F(UserAgentMatcherTest, SupportsWebpLosslessAlpha) {
 TEST_F(UserAgentMatcherTest, DoesntSupportWebpLosslessAlpha) {
   // The most interesting tests here are the recent but slightly older versions
   // of Chrome and Opera that can't display webp.
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kTestingWebp));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kAndroidICSUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kChrome12UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kChrome18UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kOpera1110UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(kTestingWebp));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kAndroidICSUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kChrome12UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kChrome18UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kOpera1110UserAgent));
 
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kAndroidHCUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kChromeUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kChrome9UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kChrome15UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kOpera1101UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kFirefoxUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kFirefox1UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIe6UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIe7UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIe8UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIe9UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kAndroidHCUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kChromeUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kChrome9UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kChrome15UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kOpera1101UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kFirefoxUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kFirefox1UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(kIe6UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(kIe7UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(kIe8UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(kIe9UserAgent));
   for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
-    EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-        kIe11UserAgents[i]));
+    EXPECT_FALSE(
+        user_agent_matcher_->SupportsWebpLosslessAlpha(kIe11UserAgents[i]));
   }
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIPhoneUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kNokiaUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kOpera5UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kOpera8UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kPSPUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kSafariUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kIPadChrome28UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(
-      kWindowsPhoneUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kIPhoneUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(kNokiaUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kOpera5UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kOpera8UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpLosslessAlpha(kPSPUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kSafariUserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kIPadChrome28UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kWindowsPhoneUserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, SupportsDnsPrefetchUsingRelPrefetch) {
-  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetchUsingRelPrefetch(
-      kIe6UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetchUsingRelPrefetch(
-      kIe7UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsDnsPrefetchUsingRelPrefetch(
-      kIe8UserAgent));
-  EXPECT_TRUE(user_agent_matcher_->SupportsDnsPrefetchUsingRelPrefetch(
-      kIe9UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsDnsPrefetchUsingRelPrefetch(kIe6UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsDnsPrefetchUsingRelPrefetch(kIe7UserAgent));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsDnsPrefetchUsingRelPrefetch(kIe8UserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsDnsPrefetchUsingRelPrefetch(kIe9UserAgent));
 }
 
-TEST_F(UserAgentMatcherTest, GetDeviceTypeForUA) {
-  VerifyGetDeviceTypeForUA();
-}
+TEST_F(UserAgentMatcherTest, GetDeviceTypeForUA) { VerifyGetDeviceTypeForUA(); }
 
 TEST_F(UserAgentMatcherTest, IE11NoDeferJs) {
   for (int i = 0; i < kIe11UserAgentsArraySize; ++i) {
@@ -481,9 +392,7 @@ TEST_F(UserAgentMatcherTest, IE11NoDeferJs) {
   }
 }
 
-TEST_F(UserAgentMatcherTest, Mobilization) {
-  VerifyMobilizationSupport();
-}
+TEST_F(UserAgentMatcherTest, Mobilization) { VerifyMobilizationSupport(); }
 
 TEST_F(UserAgentMatcherTest, SupportsAnimatedWebp) {
   EXPECT_TRUE(user_agent_matcher_->SupportsWebpAnimated(
@@ -502,26 +411,17 @@ TEST_F(UserAgentMatcherTest, SupportsAnimatedWebp) {
 }
 
 TEST_F(UserAgentMatcherTest, DoesntSupportAnimatedWebp) {
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kChrome31UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kCriOS31UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kOpera18UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kChrome18UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kOpera1110UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kAndroidICSUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kFirefoxUserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kIe10UserAgent));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kIPhone4Safari));
-  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
-      kWindowsPhoneUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kChrome31UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kCriOS31UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kOpera18UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kChrome18UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kOpera1110UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kAndroidICSUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kFirefoxUserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kIe10UserAgent));
+  EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(kIPhone4Safari));
+  EXPECT_FALSE(
+      user_agent_matcher_->SupportsWebpAnimated(kWindowsPhoneUserAgent));
   EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(
       kPagespeedInsightsMobileUserAgent));
   EXPECT_FALSE(user_agent_matcher_->SupportsWebpAnimated(

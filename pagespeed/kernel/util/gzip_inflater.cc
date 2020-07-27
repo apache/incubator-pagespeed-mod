@@ -17,21 +17,21 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/gzip_inflater.h"
 
 #include <cstddef>
 #include <cstdlib>
+
 #include "base/logging.h"
 #ifdef USE_SYSTEM_ZLIB
-#include "zlib.h"  // NOLINT
 #include "zconf.h"  // NOLINT
+#include "zlib.h"   // NOLINT
 #else
-#include "third_party/zlib/src/zlib.h"
-#include "third_party/zlib/src/zconf.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zconf.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zlib.h"
 #endif
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
+#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/writer.h"
 
 namespace {
@@ -43,8 +43,7 @@ struct ZlibSnapshot {
       : total_out(zlib->total_out),
         total_in(zlib->total_in),
         avail_in(zlib->avail_in),
-        next_in(zlib->next_in) {
-  }
+        next_in(zlib->next_in) {}
 
   const uLong total_out;
   const uLong total_in;
@@ -69,7 +68,7 @@ bool IsValidZlibStreamHeaderByte(uint8 first_byte) {
 namespace net_instaweb {
 
 GzipInflater::GzipInflater(InflateType type)
-    : zlib_(NULL),
+    : zlib_(nullptr),
       format_(type == kGzip ? FORMAT_GZIP : FORMAT_ZLIB_STREAM),
       finished_(false),
       error_(false) {
@@ -79,12 +78,10 @@ GzipInflater::GzipInflater(InflateType type)
   }
 }
 
-GzipInflater::~GzipInflater() {
-  Free();
-}
+GzipInflater::~GzipInflater() { Free(); }
 
 void GzipInflater::Free() {
-  if (zlib_ == NULL) {
+  if (zlib_ == nullptr) {
     // Already freed.
     return;
   }
@@ -96,12 +93,12 @@ void GzipInflater::Free() {
 
   free(zlib_);
 
-  zlib_ = NULL;
+  zlib_ = nullptr;
 }
 
 /* static */
-bool GzipInflater::GetWindowBitsForFormat(
-    StreamFormat format, int* out_window_bits) {
+bool GzipInflater::GetWindowBitsForFormat(StreamFormat format,
+                                          int* out_window_bits) {
   // From zlib.h:
   //  [For zlib stream format] the windowBits parameter is the base
   //  two logarithm of the window size... windowBits can also be
@@ -123,12 +120,12 @@ bool GzipInflater::GetWindowBitsForFormat(
 }
 
 bool GzipInflater::Init() {
-  if (zlib_ != NULL) {
+  if (zlib_ != nullptr) {
     return false;
   }
 
-  zlib_ = static_cast<z_stream *>(malloc(sizeof(z_stream)));
-  if (zlib_ == NULL) {
+  zlib_ = static_cast<z_stream*>(malloc(sizeof(z_stream)));
+  if (zlib_ == nullptr) {
     return false;
   }
   memset(zlib_, 0, sizeof(z_stream));
@@ -150,7 +147,7 @@ bool GzipInflater::Init() {
 }
 
 bool GzipInflater::HasUnconsumedInput() const {
-  if (zlib_ == NULL) {
+  if (zlib_ == nullptr) {
     return false;
   }
 
@@ -161,8 +158,8 @@ bool GzipInflater::HasUnconsumedInput() const {
   return zlib_->avail_in > 0;
 }
 
-bool GzipInflater::SetInput(const void *in, size_t in_size) {
-  if (zlib_ == NULL) {
+bool GzipInflater::SetInput(const void* in, size_t in_size) {
+  if (zlib_ == nullptr) {
     return false;
   }
 
@@ -178,12 +175,11 @@ bool GzipInflater::SetInput(const void *in, size_t in_size) {
     return false;
   }
 
-  if (in == NULL || in_size == 0) {
+  if (in == nullptr || in_size == 0) {
     return false;
   }
 
-  if (format_ == FORMAT_ZLIB_STREAM &&
-      zlib_->total_in == 0 &&
+  if (format_ == FORMAT_ZLIB_STREAM && zlib_->total_in == 0 &&
       !IsValidZlibStreamHeaderByte(static_cast<const uint8*>(in)[0])) {
     // Special case: Content-Encoding: deflate can sometimes be zlib
     // stream and sometimes be raw deflate. The header byte is not a
@@ -199,10 +195,10 @@ bool GzipInflater::SetInput(const void *in, size_t in_size) {
   return true;
 }
 
-void GzipInflater::SetInputInternal(const void *in, size_t in_size) {
+void GzipInflater::SetInputInternal(const void* in, size_t in_size) {
   // The zlib library won't modify the buffer, but it does not use
   // const here, so we must const cast.
-  zlib_->next_in  = const_cast<Bytef *>(reinterpret_cast<const Bytef *>(in));
+  zlib_->next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(in));
   zlib_->avail_in = static_cast<uInt>(in_size);
 }
 
@@ -233,8 +229,8 @@ void GzipInflater::SwitchToRawDeflateFormat() {
   Init();
 }
 
-int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
-  if (zlib_ == NULL) {
+int GzipInflater::InflateBytes(char* buf, size_t buf_size) {
+  if (zlib_ == nullptr) {
     return -1;
   }
 
@@ -250,11 +246,11 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
     return -1;
   }
 
-  if (buf == NULL || buf_size == 0) {
+  if (buf == nullptr || buf_size == 0) {
     return -1;
   }
 
-  zlib_->next_out = reinterpret_cast<Bytef *>(buf);
+  zlib_->next_out = reinterpret_cast<Bytef*>(buf);
   zlib_->avail_out = static_cast<uInt>(buf_size);
 
   // Take a snapshot of the zlib state before we attempt to inflate,
@@ -262,8 +258,7 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
   const ZlibSnapshot zlib_snapshot(zlib_);
   int err = inflate(zlib_, Z_SYNC_FLUSH);
 
-  if (format_ == FORMAT_ZLIB_STREAM &&
-      zlib_snapshot.total_in == 0 &&
+  if (format_ == FORMAT_ZLIB_STREAM && zlib_snapshot.total_in == 0 &&
       err == Z_DATA_ERROR) {
     // Special case: Content-Encoding: deflate can sometimes be zlib
     // stream and sometimes be raw deflate. We failed to decode the
@@ -275,9 +270,9 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
     // comments in SwitchToRawDeflateFormat for more information.
     LOG(INFO) << "Failed to decode as zlib stream. Trying raw deflate.";
     SwitchToRawDeflateFormat();
-    zlib_->next_in  = zlib_snapshot.next_in;
+    zlib_->next_in = zlib_snapshot.next_in;
     zlib_->avail_in = zlib_snapshot.avail_in;
-    zlib_->next_out = reinterpret_cast<Bytef *>(buf);
+    zlib_->next_out = reinterpret_cast<Bytef*>(buf);
     zlib_->avail_out = static_cast<uInt>(buf_size);
     err = inflate(zlib_, Z_SYNC_FLUSH);
   }
@@ -306,9 +301,7 @@ int GzipInflater::InflateBytes(char *buf, size_t buf_size) {
   return static_cast<int>(inflated_bytes);
 }
 
-void GzipInflater::ShutDown() {
-  Free();
-}
+void GzipInflater::ShutDown() { Free(); }
 
 // One-shot contiguous-buffer inflate/deflate code adapted from
 // http://www.zlib.net/zpipe.c.  The Inflate usage model here is
@@ -316,7 +309,7 @@ void GzipInflater::ShutDown() {
 //
 // TODO(jmarantz): make an incremental interface to Deflate.
 bool GzipInflater::Deflate(StringPiece in, InflateType format,
-                           int compression_level, Writer *writer) {
+                           int compression_level, Writer* writer) {
   z_stream strm;
   char out[kStackBufferSize];
 
@@ -348,12 +341,12 @@ bool GzipInflater::Deflate(StringPiece in, InflateType format,
   do {
     strm.avail_out = kStackBufferSize;
     strm.next_out = reinterpret_cast<Byte*>(out);
-    ret = deflate(&strm, Z_FINISH);    // no bad return value
+    ret = deflate(&strm, Z_FINISH);  // no bad return value
     if (ret == Z_STREAM_ERROR) {
       return false;
     }
     int have = kStackBufferSize - strm.avail_out;
-    if (!writer->Write(StringPiece(out, have), NULL)) {
+    if (!writer->Write(StringPiece(out, have), nullptr)) {
       deflateEnd(&strm);
       return false;
     }
@@ -417,7 +410,7 @@ bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer* writer) {
         break;
     }
     int have = kOutSize - strm.avail_out;
-    if (!writer->Write(StringPiece(static_cast<char*>(out), have), NULL)) {
+    if (!writer->Write(StringPiece(static_cast<char*>(out), have), nullptr)) {
       inflateEnd(&strm);
       return false;
     }
@@ -430,9 +423,8 @@ bool GzipInflater::Inflate(StringPiece in, InflateType format, Writer* writer) {
 
 // All gzip files start with a ten-byte header beginning with 0x1f8b.
 bool GzipInflater::HasGzipMagicBytes(StringPiece in) {
-  return in.size() >= 10 &&
-      in[0] == static_cast<char>(0x1f) &&
-      in[1] == static_cast<char>(0x8b);
+  return in.size() >= 10 && in[0] == static_cast<char>(0x1f) &&
+         in[1] == static_cast<char>(0x8b);
 }
 
 }  // namespace net_instaweb

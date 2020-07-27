@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Tokenizing JavaScript is tricky.  Most programming languages can be lexed
 // and parsed separately; for example, in Java, given the code fragment "(x +
 // y) / z", you can divide it up into tokens "(", "x", "+", and so on without
@@ -148,11 +147,11 @@
 
 #include "pagespeed/kernel/js/js_tokenizer.h"
 
-#include <stddef.h>
+#include <cstddef>
 #include <vector>
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/js/js_keywords.h"
@@ -304,10 +303,12 @@ const char* const kLineContinuationRegex =
 
 }  // namespace
 
-JsTokenizer::JsTokenizer(const JsTokenizerPatterns* patterns,
-                         StringPiece input)
-    : patterns_(patterns), input_(input), json_step_(kJsonStart),
-      start_of_line_(true), error_(false) {
+JsTokenizer::JsTokenizer(const JsTokenizerPatterns* patterns, StringPiece input)
+    : patterns_(patterns),
+      input_(input),
+      json_step_(kJsonStart),
+      start_of_line_(true),
+      error_(false) {
   parse_stack_.push_back(kStartOfInput);
 }
 
@@ -398,18 +399,17 @@ JsKeywords::Type JsTokenizer::NextToken(StringPiece* token_out) {
       // digit or with a period.  This line covers the starts-with-digit case,
       // while ConsumePeriod above checks for the starts-with-period case.
       return ConsumeNumber(token_out);
-    default:
-      {
-        JsKeywords::Type type;
-        if (TryConsumeIdentifierOrKeyword(&type, token_out) ||
-            TryConsumeComment(&type, token_out) ||
-            TryConsumeWhitespace(true, &type, token_out)) {
-          return type;
-        }
-        // If all else fails, maybe this is an operator.  If not,
-        // ConsumeOperator will return an error token.
-        return ConsumeOperator(token_out);
+    default: {
+      JsKeywords::Type type;
+      if (TryConsumeIdentifierOrKeyword(&type, token_out) ||
+          TryConsumeComment(&type, token_out) ||
+          TryConsumeWhitespace(true, &type, token_out)) {
+        return type;
       }
+      // If all else fails, maybe this is an operator.  If not,
+      // ConsumeOperator will return an error token.
+      return ConsumeOperator(token_out);
+    }
   }
 }
 
@@ -421,19 +421,45 @@ GoogleString JsTokenizer::ParseStackForTest() const {
       output.push_back(' ');
     }
     switch (*iter) {
-      case kStartOfInput: output.append("Start"); break;
-      case kExpression:   output.append("Expr");  break;
-      case kOperator:     output.append("Oper");  break;
-      case kPeriod:       output.append(".");     break;
-      case kQuestionMark: output.append("?");     break;
-      case kOpenBrace:    output.append("{");     break;
-      case kOpenBracket:  output.append("[");     break;
-      case kOpenParen:    output.append("(");     break;
-      case kBlockKeyword: output.append("BkKwd"); break;
-      case kBlockHeader:  output.append("BkHdr"); break;
-      case kReturnThrow:  output.append("RetTh"); break;
-      case kJumpKeyword:  output.append("Jump");  break;
-      case kOtherKeyword: output.append("Other"); break;
+      case kStartOfInput:
+        output.append("Start");
+        break;
+      case kExpression:
+        output.append("Expr");
+        break;
+      case kOperator:
+        output.append("Oper");
+        break;
+      case kPeriod:
+        output.append(".");
+        break;
+      case kQuestionMark:
+        output.append("?");
+        break;
+      case kOpenBrace:
+        output.append("{");
+        break;
+      case kOpenBracket:
+        output.append("[");
+        break;
+      case kOpenParen:
+        output.append("(");
+        break;
+      case kBlockKeyword:
+        output.append("BkKwd");
+        break;
+      case kBlockHeader:
+        output.append("BkHdr");
+        break;
+      case kReturnThrow:
+        output.append("RetTh");
+        break;
+      case kJumpKeyword:
+        output.append("Jump");
+        break;
+      case kOtherKeyword:
+        output.append("Other");
+        break;
       default:
         LOG(DFATAL) << "Unknown parse state: " << *iter;
         output.append("UNKNOWN");
@@ -523,9 +549,9 @@ JsKeywords::Type JsTokenizer::ConsumeCloseBracket(StringPiece* token_out) {
     if (state == kOpenBracket) {
       parse_stack_.pop_back();
       break;
-    } else if (state == kStartOfInput ||
-               state == kOpenBrace || state == kOpenParen ||
-               state == kBlockKeyword || state == kBlockHeader) {
+    } else if (state == kStartOfInput || state == kOpenBrace ||
+               state == kOpenParen || state == kBlockKeyword ||
+               state == kBlockHeader) {
       return Error(token_out);
     } else {
       parse_stack_.pop_back();
@@ -557,9 +583,9 @@ JsKeywords::Type JsTokenizer::ConsumeCloseParen(StringPiece* token_out) {
     if (state == kOpenParen) {
       parse_stack_.pop_back();
       break;
-    } else if (state == kStartOfInput ||
-               state == kOpenBrace || state == kOpenBracket ||
-               state == kBlockKeyword || state == kBlockHeader) {
+    } else if (state == kStartOfInput || state == kOpenBrace ||
+               state == kOpenBracket || state == kBlockKeyword ||
+               state == kBlockHeader) {
       return Error(token_out);
     } else {
       parse_stack_.pop_back();
@@ -600,12 +626,11 @@ JsKeywords::Type JsTokenizer::ConsumeLineComment(StringPiece* token_out) {
     return Error(token_out);
   }
   return Emit(JsKeywords::kComment,
-              input_.size() - unconsumed.size() - linebreak.size(),
-              token_out);
+              input_.size() - unconsumed.size() - linebreak.size(), token_out);
 }
 
-bool JsTokenizer::TryConsumeComment(
-    JsKeywords::Type* type_out, StringPiece* token_out) {
+bool JsTokenizer::TryConsumeComment(JsKeywords::Type* type_out,
+                                    StringPiece* token_out) {
   DCHECK(!input_.empty());
   if (strings::StartsWith(input_, "/*")) {
     *type_out = ConsumeBlockComment(token_out);
@@ -711,8 +736,8 @@ JsKeywords::Type JsTokenizer::ConsumeComma(StringPiece* token_out) {
   return Emit(JsKeywords::kOperator, 1, token_out);
 }
 
-bool JsTokenizer::TryConsumeIdentifierOrKeyword(
-    JsKeywords::Type* type_out, StringPiece* token_out) {
+bool JsTokenizer::TryConsumeIdentifierOrKeyword(JsKeywords::Type* type_out,
+                                                StringPiece* token_out) {
   DCHECK(!input_.empty());
   // This method gets very hot under load, and regex matching is slow.  We need
   // RE2 here mainly for the unicode support, but most JS files are plain
@@ -899,8 +924,7 @@ JsKeywords::Type JsTokenizer::ConsumeOperator(StringPiece* token_out) {
   // Is this a postfix operator?  We treat those differently than prefix or
   // unary operators.
   DCHECK(!parse_stack_.empty());
-  if ((token == "++" || token == "--") &&
-      parse_stack_.back() == kExpression) {
+  if ((token == "++" || token == "--") && parse_stack_.back() == kExpression) {
     // Postfix operator; leave the parse state as kExpression.
   } else {
     // Prefix or binary operator; push it onto the stack.
@@ -912,7 +936,7 @@ JsKeywords::Type JsTokenizer::ConsumeOperator(StringPiece* token_out) {
 JsKeywords::Type JsTokenizer::ConsumePeriod(StringPiece* token_out) {
   DCHECK(!input_.empty());
   DCHECK_EQ('.', input_[0]);
-  if (input_.size()  >= 2) {
+  if (input_.size() >= 2) {
     const int next = input_[1];
     if (next >= '0' && next <= '9') {
       return ConsumeNumber(token_out);
@@ -1030,9 +1054,9 @@ JsKeywords::Type JsTokenizer::ConsumeString(StringPiece* token_out) {
               token_out);
 }
 
-bool JsTokenizer::TryConsumeWhitespace(
-    bool allow_semicolon_insertion,
-    JsKeywords::Type* type_out, StringPiece* token_out) {
+bool JsTokenizer::TryConsumeWhitespace(bool allow_semicolon_insertion,
+                                       JsKeywords::Type* type_out,
+                                       StringPiece* token_out) {
   DCHECK(!input_.empty());
   // This method gets very hot under load, and regex matching is slow.  We need
   // RE2 here mainly for the unicode support, but most JS files are plain
@@ -1194,10 +1218,9 @@ bool JsTokenizer::TryInsertLinebreakSemicolon() {
   {
     JsKeywords::Type type;
     StringPiece token;
-    while (!input_.empty() &&
-           (TryConsumeComment(&type, &token) ||
-            TryConsumeWhitespace(false, &type, &token))) {
-      lookahead_queue_.push_back(std::make_pair(type, token));
+    while (!input_.empty() && (TryConsumeComment(&type, &token) ||
+                               TryConsumeWhitespace(false, &type, &token))) {
+      lookahead_queue_.emplace_back(type, token);
     }
   }
   // Even if semicolon insertion would technically happen for the linebreak
@@ -1222,8 +1245,9 @@ bool JsTokenizer::TryInsertLinebreakSemicolon() {
     case kExpression:
       // A statement can't end with an unclosed paren or bracket; in
       // particular, semicolons for a for-loop header are never inserted.
-      for (std::vector<ParseState>::const_reverse_iterator iter =
-               parse_stack_.rbegin(), end = parse_stack_.rend();
+      for (std::vector<ParseState>::const_reverse_iterator
+               iter = parse_stack_.rbegin(),
+               end = parse_stack_.rend();
            iter != end; ++iter) {
         const ParseState state = *iter;
         if (state == kOpenParen || state == kOpenBracket) {

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_COMBINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_COMBINE_FILTER_H_
 
@@ -48,24 +47,24 @@ class CssCombineFilter : public RewriteFilter {
   static const char kCssFileCountReduction[];
 
   explicit CssCombineFilter(RewriteDriver* rewrite_driver);
-  virtual ~CssCombineFilter();
+  ~CssCombineFilter() override;
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element) {}
-  virtual void Flush();
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual const char* Name() const { return "CssCombine"; }
-  virtual const UrlSegmentEncoder* encoder() const {
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override {}
+  void Flush() override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  const char* Name() const override { return "CssCombine"; }
+  const UrlSegmentEncoder* encoder() const override {
     return &multipart_encoder_;
   }
 
-  virtual RewriteContext* MakeRewriteContext();
-  virtual const char* id() const { return RewriteOptions::kCssCombinerId; }
+  RewriteContext* MakeRewriteContext() override;
+  const char* id() const override { return RewriteOptions::kCssCombinerId; }
 
  private:
   class Context;
@@ -75,7 +74,7 @@ class CssCombineFilter : public RewriteFilter {
   void NextCombination(StringPiece debug_help);
   Context* MakeContext();
 
-  scoped_ptr<Context> context_;
+  std::unique_ptr<Context> context_;
   UrlMultipartEncoder multipart_encoder_;
   bool end_document_found_;
   int css_links_;  // # of CSS <link>s found on this page.

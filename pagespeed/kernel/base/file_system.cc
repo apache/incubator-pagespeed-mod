@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/file_system.h"
 
 #include <cstddef>
@@ -32,21 +31,15 @@
 
 namespace net_instaweb {
 
-FileSystem::~FileSystem() {
-}
+FileSystem::~FileSystem() {}
 
-FileSystem::File::~File() {
-}
+FileSystem::File::~File() {}
 
-FileSystem::InputFile::~InputFile() {
-}
+FileSystem::InputFile::~InputFile() {}
 
-FileSystem::OutputFile::~OutputFile() {
-}
+FileSystem::OutputFile::~OutputFile() {}
 
-int FileSystem::MaxPathLength(const StringPiece& base) const {
-  return 8192;
-}
+int FileSystem::MaxPathLength(const StringPiece& base) const { return 8192; }
 
 bool FileSystem::ReadFile(const char* filename, GoogleString* buffer,
                           MessageHandler* message_handler) {
@@ -81,9 +74,9 @@ bool FileSystem::ReadFile(InputFile* input_file, Writer* writer,
   return ReadFile(input_file, kUnlimitedSize, writer, message_handler);
 }
 
-bool FileSystem::ReadFile(
-    InputFile* input_file, int64 max_file_size, GoogleString* buffer,
-    MessageHandler* message_handler) {
+bool FileSystem::ReadFile(InputFile* input_file, int64 max_file_size,
+                          GoogleString* buffer,
+                          MessageHandler* message_handler) {
   bool ret = false;
   if (input_file != nullptr) {
     ret = input_file->ReadFile(buffer, max_file_size, message_handler);
@@ -100,8 +93,8 @@ bool FileSystem::ReadFile(InputFile* input_file, int64 max_file_size,
     int nread;
     ret = true;
     int64 total_size = 0;
-    while (ret && ((nread = input_file->Read(
-               buf, sizeof(buf), message_handler)) > 0)) {
+    while (ret && ((nread = input_file->Read(buf, sizeof(buf),
+                                             message_handler)) > 0)) {
       if (max_file_size != kUnlimitedSize) {
         total_size += nread;
         if (total_size > max_file_size) {
@@ -178,7 +171,6 @@ bool FileSystem::Close(File* file, MessageHandler* message_handler) {
   return ret;
 }
 
-
 bool FileSystem::RecursivelyMakeDir(const StringPiece& full_path_const,
                                     MessageHandler* handler) {
   bool ret = true;
@@ -214,9 +206,10 @@ void FileSystem::GetDirInfo(const StringPiece& path, DirInfo* dirinfo,
   GetDirInfoWithProgress(path, dirinfo, &notifier, handler);
 }
 
-void FileSystem::GetDirInfoWithProgress(
-    const StringPiece& path, DirInfo* dirinfo, ProgressNotifier* notifier,
-    MessageHandler* handler) {
+void FileSystem::GetDirInfoWithProgress(const StringPiece& path,
+                                        DirInfo* dirinfo,
+                                        ProgressNotifier* notifier,
+                                        MessageHandler* handler) {
   // This function is not guaranteed to produce correct results if files or
   // directories are modified while this function is executing.
 
@@ -259,7 +252,7 @@ void FileSystem::GetDirInfoWithProgress(
       if (is_dir.is_false()) {
         int64 file_atime;
         Atime(file_name, &file_atime, handler);
-        dirinfo->files.push_back(FileInfo(file_size, file_atime, file_name));
+        dirinfo->files.emplace_back(file_size, file_atime, file_name);
       } else if (is_dir.is_true()) {
         dirs_to_traverse.push_back(file_name);
       }

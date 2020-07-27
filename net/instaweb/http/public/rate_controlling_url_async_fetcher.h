@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_RATE_CONTROLLING_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_RATE_CONTROLLING_URL_ASYNC_FETCHER_H_
 
@@ -49,21 +48,18 @@ class RateControllingUrlAsyncFetcher : public UrlAsyncFetcher {
                                  ThreadSystem* thread_system,
                                  Statistics* statistics);
 
-  virtual ~RateControllingUrlAsyncFetcher();
+  ~RateControllingUrlAsyncFetcher() override;
 
-  virtual bool SupportsHttps() const {
-    return base_fetcher_->SupportsHttps();
-  }
+  bool SupportsHttps() const override { return base_fetcher_->SupportsHttps(); }
 
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
-  virtual void ShutDown();
+  void ShutDown() override;
 
  private:
   UrlAsyncFetcher* base_fetcher_;
-  scoped_ptr<RateController> rate_controller_;
+  std::unique_ptr<RateController> rate_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(RateControllingUrlAsyncFetcher);
 };

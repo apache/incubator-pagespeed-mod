@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // NOTE: THIS CODE IS DEAD.  IT IS ONLY LINKED BY THE SPEED_TEST PROVING IT'S
 // SLOWER THAN FastWildcardGroup, PLUS ITS OWN UNIT TEST.
 
@@ -25,6 +24,7 @@
 #define PAGESPEED_KERNEL_BASE_WILDCARD_GROUP_H_
 
 #include <vector>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"

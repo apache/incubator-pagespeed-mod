@@ -17,14 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/scheduler_thread.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/thread/scheduler.h"
 #include "pagespeed/kernel/base/timer.h"
+#include "pagespeed/kernel/thread/scheduler.h"
 
 namespace net_instaweb {
 
@@ -33,10 +32,10 @@ namespace net_instaweb {
 class SchedulerThread::CleanupFunction : public Function {
  public:
   explicit CleanupFunction(SchedulerThread* parent) : parent_(parent) {}
-  virtual ~CleanupFunction() {}
+  ~CleanupFunction() override {}
 
  protected:
-  virtual void Run() {
+  void Run() override {
     {
       ScopedMutex lock(parent_->scheduler_->mutex());
       parent_->quit_ = true;
@@ -46,7 +45,7 @@ class SchedulerThread::CleanupFunction : public Function {
     delete parent_;
   }
 
-  virtual void Cancel() {
+  void Cancel() override {
     LOG(DFATAL) << "CleanupFunction does not expect to be cancelled";
   }
 
@@ -63,9 +62,7 @@ SchedulerThread::SchedulerThread(ThreadSystem* thread_system,
 
 SchedulerThread::~SchedulerThread() {}
 
-Function* SchedulerThread::MakeDeleter() {
-  return new CleanupFunction(this);
-}
+Function* SchedulerThread::MakeDeleter() { return new CleanupFunction(this); }
 
 void SchedulerThread::Run() {
   ScopedMutex lock(scheduler_->mutex());

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/print_message_handler.h"
 
 #include <cstdio>
@@ -26,11 +25,9 @@
 
 namespace net_instaweb {
 
-PrintMessageHandler::PrintMessageHandler() {
-}
+PrintMessageHandler::PrintMessageHandler() {}
 
-PrintMessageHandler::~PrintMessageHandler() {
-}
+PrintMessageHandler::~PrintMessageHandler() {}
 
 void PrintMessageHandler::MessageSImpl(MessageType type,
                                        const GoogleString& message) {
@@ -38,9 +35,9 @@ void PrintMessageHandler::MessageSImpl(MessageType type,
   fflush(stdout);
 }
 
-void PrintMessageHandler::FileMessageSImpl(
-    MessageType type, const char* filename, int line,
-    const GoogleString& message) {
+void PrintMessageHandler::FileMessageSImpl(MessageType type,
+                                           const char* filename, int line,
+                                           const GoogleString& message) {
   // This is the PrintMessageHandler, so we always print!
   MessageSImpl(type, message);
 }

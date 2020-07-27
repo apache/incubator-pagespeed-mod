@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_SIMULATED_DELAY_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_SIMULATED_DELAY_FETCHER_H_
 
@@ -54,20 +53,16 @@ class SimulatedDelayFetcher : public UrlAsyncFetcher {
   //
   // request_log_path will be used to log when each request was received.
   // (Not when it was served).
-  SimulatedDelayFetcher(ThreadSystem* thread_system,
-                        Timer* timer,
-                        Scheduler* scheduler,
-                        MessageHandler* handler,
-                        FileSystem* file_system,
-                        StringPiece delay_map_path,
+  SimulatedDelayFetcher(ThreadSystem* thread_system, Timer* timer,
+                        Scheduler* scheduler, MessageHandler* handler,
+                        FileSystem* file_system, StringPiece delay_map_path,
                         StringPiece request_log_path,
                         int request_log_flush_frequency);
 
-  virtual ~SimulatedDelayFetcher();
+  ~SimulatedDelayFetcher() override;
 
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
  private:
   typedef std::map<GoogleString, int> DelayMap;
@@ -81,7 +76,7 @@ class SimulatedDelayFetcher : public UrlAsyncFetcher {
   DelayMap delays_ms_;
   int request_log_flush_frequency_;
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   int request_log_outstanding_ GUARDED_BY(mutex_.get());
   FileSystem::OutputFile* request_log_ PT_GUARDED_BY(mutex_.get());
 

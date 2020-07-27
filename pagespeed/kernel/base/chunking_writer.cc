@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/chunking_writer.h"
 
 #include <algorithm>
 #include <cstddef>
+
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/writer.h"
 
@@ -30,11 +30,9 @@ namespace net_instaweb {
 class MessageHandler;
 
 ChunkingWriter::ChunkingWriter(Writer* writer, int flush_limit)
-    : writer_(writer), flush_limit_(flush_limit), unflushed_bytes_(0) {
-}
+    : writer_(writer), flush_limit_(flush_limit), unflushed_bytes_(0) {}
 
-ChunkingWriter::~ChunkingWriter() {
-}
+ChunkingWriter::~ChunkingWriter() {}
 
 bool ChunkingWriter::Write(const StringPiece& str_orig,
                            MessageHandler* handler) {

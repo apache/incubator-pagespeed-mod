@@ -17,10 +17,10 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/util/simple_random.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
-#include "pagespeed/kernel/util/simple_random.h"
 
 namespace net_instaweb {
 

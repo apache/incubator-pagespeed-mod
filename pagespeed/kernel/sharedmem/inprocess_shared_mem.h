@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_INPROCESS_SHARED_MEM_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_INPROCESS_SHARED_MEM_H_
 
@@ -43,17 +42,18 @@ class InProcessSharedMem : public AbstractSharedMem {
  public:
   // Does not take ownership of thread_system.
   explicit InProcessSharedMem(ThreadSystem* thread_system);
-  virtual ~InProcessSharedMem();
+  ~InProcessSharedMem() override;
 
   // All the methods here implement the AbstractSharedMem API ---
   // see the base class for their docs.
-  virtual size_t SharedMutexSize() const;
-  virtual AbstractSharedMemSegment* CreateSegment(
-      const GoogleString& name, size_t size, MessageHandler* handler);
-  virtual AbstractSharedMemSegment* AttachToSegment(
-      const GoogleString& name, size_t size, MessageHandler* handler);
-  virtual void DestroySegment(const GoogleString& name,
-                              MessageHandler* handler);
+  size_t SharedMutexSize() const override;
+  AbstractSharedMemSegment* CreateSegment(const GoogleString& name, size_t size,
+                                          MessageHandler* handler) override;
+  AbstractSharedMemSegment* AttachToSegment(const GoogleString& name,
+                                            size_t size,
+                                            MessageHandler* handler) override;
+  void DestroySegment(const GoogleString& name,
+                      MessageHandler* handler) override;
 
  private:
   class DelegateMutex;

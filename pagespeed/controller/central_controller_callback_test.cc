@@ -18,14 +18,15 @@
  */
 
 #include "pagespeed/controller/central_controller_callback.h"
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
+#include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 
@@ -41,7 +42,7 @@ struct CallCounts {
   int cancel_called;
   int cleanup_called;
   WorkerTestBase::SyncPoint sync;
-  scoped_ptr<MockCallbackHandle> handle;
+  std::unique_ptr<MockCallbackHandle> handle;
 };
 
 class MockCentralControllerCallback
@@ -50,12 +51,12 @@ class MockCentralControllerCallback
   MockCentralControllerCallback(Sequence* sequence, struct CallCounts* counts)
       : CentralControllerCallback<
             MockCallbackHandle>::CentralControllerCallback(sequence),
-        counts_(counts), steal_pointer_(false) {
-  }
+        counts_(counts),
+        steal_pointer_(false) {}
 
-  virtual ~MockCentralControllerCallback() {}
+  ~MockCentralControllerCallback() override {}
 
-  virtual void RunImpl(scoped_ptr<MockCallbackHandle>* handle) {
+  void RunImpl(std::unique_ptr<MockCallbackHandle>* handle) override {
     ++counts_->run_called;
     if (steal_pointer_) {
       counts_->handle.reset(handle->release());
@@ -63,7 +64,7 @@ class MockCentralControllerCallback
     counts_->sync.Notify();
   }
 
-  virtual void CancelImpl() {
+  void CancelImpl() override {
     ++counts_->cancel_called;
     counts_->sync.Notify();
   }
@@ -89,9 +90,7 @@ class MockCallbackHandle {
     }
   }
 
-  void CallRun() {
-    callback_->CallRun();
-  }
+  void CallRun() { callback_->CallRun(); }
 
   void CallCancel() {
     counts_ = nullptr;
@@ -129,7 +128,7 @@ class CentralControllerCallbackTest : public WorkerTestBase {
     done.Wait();
   }
 
-  scoped_ptr<QueuedWorkerPool> worker_;
+  std::unique_ptr<QueuedWorkerPool> worker_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CentralControllerCallbackTest);
@@ -168,7 +167,7 @@ TEST_F(CentralControllerCallbackTest, CancelAfterRunRequeue) {
 
   // Create another worker pool/sequence that are shutdown. When the callback
   // is enqued onto this sequence, its Cancel should be immediately called.
-  scoped_ptr<QueuedWorkerPool> worker2(new QueuedWorkerPool(
+  std::unique_ptr<QueuedWorkerPool> worker2(new QueuedWorkerPool(
       2, "central_controller_test2", thread_runtime_.get()));
   Sequence* sequence2 = worker2->NewSequence();
   worker2->ShutDown();
@@ -192,7 +191,7 @@ TEST_F(CentralControllerCallbackTest, CancelAfterCancelRequeue) {
 
   // Create another worker pool/sequence that are shutdown. When the callback
   // is enqued onto this sequence, its Cancel should be immediately called.
-  scoped_ptr<QueuedWorkerPool> worker2(new QueuedWorkerPool(
+  std::unique_ptr<QueuedWorkerPool> worker2(new QueuedWorkerPool(
       2, "central_controller_test2", thread_runtime_.get()));
   Sequence* sequence2 = worker2->NewSequence();
   worker2->ShutDown();

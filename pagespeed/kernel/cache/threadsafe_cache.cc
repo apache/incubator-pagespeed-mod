@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/threadsafe_cache.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -29,8 +28,7 @@
 
 namespace net_instaweb {
 
-ThreadsafeCache::~ThreadsafeCache() {
-}
+ThreadsafeCache::~ThreadsafeCache() {}
 
 GoogleString ThreadsafeCache::FormatName(StringPiece name) {
   return StrCat("ThreadsafeCache(", name, ")");
@@ -46,10 +44,9 @@ class ThreadsafeCallback : public DelegatingCacheCallback {
     mutex_->Lock();
   }
 
-  virtual ~ThreadsafeCallback() {
-  }
+  ~ThreadsafeCallback() override {}
 
-  virtual void Done(CacheInterface::KeyState state) UNLOCK_FUNCTION(mutex_) {
+  void Done(CacheInterface::KeyState state) override UNLOCK_FUNCTION(mutex_) {
     mutex_->Unlock();
     DelegatingCacheCallback::Done(state);
   }

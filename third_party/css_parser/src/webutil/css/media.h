@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 //
 // Classes for storing CSS3 @media queries.
 // See: http://www.w3.org/TR/css3-mediaqueries/
@@ -28,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
+#include "strings/stringpiece.h"
 #include "util/utf8/public/unicodetext.h"
 
 namespace Css {

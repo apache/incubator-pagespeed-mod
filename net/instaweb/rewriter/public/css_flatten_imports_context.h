@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_FLATTEN_IMPORTS_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_FLATTEN_IMPORTS_CONTEXT_H_
 
@@ -49,18 +48,16 @@ namespace net_instaweb {
 // Context used by CssFilter under async flow that flattens @imports.
 class CssFlattenImportsContext : public SingleRewriteContext {
  public:
-  CssFlattenImportsContext(RewriteContext* parent,
-                           CssFilter* filter,
+  CssFlattenImportsContext(RewriteContext* parent, CssFilter* filter,
                            CssFilter::Context* rewriter,
                            CssHierarchy* hierarchy)
       : SingleRewriteContext(NULL, parent, NULL /* no resource_context */),
         filter_(filter),
         rewriter_(rewriter),
-        hierarchy_(hierarchy) {
-  }
-  virtual ~CssFlattenImportsContext() {}
+        hierarchy_(hierarchy) {}
+  ~CssFlattenImportsContext() override {}
 
-  virtual GoogleString CacheKeySuffix() const {
+  GoogleString CacheKeySuffix() const override {
     // We have to include the media that applies to this context in its key
     // so that, if someone @import's the same file but with a different set
     // of media on the @import rule, we don't fetch the cached file, since
@@ -77,8 +74,8 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     return suffix;
   }
 
-  virtual void RewriteSingle(const ResourcePtr& input_resource,
-                             const OutputResourcePtr& output_resource) {
+  void RewriteSingle(const ResourcePtr& input_resource,
+                     const OutputResourcePtr& output_resource) override {
     input_resource_ = input_resource;
     output_resource_ = output_resource;
 
@@ -91,18 +88,16 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     // hard to tell if that will happen so we transform URLs here regardless
     // and note that for CssHierarchy::css_resolution_base().
     RewriteDriver* driver = Driver();
-    RewriteDomainTransformer transformer(&hierarchy_->css_base_url(),
-                                         &hierarchy_->css_trim_url(),
-                                         driver->server_context(),
-                                         driver->options(),
-                                         driver->message_handler());
+    RewriteDomainTransformer transformer(
+        &hierarchy_->css_base_url(), &hierarchy_->css_trim_url(),
+        driver->server_context(), driver->options(), driver->message_handler());
     // If we rewrite the input resource's contents we need somewhere to store
     // it; that's what the hierarchy's backing store is for.
     StringWriter writer(hierarchy_->input_contents_backing_store());
     // See RewriteDriver::ResolveCssUrls about why we disable trimming in
     // proxy mode. We also disable it if trimming is not enabled.
-    if ( driver->server_context()->url_namer()->ProxyMode()
-         == UrlNamer::ProxyExtent::kFull ||
+    if (driver->server_context()->url_namer()->ProxyMode() ==
+            UrlNamer::ProxyExtent::kFull ||
         !driver->options()->trim_urls_in_css() ||
         !driver->options()->Enabled(RewriteOptions::kLeftTrimUrls)) {
       transformer.set_trim_urls(false);
@@ -122,8 +117,8 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     if (!hierarchy_->Parse()) {
       // If we cannot parse the CSS then we cannot flatten it.
       ok = false;
-      failure_reason = StrCat("Cannot parse the CSS in ",
-                              hierarchy_->url_for_humans());
+      failure_reason =
+          StrCat("Cannot parse the CSS in ", hierarchy_->url_for_humans());
       filter_->num_flatten_imports_minify_failed_->Add(1);
     } else if (!hierarchy_->CheckCharsetOk(input_resource, &failure_reason)) {
       ok = false;
@@ -143,7 +138,7 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     }
   }
 
-  void Harvest() {
+  void Harvest() override {
     DCHECK_EQ(1, num_output_partitions());
 
     // Propagate any info on images from child rewrites.
@@ -164,22 +159,20 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     server_context->MergeNonCachingResponseHeaders(input_resource_,
                                                    output_resource_);
     if (Driver()->Write(ResourceVector(1, input_resource_),
-                        hierarchy_->minified_contents(),
-                        &kContentTypeCss,
-                        input_resource_->charset(),
-                        output_resource_.get())) {
+                        hierarchy_->minified_contents(), &kContentTypeCss,
+                        input_resource_->charset(), output_resource_.get())) {
       RewriteDone(kRewriteOk, 0);
     } else {
       RewriteDone(kRewriteFailed, 0);
     }
   }
 
-  bool PolicyPermitsRendering() const {
+  bool PolicyPermitsRendering() const override {
     // We apply CSP policy for flattening at top-level, not here.
     return true;
   }
 
-  virtual void Render() {
+  void Render() override {
     // If we have flattened the imported file ...
     if (num_output_partitions() == 1 && output_partition(0)->optimizable()) {
       // If Harvest() was called, directly or from RewriteSingle(), then the
@@ -192,11 +185,11 @@ class CssFlattenImportsContext : public SingleRewriteContext {
       // the input because we will need that to generate the stylesheet from
       // when RollUpStylesheets is eventually called.
       if (hierarchy_->minified_contents().empty()) {
-        hierarchy_->set_minified_contents(
-            output_partition(0)->inlined_data());
+        hierarchy_->set_minified_contents(output_partition(0)->inlined_data());
         hierarchy_->set_input_contents(hierarchy_->minified_contents());
         // Parse() will compute flattening_succeeded_, which needs to be
-        // restored.  See https://github.com/apache/incubator-pagespeed-mod/issues/1092
+        // restored.  See
+        // https://github.com/apache/incubator-pagespeed-mod/issues/1092
         hierarchy_->Parse();
       }
     } else {
@@ -209,10 +202,10 @@ class CssFlattenImportsContext : public SingleRewriteContext {
     }
   }
 
-  virtual const char* id() const {
+  const char* id() const override {
     return RewriteOptions::kCssImportFlattenerId;
   }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
 
  private:
   CssFilter* filter_;

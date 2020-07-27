@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/md5_hasher.h"
 
 #include "pagespeed/kernel/base/gtest.h"

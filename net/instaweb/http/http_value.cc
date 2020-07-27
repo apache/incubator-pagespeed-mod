@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/http_value.h"
 
 #include "base/logging.h"
@@ -49,9 +48,7 @@ namespace net_instaweb {
 
 class MessageHandler;
 
-void HTTPValue::CopyOnWrite() {
-  storage_.DetachRetainingContent();
-}
+void HTTPValue::CopyOnWrite() { storage_.DetachRetainingContent(); }
 
 void HTTPValue::Clear() {
   storage_.DetachAndClear();
@@ -62,7 +59,7 @@ void HTTPValue::SetHeaders(ResponseHeaders* headers) {
   CopyOnWrite();
   GoogleString headers_string;
   StringWriter writer(&headers_string);
-  headers->WriteAsBinary(&writer, NULL);
+  headers->WriteAsBinary(&writer, nullptr);
   if (storage_.empty()) {
     storage_.Append(&kHeadersFirst, 1);
     SetSizeOfFirstChunk(headers_string.size());
@@ -96,9 +93,7 @@ bool HTTPValue::Write(const StringPiece& str, MessageHandler* handler) {
   return true;
 }
 
-bool HTTPValue::Flush(MessageHandler* handler) {
-  return true;
-}
+bool HTTPValue::Flush(MessageHandler* handler) { return true; }
 
 // Encode the size of the first chunk, which is either the headers or body,
 // depending on the order they are called.  Rather than trying to assume any
@@ -231,11 +226,11 @@ bool HTTPValue::Decode(StringPiece encoded_value, GoogleString* http_string,
   // Load encoded value into an HTTPValue and extract headers.
   SharedString buffer(encoded_value);
   HTTPValue value;
-  if (!value.Link(buffer, &headers, handler))  return false;
+  if (!value.Link(buffer, &headers, handler)) return false;
 
   // Extract decoded contents.
   StringPiece contents;
-  if (!value.ExtractContents(&contents))  return false;
+  if (!value.ExtractContents(&contents)) return false;
 
   // Return result as normal HTTP stream.
   *http_string = StrCat(headers.ToString(), contents);
@@ -248,7 +243,7 @@ bool HTTPValue::Encode(StringPiece http_string, GoogleString* encoded_value,
   ResponseHeaders headers;
   ResponseHeadersParser headers_parser(&headers);
   int bytes_parsed = headers_parser.ParseChunk(http_string, handler);
-  if (!headers.headers_complete())  return false;
+  if (!headers.headers_complete()) return false;
 
   // Rest is contents.
   StringPiece contents = http_string.substr(bytes_parsed);

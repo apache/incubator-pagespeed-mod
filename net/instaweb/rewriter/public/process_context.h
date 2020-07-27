@@ -17,14 +17,17 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } };
+namespace pagespeed {
+namespace js {
+struct JsTokenizerPatterns;
+}
+};  // namespace pagespeed
 
 namespace net_instaweb {
 
@@ -39,7 +42,7 @@ namespace net_instaweb {
 class ProcessContext {
  public:
   ProcessContext();
-  ~ProcessContext();
+  virtual ~ProcessContext();
 
   // Returns a js_tokenizer_patterns object that was allocated by the
   // ProcessContext constructor, once per process startup.  The reason
@@ -54,7 +57,7 @@ class ProcessContext {
   }
 
  private:
-  scoped_ptr<pagespeed::js::JsTokenizerPatterns> js_tokenizer_patterns_;
+  std::unique_ptr<pagespeed::js::JsTokenizerPatterns> js_tokenizer_patterns_;
 
   DISALLOW_COPY_AND_ASSIGN(ProcessContext);
 };

@@ -17,9 +17,10 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_
 #define PAGESPEED_KERNEL_BASE_ATOMIC_BOOL_H_
+
+#include <atomic>
 
 #include "pagespeed/kernel/base/atomicops.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -33,25 +34,20 @@ namespace net_instaweb {
 class AtomicBool {
  public:
   // Guaranteed to be initialized to false.
-  AtomicBool() {
-    set_value(false);
-  }
+  AtomicBool() { set_value(false); }
 
   ~AtomicBool() {}
 
   bool value() const {
-    return base::subtle::Acquire_Load(&value_);
+    return value_.load(std::memory_order::memory_order_acquire);
   }
 
-  void set_value(bool v) {
-    base::subtle::Release_Store(&value_, v);
-  }
+  void set_value(bool v) { value_.store(v, std::memory_order_release); }
 
  private:
-  base::subtle::AtomicWord value_;
+  std::atomic<bool> value_;
   DISALLOW_COPY_AND_ASSIGN(AtomicBool);
 };
-
 
 }  // namespace net_instaweb
 

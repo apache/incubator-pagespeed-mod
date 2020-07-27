@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_APACHE_REWRITE_DRIVER_FACTORY_H_
 #define PAGESPEED_APACHE_APACHE_REWRITE_DRIVER_FACTORY_H_
 
@@ -51,7 +50,7 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
  public:
   ApacheRewriteDriverFactory(const ProcessContext& process_context,
                              server_rec* server, const StringPiece& version);
-  virtual ~ApacheRewriteDriverFactory();
+  ~ApacheRewriteDriverFactory() override;
 
   // Give access to apache_message_handler_ for the cases we need
   // to use ApacheMessageHandler rather than MessageHandler.
@@ -61,7 +60,7 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
     return apache_message_handler_;
   }
 
-  virtual void NonStaticInitStats(Statistics* statistics) {
+  void NonStaticInitStats(Statistics* statistics) override {
     InitStats(statistics);
   }
 
@@ -72,11 +71,11 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   // the last context.
   bool PoolDestroyed(ApacheServerContext* rm);
 
-  virtual ApacheConfig* NewRewriteOptions();
+  ApacheConfig* NewRewriteOptions() override;
 
   // As above, but set a name on the ApacheConfig noting that it came from
   // a query.
-  virtual ApacheConfig* NewRewriteOptionsForQuery();
+  ApacheConfig* NewRewriteOptionsForQuery() override;
 
   // Initializes all the statistics objects created transitively by
   // ApacheRewriteDriverFactory, including apache-specific and
@@ -91,38 +90,37 @@ class ApacheRewriteDriverFactory : public SystemRewriteDriverFactory {
   void SetNeedSchedulerThread();
 
   // Needed by mod_instaweb.cc:ParseDirective().
-  virtual void set_message_buffer_size(int x) {
+  void set_message_buffer_size(int x) override {
     SystemRewriteDriverFactory::set_message_buffer_size(x);
   }
 
-  virtual bool IsServerThreaded();
-  virtual int LookupThreadLimit();
+  bool IsServerThreaded() override;
+  int LookupThreadLimit() override;
 
  protected:
   // Provide defaults.
-  virtual MessageHandler* DefaultHtmlParseMessageHandler();
-  virtual MessageHandler* DefaultMessageHandler();
-  virtual Timer* DefaultTimer();
-  virtual void SetupCaches(ServerContext* server_context);
+  MessageHandler* DefaultHtmlParseMessageHandler() override;
+  MessageHandler* DefaultMessageHandler() override;
+  Timer* DefaultTimer() override;
+  void SetupCaches(ServerContext* server_context) override;
 
   // Disable the Resource Manager's filesystem since we have a
   // write-through http_cache.
   virtual bool ShouldWriteResourcesToFileSystem() { return false; }
 
-  virtual void ParentOrChildInit();
+  void ParentOrChildInit() override;
 
-  virtual void SetupMessageHandlers();
-  virtual void ShutDownMessageHandlers();
+  void SetupMessageHandlers() override;
+  void ShutDownMessageHandlers() override;
 
-  virtual void SetCircularBuffer(SharedCircularBuffer* buffer);
+  void SetCircularBuffer(SharedCircularBuffer* buffer) override;
 
-  virtual ServerContext* NewDecodingServerContext();
+  ServerContext* NewDecodingServerContext() override;
 
  private:
-
   apr_pool_t* pool_;
   server_rec* server_rec_;
-  scoped_ptr<SlowWorker> slow_worker_;
+  std::unique_ptr<SlowWorker> slow_worker_;
   SchedulerThread* scheduler_thread_;  // cleaned up with defer_cleanup
 
   // TODO(jmarantz): These options could be consolidated in a protobuf or

@@ -17,11 +17,8 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_CALLBACK_H_
 #define PAGESPEED_KERNEL_BASE_CALLBACK_H_
-
-
 
 namespace net_instaweb {
 
@@ -44,7 +41,7 @@ namespace net_instaweb {
 //   cb->Run(1234);
 // }
 //
-template<class A1>
+template <class A1>
 class Callback1 {
  public:
   Callback1() {}
@@ -56,18 +53,16 @@ class Callback1 {
 //  (Member)?Callback_<num-pre-bound-args>_<num-runtime-args>
 
 // TODO(gee): Fill out other useful specializations.
-template<class C, class A1, bool DeleteAfterRun>
+template <class C, class A1, bool DeleteAfterRun>
 class _MemberCallback_0_1 : public Callback1<A1> {
  public:
   typedef void (C::*MemberSignature)(A1);
   typedef Callback1<A1> base;
 
   _MemberCallback_0_1(C* object, MemberSignature member)
-      : object_(object),
-        member_(member) {
-  }
+      : object_(object), member_(member) {}
 
-  void Run(A1 t) {
+  void Run(A1 t) override {
     (object_->*member_)(t);
     if (DeleteAfterRun) {
       delete this;
@@ -81,21 +76,27 @@ class _MemberCallback_0_1 : public Callback1<A1> {
 
 // Creates a callback that automatically gets deleted after being run.
 template <class T1, class T2, class A1>
-typename _MemberCallback_0_1<T1, A1, true>::base*
-NewCallback(T1* obj, void (T2::*member)(A1)) {
+typename _MemberCallback_0_1<T1, A1, true>::base* NewCallback(
+    T1* obj, void (T2::*member)(A1)) {
   return new _MemberCallback_0_1<T1, A1, true>(obj, member);
 }
 
 // Creates a callback that does not get deleted after being run.
 template <class T1, class T2, class A1>
-typename _MemberCallback_0_1<T1, A1, false>::base*
-NewPermanentCallback(T1* obj, void (T2::*member)(A1)) {
+typename _MemberCallback_0_1<T1, A1, false>::base* NewPermanentCallback(
+    T1* obj, void (T2::*member)(A1)) {
   return new _MemberCallback_0_1<T1, A1, false>(obj, member);
 }
 
 // Specified by TR1 [4.7.2] Reference modifications.
-template<typename T> struct remove_reference { typedef T type; };
-template<typename T> struct remove_reference<T&> { typedef T type; };
+template <typename T>
+struct remove_reference {
+  typedef T type;
+};
+template <typename T>
+struct remove_reference<T&> {
+  typedef T type;
+};
 
 template <typename T>
 struct ConstRef {
@@ -115,14 +116,11 @@ class _MemberCallback_1_1 : public Callback1<A1> {
   typename remove_reference<P1>::type p1_;
 
  public:
-  _MemberCallback_1_1(T* object,
-                      MemberSignature member,
+  _MemberCallback_1_1(T* object, MemberSignature member,
                       typename ConstRef<P1>::type p1)
-      : object_(object),
-        member_(member),
-        p1_(p1) { }
+      : object_(object), member_(member), p1_(p1) {}
 
-  virtual void Run(A1 a1) {
+  void Run(A1 a1) override {
     (object_->*member_)(p1_, a1);
     if (DeleteAfterRun) {
       delete this;
@@ -132,19 +130,16 @@ class _MemberCallback_1_1 : public Callback1<A1> {
 
 // Creates a callback that automatically gets deleted after being run.
 template <class T1, class T2, class P1, class A1>
-inline typename _MemberCallback_1_1<T1, P1, A1, true>::base*
-NewCallback(T1* obj,
-            void (T2::*member)(P1, A1),
-            typename ConstRef<P1>::type p1) {
+inline typename _MemberCallback_1_1<T1, P1, A1, true>::base* NewCallback(
+    T1* obj, void (T2::*member)(P1, A1), typename ConstRef<P1>::type p1) {
   return new _MemberCallback_1_1<T1, P1, A1, true>(obj, member, p1);
 }
 
 // Creates a callback that does not get deleted after being run.
 template <class T1, class T2, class P1, class A1>
 inline typename _MemberCallback_1_1<T1, P1, A1, false>::base*
-NewPermanentCallback(T1* obj,
-            void (T2::*member)(P1, A1),
-            typename ConstRef<P1>::type p1) {
+NewPermanentCallback(T1* obj, void (T2::*member)(P1, A1),
+                     typename ConstRef<P1>::type p1) {
   return new _MemberCallback_1_1<T1, P1, A1, false>(obj, member, p1);
 }
 
@@ -167,7 +162,7 @@ NewPermanentCallback(T1* obj,
 //   cb->Run(1234, 2.7182818);
 // }
 //
-template<class A1, class A2>
+template <class A1, class A2>
 class Callback2 {
  public:
   Callback2() {}
@@ -179,18 +174,16 @@ class Callback2 {
 //  (Member)?Callback_<num-pre-bound-args>_<num-runtime-args>
 
 // TODO(gee): Fill out other useful specializations.
-template<class C, class A1, class A2, bool DeleteAfterRun>
+template <class C, class A1, class A2, bool DeleteAfterRun>
 class _MemberCallback_0_2 : public Callback2<A1, A2> {
  public:
   typedef void (C::*MemberSignature)(A1, A2);
   typedef Callback2<A1, A2> base;
 
   _MemberCallback_0_2(C* object, MemberSignature member)
-      : object_(object),
-        member_(member) {
-  }
+      : object_(object), member_(member) {}
 
-  void Run(A1 t1, A2 t2) {
+  void Run(A1 t1, A2 t2) override {
     (object_->*member_)(t1, t2);
     if (DeleteAfterRun) {
       delete this;
@@ -204,15 +197,15 @@ class _MemberCallback_0_2 : public Callback2<A1, A2> {
 
 // Creates a callback that automatically gets deleted after being run.
 template <class T1, class T2, class A1, class A2>
-typename _MemberCallback_0_2<T1, A1, A2, true>::base*
-NewCallback(T1* obj, void (T2::*member)(A1, A2)) {
+typename _MemberCallback_0_2<T1, A1, A2, true>::base* NewCallback(
+    T1* obj, void (T2::*member)(A1, A2)) {
   return new _MemberCallback_0_2<T1, A1, A2, true>(obj, member);
 }
 
 // Creates a callback that does not get deleted after being run.
 template <class T1, class T2, class A1, class A2>
-typename _MemberCallback_0_2<T1, A1, A2, false>::base*
-NewPermanentCallback(T1* obj, void (T2::*member)(A1, A2)) {
+typename _MemberCallback_0_2<T1, A1, A2, false>::base* NewPermanentCallback(
+    T1* obj, void (T2::*member)(A1, A2)) {
   return new _MemberCallback_0_2<T1, A1, A2, false>(obj, member);
 }
 
@@ -228,14 +221,11 @@ class _MemberCallback_2_1 : public Callback2<A1, A2> {
   typename remove_reference<P1>::type p1_;
 
  public:
-  _MemberCallback_2_1(T* object,
-                      MemberSignature member,
+  _MemberCallback_2_1(T* object, MemberSignature member,
                       typename ConstRef<P1>::type p1)
-      : object_(object),
-        member_(member),
-        p1_(p1) { }
+      : object_(object), member_(member), p1_(p1) {}
 
-  virtual void Run(A1 a1, A2 a2) {
+  void Run(A1 a1, A2 a2) override {
     (object_->*member_)(p1_, a1, a2);
     if (DeleteAfterRun) {
       delete this;
@@ -245,23 +235,19 @@ class _MemberCallback_2_1 : public Callback2<A1, A2> {
 
 // Creates a callback that automatically gets deleted after being run.
 template <class T1, class T2, class P1, class A1, class A2>
-inline typename _MemberCallback_2_1<T1, P1, A1, A2, true>::base*
-NewCallback(T1* obj,
-            void (T2::*member)(P1, A1, A2),
-            typename ConstRef<P1>::type p1) {
+inline typename _MemberCallback_2_1<T1, P1, A1, A2, true>::base* NewCallback(
+    T1* obj, void (T2::*member)(P1, A1, A2), typename ConstRef<P1>::type p1) {
   return new _MemberCallback_2_1<T1, P1, A1, A2, true>(obj, member, p1);
 }
 
 // Creates a callback that does not get deleted after being run.
 template <class T1, class T2, class P1, class A1, class A2>
 inline typename _MemberCallback_2_1<T1, P1, A1, A2, false>::base*
-NewPermanentCallback(T1* obj,
-                     void (T2::*member)(P1, A1, A2),
+NewPermanentCallback(T1* obj, void (T2::*member)(P1, A1, A2),
                      typename ConstRef<P1>::type p1) {
   return new _MemberCallback_2_1<T1, P1, A1, A2, false>(obj, member, p1);
 }
 
 }  // namespace net_instaweb
-
 
 #endif  // PAGESPEED_KERNEL_BASE_CALLBACK_H_

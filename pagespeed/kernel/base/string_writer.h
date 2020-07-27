@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_STRING_WRITER_H_
 #define PAGESPEED_KERNEL_BASE_STRING_WRITER_H_
 
@@ -33,11 +32,12 @@ class MessageHandler;
 // Writer implementation for directing HTML output to a string.
 class StringWriter : public Writer {
  public:
-  explicit StringWriter(GoogleString* str) : string_(str) { }
-  virtual ~StringWriter();
-  virtual bool Write(const StringPiece& str, MessageHandler* message_handler);
-  virtual bool Flush(MessageHandler* message_handler);
-  virtual bool Dump(Writer* writer, MessageHandler* message_handler);
+  explicit StringWriter(GoogleString* str) : string_(str) {}
+  ~StringWriter() override;
+  bool Write(const StringPiece& str, MessageHandler* message_handler) override;
+  bool Flush(MessageHandler* message_handler) override;
+  bool Dump(Writer* writer, MessageHandler* message_handler) override;
+
  private:
   GoogleString* string_;
 

@@ -108,7 +108,6 @@ class DomainLawyer {
   bool IsDomainAuthorized(const GoogleUrl& original_request,
                           const GoogleUrl& domain_to_check) const;
 
-
   // Returns true if the given origin (domain:port) is one that we were
   // explicitly told about in any form --- e.g. as a rewrite domain, origin
   // domain, simple domain, or a shard.
@@ -295,9 +294,8 @@ class DomainLawyer {
 
   // Finds domains rewritten to this domain. Includes only non-wildcarded
   // domains. comma_separated_from_domains is empty if no mapping found.
-  void FindDomainsRewrittenTo(
-      const GoogleUrl& domain_name,
-      ConstStringStarVector* from_domains) const;
+  void FindDomainsRewrittenTo(const GoogleUrl& domain_name,
+                              ConstStringStarVector* from_domains) const;
 
   // A proxy suffix provides a mechanism to implement a reverse proxy
   // of sorts.  With a suffix ".suffix.net", a site foo.com can be
@@ -328,8 +326,8 @@ class DomainLawyer {
   // false if the gurl does not have a Host with the expected suffix.
   //
   // Writes the origin host into *host.
-  bool StripProxySuffix(const GoogleUrl& gurl,
-                        GoogleString* url, GoogleString* host) const;
+  bool StripProxySuffix(const GoogleUrl& gurl, GoogleString* url,
+                        GoogleString* host) const;
 
   // Adds a proxy suffix to the Host in *href if it matches the the base URL.
   // Returns true if the href was modified, false if it wasn't.
@@ -360,37 +358,28 @@ class DomainLawyer {
   static bool IsSchemeSafeToMapTo(const StringPiece& domain_name,
                                   bool allow_https_scheme);
 
-  bool MapDomainHelper(
-      const StringPiece& to_domain_name,
-      const StringPiece& comma_separated_from_domains,
-      const StringPiece& host_header,
-      SetDomainFn set_domain_fn,
-      bool allow_wildcards,
-      bool allow_map_to_https,
-      bool authorize,
-      MessageHandler* handler);
+  bool MapDomainHelper(const StringPiece& to_domain_name,
+                       const StringPiece& comma_separated_from_domains,
+                       const StringPiece& host_header,
+                       SetDomainFn set_domain_fn, bool allow_wildcards,
+                       bool allow_map_to_https, bool authorize,
+                       MessageHandler* handler);
 
-  bool MapUrlHelper(const Domain& from_domain,
-                    const Domain& to_domain,
-                    const GoogleUrl& gurl,
-                    GoogleUrl* mapped_gurl) const;
+  bool MapUrlHelper(const Domain& from_domain, const Domain& to_domain,
+                    const GoogleUrl& gurl, GoogleUrl* mapped_gurl) const;
 
   bool DomainNameToTwoProtocols(const StringPiece& domain_name,
                                 GoogleString* http_url,
                                 GoogleString* https_url);
 
-  bool TwoProtocolDomainHelper(
-      const StringPiece& to_domain_name,
-      const StringPiece& from_domain_name,
-      const StringPiece& host_header,
-      SetDomainFn set_domain_fn,
-      bool authorize,
-      MessageHandler* handler);
+  bool TwoProtocolDomainHelper(const StringPiece& to_domain_name,
+                               const StringPiece& from_domain_name,
+                               const StringPiece& host_header,
+                               SetDomainFn set_domain_fn, bool authorize,
+                               MessageHandler* handler);
 
   Domain* AddDomainHelper(const StringPiece& domain_name,
-                          bool warn_on_duplicate,
-                          bool authorize,
-                          bool is_proxy,
+                          bool warn_on_duplicate, bool authorize, bool is_proxy,
                           MessageHandler* handler);
   Domain* CloneAndAdd(const Domain* src);
 
@@ -400,7 +389,7 @@ class DomainLawyer {
   // constructing the signature of the domain lawyer.
   typedef std::map<GoogleString, Domain*> DomainMap;  // see AddDomainHelper
   DomainMap domain_map_;
-  typedef std::vector<Domain*> DomainVector;          // see AddDomainHelper
+  typedef std::vector<Domain*> DomainVector;  // see AddDomainHelper
   DomainVector wildcarded_domains_;
   GoogleString proxy_suffix_;
   bool can_rewrite_domains_;

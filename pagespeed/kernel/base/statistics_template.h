@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_STATISTICS_TEMPLATE_H_
 #define PAGESPEED_KERNEL_BASE_STATISTICS_TEMPLATE_H_
 
@@ -39,12 +38,11 @@ class MessageHandler;
 // This class makes it easier to define new Statistics implementations
 // by providing a templatized implementation of variable registration and
 // management.
-template<class Var, class UpDown, class Hist,
-         class TimedVar> class StatisticsTemplate
-    : public Statistics {
+template <class Var, class UpDown, class Hist, class TimedVar>
+class StatisticsTemplate : public Statistics {
  public:
   StatisticsTemplate() {}
-  virtual ~StatisticsTemplate() {
+  ~StatisticsTemplate() override {
     STLDeleteContainerPointers(variables_.begin(), variables_.end());
     STLDeleteContainerPointers(up_downs_.begin(), up_downs_.end());
     STLDeleteContainerPointers(histograms_.begin(), histograms_.end());
@@ -53,7 +51,7 @@ template<class Var, class UpDown, class Hist,
 
   // Implementations of Statistics API --- see base class docs for
   // description.
-  virtual Var* AddVariable(const StringPiece& name) {
+  Var* AddVariable(const StringPiece& name) override {
     Var* var = FindVariable(name);
     if (var == NULL) {
       var = NewVariable(name);
@@ -64,7 +62,7 @@ template<class Var, class UpDown, class Hist,
     return var;
   }
 
-  virtual UpDown* AddUpDownCounter(const StringPiece& name) {
+  UpDown* AddUpDownCounter(const StringPiece& name) override {
     UpDown* var = FindUpDownCounter(name);
     if (var == NULL) {
       var = NewUpDownCounter(name);
@@ -75,7 +73,7 @@ template<class Var, class UpDown, class Hist,
     return var;
   }
 
-  virtual UpDown* AddGlobalUpDownCounter(const StringPiece& name) {
+  UpDown* AddGlobalUpDownCounter(const StringPiece& name) override {
     UpDown* var = FindUpDownCounter(name);
     if (var == NULL) {
       var = NewGlobalUpDownCounter(name);
@@ -86,7 +84,7 @@ template<class Var, class UpDown, class Hist,
     return var;
   }
 
-  virtual Var* FindVariable(const StringPiece& name) const {
+  Var* FindVariable(const StringPiece& name) const override {
     typename VarMap::const_iterator p = variable_map_.find(name.as_string());
     Var* var = NULL;
     if (p != variable_map_.end()) {
@@ -95,7 +93,7 @@ template<class Var, class UpDown, class Hist,
     return var;
   }
 
-  virtual UpDown* FindUpDownCounter(const StringPiece& name) const {
+  UpDown* FindUpDownCounter(const StringPiece& name) const override {
     typename UpDownMap::const_iterator p = up_down_map_.find(name.as_string());
     UpDown* var = NULL;
     if (p != up_down_map_.end()) {
@@ -104,7 +102,7 @@ template<class Var, class UpDown, class Hist,
     return var;
   }
 
-  virtual Hist* AddHistogram(const StringPiece& name) {
+  Hist* AddHistogram(const StringPiece& name) override {
     Hist* hist = FindHistogram(name);
     if (hist == NULL) {
       hist = NewHistogram(name);
@@ -115,7 +113,7 @@ template<class Var, class UpDown, class Hist,
     return hist;
   }
 
-  virtual Hist* FindHistogram(const StringPiece& name) const {
+  Hist* FindHistogram(const StringPiece& name) const override {
     typename HistMap::const_iterator p = histogram_map_.find(name.as_string());
     Hist* hist = NULL;
     if (p != histogram_map_.end()) {
@@ -124,8 +122,8 @@ template<class Var, class UpDown, class Hist,
     return hist;
   }
 
-  virtual TimedVar* AddTimedVariable(const StringPiece& name,
-                                     const StringPiece& group) {
+  TimedVar* AddTimedVariable(const StringPiece& name,
+                             const StringPiece& group) override {
     TimedVar* timedvar = FindTimedVariable(name);
     if (timedvar == NULL) {
       timedvar = NewTimedVariable(name);
@@ -136,7 +134,7 @@ template<class Var, class UpDown, class Hist,
     return timedvar;
   }
 
-  virtual TimedVar* FindTimedVariable(const StringPiece& name) const {
+  TimedVar* FindTimedVariable(const StringPiece& name) const override {
     typename TimedVarMap::const_iterator p =
         timed_var_map_.find(name.as_string());
     TimedVar* timedvar = NULL;
@@ -146,15 +144,13 @@ template<class Var, class UpDown, class Hist,
     return timedvar;
   }
 
-  virtual const StringVector& HistogramNames() {
-    return histogram_names_;
-  }
+  const StringVector& HistogramNames() override { return histogram_names_; }
 
-  virtual const std::map<GoogleString, StringVector>& TimedVariableMap() {
+  const std::map<GoogleString, StringVector>& TimedVariableMap() override {
     return timed_var_group_map_;
   }
 
-  virtual void Dump(Writer* writer, MessageHandler* message_handler) {
+  void Dump(Writer* writer, MessageHandler* message_handler) override {
     int longest_string = 0;
     for (int i = 0, n = variables_.size(); i < n; ++i) {
       const GoogleString& var_name = variable_names_[i];
@@ -186,8 +182,8 @@ template<class Var, class UpDown, class Hist,
       GoogleString up_down_as_str = Integer64ToString(up_downs_[i]->Get());
       writer->Write(up_down_name, message_handler);
       writer->Write(": ", message_handler);
-      int num_spaces = longest_string - up_down_name.size() -
-          up_down_as_str.size();
+      int num_spaces =
+          longest_string - up_down_name.size() - up_down_as_str.size();
       writer->Write(spaces.substr(0, num_spaces), message_handler);
       writer->Write(up_down_as_str, message_handler);
       writer->Write("\n", message_handler);
@@ -196,7 +192,7 @@ template<class Var, class UpDown, class Hist,
 
   // The string written to the writer will be like this:
   // {"variables": {"cache_hits": 10,"cache_misses": 5,...}, "maxlength": 50}
-  virtual void DumpJson(Writer* writer, MessageHandler* message_handler) {
+  void DumpJson(Writer* writer, MessageHandler* message_handler) override {
     int longest_string = 0;
     writer->Write("{\"variables\": {", message_handler);
     for (int i = 0, n = variables_.size(); i < n; ++i) {
@@ -225,7 +221,7 @@ template<class Var, class UpDown, class Hist,
     writer->Write("}", message_handler);
   }
 
-  virtual void Clear() {
+  void Clear() override {
     for (int i = 0, n = variables_.size(); i < n; ++i) {
       Variable* var = variables_[i];
       var->Clear();
@@ -312,14 +308,15 @@ template<class Var, class UpDown, class Hist,
 //      void Clear();
 // See ../util/simple_stats.h, class SimpleStatsVariable, for an example
 // of an Impl class.
-template<class Impl> class VarTemplate : public Variable {
+template <class Impl>
+class VarTemplate : public Variable {
  public:
   VarTemplate(StringPiece name, Statistics* stats) : impl_(name, stats) {}
-  virtual ~VarTemplate() {}
-  virtual int64 Get() const { return impl_.Get(); }
-  virtual StringPiece GetName() const { return impl_.GetName(); }
-  virtual int64 AddHelper(int64 delta) { return impl_.AddHelper(delta); }
-  virtual void Clear() { impl_.Set(0); }
+  ~VarTemplate() override {}
+  int64 Get() const override { return impl_.Get(); }
+  StringPiece GetName() const override { return impl_.GetName(); }
+  int64 AddHelper(int64 delta) override { return impl_.AddHelper(delta); }
+  void Clear() override { impl_.Set(0); }
 
   Impl* impl() { return &impl_; }
 
@@ -333,15 +330,15 @@ template<class Impl> class VarTemplate : public Variable {
 // helper implementation class Impl.  Note that the same Impl class
 // can be used for VarTemplate, but UpDownCounter provides a
 // Set method, and will not DCHECK-fail on negative increments.
-template<class Impl> class UpDownTemplate : public UpDownCounter {
+template <class Impl>
+class UpDownTemplate : public UpDownCounter {
  public:
-  UpDownTemplate(StringPiece name, Statistics* stats)
-      : impl_(name, stats) {}
-  virtual ~UpDownTemplate() {}
-  virtual int64 Get() const { return impl_.Get(); }
-  virtual StringPiece GetName() const { return impl_.GetName(); }
-  virtual void Set(int64 value) { impl_.Set(value); }
-  virtual int64 AddHelper(int64 delta) { return impl_.AddHelper(delta); }
+  UpDownTemplate(StringPiece name, Statistics* stats) : impl_(name, stats) {}
+  ~UpDownTemplate() override {}
+  int64 Get() const override { return impl_.Get(); }
+  StringPiece GetName() const override { return impl_.GetName(); }
+  void Set(int64 value) override { impl_.Set(value); }
+  int64 AddHelper(int64 delta) override { return impl_.AddHelper(delta); }
   virtual void Clear() { impl_.Set(0); }
 
   Impl* impl() { return &impl_; }
@@ -354,12 +351,12 @@ template<class Impl> class UpDownTemplate : public UpDownCounter {
 
 // A specialization of StatisticsTemplate for implementations where the
 // Variable and UpDownCounter implementations can share a common Impl.
-template<class Impl,                       // See example in VarTemplate
-         class HistC = CountHistogram,     // Histogram
-         class TVarC = FakeTimedVariable>  // TimeDVariable
+template <class Impl,                       // See example in VarTemplate
+          class HistC = CountHistogram,     // Histogram
+          class TVarC = FakeTimedVariable>  // TimeDVariable
 class ScalarStatisticsTemplate
-    : public StatisticsTemplate<VarTemplate<Impl>, UpDownTemplate<Impl>,
-                                HistC, TVarC> {
+    : public StatisticsTemplate<VarTemplate<Impl>, UpDownTemplate<Impl>, HistC,
+                                TVarC> {
  public:
   // Add typedefs for template class args to make them visible to subclasses.
   typedef VarTemplate<Impl> Var;
@@ -368,18 +365,16 @@ class ScalarStatisticsTemplate
   typedef TVarC TVar;
 
   ScalarStatisticsTemplate() {}
-  virtual ~ScalarStatisticsTemplate() {}
+  ~ScalarStatisticsTemplate() override {}
 
  protected:
-  virtual Var* NewVariable(StringPiece name) {
-    return new Var(name, this);
-  }
+  Var* NewVariable(StringPiece name) override { return new Var(name, this); }
 
-  virtual UpDown* NewUpDownCounter(StringPiece name) {
+  UpDown* NewUpDownCounter(StringPiece name) override {
     return new UpDown(name, this);
   }
 
-  virtual TVar* NewTimedVariable(StringPiece name) {
+  TVar* NewTimedVariable(StringPiece name) override {
     return new TVar(name, this);
   }
 };

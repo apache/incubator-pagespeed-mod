@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/js_replacer.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -36,13 +35,9 @@ class JsReplacerTest : public testing::Test {
  public:
   JsReplacerTest() : replacer_(&patterns_) {}
 
-  void AppendTail(GoogleString* str) {
-    StrAppend(str, " with tail");
-  }
+  void AppendTail(GoogleString* str) { StrAppend(str, " with tail"); }
 
-  void AppendHead(GoogleString* str) {
-    *str = "head with " + *str;
-  }
+  void AppendHead(GoogleString* str) { *str = "head with " + *str; }
 
  protected:
   JsTokenizerPatterns patterns_;
@@ -60,7 +55,7 @@ TEST_F(JsReplacerTest, BasicMatch) {
   const char kIn[] = "a.b.c = \"42\"; document.domain = 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"42\"; document.domain = 'whatever.com with tail';";
-  scoped_ptr<JsReplacer::StringRewriter> rewriter(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter(
       NewPermanentCallback(this, &JsReplacerTest::AppendTail));
   replacer_.AddPattern("document", "domain", rewriter.get());
 
@@ -74,9 +69,9 @@ TEST_F(JsReplacerTest, RedundantPattern) {
   const char kIn[] = "a.b.c = \"42\"; document.domain = 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"42\"; document.domain = 'whatever.com with tail';";
-  scoped_ptr<JsReplacer::StringRewriter> rewriter(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter(
       NewPermanentCallback(this, &JsReplacerTest::AppendTail));
-  scoped_ptr<JsReplacer::StringRewriter> rewriter2(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter2(
       NewPermanentCallback(this, &JsReplacerTest::AppendHead));
   replacer_.AddPattern("document", "domain", rewriter.get());
   replacer_.AddPattern("document", "domain", rewriter2.get());
@@ -88,13 +83,12 @@ TEST_F(JsReplacerTest, RedundantPattern) {
 
 TEST_F(JsReplacerTest, TwoPatterns) {
   // Test two different patterns.
-  const char kIn[] =
-      "a.b.c = \"42\"; document.domain = 'whatever.com';";
+  const char kIn[] = "a.b.c = \"42\"; document.domain = 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"head with 42\"; document.domain = 'whatever.com with tail';";
-  scoped_ptr<JsReplacer::StringRewriter> rewriter(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter(
       NewPermanentCallback(this, &JsReplacerTest::AppendTail));
-  scoped_ptr<JsReplacer::StringRewriter> rewriter2(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter2(
       NewPermanentCallback(this, &JsReplacerTest::AppendHead));
   replacer_.AddPattern("document", "domain", rewriter.get());
   replacer_.AddPattern("b", "c", rewriter2.get());
@@ -109,7 +103,7 @@ TEST_F(JsReplacerTest, CommentsOk) {
       "a.b.c = \"42\"; document.domain = /*relax*/ 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"42\"; document.domain = /*relax*/ 'whatever.com with tail';";
-  scoped_ptr<JsReplacer::StringRewriter> rewriter(
+  std::unique_ptr<JsReplacer::StringRewriter> rewriter(
       NewPermanentCallback(this, &JsReplacerTest::AppendTail));
   replacer_.AddPattern("document", "domain", rewriter.get());
 

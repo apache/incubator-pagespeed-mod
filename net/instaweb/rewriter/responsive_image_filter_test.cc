@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/responsive_image_filter.h"
 
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
@@ -38,11 +37,11 @@ namespace net_instaweb {
 
 namespace {
 
-const char kPuzzleJpgFile[] = "Puzzle.jpg";        // 1023 x 766
-const char kCuppaPngFile[] = "Cuppa.png";          //   65 x  70
-const char kIronChefGifFile[] = "IronChef2.gif";   //  192 x 256
-const char k1x1GifFile[] = "another-blank.gif";    //    1 x   1
-const char k16x16PngFile[] = "small_16x16.png";    //   16 x  16
+const char kPuzzleJpgFile[] = "Puzzle.jpg";       // 1023 x 766
+const char kCuppaPngFile[] = "Cuppa.png";         //   65 x  70
+const char kIronChefGifFile[] = "IronChef2.gif";  //  192 x 256
+const char k1x1GifFile[] = "another-blank.gif";   //    1 x   1
+const char k16x16PngFile[] = "small_16x16.png";   //   16 x  16
 
 static const char* k16x16PngDataUrl =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAA"
@@ -71,17 +70,16 @@ class ResponsiveImageFilterTest : public RewriteTestBase {
                          kContentTypePng, 100);
   }
 
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 
   void TestSimple(int width, int height, StringPiece filename,
                   StringPiece full_density, StringPiece final_ext,
                   bool include_zoom_script) {
     GoogleString width_str = IntegerToString(width);
     GoogleString height_str = IntegerToString(height);
-    GoogleString input_html = StrCat(
-        html_prolog_,
-        "<img src=", filename, " width=", width_str, " height=", height_str,
-        ">");
+    GoogleString input_html =
+        StrCat(html_prolog_, "<img src=", filename, " width=", width_str,
+               " height=", height_str, ">");
     GoogleString output_html = StrCat(
         html_prolog_,
         "<img src=", EncodeImage(width, height, filename, "0", final_ext),
@@ -89,12 +87,11 @@ class ResponsiveImageFilterTest : public RewriteTestBase {
     StrAppend(
         &output_html, " srcset=\"",
         EncodeImage(1.5 * width, 1.5 * height, filename, "0", final_ext),
-        " 1.5x,",
-        EncodeImage(2 * width, 2 * height, filename, "0", final_ext), " 2x,",
-        EncodeImage(3 * width, 3 * height, filename, "0", final_ext), " 3x,");
-    StrAppend(
-        &output_html, EncodeImage(-1, -1, filename, "0", final_ext),
-        " ", full_density, "x\">");
+        " 1.5x,", EncodeImage(2 * width, 2 * height, filename, "0", final_ext),
+        " 2x,", EncodeImage(3 * width, 3 * height, filename, "0", final_ext),
+        " 3x,");
+    StrAppend(&output_html, EncodeImage(-1, -1, filename, "0", final_ext), " ",
+              full_density, "x\">");
     if (include_zoom_script) {
       StrAppend(&output_html,
                 "<script src=\"/psajs/responsive.0.js\"></script>");
@@ -205,9 +202,9 @@ TEST_F(ResponsiveImageFilterTest, RecompressLarger) {
 
   // Note: This is the native size of a.jpg.
   const char input_html[] = "<img src=a.jpg width=1023 height=766>";
-  GoogleString output_html = StrCat(
-      "<img src=", EncodeImage(-1, -1, "a.jpg", "0", "jpg"),
-      " width=1023 height=766>");
+  GoogleString output_html =
+      StrCat("<img src=", EncodeImage(-1, -1, "a.jpg", "0", "jpg"),
+             " width=1023 height=766>");
   // We do not add a srcset because this is already native size.
   ValidateExpected("recompress_larger", input_html, output_html);
 }
@@ -220,10 +217,10 @@ TEST_F(ResponsiveImageFilterTest, RecompressLarger2) {
 
   // Note: This is 2/3 the native size of a.jpg.
   const char input_html[] = "<img src=a.jpg width=682 height=511>";
-  GoogleString output_html = StrCat(
-      "<img src=", EncodeImage(682, 511, "a.jpg", "0", "jpg"),
-      " width=682 height=511 srcset=\"",
-      EncodeImage(-1, -1, "a.jpg", "0", "jpg"), " 1.5x\">");
+  GoogleString output_html =
+      StrCat("<img src=", EncodeImage(682, 511, "a.jpg", "0", "jpg"),
+             " width=682 height=511 srcset=\"",
+             EncodeImage(-1, -1, "a.jpg", "0", "jpg"), " 1.5x\">");
   // We do not add a 2x version because the 1.5x is already native size.
   ValidateExpected("recompress_larger2", input_html, output_html);
 }
@@ -236,12 +233,12 @@ TEST_F(ResponsiveImageFilterTest, RecompressLarger3) {
 
   // Note: This is slightly less than 2/3 the native size of a.jpg.
   const char input_html[] = "<img src=a.jpg width=682 height=510>";
-  GoogleString output_html = StrCat(
-      "<img src=", EncodeImage(682, 510, "a.jpg", "0", "jpg"),
-      " width=682 height=510 srcset=\"",
-      EncodeImage(1023, 765, "a.jpg", "0", "jpg"), " 1.5x,",
-      // Note this 2x version is actually only 1023x766.
-      EncodeImage(-1, -1, "a.jpg", "0", "jpg"), " 2x\">");
+  GoogleString output_html =
+      StrCat("<img src=", EncodeImage(682, 510, "a.jpg", "0", "jpg"),
+             " width=682 height=510 srcset=\"",
+             EncodeImage(1023, 765, "a.jpg", "0", "jpg"), " 1.5x,",
+             // Note this 2x version is actually only 1023x766.
+             EncodeImage(-1, -1, "a.jpg", "0", "jpg"), " 2x\">");
   // TODO(sligocki): We shouldn't include the 1.5x version because it's so
   // close to the 2x version. Update this test when that is fixed.
   ValidateExpected("recompress_larger3", input_html, output_html);
@@ -337,11 +334,12 @@ TEST_F(ResponsiveImageFilterTest, NoPartialInline) {
   rewrite_driver()->AddFilters();
 
   const char input_html[] = "<img src=small_16x16.png width=8 height=8>";
-  GoogleString output_html = StrCat(
-      "<img src=", EncodeImage(8, 8, "small_16x16.png", "0", "png"),
-      " width=8 height=8 srcset=\"",
-      EncodeImage(12, 12, "small_16x16.png", "0", "png"), " 1.5x,"
-      "small_16x16.png 2x\">");
+  GoogleString output_html =
+      StrCat("<img src=", EncodeImage(8, 8, "small_16x16.png", "0", "png"),
+             " width=8 height=8 srcset=\"",
+             EncodeImage(12, 12, "small_16x16.png", "0", "png"),
+             " 1.5x,"
+             "small_16x16.png 2x\">");
   ValidateExpected("no_partial_inline", input_html, output_html);
 }
 
@@ -355,9 +353,9 @@ TEST_F(ResponsiveImageFilterTest, NoPartialInline2) {
   rewrite_driver()->AddFilters();
 
   const char input_html[] = "<img src=small_16x16.png width=11 height=11>";
-  GoogleString output_html = StrCat(
-      "<img src=", EncodeImage(11, 11, "small_16x16.png", "0", "png"),
-      " width=11 height=11 srcset=\"small_16x16.png 1.5x\">");
+  GoogleString output_html =
+      StrCat("<img src=", EncodeImage(11, 11, "small_16x16.png", "0", "png"),
+             " width=11 height=11 srcset=\"small_16x16.png 1.5x\">");
   ValidateExpected("no_partial_inline2", input_html, output_html);
 }
 
@@ -373,8 +371,7 @@ TEST_F(ResponsiveImageFilterTest, LocalStorageFilter) {
       StrCat("<script type=\"text/javascript\" data-pagespeed-no-defer>",
              server_context()->static_asset_manager()->GetAsset(
                  StaticAssetEnum::LOCAL_STORAGE_CACHE_JS, options()),
-             LocalStorageCacheFilter::kLscInitializer,
-             "</script>");
+             LocalStorageCacheFilter::kLscInitializer, "</script>");
 
   // Note: Currently images used by the responsive filter do not get
   // local storage attributes and thus cannot be saved into local storage.
@@ -382,8 +379,8 @@ TEST_F(ResponsiveImageFilterTest, LocalStorageFilter) {
   // work together, we will need to update this test.
   const char input_html[] = "<img src=small_16x16.png width=16 height=16>";
   GoogleString output_html =
-      StrCat(local_storage_cache_js,
-             "<img width=16 height=16 src=\"", k16x16PngDataUrl, "\">");
+      StrCat(local_storage_cache_js, "<img width=16 height=16 src=\"",
+             k16x16PngDataUrl, "\">");
   ValidateExpected("local_storage", input_html, output_html);
 }
 
@@ -411,22 +408,19 @@ TEST_F(ResponsiveImageFilterTest, CommasInUrls) {
 
   // srcset added. Commas are allowed in the middle of URLs in srcsets.
   ValidateExpected(
-      "comma_middle",
-      "<img src='comma,middle' width=682 height=511>",
+      "comma_middle", "<img src='comma,middle' width=682 height=511>",
       StrCat("<img src='", EncodeImage(682, 511, "comma,middle", "0", "jpg"),
              "' width=682 height=511 srcset=\"comma,middle 1.5x\">"));
 
   // No srcset added. Commas are not allowed at end of URLs in srcset.
   ValidateExpected(
-      "comma_end",
-      "<img src='comma,end,' width=682 height=511>",
+      "comma_end", "<img src='comma,end,' width=682 height=511>",
       StrCat("<img src='", EncodeImage(682, 511, "comma,end,", "0", "jpg"),
              "' width=682 height=511>"));
 
   // No srcset added. Commas are not allowed at beginning of URLs in srcset.
   ValidateExpected(
-      "comma_begin",
-      "<img src=',comma,begin' width=682 height=511>",
+      "comma_begin", "<img src=',comma,begin' width=682 height=511>",
       StrCat("<img src='", EncodeImage(682, 511, ",comma,begin", "0", "jpg"),
              "' width=682 height=511>"));
 }
@@ -436,9 +430,8 @@ TEST_F(ResponsiveImageFilterTest, JavaScriptUrl) {
   options()->EnableFilter(RewriteOptions::kResizeImages);
   rewrite_driver()->AddFilters();
 
-  ValidateNoChanges(
-      "js_image",
-      "<img src='javascript:slide();' width=682 height=511>");
+  ValidateNoChanges("js_image",
+                    "<img src='javascript:slide();' width=682 height=511>");
 }
 
 TEST_F(ResponsiveImageFilterTest, EscapedUrl) {
@@ -461,9 +454,10 @@ TEST_F(ResponsiveImageFilterTest, EscapedUrl) {
 
   ParseUrl("http://example.com/escaped_image",
            StrCat("<img src='", kUrl, "' width=682 height=511>"));
-  EXPECT_THAT(output_buffer_, testing::HasSubstr(
-      StrCat("<img src='", kUrl, "' width=682 height=511>"
-             "<!--Responsive image URL not decodable")));
+  EXPECT_THAT(output_buffer_, testing::HasSubstr(StrCat(
+                                  "<img src='", kUrl,
+                                  "' width=682 height=511>"
+                                  "<!--Responsive image URL not decodable")));
 }
 
 TEST_F(ResponsiveImageFilterTest, SpacesInUrls) {
@@ -476,8 +470,7 @@ TEST_F(ResponsiveImageFilterTest, SpacesInUrls) {
 
   // All whitespace chars should be escaped in srcset.
   ValidateExpected(
-      "comma_middle",
-      "<img src='space \t in \n\r\f URL' width=682 height=511>",
+      "comma_middle", "<img src='space \t in \n\r\f URL' width=682 height=511>",
       StrCat("<img src='",
              EncodeImage(682, 511, "space%20%20in%20%0C%20URL", "0", "jpg"),
              "' width=682 height=511 "
@@ -523,9 +516,9 @@ TEST_F(ResponsiveImageFilterTest, InputSrcSet) {
 
   const char input_html[] =
       "<img src=a.jpg width=100 height=100 srcset='a.jpg 1x, b.png 2x'>";
-  GoogleString output_html = StrCat(
-      "<img src=", EncodeImage(100, 100, "a.jpg", "0", "jpg"),
-      " width=100 height=100 srcset='a.jpg 1x, b.png 2x'>");
+  GoogleString output_html =
+      StrCat("<img src=", EncodeImage(100, 100, "a.jpg", "0", "jpg"),
+             " width=100 height=100 srcset='a.jpg 1x, b.png 2x'>");
   ValidateExpected("input_srcset", input_html, output_html);
 }
 
@@ -539,14 +532,15 @@ TEST_F(ResponsiveImageFilterTest, CustomDensities) {
   rewrite_driver()->AddFilters();
 
   const char input_html[] = "<img src=a.jpg width=100 height=100>";
-  GoogleString output_html = StrCat(
-      "<img src=", EncodeImage(100, 100, "a.jpg", "0", "jpg"),
-      " width=100 height=100 srcset=\"",
-      // Note: Resolutions are sorted.
-      EncodeImage(50, 50, "a.jpg", "0", "jpg"), " 0.5x,",
-      EncodeImage(200, 200, "a.jpg", "0", "jpg"), " 2x,",
-      EncodeImage(470, 470, "a.jpg", "0", "jpg"), " 4.7x,"
-      "a.jpg 10.23x\">");
+  GoogleString output_html =
+      StrCat("<img src=", EncodeImage(100, 100, "a.jpg", "0", "jpg"),
+             " width=100 height=100 srcset=\"",
+             // Note: Resolutions are sorted.
+             EncodeImage(50, 50, "a.jpg", "0", "jpg"), " 0.5x,",
+             EncodeImage(200, 200, "a.jpg", "0", "jpg"), " 2x,",
+             EncodeImage(470, 470, "a.jpg", "0", "jpg"),
+             " 4.7x,"
+             "a.jpg 10.23x\">");
   ValidateExpected("custom_densities", input_html, output_html);
 }
 
@@ -587,18 +581,17 @@ TEST_F(ResponsiveImageFilterTest, Debug) {
              "already has one.-->"));
 
   ValidateExpected(
-      "no_dims",
-      "<img src=a.jpg>",
+      "no_dims", "<img src=a.jpg>",
 
-      StrCat("<img src=", EncodeImage(-1, -1, "a.jpg", "0", "jpg"), ">"
+      StrCat("<img src=", EncodeImage(-1, -1, "a.jpg", "0", "jpg"),
+             ">"
              "<!--Image http://test.com/a.jpg "
              "does not appear to need resizing.-->"
              "<!--ResponsiveImageFilter: Not adding srcset because image does "
              "not have dimensions (or a src URL).-->"));
 
   ValidateExpected(
-      "tracking_pixel",
-      "<img src=small_1x1.gif width=1 height=1>",
+      "tracking_pixel", "<img src=small_1x1.gif width=1 height=1>",
 
       "<img src=small_1x1.gif width=1 height=1>"
       "<!--Image http://test.com/small_1x1.gif "
@@ -652,7 +645,8 @@ TEST_F(ResponsiveImageFilterTest, Debug) {
              "does not appear to need resizing.-->"
 
              // Actual image + debug messages:
-             "<img src=", EncodeImage(-1, -1, "a.jpg", "0", "jpg"),
+             "<img src=",
+             EncodeImage(-1, -1, "a.jpg", "0", "jpg"),
              " width=1023 height=766>"
              "<!--ResponsiveImageFilter: Not adding 1x candidate to srcset "
              "because it is the same as previous candidate.-->"
@@ -775,10 +769,11 @@ TEST_F(ResponsiveImageFilterTest, InlinePreview) {
   SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
   rewrite_driver()->AddFilters();
 
-  const GoogleString kInlinePreviewScript = StrCat(
-      "<script data-pagespeed-no-defer type=\"text/javascript\">",
-      DelayImagesFilter::kImageOnloadJsSnippet, "</script>");
-  const char kLowResSource[] = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAA"
+  const GoogleString kInlinePreviewScript =
+      StrCat("<script data-pagespeed-no-defer type=\"text/javascript\">",
+             DelayImagesFilter::kImageOnloadJsSnippet, "</script>");
+  const char kLowResSource[] =
+      "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAA"
       "AQABAAD/2wBDAFA3PEY8MlBGQUZaVVBfeMiCeG5uePWvuZHI////////////////////"
       "////////////////////////////////2wBDAVVaWnhpeOuCguv/////////////////"
       "////////////////////////////////////////////////////////wAARCABkAGQD"
@@ -797,14 +792,15 @@ TEST_F(ResponsiveImageFilterTest, InlinePreview) {
 
   const char input_html[] = "<img src=a.jpg width=100 height=100>";
   GoogleString output_html = StrCat(
-      kInlinePreviewScript,
-      "<img data-pagespeed-high-res-src=",
+      kInlinePreviewScript, "<img data-pagespeed-high-res-src=",
       EncodeImage(100, 100, "a.jpg", "0", "jpg"),
       " width=100 height=100 data-pagespeed-high-res-srcset=\"",
       EncodeImage(150, 150, "a.jpg", "0", "jpg"), " 1.5x,",
       EncodeImage(200, 200, "a.jpg", "0", "jpg"), " 2x,",
-      EncodeImage(300, 300, "a.jpg", "0", "jpg"), " 3x,"
-      "a.jpg 10.23x\" src=\"", kLowResSource,
+      EncodeImage(300, 300, "a.jpg", "0", "jpg"),
+      " 3x,"
+      "a.jpg 10.23x\" src=\"",
+      kLowResSource,
       "\" onload=\"pagespeed.switchToHighResAndMaybeBeacon(this);\" onerror=\""
       "this.onerror=null;pagespeed.switchToHighResAndMaybeBeacon(this);\">");
   ValidateExpected("inline_preview", input_html, output_html);
@@ -817,20 +813,19 @@ TEST_F(ResponsiveImageFilterTest, Lazyload) {
   // Disable beaconing so that the image is automatically lazyloaded.
   options()->set_critical_images_beacon_enabled(false);
   // Set User-Agent so that Lazyload will work.
-  SetCurrentUserAgent(
-      UserAgentMatcherTestBase::kChrome18UserAgent);
+  SetCurrentUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);
   SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
   rewrite_driver()->AddFilters();
 
   const char input_html[] = "<img src=a.jpg width=100 height=100>";
   GoogleString output_html = StrCat(
-      GetLazyloadScriptHtml(),
-      "<img data-pagespeed-lazy-src=",
+      GetLazyloadScriptHtml(), "<img data-pagespeed-lazy-src=",
       EncodeImage(100, 100, "a.jpg", "0", "jpg"),
       " width=100 height=100 data-pagespeed-lazy-srcset=\"",
       EncodeImage(150, 150, "a.jpg", "0", "jpg"), " 1.5x,",
       EncodeImage(200, 200, "a.jpg", "0", "jpg"), " 2x,",
-      EncodeImage(300, 300, "a.jpg", "0", "jpg"), " 3x,"
+      EncodeImage(300, 300, "a.jpg", "0", "jpg"),
+      " 3x,"
       "a.jpg 10.23x\" src=\"/psajs/1.0.gif\" "
       "onload=\"pagespeed.lazyLoadImages.loadIfVisibleAndMaybeBeacon(this);\" "
       "onerror=\"this.onerror=null;pagespeed.lazyLoadImages."

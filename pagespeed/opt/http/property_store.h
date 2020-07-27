@@ -55,26 +55,22 @@ class PropertyStore {
   // used to fast finish the lookup. Client must call DeleteWhenDone() on this
   // callback after that it is no more usable. This parameter can be set to
   // NULL.
-  virtual void Get(
-      const GoogleString& url,
-      const GoogleString& options_signature_hash,
-      const GoogleString& cache_key_suffix,
-      const PropertyCache::CohortVector& cohort_list,
-      PropertyPage* page,
-      BoolCallback* done,
-      AbstractPropertyStoreGetCallback** callback) = 0;
+  virtual void Get(const GoogleString& url,
+                   const GoogleString& options_signature_hash,
+                   const GoogleString& cache_key_suffix,
+                   const PropertyCache::CohortVector& cohort_list,
+                   PropertyPage* page, BoolCallback* done,
+                   AbstractPropertyStoreGetCallback** callback) = 0;
 
   // Write to storage system for the given key.
   // Callback done can be NULL. BoolCallback done will be called with true if
   // Insert operation is successful.
   // TODO(pulkitg): Remove UserAgentMatcher dependency.
-  virtual void Put(
-      const GoogleString& url,
-      const GoogleString& options_signature_hash,
-      const GoogleString& cache_key_suffix,
-      const PropertyCache::Cohort* cohort,
-      const PropertyCacheValues* values,
-      BoolCallback* done) = 0;
+  virtual void Put(const GoogleString& url,
+                   const GoogleString& options_signature_hash,
+                   const GoogleString& cache_key_suffix,
+                   const PropertyCache::Cohort* cohort,
+                   const PropertyCacheValues* values, BoolCallback* done) = 0;
 
   // PropertyStore::Get can be cancelled if enable_get_cancellation is true
   // i.e. input done callback will be called as soon as FastFinishLookup() is
@@ -110,29 +106,25 @@ class PropertyStore {
 class PropertyStoreGetCallback : public AbstractPropertyStoreGetCallback {
  public:
   typedef Callback1<bool> BoolCallback;
-  PropertyStoreGetCallback(
-      AbstractMutex* mutex,
-      PropertyPage* page,
-      bool is_cancellable,
-      BoolCallback* done,
-      Timer* timer);
-  virtual ~PropertyStoreGetCallback();
+  PropertyStoreGetCallback(AbstractMutex* mutex, PropertyPage* page,
+                           bool is_cancellable, BoolCallback* done,
+                           Timer* timer);
+  ~PropertyStoreGetCallback() override;
 
   static void InitStats(Statistics* statistics);
 
   // Try to finish all the pending lookups if possible and call Done as soon as
   // possible.
-  virtual void FastFinishLookup();
+  void FastFinishLookup() override;
   // Deletes the callback after done finishes.
-  virtual void DeleteWhenDone();
+  void DeleteWhenDone() override;
   // Add the given property cache value to the PropertyPage if PropertyPage is
   // not NULL.
   // Returns true if PropertyValueProtobuf is successfully added to
   // PropertyPage.
   bool AddPropertyValueProtobufToPropertyPage(
       const PropertyCache::Cohort* cohort,
-      const PropertyValueProtobuf& pcache_value,
-      int64 min_write_timestamp_ms);
+      const PropertyValueProtobuf& pcache_value, int64 min_write_timestamp_ms);
 
   // Done is called when lookup is finished. This method is made public so that
   // PropertyStore implementations may call it.
@@ -143,7 +135,7 @@ class PropertyStoreGetCallback : public AbstractPropertyStoreGetCallback {
   PropertyPage* page() { return page_; }
 
  private:
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   PropertyPage* page_;
   const bool is_cancellable_;
   BoolCallback* done_;

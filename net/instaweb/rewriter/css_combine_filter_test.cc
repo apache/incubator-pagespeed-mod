@@ -75,7 +75,7 @@ class CssCombineFilterTest : public RewriteTestBase {
         css_file_count_reduction_(statistics()->GetVariable(
             CssCombineFilter::kCssFileCountReduction)) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_support_noscript_enabled(false);
     AddFilter(RewriteOptions::kCombineCss);
@@ -83,12 +83,10 @@ class CssCombineFilterTest : public RewriteTestBase {
   }
 
   // Test spriting CSS with options to write headers and use a hasher.
-  void CombineCss(const StringPiece& id,
-                  const StringPiece& barrier_text,
-                  const StringPiece& debug_text,
-                  bool is_barrier) {
-    CombineCssWithNames(id, barrier_text, debug_text, is_barrier,
-                        kCssA, kCssB, true);
+  void CombineCss(const StringPiece& id, const StringPiece& barrier_text,
+                  const StringPiece& debug_text, bool is_barrier) {
+    CombineCssWithNames(id, barrier_text, debug_text, is_barrier, kCssA, kCssB,
+                        true);
   }
 
   // Synthesizes an HTML css link element, with no media tag.
@@ -112,8 +110,7 @@ class CssCombineFilterTest : public RewriteTestBase {
     return out;
   }
 
-  void SetupCssResources(const char* a_css_name,
-                         const char* b_css_name) {
+  void SetupCssResources(const char* a_css_name, const char* b_css_name) {
     ResponseHeaders default_css_header;
     SetDefaultLongCacheHeaders(&kContentTypeCss, &default_css_header);
     SetFetchResponse(StrCat(kDomain, a_css_name), default_css_header,
@@ -125,10 +122,8 @@ class CssCombineFilterTest : public RewriteTestBase {
 
   void CombineCssWithNames(const StringPiece& id,
                            const StringPiece& barrier_text,
-                           const StringPiece& debug_text,
-                           bool is_barrier,
-                           const char* a_css_name,
-                           const char* b_css_name,
+                           const StringPiece& debug_text, bool is_barrier,
+                           const char* a_css_name, const char* b_css_name,
                            bool expect_combine) {
     // URLs and content for HTML document and resources.
     CHECK_EQ(StringPiece::npos, id.find("/"));
@@ -139,20 +134,23 @@ class CssCombineFilterTest : public RewriteTestBase {
 
     GoogleString html_input = StrCat(
         "<head>\n"
-        "  ", Link(a_css_name), "\n"
-        "  ", Link(b_css_name), "\n");
-    StrAppend(&html_input,
-        "  <title>Hello, Instaweb</title>\n",
-        barrier_text,
-        "</head>\n"
-        "<body>\n"
-        "  <div class='c1'>\n"
-        "    <div class='c2'>\n"
-        "      Yellow on Blue\n"
-        "    </div>\n"
-        "  </div>\n"
-        "  ", Link("c.css"), "\n"
-        "</body>\n");
+        "  ",
+        Link(a_css_name),
+        "\n"
+        "  ",
+        Link(b_css_name), "\n");
+    StrAppend(&html_input, "  <title>Hello, Instaweb</title>\n", barrier_text,
+              "</head>\n"
+              "<body>\n"
+              "  <div class='c1'>\n"
+              "    <div class='c2'>\n"
+              "      Yellow on Blue\n"
+              "    </div>\n"
+              "  </div>\n"
+              "  ",
+              Link("c.css"),
+              "\n"
+              "</body>\n");
 
     SetupCssResources(a_css_name, b_css_name);
 
@@ -195,11 +193,12 @@ class CssCombineFilterTest : public RewriteTestBase {
 
     GoogleString expected_output(AddHtmlBody(StrCat(
         "<head>\n"
-        "  ", Link(combine_url), "\n"
+        "  ",
+        Link(combine_url),
+        "\n"
         "  \n"  // The whitespace from the original link is preserved here ...
         "  <title>Hello, Instaweb</title>\n",
-        debug_text,
-        barrier_text,
+        debug_text, barrier_text,
         "</head>\n"
         "<body>\n"
         "  <div class='c1'>\n"
@@ -207,12 +206,14 @@ class CssCombineFilterTest : public RewriteTestBase {
         "      Yellow on Blue\n"
         "    </div>\n"
         "  </div>\n"
-        "  ", (is_barrier ? Link("c.css") : ""), "\n"
+        "  ",
+        (is_barrier ? Link("c.css") : ""),
+        "\n"
         "</body>\n")));
     if (!debug_text.empty()) {
       EXPECT_HAS_SUBSTR(DebugFilter::FormatEndDocumentMessage(
-                        0, 0, 0, 0, 0, false, StringSet(), StringVector()),
-                    output_buffer_);
+                            0, 0, 0, 0, 0, false, StringSet(), StringVector()),
+                        output_buffer_);
     }
     if (expect_combine) {
       EXPECT_HAS_SUBSTR(expected_output, output_buffer_);
@@ -256,15 +257,15 @@ class CssCombineFilterTest : public RewriteTestBase {
                                            const StringVector& name_vector) {
     const bool kCombineAndThenOptimize = true;
     if (kCombineAndThenOptimize) {
-      return Encode(path, RewriteOptions::kCssFilterId, "0",
-                    Encode("", RewriteOptions::kCssCombinerId, "0",
-                           name_vector, "css"), "css");
+      return Encode(
+          path, RewriteOptions::kCssFilterId, "0",
+          Encode("", RewriteOptions::kCssCombinerId, "0", name_vector, "css"),
+          "css");
     } else {
       StringVector optimized_css_names;
       for (int i = 0, size = name_vector.size(); i < size; ++i) {
-        optimized_css_names.push_back(
-            Encode("", RewriteOptions::kCssFilterId, "0",
-                   name_vector[i], "css"));
+        optimized_css_names.push_back(Encode("", RewriteOptions::kCssFilterId,
+                                             "0", name_vector[i], "css"));
       }
       return Encode(path, RewriteOptions::kCssCombinerId, "0",
                     optimized_css_names, "css");
@@ -288,15 +289,13 @@ class CssCombineFilterTest : public RewriteTestBase {
     // First make sure we can serve the combination of a & c.  This is to avoid
     // spurious test successes.
 
-    GoogleString kACUrl =
-        Encode(kDomain, RewriteOptions::kCssCombinerId, "0",
-               MultiUrl(kCssA, "c.css"), "css");
+    GoogleString kACUrl = Encode(kDomain, RewriteOptions::kCssCombinerId, "0",
+                                 MultiUrl(kCssA, "c.css"), "css");
     GoogleString kABCUrl = Encode(kDomain, RewriteOptions::kCssCombinerId, "0",
-                                  MultiUrl(kCssA, "bbb.css", "c.css"),
-                                  "css");
+                                  MultiUrl(kCssA, "bbb.css", "c.css"), "css");
     ExpectStringAsyncFetch expect_callback(
         true, RequestContext::NewTestRequestContext(
-            server_context()->thread_system()));
+                  server_context()->thread_system()));
 
     // NOTE: This first fetch used to return status 0 because response_headers
     // weren't initialized by the first resource fetch (but were cached
@@ -322,9 +321,8 @@ class CssCombineFilterTest : public RewriteTestBase {
     SetFetchFailOnUnexpected(false);
     ExpectStringAsyncFetch fail_callback(
         false, RequestContext::NewTestRequestContext(
-            server_context()->thread_system()));
-    EXPECT_TRUE(
-        rewrite_driver()->FetchResource(kABCUrl, &fail_callback));
+                   server_context()->thread_system()));
+    EXPECT_TRUE(rewrite_driver()->FetchResource(kABCUrl, &fail_callback));
     rewrite_driver()->WaitForCompletion();
 
     // What status we get here depends a lot on details of when exactly
@@ -343,10 +341,9 @@ class CssCombineFilterTest : public RewriteTestBase {
   //   }
   //
   // The output of this function is the collected CSS links after rewrite.
-  void BarrierTestHelper(
-      const StringPiece& id,
-      const CssLink::Vector& input_css_links,
-      CssLink::Vector* output_css_links) {
+  void BarrierTestHelper(const StringPiece& id,
+                         const CssLink::Vector& input_css_links,
+                         CssLink::Vector* output_css_links) {
     // TODO(sligocki): Allow other domains (this is constrained right now b/c
     // of SetResponseWithDefaultHeaders.
     GoogleString html_url = StrCat(kTestDomain, id, ".html");
@@ -393,7 +390,7 @@ class CssCombineFilterTest : public RewriteTestBase {
     GoogleUrl base_url(kTestDomain);
     GoogleUrl munged_gurl(base_url, munged_url);
     GoogleString out;
-    EXPECT_TRUE(FetchResourceUrl(munged_gurl.Spec(),  &out));
+    EXPECT_TRUE(FetchResourceUrl(munged_gurl.Spec(), &out));
 
     // Now re-do it and make sure the new suffix didn't get stuck in the URL
     STLDeleteElements(&css_out);
@@ -414,9 +411,8 @@ class CssCombineFilterTest : public RewriteTestBase {
     SetFetchResponse(a_css_url, default_css_header, kYellow);
     SetFetchResponse(b_css_url, default_css_header, kBlue);
 
-    GoogleString combined_url =
-        Encode("", RewriteOptions::kCssCombinerId, "0",
-               MultiUrl(kCssA, kCssB), "css");
+    GoogleString combined_url = Encode("", RewriteOptions::kCssCombinerId, "0",
+                                       MultiUrl(kCssA, kCssB), "css");
 
     SetupWriter();
     SetXhtmlMimetype();
@@ -447,7 +443,7 @@ class CssCombineFilterTest : public RewriteTestBase {
   }
 
   void CombineWithBaseTag(const StringPiece& html_input,
-                          StringVector *css_urls) {
+                          StringVector* css_urls) {
     // Put original CSS files into our fetcher.
     GoogleString html_url = StrCat(kDomain, "base_url.html");
     static const char kACssUrl[] = "http://other_domain.test/foo/a.css";
@@ -530,15 +526,16 @@ TEST_F(CssCombineFilterTest, CombineCssUnhealthy) {
   SetupCssResources(kCssA, kCssB);
   GoogleString html_input = StrCat(
       "<head>\n"
-      "  ", Link(kCssA), "\n"
-      "  ", Link(kCssB), "\n");
+      "  ",
+      Link(kCssA),
+      "\n"
+      "  ",
+      Link(kCssB), "\n");
   ParseUrl(StrCat(kDomain, "unhealthy.html"), html_input);
   EXPECT_EQ(AddHtmlBody(html_input), output_buffer_);
 }
 
-TEST_F(CssCombineFilterTest, Fetch) {
-  TestFetch();
-}
+TEST_F(CssCombineFilterTest, Fetch) { TestFetch(); }
 
 // Even with the cache unhealthy, we can still fetch already-optimized
 // resources.
@@ -557,7 +554,7 @@ class CssCombineFilterCustomOptions : public CssCombineFilterTest {
  protected:
   // Derived classes need to set custom options and explicitly call
   // CssCombineFilterTest::SetUp();
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 // Tests Issue 600 in which CSS files in a MapProxyDomain were not combined with
@@ -580,11 +577,15 @@ TEST_F(CssCombineFilterCustomOptions, CssCombineAcrossProxyDomains) {
   SetFetchResponse(b_proxy_css_url, default_css_header, kBCssBody);
 
   // Parse html that links to both css files.
-  GoogleString html_input(StrCat(
-      "<head>\n"
-      "  ", Link(a_local_css_url), "\n"
-      "  ", Link(b_proxy_css_url), "\n"
-      "</head>\n"));
+  GoogleString html_input(
+      StrCat("<head>\n"
+             "  ",
+             Link(a_local_css_url),
+             "\n"
+             "  ",
+             Link(b_proxy_css_url),
+             "\n"
+             "</head>\n"));
 
   ParseUrl(StrCat(kTestDomain, "base_url.html"), html_input);
 
@@ -594,9 +595,8 @@ TEST_F(CssCombineFilterCustomOptions, CssCombineAcrossProxyDomains) {
   ASSERT_EQ(1UL, css_urls.size());
   // Encode doesn't allow a '/' as it expects a leaf so we have to add proxied/
   // after the encoding occurs.
-  GoogleString encoded =
-      Encode(kTestDomain, RewriteOptions::kCssCombinerId, "0",
-             MultiUrl(kCssA, kCssB), "css");
+  GoogleString encoded = Encode(kTestDomain, RewriteOptions::kCssCombinerId,
+                                "0", MultiUrl(kCssA, kCssB), "css");
   GlobalReplaceSubstring(kCssB, "proxied,_b.css", &encoded);
   EXPECT_STREQ(encoded, css_urls[0]);
 
@@ -628,11 +628,15 @@ TEST_F(CssCombineFilterCustomOptions, CssDoNotCombineAcrossNotProxiedDomains) {
   SetFetchResponse(b_proxy_css_url, default_css_header, kBCssBody);
 
   // Parse html that links to both css files.
-  GoogleString html_input(StrCat(
-      "<head>\n"
-      "  ", Link(a_local_css_url), "\n"
-      "  ", Link(b_proxy_css_url), "\n"
-      "</head>\n"));
+  GoogleString html_input(
+      StrCat("<head>\n"
+             "  ",
+             Link(a_local_css_url),
+             "\n"
+             "  ",
+             Link(b_proxy_css_url),
+             "\n"
+             "</head>\n"));
 
   ParseUrl(StrCat(kTestDomain, "base_url.html"), html_input);
 
@@ -662,7 +666,6 @@ TEST_F(CssCombineFilterTest, CombineCssRecombine) {
   EXPECT_EQ(0, lru_cache()->num_identical_reinserts());
 }
 
-
 // https://github.com/apache/incubator-pagespeed-mod/issues/39
 TEST_F(CssCombineFilterTest, DealWithParams) {
   SetHtmlMimetype();
@@ -683,24 +686,28 @@ TEST_F(CssCombineFilterTest, ClaimsXhtmlButHasUnclosedLink) {
       "  Yellow on Blue</p></div></div></body>";
 
   GoogleString unclosed_links(StrCat(
-      "  ", Link(kCssA), "\n"  // unclosed
-      "  <script type='text/javascript' src='c.js'></script>"     // 'in' <link>
-      "  ", Link(kCssB)));
-  GoogleString combination(StrCat(
-      "  ", Link(Encode("", RewriteOptions::kCssCombinerId, "0",
-                        MultiUrl(kCssA, kCssB), "css"),
-                 "", true),
-      "\n"
-      "  <script type='text/javascript' src='c.js'></script>  "));
+      "  ", Link(kCssA),
+      "\n"                                                     // unclosed
+      "  <script type='text/javascript' src='c.js'></script>"  // 'in' <link>
+      "  ",
+      Link(kCssB)));
+  GoogleString combination(
+      StrCat("  ",
+             Link(Encode("", RewriteOptions::kCssCombinerId, "0",
+                         MultiUrl(kCssA, kCssB), "css"),
+                  "", true),
+             "\n"
+             "  <script type='text/javascript' src='c.js'></script>  "));
 
   // Put original CSS files into our fetcher.
   ResponseHeaders default_css_header;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &default_css_header);
   SetFetchResponse(StrCat(kTestDomain, kCssA), default_css_header, ".a {}");
   SetFetchResponse(StrCat(kTestDomain, kCssB), default_css_header, ".b {}");
-  ValidateExpected("claims_xhtml_but_has_unclosed_links",
-                   StringPrintf(html_format, kXhtmlDtd, unclosed_links.c_str()),
-                   StringPrintf(html_format, kXhtmlDtd, combination.c_str()));
+  ValidateExpected(
+      "claims_xhtml_but_has_unclosed_links",
+      absl::StrFormat(html_format, kXhtmlDtd, unclosed_links.c_str()),
+      absl::StrFormat(html_format, kXhtmlDtd, combination.c_str()));
 }
 
 // http://github.com/apache/incubator-pagespeed-mod/issues/306
@@ -715,21 +722,21 @@ TEST_F(CssCombineFilterTest, XhtmlCombineLinkClosed) {
       "<body><div class='c1'><div class='c2'><p>\n"
       "  Yellow on Blue</p></div></div></body>";
 
-  GoogleString links(StrCat(
-      Link(kCssA, "screen", true), Link(kCssB, "screen", true)));
-  GoogleString combination(
-      Link(Encode("", RewriteOptions::kCssCombinerId, "0",
-                  MultiUrl(kCssA, kCssB), "css"),
-           "screen", true));
+  GoogleString links(
+      StrCat(Link(kCssA, "screen", true), Link(kCssB, "screen", true)));
+  GoogleString combination(Link(Encode("", RewriteOptions::kCssCombinerId, "0",
+                                       MultiUrl(kCssA, kCssB), "css"),
+                                "screen", true));
 
   // Put original CSS files into our fetcher.
   ResponseHeaders default_css_header;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &default_css_header);
   SetFetchResponse(StrCat(kTestDomain, kCssA), default_css_header, ".a {}");
   SetFetchResponse(StrCat(kTestDomain, kCssB), default_css_header, ".b {}");
-  ValidateExpected("xhtml_combination_closed",
-                   StringPrintf(html_format, kXhtmlDtd, links.c_str()),
-                   StringPrintf(html_format, kXhtmlDtd, combination.c_str()));
+  ValidateExpected(
+      "xhtml_combination_closed",
+      absl::StrFormat(html_format, kXhtmlDtd, links.c_str()),
+      absl::StrFormat(html_format, kXhtmlDtd, combination.c_str()));
 }
 
 TEST_F(CssCombineFilterTest, IEDirectiveBarrier) {
@@ -744,7 +751,7 @@ TEST_F(CssCombineFilterTest, IEDirectiveBarrier) {
 
 class CssCombineFilterWithDebugTest : public CssCombineFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kDebug);
@@ -782,20 +789,23 @@ TEST_F(CssCombineFilterWithDebugTest, StyleBarrier) {
 
 TEST_F(CssCombineFilterTest, BogusLinkBarrier) {
   SetHtmlMimetype();
-  static const char kBogusBarrier[] = "<link rel='stylesheet' "
+  static const char kBogusBarrier[] =
+      "<link rel='stylesheet' "
       "href='crazee://big/blue/fake' type='text/css'>\n";
   UseMd5Hasher();
-  CombineCss("combine_css_bogus_link", kBogusBarrier, "",  true);
+  CombineCss("combine_css_bogus_link", kBogusBarrier, "", true);
 }
 
 TEST_F(CssCombineFilterWithDebugTest, BogusLinkBarrier) {
   SetHtmlMimetype();
-  static const char kBogusBarrier[] = "<link rel='stylesheet' "
+  static const char kBogusBarrier[] =
+      "<link rel='stylesheet' "
       "href='crazee://big/blue/fake' type='text/css'>\n";
   UseMd5Hasher();
   CombineCss("combine_css_bogus_link", kBogusBarrier,
              "<!--combine_css: Could not combine over barrier: "
-             "resource not rewritable-->",  true);
+             "resource not rewritable-->",
+             true);
 }
 
 TEST_F(CssCombineFilterTest, AlternateStylesheetBarrier) {
@@ -813,7 +823,8 @@ TEST_F(CssCombineFilterWithDebugTest, AlternateStylesheetBarrier) {
   UseMd5Hasher();
   CombineCss("alternate_stylesheet_barrier", kBarrier,
              "<!--combine_css: Could not combine over barrier: "
-             "custom or alternate stylesheet attribute-->", true);
+             "custom or alternate stylesheet attribute-->",
+             true);
 }
 
 TEST_F(CssCombineFilterTest, NonStandardAttributesBarrier) {
@@ -831,7 +842,8 @@ TEST_F(CssCombineFilterWithDebugTest, NonStandardAttributesBarrier) {
   UseMd5Hasher();
   CombineCss("non_standard_attributes_barrier", kBarrier,
              "<!--combine_css: Could not combine over barrier: "
-             "potentially non-combinable attribute: &#39;foo&#39;-->", true);
+             "potentially non-combinable attribute: &#39;foo&#39;-->",
+             true);
 }
 
 TEST_F(CssCombineFilterTest, NonStandardAttributesBarrierWithId) {
@@ -842,8 +854,7 @@ TEST_F(CssCombineFilterTest, NonStandardAttributesBarrierWithId) {
   CombineCss("non_standard_attributes_with_id_barrier", kBarrier, "", true);
 }
 
-TEST_F(CssCombineFilterWithDebugTest,
-       NonStandardAttributesBarrierWithId) {
+TEST_F(CssCombineFilterWithDebugTest, NonStandardAttributesBarrierWithId) {
   SetHtmlMimetype();
   static const char kBarrier[] =
       "<link rel='stylesheet' type='text/css' href='a.css' foo='bar' id=baz>";
@@ -851,7 +862,8 @@ TEST_F(CssCombineFilterWithDebugTest,
   CombineCss("non_standard_attributes_with_id_barrier", kBarrier,
              "<!--combine_css: Could not combine over barrier: "
              "potentially non-combinable attributes: &#39;foo&#39;"
-             " and &#39;id&#39;-->", true);
+             " and &#39;id&#39;-->",
+             true);
 }
 
 TEST_F(CssCombineFilterTest, NonStandardAttributesBarrierWithAllowedId) {
@@ -862,8 +874,8 @@ TEST_F(CssCombineFilterTest, NonStandardAttributesBarrierWithAllowedId) {
   options()->ClearSignatureForTesting();
   options()->AddCssCombiningWildcard("b?z");
   server_context()->ComputeSignature(options());
-  CombineCss("non_standard_attributes_with_allowed_id_barrier",
-             kBarrier, "", true);
+  CombineCss("non_standard_attributes_with_allowed_id_barrier", kBarrier, "",
+             true);
 }
 
 TEST_F(CssCombineFilterWithDebugTest,
@@ -877,7 +889,8 @@ TEST_F(CssCombineFilterWithDebugTest,
   server_context()->ComputeSignature(options());
   CombineCss("non_standard_attributes_with_allowed_id_barrier", kBarrier,
              "<!--combine_css: Could not combine over barrier: "
-             "potentially non-combinable attribute: &#39;foo&#39;-->", true);
+             "potentially non-combinable attribute: &#39;foo&#39;-->",
+             true);
 }
 
 TEST_F(CssCombineFilterTest, IdAloneIsNoBarrier) {
@@ -933,11 +946,15 @@ TEST_F(CssCombineFilterTest, StripBom) {
   SetFetchResponse(b_css_url, default_header, bom_body);
 
   StringVector css_urls;
-  GoogleString input_buffer(StrCat(
-      "<head>\n"
-      "  ", Link(kCssA), "\n"
-      "  ", Link(kCssB), "\n"
-      "</head>\n"));
+  GoogleString input_buffer(
+      StrCat("<head>\n"
+             "  ",
+             Link(kCssA),
+             "\n"
+             "  ",
+             Link(kCssB),
+             "\n"
+             "</head>\n"));
   ParseUrl(html_url, input_buffer);
 
   CollectCssLinks("combine_css_no_bom", output_buffer_, &css_urls);
@@ -949,11 +966,15 @@ TEST_F(CssCombineFilterTest, StripBom) {
   int bom_pos = actual_combination.find(kUtf8Bom);
   EXPECT_EQ(GoogleString::npos, bom_pos);
 
-  GoogleString input_buffer_reversed(StrCat(
-      "<head>\n"
-      "  ", Link(kCssB), "\n"
-      "  ", Link(kCssA), "\n"
-      "</head>\n"));
+  GoogleString input_buffer_reversed(
+      StrCat("<head>\n"
+             "  ",
+             Link(kCssB),
+             "\n"
+             "  ",
+             Link(kCssA),
+             "\n"
+             "</head>\n"));
   ParseUrl(html_url, input_buffer_reversed);
   css_urls.clear();
   actual_combination.clear();
@@ -971,14 +992,11 @@ TEST_F(CssCombineFilterTest, StripBomReconstruct) {
   // Make sure we strip the BOM properly when reconstructing, too.
   static const char kCssText[] = "div {background-image:url(fancy.png);}";
   SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
-                                StrCat(kUtf8Bom, kCssText),
-                                300);
+                                StrCat(kUtf8Bom, kCssText), 300);
   SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                StrCat(kUtf8Bom, kCssText),
-                                300);
-  GoogleString css_url =
-      Encode(kTestDomain, RewriteOptions::kCssCombinerId, "0",
-             MultiUrl(kCssA, kCssB), "css");
+                                StrCat(kUtf8Bom, kCssText), 300);
+  GoogleString css_url = Encode(kTestDomain, RewriteOptions::kCssCombinerId,
+                                "0", MultiUrl(kCssA, kCssB), "css");
   GoogleString css_out;
   EXPECT_TRUE(FetchResourceUrl(css_url, &css_out));
   EXPECT_EQ(StrCat(kUtf8Bom, kCssText, "\n", kCssText), css_out);
@@ -1047,14 +1065,19 @@ TEST_F(CssCombineFilterTest, CombineCssWithNonMediaBarrier) {
   SetFetchResponse(d_css_url, default_css_header, kDCssBody);
 
   // Only the first two CSS files should be combined.
-  GoogleString html_input(StrCat(
-      "<head>\n"
-      "  ", Link(kCssA, "print", false), "\n"
-      "  ", Link(kCssB, "print", false), "\n"));
-  StrAppend(&html_input,
-      "  ", Link("c.css"), "\n"
-      "  ", Link("d.css", "print", false), "\n"
-      "</head>");
+  GoogleString html_input(
+      StrCat("<head>\n"
+             "  ",
+             Link(kCssA, "print", false),
+             "\n"
+             "  ",
+             Link(kCssB, "print", false), "\n"));
+  StrAppend(&html_input, "  ", Link("c.css"),
+            "\n"
+            "  ",
+            Link("d.css", "print", false),
+            "\n"
+            "</head>");
 
   // Rewrite
   ParseUrl(html_url, html_input);
@@ -1065,13 +1088,19 @@ TEST_F(CssCombineFilterTest, CombineCssWithNonMediaBarrier) {
   EXPECT_EQ(3UL, css_urls.size());
   const GoogleString& combine_url = css_urls[0];
 
-  GoogleString expected_output(StrCat(
-      "<head>\n"
-      "  ", Link(combine_url, "print", false), "\n"
-      "  \n"
-      "  ", Link("c.css"), "\n"
-      "  ", Link("d.css", "print", false), "\n"
-      "</head>"));
+  GoogleString expected_output(
+      StrCat("<head>\n"
+             "  ",
+             Link(combine_url, "print", false),
+             "\n"
+             "  \n"
+             "  ",
+             Link("c.css"),
+             "\n"
+             "  ",
+             Link("d.css", "print", false),
+             "\n"
+             "</head>"));
   EXPECT_EQ(AddHtmlBody(expected_output), output_buffer_);
 }
 
@@ -1083,12 +1112,16 @@ TEST_F(CssCombineFilterTest, CombineCssWithNonMediaBarrier) {
 TEST_F(CssCombineFilterTest, NoCombineCssBaseUrlOutOfOrder) {
   SetHtmlMimetype();
   StringVector css_urls;
-  GoogleString input_buffer(StrCat(
-      "<head>\n"
-      "  ", Link(kCssA), "\n"
-      "  <base href='http://other_domain.test/foo/'>\n"
-      "  ", Link(kCssB), "\n"
-      "</head>\n"));
+  GoogleString input_buffer(
+      StrCat("<head>\n"
+             "  ",
+             Link(kCssA),
+             "\n"
+             "  <base href='http://other_domain.test/foo/'>\n"
+             "  ",
+             Link(kCssB),
+             "\n"
+             "</head>\n"));
   CombineWithBaseTag(input_buffer, &css_urls);
   EXPECT_EQ(2UL, css_urls.size());
   EXPECT_EQ(AddHtmlBody(input_buffer), output_buffer_);
@@ -1099,22 +1132,32 @@ TEST_F(CssCombineFilterTest, NoCombineCssBaseUrlOutOfOrder) {
 TEST_F(CssCombineFilterTest, CombineCssBaseUrlOutOfOrder) {
   SetHtmlMimetype();
   StringVector css_urls;
-  GoogleString input_buffer(StrCat(
-      "<head>\n"
-      "  ", Link(kCssA), "\n"
-      "  <base href='http://other_domain.test/foo/'>\n"
-      "  ", Link(kCssB), "\n"
-      "  ", Link("c.css"), "\n"
-      "</head>\n"));
+  GoogleString input_buffer(
+      StrCat("<head>\n"
+             "  ",
+             Link(kCssA),
+             "\n"
+             "  <base href='http://other_domain.test/foo/'>\n"
+             "  ",
+             Link(kCssB),
+             "\n"
+             "  ",
+             Link("c.css"),
+             "\n"
+             "</head>\n"));
   CombineWithBaseTag(input_buffer, &css_urls);
 
-  GoogleString expected_output(StrCat(
-      "<head>\n"
-      "  ", Link(kCssA), "\n"
-      "  <base href='http://other_domain.test/foo/'>\n"
-      "  ", Link(css_urls[1]), "\n"
-      "  \n"
-      "</head>\n"));
+  GoogleString expected_output(
+      StrCat("<head>\n"
+             "  ",
+             Link(kCssA),
+             "\n"
+             "  <base href='http://other_domain.test/foo/'>\n"
+             "  ",
+             Link(css_urls[1]),
+             "\n"
+             "  \n"
+             "</head>\n"));
   EXPECT_EQ(2UL, css_urls.size());
   // Note: Combined css_urls[1] is still relative, just like the original URLs.
   GoogleString combine_url =
@@ -1133,20 +1176,26 @@ TEST_F(CssCombineFilterTest, CombineCssBaseUrlOutOfOrder) {
 TEST_F(CssCombineFilterTest, CombineCssAbsoluteBaseUrlOutOfOrder) {
   SetHtmlMimetype();
   StringVector css_urls;
-  GoogleString input_buffer(StrCat(
-      "<head>\n"
-      "  ", Link("http://other_domain.test/foo/a.css"), "\n"
-      "  <base href='http://other_domain.test/foo/'>\n"
-      "  ", Link(kCssB), "\n"
-      "</head>\n"));
+  GoogleString input_buffer(
+      StrCat("<head>\n"
+             "  ",
+             Link("http://other_domain.test/foo/a.css"),
+             "\n"
+             "  <base href='http://other_domain.test/foo/'>\n"
+             "  ",
+             Link(kCssB),
+             "\n"
+             "</head>\n"));
   CombineWithBaseTag(input_buffer, &css_urls);
 
-  GoogleString expected_output(StrCat(
-      "<head>\n"
-      "  ", Link(css_urls[0]), "\n"
-      "  <base href='http://other_domain.test/foo/'>\n"
-      "  \n"
-      "</head>\n"));
+  GoogleString expected_output(
+      StrCat("<head>\n"
+             "  ",
+             Link(css_urls[0]),
+             "\n"
+             "  <base href='http://other_domain.test/foo/'>\n"
+             "  \n"
+             "</head>\n"));
   EXPECT_EQ(1UL, css_urls.size());
   EXPECT_EQ(EncodeWithBase("http://other_domain.test/",
                            "http://other_domain.test/foo/",
@@ -1165,19 +1214,25 @@ TEST_F(CssCombineFilterTest, CombineCssBaseUrlCorrectlyOrdered) {
   SetHtmlMimetype();
   // <base> tag correctly precedes any urls.
   StringVector css_urls;
-  CombineWithBaseTag(StrCat(
-      "<head>\n"
-      "  <base href='http://other_domain.test/foo/'>\n"
-      "  ", Link(kCssA), "\n"
-      "  ", Link(kCssB), "\n"
-      "</head>\n"), &css_urls);
+  CombineWithBaseTag(StrCat("<head>\n"
+                            "  <base href='http://other_domain.test/foo/'>\n"
+                            "  ",
+                            Link(kCssA),
+                            "\n"
+                            "  ",
+                            Link(kCssB),
+                            "\n"
+                            "</head>\n"),
+                     &css_urls);
 
-  GoogleString expected_output(StrCat(
-      "<head>\n"
-      "  <base href='http://other_domain.test/foo/'>\n"
-      "  ", Link(css_urls[0]), "\n"
-      "  \n"
-      "</head>\n"));
+  GoogleString expected_output(
+      StrCat("<head>\n"
+             "  <base href='http://other_domain.test/foo/'>\n"
+             "  ",
+             Link(css_urls[0]),
+             "\n"
+             "  \n"
+             "</head>\n"));
   EXPECT_EQ(1UL, css_urls.size());
   // Note: Combined css_urls[0] is still relative, just like the original URLs.
   GoogleString combine_url =
@@ -1195,8 +1250,7 @@ TEST_F(CssCombineFilterTest, CombineCssNoInput) {
   SetFetchFailOnUnexpected(false);
   ResponseHeaders default_css_header;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &default_css_header);
-  SetFetchResponse(StrCat(kTestDomain, kCssB),
-                   default_css_header, ".a {}");
+  SetFetchResponse(StrCat(kTestDomain, kCssB), default_css_header, ".a {}");
   static const char kHtmlInput[] =
       "<head>\n"
       "  <link rel='stylesheet' href='a_broken.css' type='text/css'>\n"
@@ -1207,13 +1261,9 @@ TEST_F(CssCombineFilterTest, CombineCssNoInput) {
   ValidateNoChanges("combine_css_missing_input", kHtmlInput);
 }
 
-TEST_F(CssCombineFilterTest, CombineCssXhtml) {
-  TestXhtml(false);
-}
+TEST_F(CssCombineFilterTest, CombineCssXhtml) { TestXhtml(false); }
 
-TEST_F(CssCombineFilterTest, CombineCssXhtmlWithFlush) {
-  TestXhtml(true);
-}
+TEST_F(CssCombineFilterTest, CombineCssXhtmlWithFlush) { TestXhtml(true); }
 
 TEST_F(CssCombineFilterTest, CombineCssMissingResource) {
   CssCombineMissingResource();
@@ -1234,8 +1284,7 @@ TEST_F(CssCombineFilterTest, CombineCssManyFiles) {
   const int kNumCssInCombination = 70;  // based on how we encode "yellow%d.css"
   CssLink::Vector css_in, css_out;
   for (int i = 0; i < kNumCssLinks; ++i) {
-    css_in.Add(StringPrintf("styles/yellow%d.css", i),
-               kYellow, "", true);
+    css_in.Add(absl::StrFormat("styles/yellow%d.css", i), kYellow, "", true);
   }
   BarrierTestHelper("combine_css_many_files", css_in, &css_out);
   ASSERT_EQ(2, css_out.size());
@@ -1246,8 +1295,8 @@ TEST_F(CssCombineFilterTest, CombineCssManyFiles) {
   ASSERT_TRUE(css_out[0]->DecomposeCombinedUrl(kTestDomain, &base, &segments,
                                                &message_handler_))
       << css_out[0]->url_;
-  GoogleUrl dummy_encoded(Encode(StrCat(kTestDomain, "styles/"), "x", "0",
-                                 "x", "x"));
+  GoogleUrl dummy_encoded(
+      Encode(StrCat(kTestDomain, "styles/"), "x", "0", "x", "x"));
   EXPECT_EQ(dummy_encoded.AllExceptLeaf(), base);
   EXPECT_EQ(kNumCssInCombination, segments.size());
 
@@ -1268,11 +1317,9 @@ TEST_F(CssCombineFilterTest, CombineCssManyFilesOneOrphan) {
   const int kNumCssLinks = kNumCssInCombination + 1;
   CssLink::Vector css_in, css_out;
   for (int i = 0; i < kNumCssLinks - 1; ++i) {
-    css_in.Add(StringPrintf("styles/yellow%d.css", i),
-               kYellow, "", true);
+    css_in.Add(absl::StrFormat("styles/yellow%d.css", i), kYellow, "", true);
   }
-  css_in.Add("styles/last_one.css",
-             kYellow, "", true);
+  css_in.Add("styles/last_one.css", kYellow, "", true);
   BarrierTestHelper("combine_css_many_files", css_in, &css_out);
   ASSERT_EQ(2, css_out.size());
 
@@ -1282,8 +1329,8 @@ TEST_F(CssCombineFilterTest, CombineCssManyFilesOneOrphan) {
   ASSERT_TRUE(css_out[0]->DecomposeCombinedUrl(kTestDomain, &base, &segments,
                                                &message_handler_))
       << css_out[0]->url_;
-  GoogleUrl dummy_encoded(Encode(StrCat(kTestDomain, "styles/"), "x", "0",
-                                 "x", "x"));
+  GoogleUrl dummy_encoded(
+      Encode(StrCat(kTestDomain, "styles/"), "x", "0", "x", "x"));
   EXPECT_EQ(dummy_encoded.AllExceptLeaf(), base);
   EXPECT_EQ(kNumCssInCombination, segments.size());
   EXPECT_EQ("styles/last_one.css", css_out[1]->url_);
@@ -1358,8 +1405,8 @@ TEST_F(CssCombineFilterTest, NoAbsolutifySameDir) {
 TEST_F(CssCombineFilterTest, DoRewriteForDifferentDir) {
   CssLink::Vector css_in, css_out;
   css_in.Add("1.css", ".yellow {background-image: url('1.png');}\n", "", true);
-  css_in.Add("foo/2.css", ".yellow {background-image: url('2.png');}\n",
-             "", true);
+  css_in.Add("foo/2.css", ".yellow {background-image: url('2.png');}\n", "",
+             true);
   BarrierTestHelper("combine_css_with_style", css_in, &css_out);
   EXPECT_EQ(1, css_out.size());
 
@@ -1415,8 +1462,8 @@ TEST_F(CssCombineFilterTest, CrossAcrossPathsExceedingUrlSize) {
   GoogleUrl base_url(kTestDomain);
   GoogleUrl gurl(base_url, css_out[0]->url_);
   ASSERT_TRUE(gurl.IsWebValid());
-  GoogleUrl dummy_encoded(Encode(StrCat(kTestDomain, long_name, "/"), "x", "0",
-                                 "x", "x"));
+  GoogleUrl dummy_encoded(
+      Encode(StrCat(kTestDomain, long_name, "/"), "x", "0", "x", "x"));
   EXPECT_EQ(dummy_encoded.PathSansLeaf(), gurl.PathSansLeaf());
   ResourceNamer namer;
   ASSERT_TRUE(rewrite_driver()->Decode(gurl.LeafWithQuery(), &namer));
@@ -1467,21 +1514,23 @@ TEST_F(CssCombineFilterTest, CrossUnmappedDomain) {
 // Verifies the same but we check the debug message.
 TEST_F(CssCombineFilterWithDebugTest, DebugUnauthorizedDomain) {
   VerifyCrossUnmappedDomainNotRewritten();
-  EXPECT_HAS_SUBSTR("<html>\n"
-                      "<head>\n"
-                      "  <link rel=\"stylesheet\" type=\"text/css\""
-                      " href=\"http://a.com/1.css\">\n"
-                      "  <link "
-                      "rel=\"stylesheet\" type=\"text/css\""
-                      " href=\"http://b.com/2.css\">\n"
-                      "</head>\n"
-                      "<body>\n"
-                      "  <div class='yellow'>\n"
-                      "    Hello, mod_pagespeed!\n"
-                      "  </div>\n"
-                      "</body>\n"
-                      "</html>"
-                      "<!--", output_buffer_);
+  EXPECT_HAS_SUBSTR(
+      "<html>\n"
+      "<head>\n"
+      "  <link rel=\"stylesheet\" type=\"text/css\""
+      " href=\"http://a.com/1.css\">\n"
+      "  <link "
+      "rel=\"stylesheet\" type=\"text/css\""
+      " href=\"http://b.com/2.css\">\n"
+      "</head>\n"
+      "<body>\n"
+      "  <div class='yellow'>\n"
+      "    Hello, mod_pagespeed!\n"
+      "  </div>\n"
+      "</body>\n"
+      "</html>"
+      "<!--",
+      output_buffer_);
   EXPECT_HAS_SUBSTR(
       StrCat(DebugFilter::FormatEndDocumentMessage(0, 0, 0, 0, 0, false,
                                                    StringSet(), StringVector()),
@@ -1507,9 +1556,7 @@ TEST_F(CssCombineFilterTest, NoQueryCorruption) {
   TestCorruptUrl(".css?query");
 }
 
-TEST_F(CssCombineFilterTest, NoWrongExtCorruption) {
-  TestCorruptUrl(".html");
-}
+TEST_F(CssCombineFilterTest, NoWrongExtCorruption) { TestCorruptUrl(".html"); }
 
 TEST_F(CssCombineFilterTest, TwoCombinationsTwice) {
   // Regression test for a case where we were picking up some
@@ -1536,9 +1583,9 @@ TEST_F(CssCombineFilterTest, TwoCombinationsTwice) {
             output_css_links[2]->url_);
 
   // Get rid of the "modern" cache key, while keeping the old one.
-  lru_cache()->Delete(HttpCacheKey(
-      ",htest.com,_a.css+,htest.com,_b.css+,htest.com,_404.css+"
-      ",htest.com,_c.css+,htest.com,_d.css:cc"));
+  lru_cache()->Delete(
+      HttpCacheKey(",htest.com,_a.css+,htest.com,_b.css+,htest.com,_404.css+"
+                   ",htest.com,_c.css+,htest.com,_d.css:cc"));
 
   // Now do it again...
   BarrierTestHelper("two_comb", input_css_links, &output_css_links);
@@ -1550,37 +1597,34 @@ TEST_F(CssCombineFilterTest, InvalidFetchCache) {
   SetFetchResponse404("404a.css");
   SetFetchResponse404("404b.css");
 
-  EXPECT_FALSE(TryFetchResource(
-      Encode(kTestDomain, RewriteOptions::kCssCombinerId, "0",
-             MultiUrl("404a.css", "404b.css"), "css")));
-  ValidateNoChanges("invalid",
-                    StrCat(kXhtmlDtd,
-                           CssLinkHref("404a.css"),
-                           CssLinkHref("404b.css")));
+  EXPECT_FALSE(
+      TryFetchResource(Encode(kTestDomain, RewriteOptions::kCssCombinerId, "0",
+                              MultiUrl("404a.css", "404b.css"), "css")));
+  ValidateNoChanges("invalid", StrCat(kXhtmlDtd, CssLinkHref("404a.css"),
+                                      CssLinkHref("404b.css")));
 }
 
 TEST_F(CssCombineFilterTest, NoCombineParseErrors) {
   // Notice: This CSS file does not close its { and thus will break the
   // next stylesheet if they are combined, changing the page.
-  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
-                                "h1 { color: red", 100);
-  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                "h2 { color: blue; }", 100);
+  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss, "h1 { color: red", 100);
+  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, "h2 { color: blue; }",
+                                100);
 
-  ValidateNoChanges("bad_parse", StrCat(CssLinkHref(kCssA),
-                                        CssLinkHref(kCssB)));
+  ValidateNoChanges("bad_parse",
+                    StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)));
 }
 
 TEST_F(CssCombineFilterTest, NoCombineParseErrorsAtRule) {
   // Notice: This CSS file does not close its { and thus will break the
   // next stylesheet if they are combined, changing the page.
-  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
-                                "@foobar { color: red", 100);
-  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                "h2 { color: blue; }", 100);
+  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss, "@foobar { color: red",
+                                100);
+  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, "h2 { color: blue; }",
+                                100);
 
-  ValidateNoChanges("bad_parse", StrCat(CssLinkHref(kCssA),
-                                        CssLinkHref(kCssB)));
+  ValidateNoChanges("bad_parse",
+                    StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)));
 }
 
 TEST_F(CssCombineFilterTest, NoCombineParseErrorsUnclosedComment) {
@@ -1588,36 +1632,34 @@ TEST_F(CssCombineFilterTest, NoCombineParseErrorsUnclosedComment) {
   // next stylesheet if they were combined.
   SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
                                 "h1 { color: red; } /* ", 100);
-  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                "h2 { color: blue; }", 100);
+  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, "h2 { color: blue; }",
+                                100);
 
-  ValidateNoChanges("bad_parse", StrCat(CssLinkHref(kCssA),
-                                        CssLinkHref(kCssB)));
+  ValidateNoChanges("bad_parse",
+                    StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)));
 }
 
 TEST_F(CssCombineFilterTest, NoCombineParseErrorUnclosedImport) {
   // Notice: This CSS file does not close its @import (with a ;)
   // and thus would break the next stylesheet if they were combined.
-  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
-                                "@import url(b.css)", 100);
-  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                "h2 { color: blue; }", 100);
+  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss, "@import url(b.css)",
+                                100);
+  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, "h2 { color: blue; }",
+                                100);
 
-  ValidateNoChanges("bad_parse", StrCat(CssLinkHref(kCssA),
-                                        CssLinkHref(kCssB)));
+  ValidateNoChanges("bad_parse",
+                    StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)));
 }
 
 TEST_F(CssCombineFilterTest, RobustnessUnclosedString) {
   // Make sure we are robust against something with unterminated string.
-  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
-                                "q::before {padding: 0px; \"content: foo;}",
+  SetResponseWithDefaultHeaders(
+      kCssA, kContentTypeCss, "q::before {padding: 0px; \"content: foo;}", 100);
+  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, "h2 { color: blue; }",
                                 100);
-  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                "h2 { color: blue; }", 100);
 
-  GoogleString combined_url =
-      Encode("", RewriteOptions::kCssCombinerId, "0",
-             MultiUrl(kCssA, kCssB), "css");
+  GoogleString combined_url = Encode("", RewriteOptions::kCssCombinerId, "0",
+                                     MultiUrl(kCssA, kCssB), "css");
 
   ValidateNoChanges("unterm_str",
                     StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)));
@@ -1626,41 +1668,39 @@ TEST_F(CssCombineFilterTest, RobustnessUnclosedString) {
 // See: http://www.alistapart.com/articles/alternate/
 //  and http://www.w3.org/TR/html4/present/styles.html#h-14.3.1
 TEST_F(CssCombineFilterTest, AlternateStylesheets) {
-  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
-                                "h1 { color: red; }", 100);
-  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                "h2 { color: blue; }", 100);
+  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss, "h1 { color: red; }",
+                                100);
+  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, "h2 { color: blue; }",
+                                100);
 
   // Normal (persistent) CSS links are combined.
-  ValidateExpected(
-      "persistent",
-      "<link rel='stylesheet' href='a.css'>"
-      "<link rel='stylesheet' href='b.css'>",
-      StringPrintf("<link rel='stylesheet' href='%s'/>", Encode(
-          "", RewriteOptions::kCssCombinerId, "0",
-          MultiUrl(kCssA, kCssB), "css").c_str()));
+  ValidateExpected("persistent",
+                   "<link rel='stylesheet' href='a.css'>"
+                   "<link rel='stylesheet' href='b.css'>",
+                   absl::StrFormat("<link rel='stylesheet' href='%s'/>",
+                                   Encode("", RewriteOptions::kCssCombinerId,
+                                          "0", MultiUrl(kCssA, kCssB), "css")
+                                       .c_str()));
 
   // Make sure we accept mixed case for the keyword.
-  ValidateExpected(
-      "mixed_case",
-      "<link rel=' StyleSheet' href='a.css'>"
-      "<link rel='styleSHEET  ' href='b.css'>",
-      StringPrintf("<link rel=' StyleSheet' href='%s'/>", Encode(
-          "", RewriteOptions::kCssCombinerId, "0",
-          MultiUrl(kCssA, kCssB), "css").c_str()));
+  ValidateExpected("mixed_case",
+                   "<link rel=' StyleSheet' href='a.css'>"
+                   "<link rel='styleSHEET  ' href='b.css'>",
+                   absl::StrFormat("<link rel=' StyleSheet' href='%s'/>",
+                                   Encode("", RewriteOptions::kCssCombinerId,
+                                          "0", MultiUrl(kCssA, kCssB), "css")
+                                       .c_str()));
 
   // Preferred CSS links are not because we don't want to combine styles with
   // different titles.
-  ValidateNoChanges(
-      "preferred_different",
-      "<link rel='stylesheet' href='a.css' title='foo'>"
-      "<link rel='stylesheet' href='b.css' title='bar'>");
+  ValidateNoChanges("preferred_different",
+                    "<link rel='stylesheet' href='a.css' title='foo'>"
+                    "<link rel='stylesheet' href='b.css' title='bar'>");
 
   // TODO(sligocki): Should we combine ones with the same title?
-  ValidateNoChanges(
-      "preferred_same",
-      "<link rel='stylesheet' href='a.css' title='foo'>"
-      "<link rel='stylesheet' href='b.css' title='foo'>");
+  ValidateNoChanges("preferred_same",
+                    "<link rel='stylesheet' href='a.css' title='foo'>"
+                    "<link rel='stylesheet' href='b.css' title='foo'>");
 
   // Alternate CSS links, likewise.
   ValidateNoChanges(
@@ -1682,18 +1722,18 @@ TEST_F(CssCombineFilterTest, Stats) {
   EXPECT_EQ(0, css_file_count_reduction_->Get());
   ClearStats();
 
-  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
-                                ".a { color: red; }", 100);
+  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss, ".a { color: red; }",
+                                100);
   Parse("stats_one_link", Link(kCssA));
   // 0 opportunities with 1 link.
   EXPECT_EQ(0, css_combine_opportunities_->Get());
   EXPECT_EQ(0, css_file_count_reduction_->Get());
   ClearStats();
 
-  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                ".b { color: green; }", 100);
-  SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
-                                ".c { color: blue; }", 100);
+  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, ".b { color: green; }",
+                                100);
+  SetResponseWithDefaultHeaders("c.css", kContentTypeCss, ".c { color: blue; }",
+                                100);
   Parse("stats_3_links", StrCat(Link(kCssA), Link(kCssB), Link("c.css")));
   // 2 opportunity with 3 links.
   EXPECT_EQ(2, css_combine_opportunities_->Get());
@@ -1713,12 +1753,12 @@ TEST_F(CssCombineFilterTest, StatsWithDelay) {
   SetupWaitFetcher();
 
   // Setup CSS files.
-  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss,
-                                ".a { color: red; }", 100);
-  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss,
-                                ".b { color: green; }", 100);
-  SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
-                                ".c { color: blue; }", 100);
+  SetResponseWithDefaultHeaders(kCssA, kContentTypeCss, ".a { color: red; }",
+                                100);
+  SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, ".b { color: green; }",
+                                100);
+  SetResponseWithDefaultHeaders("c.css", kContentTypeCss, ".c { color: blue; }",
+                                100);
 
   GoogleString input_html = StrCat(Link(kCssA), Link(kCssB), Link("c.css"));
 
@@ -1758,7 +1798,7 @@ TEST_F(CssCombineFilterTest, StatsWithDelay) {
 
 class CssCombineAndCacheExtendTest : public CssCombineFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kExtendCacheCss);
@@ -1770,29 +1810,28 @@ TEST_F(CssCombineAndCacheExtendTest, CombineCssNoExtraCacheExtension) {
   SetHtmlMimetype();
   SetResponseWithDefaultHeaders(kCssA, kContentTypeJavascript, kYellow, 100);
   SetResponseWithDefaultHeaders(kCssB, kContentTypeJavascript, kBlue, 100);
-  GoogleString combined_url =
-      Encode("", RewriteOptions::kCssCombinerId, "0",
-             MultiUrl(kCssA, kCssB), "css");
+  GoogleString combined_url = Encode("", RewriteOptions::kCssCombinerId, "0",
+                                     MultiUrl(kCssA, kCssB), "css");
 
-  ValidateExpected("combine",
-                   StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)),
+  ValidateExpected("combine", StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)),
                    CssLinkHref(combined_url));
-  EXPECT_EQ(0,
-            rewrite_driver()->statistics()->GetVariable(
-                CacheExtender::kCacheExtensions)->Get());
+  EXPECT_EQ(0, rewrite_driver()
+                   ->statistics()
+                   ->GetVariable(CacheExtender::kCacheExtensions)
+                   ->Get());
 
   // Now try cached.
-  ValidateExpected("combine",
-                   StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)),
+  ValidateExpected("combine", StrCat(CssLinkHref(kCssA), CssLinkHref(kCssB)),
                    CssLinkHref(combined_url));
-  EXPECT_EQ(0,
-            rewrite_driver()->statistics()->GetVariable(
-                CacheExtender::kCacheExtensions)->Get());
+  EXPECT_EQ(0, rewrite_driver()
+                   ->statistics()
+                   ->GetVariable(CacheExtender::kCacheExtensions)
+                   ->Get());
 }
 
 class CssFilterWithCombineTest : public CssCombineFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kRewriteCss);
@@ -1819,8 +1858,8 @@ TEST_F(CssFilterWithCombineTest, TestFollowCombine) {
 
   // Make sure we don't regress dealing with combiner deleting things sanely
   // in rewrite filter.
-  ValidateExpected(
-      "follow_combine", StrCat(Link(kCssA), Link(kCssB)), Link(CssOut()));
+  ValidateExpected("follow_combine", StrCat(Link(kCssA), Link(kCssB)),
+                   Link(CssOut()));
 
   GoogleString content;
   EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, CssOut()), &content));
@@ -1873,9 +1912,7 @@ TEST_F(CssFilterWithCombineTest, FetchCombinedMinifiedWithoutGzip) {
 
 class CssFilterWithCombineTestUrlNamer : public CssFilterWithCombineTest {
  public:
-  CssFilterWithCombineTestUrlNamer() {
-    SetUseTestUrlNamer(true);
-  }
+  CssFilterWithCombineTestUrlNamer() { SetUseTestUrlNamer(true); }
 };
 
 // See TestFollowCombine above: change one, change them both!
@@ -1883,10 +1920,10 @@ TEST_F(CssFilterWithCombineTestUrlNamer, TestFollowCombine) {
   SetHtmlMimetype();
 
   // Check that we really are using TestUrlNamer and not UrlNamer.
-  EXPECT_NE(Encode(kTestDomain, RewriteOptions::kCssCombinerId, "0",
-                   kCssA, "css"),
-            EncodeNormal(kTestDomain, RewriteOptions::kCssCombinerId, "0",
-                         kCssA, "css"));
+  EXPECT_NE(
+      Encode(kTestDomain, RewriteOptions::kCssCombinerId, "0", kCssA, "css"),
+      EncodeNormal(kTestDomain, RewriteOptions::kCssCombinerId, "0", kCssA,
+                   "css"));
 
   // A verbatim copy of the test above but using TestUrlNamer.
   const GoogleString kCssOut =
@@ -1897,10 +1934,8 @@ TEST_F(CssFilterWithCombineTestUrlNamer, TestFollowCombine) {
   SetResponseWithDefaultHeaders(kCssA, kContentTypeCss, kCssText, 300);
   SetResponseWithDefaultHeaders(kCssB, kContentTypeCss, kCssText, 300);
 
-  ValidateExpected(
-      "follow_combine",
-      StrCat(Link(kCssA), Link(kCssB)),
-      Link(kCssOut));
+  ValidateExpected("follow_combine", StrCat(Link(kCssA), Link(kCssB)),
+                   Link(kCssOut));
 
   GoogleString content;
   EXPECT_TRUE(FetchResourceUrl(kCssOut, &content));
@@ -1953,9 +1988,7 @@ class CssCombineMaxSizeTest : public CssCombineFilterTest {
   }
 
  private:
-  GoogleString InputFileName(int id) {
-    return StringPrintf("%d.css", id);
-  }
+  GoogleString InputFileName(int id) { return absl::StrFormat("%d.css", id); }
 };
 
 TEST_F(CssCombineMaxSizeTest, NegativeOneByte) {
@@ -2070,7 +2103,7 @@ TEST_F(CssCombineMaxSizeTest, ReconstructedResourceExpectedHeadersNoStore) {
 
 class CollapseWhitespaceGeneralTest : public RewriteTestBase {
   // Don't add any text to our tests.
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 };
 
 // Issue 463: Collapse whitespace after other filters have been applied
@@ -2085,12 +2118,12 @@ TEST_F(CollapseWhitespaceGeneralTest, CollapseAfterCombine) {
   // Setup resources for combine_css.
   ResponseHeaders default_css_header;
   SetDefaultLongCacheHeaders(&kContentTypeCss, &default_css_header);
-  SetFetchResponse(AbsolutifyUrl(kCssA),
-                   default_css_header, ".a { color: red; }");
-  SetFetchResponse(AbsolutifyUrl(kCssB),
-                   default_css_header, ".b { color: green; }");
-  SetFetchResponse(AbsolutifyUrl("c.css"),
-                   default_css_header, ".c { color: blue; }");
+  SetFetchResponse(AbsolutifyUrl(kCssA), default_css_header,
+                   ".a { color: red; }");
+  SetFetchResponse(AbsolutifyUrl(kCssB), default_css_header,
+                   ".b { color: green; }");
+  SetFetchResponse(AbsolutifyUrl("c.css"), default_css_header,
+                   ".c { color: blue; }");
 
   // Before and expected after text.
   static const char kBefore[] =
@@ -2107,8 +2140,9 @@ TEST_F(CollapseWhitespaceGeneralTest, CollapseAfterCombine) {
       "<link rel=stylesheet type=text/css href=%s />\n"
       "</head>\n"
       "</html>\n";
-  GoogleString after = StringPrintf(kAfterTemplate, Encode(
-      "", "cc", "0", MultiUrl(kCssA, kCssB, "c.css"), "css").c_str());
+  GoogleString after = absl::StrFormat(
+      kAfterTemplate,
+      Encode("", "cc", "0", MultiUrl(kCssA, kCssB, "c.css"), "css").c_str());
 
   ValidateExpected("collapse_after_combine", kBefore, after);
 }

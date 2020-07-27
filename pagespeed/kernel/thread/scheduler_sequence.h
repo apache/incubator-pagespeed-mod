@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_THREAD_SCHEDULER_SEQUENCE_H_
 #define PAGESPEED_KERNEL_THREAD_SCHEDULER_SEQUENCE_H_
 
@@ -37,7 +36,7 @@ class Scheduler::Sequence : public net_instaweb::Sequence {
   // The scheduler is used for doing timed-waits so that any pending
   // scheduler alarms fire before the wait-period ends.
   explicit Sequence(Scheduler* scheduler);
-  virtual ~Sequence();
+  ~Sequence() override;
 
   void Add(Function* function) override LOCKS_EXCLUDED(scheduler_->mutex());
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Constant for allocating stack buffers.
 
 #ifndef PAGESPEED_KERNEL_BASE_STACK_BUFFER_H_

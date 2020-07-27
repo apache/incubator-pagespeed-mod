@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "public/base_tag_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"

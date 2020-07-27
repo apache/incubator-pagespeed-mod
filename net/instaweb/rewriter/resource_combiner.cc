@@ -72,12 +72,10 @@ ResourceCombiner::ResourceCombiner(RewriteDriver* driver,
   // server_context_ == NULL.
   // TODO(sligocki): Construct RewriteDriver with a ServerContext, to avoid
   // worrying about it not getting initialized.
-  CHECK(server_context_ != NULL);
+  CHECK(server_context_ != nullptr);
 }
 
-ResourceCombiner::~ResourceCombiner() {
-  Clear();
-}
+ResourceCombiner::~ResourceCombiner() { Clear(); }
 
 TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
                                                MessageHandler* handler) {
@@ -99,9 +97,9 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
   // unable to combine it safely
   GoogleString failure_reason;
   if (!ResourceCombinable(resource.get(), &failure_reason, handler)) {
-    handler->Message(
-        kInfo, "Cannot combine %s: resource not combinable, reason: %s",
-        resource->url().c_str(), failure_reason.c_str());
+    handler->Message(kInfo,
+                     "Cannot combine %s: resource not combinable, reason: %s",
+                     resource->url().c_str(), failure_reason.c_str());
     return ret;
   }
 
@@ -126,16 +124,15 @@ TimedBool ResourceCombiner::AddResourceNoFetch(const ResourcePtr& resource,
     AccumulateCombinedSize(resource);
 
     resources_.push_back(resource);
-    const char* failure_reason = NULL;
+    const char* failure_reason = nullptr;
     if (ContentSizeTooBig()) {
       failure_reason = "combined contents too big.";
     } else if (UrlTooBig()) {
       failure_reason = "combined url too long.";
     }
-    if (failure_reason != NULL) {
-      handler->Message(
-          kInfo, "Cannot combine %s: %s",
-          resource->url().c_str(), failure_reason);
+    if (failure_reason != nullptr) {
+      handler->Message(kInfo, "Cannot combine %s: %s", resource->url().c_str(),
+                       failure_reason);
       RemoveLastResource();
       added = false;
     }
@@ -158,14 +155,14 @@ void ResourceCombiner::RemoveLastResource() {
 GoogleString ResourceCombiner::UrlSafeId() const {
   GoogleString segment;
   UrlMultipartEncoder encoder;
-  encoder.Encode(multipart_encoder_urls_, NULL, &segment);
+  encoder.Encode(multipart_encoder_urls_, nullptr, &segment);
   return segment;
 }
 
 void ResourceCombiner::ComputeLeafSize() {
   GoogleString segment = UrlSafeId();
-  accumulated_leaf_size_ = segment.size() + url_overhead_
-      + server_context_->hasher()->HashSizeInChars();
+  accumulated_leaf_size_ = segment.size() + url_overhead_ +
+                           server_context_->hasher()->HashSizeInChars();
 }
 
 void ResourceCombiner::AccumulateLeafSize(const StringPiece& url) {
@@ -191,10 +188,9 @@ bool ResourceCombiner::UrlTooBig() {
   return false;
 }
 
-bool ResourceCombiner::ResourceCombinable(
-    Resource* /*resource*/,
-    GoogleString* /*failure_reason*/,
-    MessageHandler* /*handler*/) {
+bool ResourceCombiner::ResourceCombinable(Resource* /*resource*/,
+                                          GoogleString* /*failure_reason*/,
+                                          MessageHandler* /*handler*/) {
   return true;
 }
 
@@ -232,17 +228,17 @@ OutputResourcePtr ResourceCombiner::Combine(MessageHandler* handler) {
   combination.reset(rewrite_driver_->CreateOutputResourceWithMappedPath(
       resolved_base, resolved_base, filter_->id(), url_safe_id,
       kRewrittenResource, &failure_reason));
-  if (combination.get() == NULL) {
+  if (combination.get() == nullptr) {
     // TODO(sligocki): Note failure_reason somewhere.
   } else {
-    if (combination->cached_result() != NULL &&
+    if (combination->cached_result() != nullptr &&
         combination->cached_result()->optimizable()) {
       // If the combination has a Url set on it we have cached information
       // on what the output would be, so we'll just use that.
       return combination;
     }
-    if (WriteCombination(resources_, combination, handler)
-        && combination->IsWritten()) {
+    if (WriteCombination(resources_, combination, handler) &&
+        combination->IsWritten()) {
       // Otherwise, we have to compute it.
       return combination;
     }
@@ -252,10 +248,9 @@ OutputResourcePtr ResourceCombiner::Combine(MessageHandler* handler) {
   return combination;
 }
 
-bool ResourceCombiner::WriteCombination(
-    const ResourceVector& combine_resources,
-    const OutputResourcePtr& combination,
-    MessageHandler* handler) {
+bool ResourceCombiner::WriteCombination(const ResourceVector& combine_resources,
+                                        const OutputResourcePtr& combination,
+                                        MessageHandler* handler) {
   bool written = true;
   // TODO(sligocki): Write directly to a temp file rather than doing the extra
   // string copy.
@@ -263,8 +258,8 @@ bool ResourceCombiner::WriteCombination(
   StringWriter writer(&combined_contents);
   for (int i = 0, n = combine_resources.size(); written && (i < n); ++i) {
     ResourcePtr input(combine_resources[i]);
-    written = WritePiece(i, n, input.get(),
-                         combination.get(), &writer, handler);
+    written =
+        WritePiece(i, n, input.get(), combination.get(), &writer, handler);
   }
   if (written) {
     // Intersect the response headers from each input.
@@ -282,21 +277,17 @@ bool ResourceCombiner::WriteCombination(
     }
 
     // TODO(morlovich): Fix combiners to deal with charsets.
-    written =
-        rewrite_driver_->Write(
-            combine_resources, combined_contents, CombinationContentType(),
-            StringPiece() /* not computing charset for now */,
-            combination.get());
+    written = rewrite_driver_->Write(
+        combine_resources, combined_contents, CombinationContentType(),
+        StringPiece() /* not computing charset for now */, combination.get());
   }
   return written;
 }
 
-bool ResourceCombiner::WritePiece(int index,
-                                  int num_pieces,
+bool ResourceCombiner::WritePiece(int index, int num_pieces,
                                   const Resource* input,
                                   OutputResource* /*combination*/,
-                                  Writer* writer,
-                                  MessageHandler* handler) {
+                                  Writer* writer, MessageHandler* handler) {
   return writer->Write(input->ExtractUncompressedContents(), handler);
 }
 

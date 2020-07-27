@@ -33,12 +33,12 @@ class Timer;
 class PthreadThreadSystem : public ThreadSystem {
  public:
   PthreadThreadSystem();
-  virtual ~PthreadThreadSystem();
+  ~PthreadThreadSystem() override;
 
-  virtual CondvarCapableMutex* NewMutex();
-  virtual RWLock* NewRWLock();
-  virtual Timer* NewTimer();
-  virtual ThreadId* GetThreadId() const;
+  CondvarCapableMutex* NewMutex() override;
+  RWLock* NewRWLock() override;
+  Timer* NewTimer() override;
+  ThreadId* GetThreadId() const override;
 
  protected:
   // This hook will get invoked by the implementation in the context of a
@@ -48,7 +48,7 @@ class PthreadThreadSystem : public ThreadSystem {
  private:
   friend class PthreadThreadImpl;
 
-  virtual ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags);
+  ThreadImpl* NewThreadImpl(Thread* wrapper, ThreadFlags flags) override;
 
   DISALLOW_COPY_AND_ASSIGN(PthreadThreadSystem);
 };

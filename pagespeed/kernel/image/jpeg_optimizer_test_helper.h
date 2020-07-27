@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // This header only exists to avoid including jpeglib.h, etc directly
 // in jpeg_optimizer_test.cc, since doing so causes symbol collisions on
 // Windows.
@@ -31,11 +30,10 @@ namespace pagespeed_testing {
 namespace image_compression {
 
 // Helper that extracts the number of components and h/v sampling factors.
-bool GetJpegNumComponentsAndSamplingFactors(
-    const GoogleString& jpeg,
-    int* out_num_components,
-    int* out_h_samp_factor,
-    int* out_v_samp_factor);
+bool GetJpegNumComponentsAndSamplingFactors(const GoogleString& jpeg,
+                                            int* out_num_components,
+                                            int* out_h_samp_factor,
+                                            int* out_v_samp_factor);
 
 // Helper function to check present of given segment.
 bool IsJpegSegmentPresent(const GoogleString& data, int segment);

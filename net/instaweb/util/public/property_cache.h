@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_PROPERTY_CACHE_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_PROPERTY_CACHE_H_
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_FILE_SYSTEM_LOCK_MANAGER_H_
 #define PAGESPEED_KERNEL_UTIL_FILE_SYSTEM_LOCK_MANAGER_H_
 
@@ -44,11 +43,9 @@ class FileSystemLockManager : public NamedLockManager {
   // It does not assume ownership of the passed-in constructor arguments.
   // (Except it does copy in base_path). The caller is responsible for ensuring
   // that base_path exists.
-  FileSystemLockManager(FileSystem* file_system,
-                        const StringPiece& base_path,
-                        Scheduler* scheduler,
-                        MessageHandler* handler);
-  virtual ~FileSystemLockManager();
+  FileSystemLockManager(FileSystem* file_system, const StringPiece& base_path,
+                        Scheduler* scheduler, MessageHandler* handler);
+  ~FileSystemLockManager() override;
 
   // Multiple lock objects with the same name will manage the same underlying
   // lock.  Lock names must be legal file names according to file_system.
@@ -59,7 +56,7 @@ class FileSystemLockManager : public NamedLockManager {
   // remnants of dead locks.  A given NamedLock object should Lock and Unlock
   // in matched pairs; DO NOT use separate NamedLock objects created with the
   // same name to perform a Lock and the corresponding Unlock.
-  virtual SchedulerBasedAbstractLock* CreateNamedLock(const StringPiece& name);
+  SchedulerBasedAbstractLock* CreateNamedLock(const StringPiece& name) override;
 
   // Simple accessors for constructor arguments
   FileSystem* file_system() const { return file_system_; }

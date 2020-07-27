@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #include "net/instaweb/rewriter/public/js_replacer.h"
 
 #include "base/logging.h"
@@ -53,7 +51,7 @@ JsReplacer::~JsReplacer() {}
 void JsReplacer::AddPattern(const GoogleString& object,
                             const GoogleString& field,
                             StringRewriter* rewriter) {
-  patterns_.push_back(Pattern(object, field, rewriter));
+  patterns_.emplace_back(object, field, rewriter);
 }
 
 bool JsReplacer::Transform(StringPiece in, GoogleString* out) {
@@ -154,9 +152,9 @@ bool JsReplacer::Transform(StringPiece in, GoogleString* out) {
   }
 }
 
-bool JsReplacer::HandleCandidate(
-    const GoogleString& object, const GoogleString& field,
-    StringPiece value, GoogleString* out) {
+bool JsReplacer::HandleCandidate(const GoogleString& object,
+                                 const GoogleString& field, StringPiece value,
+                                 GoogleString* out) {
   // Note that the token still has the quotes; we strip them before invoking
   // the callback and then restore them when serializing.
   CHECK_GE(value.length(), 2) << value;

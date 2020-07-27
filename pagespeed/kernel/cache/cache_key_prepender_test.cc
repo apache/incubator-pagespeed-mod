@@ -76,9 +76,9 @@ TEST_F(CacheKeyPrependerTest, Delete) {
 TEST_F(CacheKeyPrependerTest, MultiGet) {
   CheckPut(cache_.Backend(), StrCat(kKeyPrefix, "n0"), "v0");
   CheckPut(cache_.Backend(), StrCat(kKeyPrefix, "n1"), "v1");
-  Callback *n0 = AddCallback();
-  Callback *not_found = AddCallback();
-  Callback *n1 = AddCallback();
+  Callback* n0 = AddCallback();
+  Callback* not_found = AddCallback();
+  Callback* n1 = AddCallback();
 
   IssueMultiGet(n0, "n0", not_found, "not_found", n1, "n1");
 
@@ -102,9 +102,9 @@ TEST_F(CacheKeyPrependerTest, MultiGetInvalid) {
   CheckPut(cache_.Backend(), StrCat(kKeyPrefix, "n0"), "v0");
   CheckPut(cache_.Backend(), StrCat(kKeyPrefix, "n1"), "v1");
   set_invalid_key("n0");  // should be called before we create any callbacks
-  Callback *n0 = AddCallback();
-  Callback *not_found = AddCallback();
-  Callback *n1 = AddCallback();
+  Callback* n0 = AddCallback();
+  Callback* not_found = AddCallback();
+  Callback* n1 = AddCallback();
 
   IssueMultiGet(n0, "n0", not_found, "not_found", n1, "n1");
 

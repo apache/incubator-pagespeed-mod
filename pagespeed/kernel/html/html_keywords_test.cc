@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the HTML escaper.
 
 #include "pagespeed/kernel/html/html_keywords.h"
@@ -31,14 +30,12 @@ namespace net_instaweb {
 
 class HtmlKeywordsTest : public testing::Test {
  protected:
-  static void SetUpTestCase() {
-    HtmlKeywords::Init();
-  }
+  static void SetUpTestSuite() { HtmlKeywords::Init(); }
 
   StringPiece Unescape(const StringPiece& escaped, GoogleString* buf) {
     bool decoding_error;
-    StringPiece unescaped = HtmlKeywords::Unescape(escaped, buf,
-                                                   &decoding_error);
+    StringPiece unescaped =
+        HtmlKeywords::Unescape(escaped, buf, &decoding_error);
     EXPECT_FALSE(decoding_error);
     return unescaped;
   }
@@ -67,8 +64,8 @@ class HtmlKeywordsTest : public testing::Test {
 
   void TestEscape(const GoogleString& symbolic_code, char value) {
     GoogleString symbolic_escaped = StrCat("&", symbolic_code, ";");
-    GoogleString numeric_escaped = StringPrintf(
-        "&#%02d;", static_cast<unsigned char>(value));
+    GoogleString numeric_escaped =
+        absl::StrFormat("&#%02d;", static_cast<unsigned char>(value));
     GoogleString unescaped(&value, 1), buf;
     BiTest(symbolic_escaped, unescaped);
     EXPECT_EQ(unescaped, Unescape(numeric_escaped, &buf));
@@ -76,7 +73,7 @@ class HtmlKeywordsTest : public testing::Test {
 };
 
 TEST_F(HtmlKeywordsTest, Keywords) {
-  EXPECT_TRUE(HtmlKeywords::KeywordToString(HtmlName::kNotAKeyword) == NULL);
+  EXPECT_TRUE(HtmlKeywords::KeywordToString(HtmlName::kNotAKeyword) == nullptr);
   for (int i = 0; i < HtmlName::num_keywords(); ++i) {
     HtmlName::Keyword keyword = static_cast<HtmlName::Keyword>(i);
     const StringPiece* name = HtmlKeywords::KeywordToString(keyword);
@@ -215,12 +212,12 @@ TEST_F(HtmlKeywordsTest, DetectEncodingErrors) {
   EXPECT_FALSE(UnescapeEncodingError("&#127;"));
   EXPECT_FALSE(UnescapeEncodingError("&#128;"));
   EXPECT_FALSE(UnescapeEncodingError("&#255;"));
-  EXPECT_FALSE(UnescapeEncodingError("&apos;"));   // Ignore invalid code.
+  EXPECT_FALSE(UnescapeEncodingError("&apos;"));  // Ignore invalid code.
   EXPECT_FALSE(UnescapeEncodingError("&acute;"));
   EXPECT_FALSE(UnescapeEncodingError("&ACUTE;"));  // sloppy case OK.
-  EXPECT_FALSE(UnescapeEncodingError("&yuml;"));  // lower-case is 255.
-  EXPECT_TRUE(UnescapeEncodingError("&YUML;"));   // sloppy-case OK.
-  EXPECT_TRUE(UnescapeEncodingError("&Yuml;"));   // upper-case is 376; no good.
+  EXPECT_FALSE(UnescapeEncodingError("&yuml;"));   // lower-case is 255.
+  EXPECT_TRUE(UnescapeEncodingError("&YUML;"));    // sloppy-case OK.
+  EXPECT_TRUE(UnescapeEncodingError("&Yuml;"));  // upper-case is 376; no good.
   EXPECT_TRUE(UnescapeEncodingError("&#256;"));
   EXPECT_TRUE(UnescapeEncodingError("&#2560;"));
   EXPECT_TRUE(UnescapeEncodingError("\200"));

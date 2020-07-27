@@ -17,14 +17,13 @@
  * under the License.
  */
 
-
 // Data structure operation helpers for SharedMemCache. See the top of
 // shared_mem_cache.cc for data format descriptions.
 
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_DATA_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_DATA_H_
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 #include <vector>
 
 #include "base/logging.h"
@@ -61,12 +60,12 @@ struct SectorStats {
   // TODO(morlovich): Consider periodically pushing these to
   // normal Statistics.
   int64 num_put;
-  int64 num_put_update;  // update of the same key
+  int64 num_put_update;   // update of the same key
   int64 num_put_replace;  // replacement of different key
   int64 num_put_concurrent_create;
   int64 num_put_concurrent_full_set;
   int64 num_put_spins;  // # of times writers had to sleep behind readers
-  int64 num_get;    // # of calls to get
+  int64 num_get;        // # of calls to get
   int64 num_get_hit;
   int64 last_checkpoint_ms;  // When this sector was last checkpointed to disk.
 
@@ -119,7 +118,7 @@ struct CacheEntry {
 // implement the actual cache operations, however. In particular, its
 // methods affect only a single data structure at the time and do not
 // do anything to preserve cross-structure invariants.
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 class Sector {
  public:
   // Creates a wrapper to help operate on cache sectors in a given region of
@@ -223,9 +222,7 @@ class Sector {
   // Removes from the LRU. Safe to call if not in the LRU already.
   void UnlinkEntryFromLRU(EntryNum entry_num);
 
-  EntryNum OldestEntryNum() {
-    return sector_header_->lru_list_rear;
-  }
+  EntryNum OldestEntryNum() { return sector_header_->lru_list_rear; }
 
   // Block ops.
   // ------------------------------------------------------------
@@ -277,7 +274,7 @@ class Sector {
 
   // Pointers to where various things are, and our sizes
   AbstractSharedMemSegment* segment_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   SectorHeader* sector_header_;
   BlockNum* block_successors_ PT_GUARDED_BY(mutex());
   char* directory_base_;

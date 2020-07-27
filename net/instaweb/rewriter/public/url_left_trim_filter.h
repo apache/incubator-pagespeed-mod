@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_URL_LEFT_TRIM_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_URL_LEFT_TRIM_FILTER_H_
 
@@ -49,14 +48,14 @@ class Variable;
 class UrlLeftTrimFilter : public CommonFilter {
  public:
   UrlLeftTrimFilter(RewriteDriver* rewrite_driver, Statistics* stats);
-  virtual ~UrlLeftTrimFilter();
+  ~UrlLeftTrimFilter() override;
 
   static void InitStats(Statistics* statistics);
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override {}
 
-  virtual const char* Name() const { return "UrlLeftTrim"; }
+  const char* Name() const override { return "UrlLeftTrim"; }
 
   // Trim 'url_to_trim' relative to 'base_url' returning the result in
   // 'trimmed_url'. Returns true if we succeeded at trimming the URL.

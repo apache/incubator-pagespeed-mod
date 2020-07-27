@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/domain_rewrite_filter.h"
 
 #include <memory>
@@ -54,7 +53,7 @@ namespace net_instaweb {
 
 class DomainRewriteFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
     options()->Disallow("*dont_shard*");
@@ -77,8 +76,7 @@ class DomainRewriteFilterTest : public RewriteTestBase {
     EXPECT_EQ(0, DeltaRewrites());
   }
 
-  void ExpectChange(const char* tag, StringPiece url,
-                    StringPiece expected) {
+  void ExpectChange(const char* tag, StringPiece url, StringPiece expected) {
     GoogleString orig = StrCat("<link rel=stylesheet href=", url, ">");
     GoogleString hacked = StrCat("<link rel=stylesheet href=", expected, ">");
     ValidateExpected(tag, orig, hacked);
@@ -94,8 +92,8 @@ class DomainRewriteFilterTest : public RewriteTestBase {
     return delta;
   }
 
-  virtual bool AddBody() const { return false; }
-  virtual bool AddHtmlTags() const { return add_html_tags_; }
+  bool AddBody() const override { return false; }
+  bool AddHtmlTags() const override { return add_html_tags_; }
 
  protected:
   bool add_html_tags_;
@@ -183,24 +181,26 @@ TEST_F(DomainRewriteFilterTest, RewriteHyperlinks) {
 TEST_F(DomainRewriteFilterTest, RewriteButDoNotShardHyperlinks) {
   options()->ClearSignatureForTesting();
   options()->set_domain_rewrite_hyperlinks(true);
-  ValidateExpected(
-      "forms and a tags",
-      StrCat("<a href=\"", kFrom2Domain, "link.html\"/>"
-             "<form action=\"", kFrom2Domain, "blank\"/>"
-             "<a href=\"https://from2.test.com/1.html\"/>"
-             "<area href=\"", kFrom2Domain, "2.html\"/>"),
-      "<a href=\"http://to2.test.com/link.html\"/>"
-      "<form action=\"http://to2.test.com/blank\"/>"
-      "<a href=\"https://from2.test.com/1.html\"/>"
-      "<area href=\"http://to2.test.com/2.html\"/>");
+  ValidateExpected("forms and a tags",
+                   StrCat("<a href=\"", kFrom2Domain,
+                          "link.html\"/>"
+                          "<form action=\"",
+                          kFrom2Domain,
+                          "blank\"/>"
+                          "<a href=\"https://from2.test.com/1.html\"/>"
+                          "<area href=\"",
+                          kFrom2Domain, "2.html\"/>"),
+                   "<a href=\"http://to2.test.com/link.html\"/>"
+                   "<form action=\"http://to2.test.com/blank\"/>"
+                   "<a href=\"https://from2.test.com/1.html\"/>"
+                   "<area href=\"http://to2.test.com/2.html\"/>");
 }
 
 TEST_F(DomainRewriteFilterTest, RewriteRedirectLocations) {
   options()->ClearSignatureForTesting();
   options()->set_domain_rewrite_hyperlinks(true);
   ResponseHeaders headers;
-  headers.Add(HttpAttributes::kLocation,
-              StrCat(kFrom1Domain, "redirect"));
+  headers.Add(HttpAttributes::kLocation, StrCat(kFrom1Domain, "redirect"));
   rewrite_driver()->set_response_headers_ptr(&headers);
 
   ValidateNoChanges("headers", "");
@@ -231,8 +231,7 @@ TEST_F(DomainRewriteFilterTest, ClientDomainRewrite) {
   html_parse()->ParseText("</body></html>");
   html_parse()->FinishParse();
 
-  EXPECT_EQ(StrCat("<html><body>",
-                   "<script type=\"text/javascript\">",
+  EXPECT_EQ(StrCat("<html><body>", "<script type=\"text/javascript\">",
                    client_domain_rewriter_code,
                    "pagespeed.clientDomainRewriterInit("
                    "[\"http://clientrewrite.com/\"]);</script>",
@@ -272,26 +271,22 @@ TEST_F(DomainRewriteFilterTest, ProxySuffix) {
 
   // An absolute reference to a new destination in the origin domain gets
   // suffixed.
-  ValidateExpectedUrl(url,
-                      StrCat("<a href='http://", kOriginalHost,
-                             "/absolute.html'>r</a>"),
-                      StrCat("<a href='http://", kOriginalHost, kSuffix,
-                             "/absolute.html'>r</a>"));
+  ValidateExpectedUrl(
+      url, StrCat("<a href='http://", kOriginalHost, "/absolute.html'>r</a>"),
+      StrCat("<a href='http://", kOriginalHost, kSuffix,
+             "/absolute.html'>r</a>"));
 
   // It also works even if the reference is a domain that's related to the
   // base, by consulting the known suffixes list via domain_registry.
-  ValidateExpectedUrl(url,
-                      "<a href='http://other.example.com/x.html'>r</a>",
+  ValidateExpectedUrl(url, "<a href='http://other.example.com/x.html'>r</a>",
                       "<a href='http://other.example.com.suffix/x.html'>r</a>");
 
   // However a link to a completely unrelated domain is left unchanged.
   ValidateNoChanges(url, "<a href='http://other.com/x.html'>r</a>");
 
-  ValidateExpectedUrl(url,
-                      StrCat("<img src='http://", kOriginalHost,
-                             "/image.png'>"),
-                      StrCat("<img src='http://", kOriginalHost, kSuffix,
-                             "/image.png'>"));
+  ValidateExpectedUrl(
+      url, StrCat("<img src='http://", kOriginalHost, "/image.png'>"),
+      StrCat("<img src='http://", kOriginalHost, kSuffix, "/image.png'>"));
 
   ValidateExpectedUrl(url,
                       StrCat("<link rel=stylesheet href='http://",
@@ -299,24 +294,23 @@ TEST_F(DomainRewriteFilterTest, ProxySuffix) {
                       StrCat("<link rel=stylesheet href='http://",
                              kOriginalHost, kSuffix, "/style.css'>"));
 
-  ValidateExpectedUrl(url,
-                      StrCat("<script src='http://", kOriginalHost,
-                             "/script.js'></script>"),
-                      StrCat("<script src='http://", kOriginalHost,
-                             kSuffix, "/script.js'></script>"));
+  ValidateExpectedUrl(
+      url,
+      StrCat("<script src='http://", kOriginalHost, "/script.js'></script>"),
+      StrCat("<script src='http://", kOriginalHost, kSuffix,
+             "/script.js'></script>"));
 
   ValidateNoChanges(url, "<img src='http://other.example/image.png'>");
 
   // An iframe does not get relocated.
-  ValidateNoChanges(url,
-                    StrCat("<iframe src='http://", kOriginalHost,
-                           "/frame.html'></iframe>"));
+  ValidateNoChanges(url, StrCat("<iframe src='http://", kOriginalHost,
+                                "/frame.html'></iframe>"));
 
   // Also test that we can fix up location: headers.
   ResponseHeaders headers;
   headers.Add(HttpAttributes::kLocation, "https://sub.example.com/a.html");
-  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(),
-                                           options(), &headers);
+  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(), options(),
+                                           &headers);
   EXPECT_STREQ("https://sub.example.com.suffix/a.html",
                headers.Lookup1(HttpAttributes::kLocation));
 }
@@ -333,22 +327,18 @@ TEST_F(DomainRewriteFilterTest, ProxyBaseUrl) {
   EXPECT_TRUE(options()->domain_lawyer()->can_rewrite_domains());
 
   add_html_tags_ = false;
-  ValidateExpectedUrl(url,
-                      StrCat("<html><head><base href='",
-                             origin_no_suffix,
-                             "'/></head></html>"),
-                      StrCat("<html><head><base href='",
-                             origin_with_suffix,
-                             "/'/></head></html>"));
+  ValidateExpectedUrl(
+      url,
+      StrCat("<html><head><base href='", origin_no_suffix, "'/></head></html>"),
+      StrCat("<html><head><base href='", origin_with_suffix,
+             "/'/></head></html>"));
 
   ValidateNoChanges(url,
                     "<html><head><base href='http://other.example.com/'/>"
                     "</head></html>");
 
-  ValidateNoChanges(url,
-                    StrCat("<html><head><base href='",
-                           origin_with_suffix,
-                           "/'/></head></html>"));
+  ValidateNoChanges(url, StrCat("<html><head><base href='", origin_with_suffix,
+                                "/'/></head></html>"));
 }
 
 TEST_F(DomainRewriteFilterTest, TestParseRefreshContent) {
@@ -361,57 +351,48 @@ TEST_F(DomainRewriteFilterTest, TestParseRefreshContent) {
       DomainRewriteFilter::ParseRefreshContent("42, ", &before, &url, &after));
 
   // Real-life, not spec behavior.
-  EXPECT_TRUE(
-      DomainRewriteFilter::ParseRefreshContent("42, rul",
-                                               &before, &url, &after));
+  EXPECT_TRUE(DomainRewriteFilter::ParseRefreshContent("42, rul", &before, &url,
+                                                       &after));
   EXPECT_EQ("42, ", before);
   EXPECT_EQ("rul", url);
   EXPECT_EQ("", after);
 
   // Real-life, not spec behavior.
-  EXPECT_TRUE(
-      DomainRewriteFilter::ParseRefreshContent("43, url",
-                                               &before, &url, &after));
+  EXPECT_TRUE(DomainRewriteFilter::ParseRefreshContent("43, url", &before, &url,
+                                                       &after));
   EXPECT_EQ("43, ", before);
   EXPECT_EQ("url", url);
   EXPECT_EQ("", after);
 
+  EXPECT_FALSE(DomainRewriteFilter::ParseRefreshContent("42, url = ", &before,
+                                                        &url, &after));
 
-  EXPECT_FALSE(
-      DomainRewriteFilter::ParseRefreshContent("42, url = ",
-                                               &before, &url, &after));
-
-  EXPECT_TRUE(
-      DomainRewriteFilter::ParseRefreshContent("44, url=a.org",
-                                               &before, &url, &after));
+  EXPECT_TRUE(DomainRewriteFilter::ParseRefreshContent("44, url=a.org", &before,
+                                                       &url, &after));
   EXPECT_EQ("44, url=", before);
   EXPECT_EQ("a.org", url);
   EXPECT_EQ("", after);
 
-  EXPECT_TRUE(
-      DomainRewriteFilter::ParseRefreshContent(" 42.45; UrL = b.com  ",
-                                               &before, &url, &after));
+  EXPECT_TRUE(DomainRewriteFilter::ParseRefreshContent(" 42.45; UrL = b.com  ",
+                                                       &before, &url, &after));
   EXPECT_EQ(" 42.45; UrL = ", before);
   EXPECT_EQ("b.com", url);
   EXPECT_EQ("", after);
 
-  EXPECT_TRUE(
-      DomainRewriteFilter::ParseRefreshContent(" 42 ; url='c.gov ' ",
-                                               &before, &url, &after));
+  EXPECT_TRUE(DomainRewriteFilter::ParseRefreshContent(" 42 ; url='c.gov ' ",
+                                                       &before, &url, &after));
   EXPECT_EQ(" 42 ; url=", before);
   EXPECT_EQ("c.gov", url);
   EXPECT_EQ(" ", after);
 
-  EXPECT_TRUE(
-      DomainRewriteFilter::ParseRefreshContent(" 42 ; url='c.gov 'foo",
-                                               &before, &url, &after));
+  EXPECT_TRUE(DomainRewriteFilter::ParseRefreshContent(" 42 ; url='c.gov 'foo",
+                                                       &before, &url, &after));
   EXPECT_EQ(" 42 ; url=", before);
   EXPECT_EQ("c.gov", url);
   EXPECT_EQ("foo", after);
 
-  EXPECT_TRUE(
-      DomainRewriteFilter::ParseRefreshContent(" 42 ; url=\"d.edu ",
-                                               &before, &url, &after));
+  EXPECT_TRUE(DomainRewriteFilter::ParseRefreshContent(" 42 ; url=\"d.edu ",
+                                                       &before, &url, &after));
   EXPECT_EQ(" 42 ; url=", before);
   EXPECT_EQ("d.edu", url);
   EXPECT_EQ("", after);
@@ -468,8 +449,8 @@ TEST_F(DomainRewriteFilterTest, TestUpdateSetCookieHeader) {
   options()->set_domain_rewrite_cookies(true);
   DomainLawyer* domain_lawyer = options()->WriteableDomainLawyer();
   domain_lawyer->Clear();
-  domain_lawyer->AddRewriteDomainMapping(
-      "http://someotherhost.com/after/", "www.example.com", &message_handler_);
+  domain_lawyer->AddRewriteDomainMapping("http://someotherhost.com/after/",
+                                         "www.example.com", &message_handler_);
 
   // For a bunch of tests, we test with page coming from a different domain
   // than the domain= lines. This will of course get rejected by the browser,
@@ -479,75 +460,64 @@ TEST_F(DomainRewriteFilterTest, TestUpdateSetCookieHeader) {
   GoogleUrl gurl("http://www.example.com/page/");
 
   // No attributes.
-  EXPECT_FALSE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl_unrelated, server_context(), options(), "foo = var", &out));
+  EXPECT_FALSE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl_unrelated, server_context(), options(), "foo = var", &out));
 
   // Non-domain attributes
-  EXPECT_FALSE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl_unrelated, server_context(), options(),
-          "foo = var; Secure; HttpOnly", &out));
+  EXPECT_FALSE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl_unrelated, server_context(), options(),
+      "foo = var; Secure; HttpOnly", &out));
 
   // Domain only.
-  EXPECT_TRUE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl_unrelated, server_context(), options(),
-          "foo = var; Domain=www.example.com", &out));
+  EXPECT_TRUE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl_unrelated, server_context(), options(),
+      "foo = var; Domain=www.example.com", &out));
   EXPECT_EQ("foo = var; Domain=someotherhost.com", out);
 
   // Domain with the leading dot. Doesn't make any difference.
-  EXPECT_TRUE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl_unrelated, server_context(), options(),
-          "foo = var; Domain=.www.example.com", &out));
+  EXPECT_TRUE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl_unrelated, server_context(), options(),
+      "foo = var; Domain=.www.example.com", &out));
   EXPECT_EQ("foo = var; Domain=someotherhost.com", out);
 
   // Domain only + other stuff
-  EXPECT_TRUE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl_unrelated, server_context(), options(),
-          "foo = var; Domain=www.example.com;   HttpOnly", &out));
+  EXPECT_TRUE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl_unrelated, server_context(), options(),
+      "foo = var; Domain=www.example.com;   HttpOnly", &out));
   EXPECT_EQ("foo = var; Domain=someotherhost.com; HttpOnly", out);
 
   // Multiple domain attributes. Last one wins, but we rewrite all.
-  EXPECT_TRUE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl_unrelated, server_context(), options(),
-          "foo = var; Domain=www.huh.com; Domain=www.example.com", &out));
+  EXPECT_TRUE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl_unrelated, server_context(), options(),
+      "foo = var; Domain=www.huh.com; Domain=www.example.com", &out));
   EXPECT_EQ("foo = var; Domain=someotherhost.com; Domain=someotherhost.com",
             out);
 
   // Multiple domain attributes. Last one wins, but is unrelated, so we don't
   // touch things.
   EXPECT_FALSE(DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl_unrelated, server_context(), options(),
-          "foo = var; Domain=www.example.com; Domain=www.huh.com", &out));
+      gurl_unrelated, server_context(), options(),
+      "foo = var; Domain=www.example.com; Domain=www.huh.com", &out));
 
   // Path only. We need a related URL here for mapping to apply.
-  EXPECT_TRUE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl, server_context(), options(), "foo = var; Path=/subdir",
-          &out));
+  EXPECT_TRUE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl, server_context(), options(), "foo = var; Path=/subdir", &out));
   EXPECT_EQ("foo = var; Path=/after/subdir", out);
 
   // Path without starting slash --- ignored.
-  EXPECT_FALSE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl, server_context(), options(), "foo = var; Path=subdir", &out));
+  EXPECT_FALSE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl, server_context(), options(), "foo = var; Path=subdir", &out));
 
   // Path + domain, related Domain=.
-  EXPECT_TRUE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl, server_context(), options(),
-          "foo = var; Domain=www.example.com; Path=/subdir/", &out));
+  EXPECT_TRUE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl, server_context(), options(),
+      "foo = var; Domain=www.example.com; Path=/subdir/", &out));
   EXPECT_EQ("foo = var; Domain=someotherhost.com; Path=/after/subdir/", out);
 
   // Path + domain, unrelated Domain=.
-  EXPECT_FALSE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl, server_context(), options(),
-          "foo = var; Domain=unrelated.com; Path=/subdir/", &out));
+  EXPECT_FALSE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl, server_context(), options(),
+      "foo = var; Domain=unrelated.com; Path=/subdir/", &out));
 }
 
 TEST_F(DomainRewriteFilterTest, TestUpdateSetCookieHeaderDisabled) {
@@ -559,12 +529,11 @@ TEST_F(DomainRewriteFilterTest, TestUpdateSetCookieHeaderDisabled) {
   options()->set_domain_rewrite_cookies(true);
   DomainLawyer* domain_lawyer = options()->WriteableDomainLawyer();
   domain_lawyer->Clear();
-  domain_lawyer->AddRewriteDomainMapping(
-      "http://someotherhost.com/after/", "www.example.com", &message_handler_);
-  EXPECT_FALSE(
-      DomainRewriteFilter::UpdateSetCookieHeader(
-          gurl, server_context(), options(),
-          "foo = var; Domain=unrelated.com; Path=/subdir/", &out));
+  domain_lawyer->AddRewriteDomainMapping("http://someotherhost.com/after/",
+                                         "www.example.com", &message_handler_);
+  EXPECT_FALSE(DomainRewriteFilter::UpdateSetCookieHeader(
+      gurl, server_context(), options(),
+      "foo = var; Domain=unrelated.com; Path=/subdir/", &out));
 }
 
 TEST_F(DomainRewriteFilterTest, ProxySuffixRefresh) {
@@ -580,17 +549,18 @@ TEST_F(DomainRewriteFilterTest, ProxySuffixRefresh) {
   EXPECT_TRUE(options()->domain_lawyer()->can_rewrite_domains());
 
   add_html_tags_ = false;
-  ValidateExpectedUrl(url,
-                      StrCat("<meta http-equiv=refresh content=\"5; url=",
-                             origin_no_suffix, "\">"),
-                      StrCat("<meta http-equiv=refresh content=\"5; url=",
-                             "&quot;", origin_with_suffix, "/&quot;\">"));
+  ValidateExpectedUrl(
+      url,
+      StrCat("<meta http-equiv=refresh content=\"5; url=", origin_no_suffix,
+             "\">"),
+      StrCat("<meta http-equiv=refresh content=\"5; url=", "&quot;",
+             origin_with_suffix, "/&quot;\">"));
 
   // Also test that we can fix it up in headers.
   ResponseHeaders headers;
   headers.Add(HttpAttributes::kRefresh, "42; https://sub.example.com/a.html");
-  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(),
-                                           options(), &headers);
+  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(), options(),
+                                           &headers);
   EXPECT_STREQ("42; \"https://sub.example.com.suffix/a.html\"",
                headers.Lookup1(HttpAttributes::kRefresh));
 
@@ -603,14 +573,14 @@ TEST_F(DomainRewriteFilterTest, ProxySuffixRefresh) {
 
   headers.Replace(HttpAttributes::kRefresh,
                   StrCat("10; http://", kOriginalHost, "/a.html"));
-  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(),
-                                           options(), &headers);
+  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(), options(),
+                                           &headers);
   EXPECT_STREQ("10; \"http://someotherhost.com/%22Subdir%22/a.html\"",
                headers.Lookup1(HttpAttributes::kRefresh));
 }
 
 TEST_F(DomainRewriteFilterTest, ProxySuffixSetCookie) {
-options()->ClearSignatureForTesting();
+  options()->ClearSignatureForTesting();
   options()->set_domain_rewrite_hyperlinks(true);
   options()->set_domain_rewrite_cookies(true);
   static const char kSuffix[] = ".suffix";
@@ -635,18 +605,16 @@ options()->ClearSignatureForTesting();
               StrCat("a=b; Domain=", kOriginalHost));
   headers.Add(HttpAttributes::kSetCookie,
               StrCat("c=d; Secure; Domain=", kOriginalHost));
-  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(),
-                                           options(), &headers);
-  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(),
-                                           options(), &headers);
+  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(), options(),
+                                           &headers);
+  DomainRewriteFilter::UpdateDomainHeaders(gurl, server_context(), options(),
+                                           &headers);
 
   ConstStringStarVector vals;
   ASSERT_TRUE(headers.Lookup(HttpAttributes::kSetCookie, &vals));
   ASSERT_EQ(2, vals.size());
-  EXPECT_EQ(StrCat("a=b; Domain=", kOriginalHost, kSuffix),
-            *vals[0]);
-  EXPECT_EQ(StrCat("c=d; Secure; Domain=", kOriginalHost, kSuffix),
-            *vals[1]);
+  EXPECT_EQ(StrCat("a=b; Domain=", kOriginalHost, kSuffix), *vals[0]);
+  EXPECT_EQ(StrCat("c=d; Secure; Domain=", kOriginalHost, kSuffix), *vals[1]);
 }
 
 }  // namespace net_instaweb

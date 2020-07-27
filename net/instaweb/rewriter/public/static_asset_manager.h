@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_STATIC_ASSET_MANAGER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_STATIC_ASSET_MANAGER_H_
 
+#include <cstddef>  // for size_t
 #include <map>
 #include <vector>
-#include <cstddef>                     // for size_t
 
 #include "net/instaweb/rewriter/static_asset_config.pb.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -52,15 +51,11 @@ class StaticAssetManager {
   static const char kGStaticBase[];
   static const char kDefaultLibraryUrlPrefix[];
 
-  enum ConfigurationMode {
-    kInitialConfiguration,
-    kUpdateConfiguration
-  };
+  enum ConfigurationMode { kInitialConfiguration, kUpdateConfiguration };
 
   // static_asset_base is path on this host we serve resources from.
   StaticAssetManager(const GoogleString& static_asset_base,
-                     ThreadSystem* threads,
-                     Hasher* hasher,
+                     ThreadSystem* threads, Hasher* hasher,
                      MessageHandler* message_handler);
 
   ~StaticAssetManager();
@@ -165,7 +160,6 @@ class StaticAssetManager {
   void InitializeAssetStrings();
   void InitializeAssetUrls() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-
   // Backend for ApplyGStaticConfiguration and ResetGStaticConfiguration;
   // the 'config' parameter is the appropriate composition of initial
   // plus config.
@@ -178,13 +172,13 @@ class StaticAssetManager {
   Hasher* hasher_;
   MessageHandler* message_handler_;
 
-  scoped_ptr<ThreadSystem::RWLock> lock_;
+  std::unique_ptr<ThreadSystem::RWLock> lock_;
   std::vector<Asset*> assets_ GUARDED_BY(lock_);
   FileNameToModuleMap file_name_to_module_map_ GUARDED_BY(lock_);
 
   bool serve_assets_from_gstatic_ GUARDED_BY(lock_);
   GoogleString gstatic_base_ GUARDED_BY(lock_);
-  scoped_ptr<StaticAssetConfig> initial_gstatic_config_ GUARDED_BY(lock_);
+  std::unique_ptr<StaticAssetConfig> initial_gstatic_config_ GUARDED_BY(lock_);
   GoogleString library_url_prefix_ GUARDED_BY(lock_);
   GoogleString cache_header_with_long_ttl_ GUARDED_BY(lock_);
   GoogleString cache_header_with_private_ttl_ GUARDED_BY(lock_);

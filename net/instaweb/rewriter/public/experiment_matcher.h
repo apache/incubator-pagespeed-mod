@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_EXPERIMENT_MATCHER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_EXPERIMENT_MATCHER_H_
 
@@ -39,7 +38,7 @@ class UserAgentMatcher;
 // mechanism.
 class ExperimentMatcher {
  public:
-  ExperimentMatcher() { }
+  ExperimentMatcher() {}
   virtual ~ExperimentMatcher();
 
   // Decides which experiment to place the current client/session into.
@@ -53,7 +52,8 @@ class ExperimentMatcher {
   // implementation stores this in a cookie in the response headers, setting it
   // to expire at expiration_time_ms (specified as ms since the epoch).
   virtual void StoreExperimentData(int state, const StringPiece& url,
-      int64 expiration_time_ms, ResponseHeaders* headers);
+                                   int64 expiration_time_ms,
+                                   ResponseHeaders* headers);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ExperimentMatcher);

@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_UTIL_NONCE_GENERATOR_H_
 #define PAGESPEED_KERNEL_UTIL_NONCE_GENERATOR_H_
 
@@ -38,13 +36,13 @@ class NonceGenerator {
 
  protected:
   // Takes ownership of mutex.
-  explicit NonceGenerator(AbstractMutex* mutex) : mutex_(mutex) { }
+  explicit NonceGenerator(AbstractMutex* mutex) : mutex_(mutex) {}
 
   // Subclasses must implement this method.  Locking is already handled.
   virtual uint64 NewNonceImpl() = 0;
 
  private:
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(NonceGenerator);
 };

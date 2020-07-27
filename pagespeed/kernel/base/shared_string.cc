@@ -29,18 +29,16 @@
 #include <algorithm>  // for std::min, std::max
 
 #include "base/logging.h"
+#include "pagespeed/kernel/base/ref_counted_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/ref_counted_ptr.h"
 
 namespace net_instaweb {
 
-SharedString::SharedString() : skip_(0), size_(0) {
-}
+SharedString::SharedString() : skip_(0), size_(0) {}
 
 SharedString::SharedString(const StringPiece& str)
-    : skip_(0),
-      size_(str.size()) {
+    : skip_(0), size_(str.size()) {
   GoogleString* storage = ref_string_.get();
   str.CopyToString(storage);
 }
@@ -49,27 +47,20 @@ SharedString::SharedString(const StringPiece& str)
 // ctor above causes an extra copy compared with string implementations that
 // use copy-on-write.  So we make an explicit GoogleString constructor.
 SharedString::SharedString(const GoogleString& str)
-    : ref_string_(str),
-      skip_(0),
-      size_(str.size()) {
-}
+    : ref_string_(str), skip_(0), size_(str.size()) {}
 
 // Given the two constructors above, it is ambiguous which one gets
 // called when passed a string-literal, so making an explicit const char*
 // constructor eliminates the ambiguity.  This is likely beneficial mostly
 // for tests.
-SharedString::SharedString(const char* str)
-    : skip_(0) {
+SharedString::SharedString(const char* str) : skip_(0) {
   GoogleString* storage = ref_string_.get();
   *storage = str;
   size_ = storage->size();
 }
 
 SharedString::SharedString(const SharedString& src)
-    : ref_string_(src.ref_string_),
-      skip_(src.skip_),
-      size_(src.size_) {
-}
+    : ref_string_(src.ref_string_), skip_(src.skip_), size_(src.size_) {}
 
 SharedString& SharedString::operator=(const SharedString& src) {
   if (&src != this) {
@@ -108,8 +99,7 @@ void SharedString::UniquifyIfTruncated() {
 }
 
 void SharedString::Append(const char* new_data, size_t new_size) {
-  DCHECK((new_data + new_size) <= data() ||
-         (data() + size() < new_data))
+  DCHECK((new_data + new_size) <= data() || (data() + size() < new_data))
       << "Append must be given non-overlapping strings";
   UniquifyIfTruncated();
   ref_string_->append(new_data, new_size);

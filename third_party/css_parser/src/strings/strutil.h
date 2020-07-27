@@ -20,8 +20,6 @@
 #ifndef STRINGS_STRUTIL_H_
 #define STRINGS_STRUTIL_H_
 
-#include "base/strings/string_util.h"
-
 // Like the CONSIDER macro above except that it supports enums from another
 // class -- e.g., if:   enum Status { VERIFIED, NOT_VERIFIED, WHITE_LISTED }
 // is in class Foo and you are using it in another class, use:
@@ -32,6 +30,8 @@
 //     default: return "UNKNOWN value";
 //   }
 // Only the enum string will be returned (i.e., without the "Foo::" prefix).
-#define CONSIDER_IN_CLASS(cls,val)       case cls::val: return #val
+#define CONSIDER_IN_CLASS(cls, val) \
+  case cls::val:                    \
+    return #val
 
 #endif  // WEBUTIL_CSS_OPEN_SOURCE_STRINGS_STRUTIL_H_

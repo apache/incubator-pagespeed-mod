@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_IN_PROCESS_CENTRAL_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_IN_PROCESS_CENTRAL_CONTROLLER_H_
 
@@ -43,7 +42,7 @@ class InProcessCentralController : public CentralController {
       ExpensiveOperationController* expensive_operation_controller,
       ScheduleRewriteController* schedule_rewrite_controller);
 
-  virtual ~InProcessCentralController();
+  ~InProcessCentralController() override;
 
   void ScheduleExpensiveOperation(
       ExpensiveOperationCallback* callback) override;
@@ -53,8 +52,8 @@ class InProcessCentralController : public CentralController {
   void ShutDown() override;
 
  private:
-  scoped_ptr<ExpensiveOperationController> expensive_operation_controller_;
-  scoped_ptr<ScheduleRewriteController> schedule_rewrite_controller_;
+  std::unique_ptr<ExpensiveOperationController> expensive_operation_controller_;
+  std::unique_ptr<ScheduleRewriteController> schedule_rewrite_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(InProcessCentralController);
 };

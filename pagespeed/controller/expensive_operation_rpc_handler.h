@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_RPC_HANDLER_H_
 #define PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_RPC_HANDLER_H_
 
@@ -49,25 +48,25 @@ namespace net_instaweb {
 // release "locks".
 
 class ExpensiveOperationRpcHandler
-    : public RequestResultRpcHandler<
-          ExpensiveOperationRpcHandler, ExpensiveOperationController,
-          grpc::CentralControllerRpcService::AsyncService,
-          ScheduleExpensiveOperationRequest,
-          ScheduleExpensiveOperationResponse> {
+    : public RequestResultRpcHandler<ExpensiveOperationRpcHandler,
+                                     ExpensiveOperationController,
+                                     CentralControllerRpcService::AsyncService,
+                                     ScheduleExpensiveOperationRequest,
+                                     ScheduleExpensiveOperationResponse> {
  protected:
   ExpensiveOperationRpcHandler(
-      grpc::CentralControllerRpcService::AsyncService* service,
+      CentralControllerRpcService::AsyncService* service,
       ::grpc::ServerCompletionQueue* cq,
       ExpensiveOperationController* controller);
 
   // RequestResultRpcHandler implementation.
-  void HandleClientRequest(
-      const ScheduleExpensiveOperationRequest& req, Function* cb) override;
+  void HandleClientRequest(const ScheduleExpensiveOperationRequest& req,
+                           Function* cb) override;
   void HandleClientResult(
       const ScheduleExpensiveOperationRequest& req) override;
   void HandleOperationFailed() override;
 
-  void InitResponder(grpc::CentralControllerRpcService::AsyncService* service,
+  void InitResponder(CentralControllerRpcService::AsyncService* service,
                      ::grpc::ServerContext* ctx, ReaderWriterT* responder,
                      ::grpc::ServerCompletionQueue* cq,
                      void* callback) override;

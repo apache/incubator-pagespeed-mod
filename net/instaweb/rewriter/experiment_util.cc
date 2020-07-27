@@ -66,10 +66,8 @@ void RemoveExperimentCookie(RequestHeaders* headers) {
   headers->RemoveCookie(kExperimentCookie);
 }
 
-void SetExperimentCookie(ResponseHeaders* headers,
-                      int state,
-                      const StringPiece& url,
-                      int64 expiration_time_ms) {
+void SetExperimentCookie(ResponseHeaders* headers, int state,
+                         const StringPiece& url, int64 expiration_time_ms) {
   GoogleUrl request_url(url);
   // If we can't parse this url, don't try to set headers on the response.
   if (!request_url.IsWebValid()) {
@@ -81,10 +79,10 @@ void SetExperimentCookie(ResponseHeaders* headers,
   if (host.length() == 0) {
     return;
   }
-  GoogleString value = StringPrintf(
-      "%s=%s; Expires=%s; Domain=.%s; Path=/",
-      kExperimentCookie, ExperimentStateToCookieString(state).c_str(),
-      expires.c_str(), host.as_string().c_str());
+  GoogleString value = absl::StrFormat(
+      "%s=%s; Expires=%s; Domain=.%s; Path=/", kExperimentCookie,
+      ExperimentStateToCookieString(state).c_str(), expires.c_str(),
+      host.as_string().c_str());
   headers->Add(HttpAttributes::kSetCookie, value);
   headers->ComputeCaching();
 }
@@ -116,7 +114,7 @@ int DetermineExperimentState(const RewriteOptions* options,
   // One of these should be the control.
   for (int i = 0; i < num_experiments; ++i) {
     RewriteOptions::ExperimentSpec* spec = options->experiment_spec(i);
-    double mult = static_cast<double>(spec->percent())/100.0;
+    double mult = static_cast<double>(spec->percent()) / 100.0;
 
     // Because RewriteOptions checks to make sure the total experiment
     // percentage is not greater than 100, bound should never be greater
@@ -138,7 +136,7 @@ int DetermineExperimentState(const RewriteOptions* options,
 }
 
 bool AnyActiveExperiments(const RewriteOptions* options) {
-  for (int i = 0, n = options->num_experiments(); i < n ; ++i) {
+  for (int i = 0, n = options->num_experiments(); i < n; ++i) {
     if (options->experiment_spec(i)->percent() > 0) {
       return true;
     }
@@ -158,7 +156,6 @@ GoogleString ExperimentStateToCookieString(int state) {
   GoogleString cookie_value = IntegerToString(state);
   return cookie_value;
 }
-
 
 }  // namespace experiment
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
 
 #include <cstddef>
@@ -44,11 +43,10 @@ const char kUrlTrimSavedBytes[] = "url_trim_saved_bytes";
 namespace net_instaweb {
 
 UrlLeftTrimFilter::UrlLeftTrimFilter(RewriteDriver* rewrite_driver,
-                                     Statistics *stats)
+                                     Statistics* stats)
     : CommonFilter(rewrite_driver),
       trim_count_(stats->GetVariable(kUrlTrims)),
-      trim_saved_bytes_(stats->GetVariable(kUrlTrimSavedBytes)) {
-}
+      trim_saved_bytes_(stats->GetVariable(kUrlTrimSavedBytes)) {}
 
 UrlLeftTrimFilter::~UrlLeftTrimFilter() {}
 
@@ -59,11 +57,10 @@ void UrlLeftTrimFilter::InitStats(Statistics* statistics) {
 
 // Do not rewrite the base tag.
 void UrlLeftTrimFilter::StartElementImpl(HtmlElement* element) {
-  if (element->keyword() != HtmlName::kBase &&
-      BaseUrlIsValid()) {
+  if (element->keyword() != HtmlName::kBase && BaseUrlIsValid()) {
     resource_tag_scanner::UrlCategoryVector attributes;
-    resource_tag_scanner::ScanElement(
-        element, driver()->options(), &attributes);
+    resource_tag_scanner::ScanElement(element, driver()->options(),
+                                      &attributes);
     for (int i = 0, n = attributes.size(); i < n; ++i) {
       TrimAttribute(attributes[i].url);
     }
@@ -117,7 +114,7 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
         // http://example.com/foo/bar//baz/other.html to //baz/other.html
         // or to /baz/other.html.
         // a url ".../#anchor" with resolve relative to the base page instead
-          // of the base directory.
+        // of the base directory.
         if (long_url_buffer[to_trim] == '/' ||
             long_url_buffer[to_trim] == '#' ||
             long_url_buffer[to_trim] == '?') {
@@ -173,13 +170,12 @@ bool UrlLeftTrimFilter::Trim(const GoogleUrl& base_url,
 
 // Trim the value of the given attribute, if the attribute is non-NULL.
 void UrlLeftTrimFilter::TrimAttribute(HtmlElement::Attribute* attr) {
-  if (attr != NULL) {
+  if (attr != nullptr) {
     StringPiece val(attr->DecodedValueOrNull());
     GoogleString trimmed_val;
     size_t orig_size = val.size();
-    if (!val.empty() &&
-        Trim(driver()->base_url(), val, &trimmed_val,
-             driver()->message_handler())) {
+    if (!val.empty() && Trim(driver()->base_url(), val, &trimmed_val,
+                             driver()->message_handler())) {
       attr->SetValue(trimmed_val);
       trim_count_->Add(1);
       trim_saved_bytes_->Add(orig_size - trimmed_val.size());

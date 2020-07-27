@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/http/caching_headers.h"
 
 #include <vector>
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/stl_util.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -43,11 +42,9 @@ CachingHeaders::CachingHeaders(int status_code)
       no_cache_(false),
       no_store_(false),
       cache_control_parse_error_(false),
-      expires_invalid_(false) {
-}
+      expires_invalid_(false) {}
 
-CachingHeaders::~CachingHeaders() {
-}
+CachingHeaders::~CachingHeaders() {}
 
 // Lazy getters
 
@@ -124,10 +121,8 @@ bool CachingHeaders::HasExplicitFreshnessLifetime() {
 }
 
 bool CachingHeaders::IsRedirectStatusCode() const {
-  return status_code_ == 301 ||
-      status_code_ == 302 ||
-      status_code_ == 303 ||
-      status_code_ == 307;
+  return status_code_ == 301 || status_code_ == 302 || status_code_ == 303 ||
+         status_code_ == 307;
 }
 
 // Actual compute logic
@@ -247,8 +242,7 @@ bool CachingHeaders::ComputeFreshnessLifetimeMillis(
 
   int64 date_value_ms = 0;
   StringPieceVector date;
-  if (!Lookup(HttpAttributes::kDate, &date) ||
-      (date.size() != 1) ||
+  if (!Lookup(HttpAttributes::kDate, &date) || (date.size() != 1) ||
       !ConvertStringToTime(date[0], &date_value_ms)) {
     // We have an Expires header, but no Date header to reference
     // from. Thus we assume that the resource is heuristically
@@ -336,8 +330,7 @@ bool CachingHeaders::ComputeHasExplicitNoCacheDirective() {
     return true;
   }
 
-  if (Lookup(HttpAttributes::kVary, &vary) &&
-      STLFind(vary, "*")) {
+  if (Lookup(HttpAttributes::kVary, &vary) && STLFind(vary, "*")) {
     return true;
   }
 

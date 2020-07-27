@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 //         lsong@google.com (Libo Song)
 
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_SYNC_FETCHER_ADAPTER_CALLBACK_H_
@@ -86,16 +85,15 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
   void TimedWait(int64 timeout_ms) EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
  protected:
-  virtual void HandleDone(bool success) LOCKS_EXCLUDED(mutex_);
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  void HandleDone(bool success) LOCKS_EXCLUDED(mutex_) override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override {
     return writer_->Write(content, handler);
   }
-  virtual bool HandleFlush(MessageHandler* handler) {
+  bool HandleFlush(MessageHandler* handler) override {
     return writer_->Flush(handler);
   }
-  virtual void HandleHeadersComplete() {
-  }
+  void HandleHeadersComplete() override {}
 
  private:
   // This class wraps around an external Writer and passes through calls to that
@@ -107,9 +105,9 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
     ProtectedWriter(SyncFetcherAdapterCallback* callback, Writer* orig_writer)
         : callback_(callback), orig_writer_(orig_writer) {}
 
-    virtual bool Write(const StringPiece& buf, MessageHandler* handler)
+    bool Write(const StringPiece& buf, MessageHandler* handler) override
         LOCKS_EXCLUDED(callback_->mutex_);
-    virtual bool Flush(MessageHandler* handler)
+    bool Flush(MessageHandler* handler) override
         LOCKS_EXCLUDED(callback_->mutex_);
 
    private:
@@ -118,15 +116,15 @@ class SyncFetcherAdapterCallback : public AsyncFetch {
 
     DISALLOW_COPY_AND_ASSIGN(ProtectedWriter);
   };
-  virtual ~SyncFetcherAdapterCallback();
+  ~SyncFetcherAdapterCallback() override;
 
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> cond_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> cond_;
 
   bool done_ GUARDED_BY(mutex_);
   bool success_ GUARDED_BY(mutex_);
   bool released_ GUARDED_BY(mutex_);
-  scoped_ptr<Writer> writer_;
+  std::unique_ptr<Writer> writer_;
 
   DISALLOW_COPY_AND_ASSIGN(SyncFetcherAdapterCallback);
 };

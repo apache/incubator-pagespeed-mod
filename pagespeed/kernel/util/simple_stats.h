@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_SIMPLE_STATS_H_
 #define PAGESPEED_KERNEL_UTIL_SIMPLE_STATS_H_
 
@@ -37,19 +36,19 @@ class ThreadSystem;
 class SimpleStatsVariable : public MutexedScalar {
  public:
   SimpleStatsVariable(StringPiece name, Statistics* stats);
-  virtual ~SimpleStatsVariable();
+  ~SimpleStatsVariable() override;
   virtual StringPiece GetName() const { return StringPiece(); }
 
   void set_mutex(AbstractMutex* mutex) { mutex_.reset(mutex); }
 
  protected:
-  virtual AbstractMutex* mutex() const { return mutex_.get(); }
-  virtual int64 GetLockHeld() const;
-  virtual int64 SetReturningPreviousValueLockHeld(int64 value);
+  AbstractMutex* mutex() const override { return mutex_.get(); }
+  int64 GetLockHeld() const override;
+  int64 SetReturningPreviousValueLockHeld(int64 value) override;
 
  private:
   int64 value_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   DISALLOW_COPY_AND_ASSIGN(SimpleStatsVariable);
 };
 
@@ -59,14 +58,14 @@ class SimpleStats : public ScalarStatisticsTemplate<SimpleStatsVariable> {
   // SimpleStats will not take ownership of thread_system.  The thread system is
   // used to instantiate mutexes to allow SimpleStatsVariable to be thread-safe.
   explicit SimpleStats(ThreadSystem* thread_system);
-  virtual ~SimpleStats();
+  ~SimpleStats() override;
 
   void SetThreadSystem(ThreadSystem* x);
   ThreadSystem* thread_system() const { return thread_system_; }
 
-  virtual CountHistogram* NewHistogram(StringPiece name);
-  virtual Var* NewVariable(StringPiece name);
-  virtual UpDown* NewUpDownCounter(StringPiece name);
+  CountHistogram* NewHistogram(StringPiece name) override;
+  Var* NewVariable(StringPiece name) override;
+  UpDown* NewUpDownCounter(StringPiece name) override;
 
  private:
   ThreadSystem* thread_system_;  // Not owned by this class.

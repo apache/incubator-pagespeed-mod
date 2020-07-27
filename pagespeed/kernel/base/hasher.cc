@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/hasher.h"
 
 #include <algorithm>
@@ -29,12 +28,11 @@
 
 namespace net_instaweb {
 
-Hasher::Hasher(int max_chars): max_chars_(max_chars) {
+Hasher::Hasher(int max_chars) : max_chars_(max_chars) {
   CHECK_LE(0, max_chars);
 }
 
-Hasher::~Hasher() {
-}
+Hasher::~Hasher() {}
 
 GoogleString Hasher::Hash(const StringPiece& content) const {
   GoogleString raw_hash = RawHash(content);

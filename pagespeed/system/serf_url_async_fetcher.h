@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_SERF_URL_ASYNC_FETCHER_H_
 #define PAGESPEED_SYSTEM_SERF_URL_ASYNC_FETCHER_H_
 
@@ -25,6 +24,7 @@
 #include <vector>
 
 #include "apr_network_io.h"
+#include "external/serf/serf.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest_prod.h"
@@ -35,8 +35,6 @@
 #include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/response_headers_parser.h"
-
-#include "third_party/serf/src/serf.h"
 
 // To enable HTTPS fetching with serf, we must link against OpenSSL,
 // which is a a large library with licensing restrictions not known to
@@ -91,17 +89,13 @@ struct SerfStats {
   static const char kSerfFetchLastCheckTimestampMs[];
 };
 
-enum class SerfCompletionResult {
-  kClientCancel,
-  kSuccess,
-  kFailure
-};
+enum class SerfCompletionResult { kClientCancel, kSuccess, kFailure };
 
 // Identifies the set of HTML keywords.  This is used in error messages emitted
 // both from the config parser in this module, and in the directives table in
 // mod_instaweb.cc which must be statically constructed using a compile-time
 // concatenation.  Hence this must be a literal string and not a const char*.
-#define SERF_HTTPS_KEYWORDS \
+#define SERF_HTTPS_KEYWORDS           \
   "enable,disable,allow_self_signed," \
   "allow_unknown_certificate_authority,allow_certificate_not_yet_valid"
 
@@ -113,30 +107,24 @@ enum class SerfCompletionResult {
 //       connection to hang.
 class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
-  enum WaitChoice {
-    kThreadedOnly,
-    kMainlineOnly,
-    kThreadedAndMainline
-  };
+  enum WaitChoice { kThreadedOnly, kMainlineOnly, kThreadedAndMainline };
 
   SerfUrlAsyncFetcher(const char* proxy, apr_pool_t* pool,
-                      ThreadSystem* thread_system,
-                      Statistics* statistics, Timer* timer, int64 timeout_ms,
-                      MessageHandler* handler);
+                      ThreadSystem* thread_system, Statistics* statistics,
+                      Timer* timer, int64 timeout_ms, MessageHandler* handler);
   SerfUrlAsyncFetcher(SerfUrlAsyncFetcher* parent, const char* proxy);
-  virtual ~SerfUrlAsyncFetcher();
+  ~SerfUrlAsyncFetcher() override;
 
   static void InitStats(Statistics* statistics);
 
   // Stops all active fetches and prevents further fetches from starting
   // (they will instead quickly call back to ->Done(false).
-  virtual void ShutDown();
+  void ShutDown() override;
 
-  virtual bool SupportsHttps() const;
+  bool SupportsHttps() const override;
 
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* callback);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* callback) override;
   // TODO(morlovich): Make private once non-thread mode concept removed.
   int Poll(int64 max_wait_ms);
 
@@ -156,11 +144,10 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
                                const ResponseHeaders* headers,
                                const SerfFetch* fetch);
 
-
   apr_pool_t* pool() const { return pool_; }
 
   void PrintActiveFetches(MessageHandler* handler) const;
-  virtual int64 timeout_ms() { return timeout_ms_; }
+  int64 timeout_ms() override { return timeout_ms_; }
   ThreadSystem* thread_system() { return thread_system_; }
 
   // Indicates that Serf should enumerate failing URLs whenever the underlying
@@ -265,8 +252,7 @@ class SerfUrlAsyncFetcher : public UrlAsyncFetcher {
   friend class SerfFetch;  // To access stats variables below.
 
   // Note: returned string memory substring of memory in the pool.
-  static const char* ExtractHostHeader(const apr_uri_t& uri,
-                                       apr_pool_t* pool);
+  static const char* ExtractHostHeader(const apr_uri_t& uri, apr_pool_t* pool);
   FRIEND_TEST(SerfUrlAsyncFetcherTest, TestHostConstruction);
 
   // Transforms Host: header into SNI host name by dropping the port.
@@ -313,10 +299,8 @@ class SerfFetch : public PoolElement<SerfFetch> {
   };
 
   // TODO(lsong): make use of request_headers.
-  SerfFetch(const GoogleString& url,
-            AsyncFetch* async_fetch,
-            MessageHandler* message_handler,
-            Timer* timer);
+  SerfFetch(const GoogleString& url, AsyncFetch* async_fetch,
+            MessageHandler* message_handler, Timer* timer);
   ~SerfFetch();
 
   // Start the fetch. It returns immediately.  This can only be run when
@@ -345,10 +329,8 @@ class SerfFetch : public PoolElement<SerfFetch> {
 
   // For use only by unit tests.  Calls ParseUrl(), then makes things available
   // for checking.
-  void ParseUrlForTesting(bool* status,
-                          apr_uri_t** url,
-                          const char** host_header,
-                          const char** sni_host);
+  void ParseUrlForTesting(bool* status, apr_uri_t** url,
+                          const char** host_header, const char** sni_host);
 
   void SetFetcherForTesting(SerfUrlAsyncFetcher* fetcher);
 
@@ -368,30 +350,26 @@ class SerfFetch : public PoolElement<SerfFetch> {
   // Note this must be ifdef'd because calling serf_bucket_ssl_decrypt_create
   // requires ssl_buckets.c in the link.  ssl_buckets.c requires openssl.
 #if SERF_HTTPS_FETCHING
-  static apr_status_t SSLCertValidate(void *data, int failures,
-                                   const serf_ssl_certificate_t *cert);
+  static apr_status_t SSLCertValidate(void* data, int failures,
+                                      const serf_ssl_certificate_t* cert);
 
   static apr_status_t SSLCertChainValidate(
-      void *data, int failures, int error_depth,
-      const serf_ssl_certificate_t * const *certs,
-      apr_size_t certs_count);
+      void* data, int failures, int error_depth,
+      const serf_ssl_certificate_t* const* certs, apr_size_t certs_count);
 #endif
 
-  static apr_status_t ConnectionSetup(
-      apr_socket_t* socket, serf_bucket_t **read_bkt, serf_bucket_t **write_bkt,
-      void* setup_baton, apr_pool_t* pool);
-  static void ClosedConnection(serf_connection_t* conn,
-                               void* closed_baton,
-                               apr_status_t why,
-                               apr_pool_t* pool);
+  static apr_status_t ConnectionSetup(apr_socket_t* socket,
+                                      serf_bucket_t** read_bkt,
+                                      serf_bucket_t** write_bkt,
+                                      void* setup_baton, apr_pool_t* pool);
+  static void ClosedConnection(serf_connection_t* conn, void* closed_baton,
+                               apr_status_t why, apr_pool_t* pool);
   static serf_bucket_t* AcceptResponse(serf_request_t* request,
                                        serf_bucket_t* stream,
-                                       void* acceptor_baton,
-                                       apr_pool_t* pool);
+                                       void* acceptor_baton, apr_pool_t* pool);
   static apr_status_t HandleResponse(serf_request_t* request,
                                      serf_bucket_t* response,
-                                     void* handler_baton,
-                                     apr_pool_t* pool);
+                                     void* handler_baton, apr_pool_t* pool);
   // After a serf read operation, return true if the status indicates that
   // data might have been read. The "number of bytes read" paramater is not
   // guaranteed to be updated if the status is anything other than SUCCESS or
@@ -410,8 +388,8 @@ class SerfFetch : public PoolElement<SerfFetch> {
   //
   // If there is a cert that should be checked for a hostname match, that should
   // go in cert.  Otherwise cert should be null.
-  apr_status_t HandleSSLCertValidation(
-      int errors, int failure_depth, const serf_ssl_certificate_t *cert);
+  apr_status_t HandleSSLCertValidation(int errors, int failure_depth,
+                                       const serf_ssl_certificate_t* cert);
 #endif
 
   apr_status_t HandleResponse(serf_bucket_t* response);
@@ -431,14 +409,12 @@ class SerfFetch : public PoolElement<SerfFetch> {
   // Ensures that a user-agent string is included, and that the mod_pagespeed
   // version is appended.
   void FixUserAgent();
-  static apr_status_t SetupRequest(serf_request_t* request,
-                                   void* setup_baton,
+  static apr_status_t SetupRequest(serf_request_t* request, void* setup_baton,
                                    serf_bucket_t** req_bkt,
                                    serf_response_acceptor_t* acceptor,
                                    void** acceptor_baton,
                                    serf_response_handler_t* handler,
-                                   void** handler_baton,
-                                   apr_pool_t* pool);
+                                   void** handler_baton, apr_pool_t* pool);
   bool ParseUrl();
 
   SerfUrlAsyncFetcher* fetcher_;
@@ -453,7 +429,7 @@ class SerfFetch : public PoolElement<SerfFetch> {
   serf_bucket_alloc_t* bucket_alloc_;
   apr_uri_t url_;
   const char* host_header_;  // in pool_
-  const char* sni_host_;  // in pool_
+  const char* sni_host_;     // in pool_
   serf_connection_t* connection_;
   size_t bytes_received_;
   int64 fetch_start_ms_;

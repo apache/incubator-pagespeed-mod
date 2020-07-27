@@ -23,8 +23,9 @@
 
 namespace net_instaweb {
 
-bool ExternalServerSpec::SetFromString(
-    StringPiece value_string, int default_port, GoogleString* error_detail) {
+bool ExternalServerSpec::SetFromString(StringPiece value_string,
+                                       int default_port,
+                                       GoogleString* error_detail) {
   StringPieceVector host_port;
   SplitStringPieceToVector(value_string, ":", &host_port,
                            false /* omit_empty_strings */);
@@ -56,8 +57,9 @@ bool ExternalServerSpec::SetFromString(
   return true;
 }
 
-bool ExternalClusterSpec::SetFromString(
-    StringPiece value_string, int default_port, GoogleString* error_detail) {
+bool ExternalClusterSpec::SetFromString(StringPiece value_string,
+                                        int default_port,
+                                        GoogleString* error_detail) {
   if (value_string.empty()) {
     servers.clear();
     return true;

@@ -40,7 +40,6 @@
 // rewrite_filter_names.cc is automatically generated from
 // rewrite_filter_names.gperf.
 
-#include "base/basictypes.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "pagespeed/kernel/base/string_util.h"
 

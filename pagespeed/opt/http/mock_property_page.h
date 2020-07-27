@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Mock PropertyPage for use in unit tests.
 
 #ifndef PAGESPEED_OPT_HTTP_MOCK_PROPERTY_PAGE_H_
@@ -33,35 +32,29 @@ namespace net_instaweb {
 
 class MockPropertyPage : public PropertyPage {
  public:
-  MockPropertyPage(ThreadSystem* thread_system,
-                   PropertyCache* property_cache,
+  MockPropertyPage(ThreadSystem* thread_system, PropertyCache* property_cache,
                    const StringPiece& url,
                    const StringPiece& options_signature_hash,
                    const StringPiece& cache_key_suffix)
-      : PropertyPage(
-          kPropertyCachePage,
-          url,
-          options_signature_hash,
-          cache_key_suffix,
-          RequestContext::NewTestRequestContext(thread_system),
-          thread_system->NewMutex(), property_cache),
+      : PropertyPage(kPropertyCachePage, url, options_signature_hash,
+                     cache_key_suffix,
+                     RequestContext::NewTestRequestContext(thread_system),
+                     thread_system->NewMutex(), property_cache),
         called_(false),
         valid_(false),
         time_ms_(-1) {}
-  virtual ~MockPropertyPage();
-  virtual bool IsCacheValid(int64 write_timestamp_ms) const {
+  ~MockPropertyPage() override;
+  bool IsCacheValid(int64 write_timestamp_ms) const override {
     return time_ms_ == -1 || write_timestamp_ms > time_ms_;
   }
-  virtual void Done(bool valid) {
+  void Done(bool valid) override {
     called_ = true;
     valid_ = valid;
   }
 
   bool called() const { return called_; }
   bool valid() const { return valid_; }
-  void set_time_ms(int64 time_ms) {
-    time_ms_ = time_ms;
-  }
+  void set_time_ms(int64 time_ms) { time_ms_ = time_ms; }
 
  private:
   bool called_;

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_DETERMINISTIC_JS_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_DETERMINISTIC_JS_FILTER_H_
 
@@ -36,12 +35,12 @@ namespace net_instaweb {
 class DeterministicJsFilter : public CommonFilter {
  public:
   explicit DeterministicJsFilter(RewriteDriver* driver);
-  virtual ~DeterministicJsFilter();
+  ~DeterministicJsFilter() override;
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element) { }
-  virtual const char* Name() const { return "DeterministicJs"; }
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override {}
+  const char* Name() const override { return "DeterministicJs"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:
@@ -51,6 +50,5 @@ class DeterministicJsFilter : public CommonFilter {
 };
 
 }  // namespace net_instaweb
-
 
 #endif  // NET_INSTAWEB_REWRITER_PUBLIC_DETERMINISTIC_JS_FILTER_H_

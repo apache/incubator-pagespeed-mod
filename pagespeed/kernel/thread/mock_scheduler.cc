@@ -17,27 +17,22 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/mock_scheduler.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/mock_timer.h"
-#include "pagespeed/kernel/thread/scheduler.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
+#include "pagespeed/kernel/thread/scheduler.h"
 
 namespace net_instaweb {
 
-MockScheduler::MockScheduler(
-    ThreadSystem* thread_system, MockTimer* timer)
-    : Scheduler(thread_system, timer),
-      timer_(timer) {
-}
+MockScheduler::MockScheduler(ThreadSystem* thread_system, MockTimer* timer)
+    : Scheduler(thread_system, timer), timer_(timer) {}
 
-MockScheduler::~MockScheduler() {
-}
+MockScheduler::~MockScheduler() {}
 
 void MockScheduler::AwaitWakeupUntilUs(int64 wakeup_time_us) {
   // AwaitWakeupUntilUs is used to effectively move simulated time forward

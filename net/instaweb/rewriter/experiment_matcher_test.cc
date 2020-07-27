@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test for ExperimentMatcher
 
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
@@ -57,9 +56,8 @@ TEST_F(ExperimentMatcherTest, ClassifyIntoExperiment) {
   UserAgentMatcher matcher;
   ASSERT_TRUE(options.AddExperimentSpec("id=1;percent=100", &handler));
   ASSERT_EQ(1, options.num_experiments());
-  bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(req_headers,
-                                                                matcher,
-                                                                &options);
+  bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(
+      req_headers, matcher, &options);
 
   // We expect 1 here because we set up an experiment above (id=1;percent=100)
   // that takes 100% of the traffic and puts it into an experiment with id=1.
@@ -67,13 +65,13 @@ TEST_F(ExperimentMatcherTest, ClassifyIntoExperiment) {
   ASSERT_TRUE(need_cookie);
 
   req_headers.Add(HttpAttributes::kCookie, "PageSpeedExperiment=1");
-  need_cookie = experiment_matcher_.ClassifyIntoExperiment(
-      req_headers, matcher, &options);
+  need_cookie = experiment_matcher_.ClassifyIntoExperiment(req_headers, matcher,
+                                                           &options);
   ASSERT_FALSE(need_cookie);
 
   experiment::RemoveExperimentCookie(&req_headers);
-  need_cookie = experiment_matcher_.ClassifyIntoExperiment(
-      req_headers, matcher, &options);
+  need_cookie = experiment_matcher_.ClassifyIntoExperiment(req_headers, matcher,
+                                                           &options);
 
   // Same as above comment.
   ASSERT_EQ(1, options.experiment_id());
@@ -82,15 +80,15 @@ TEST_F(ExperimentMatcherTest, ClassifyIntoExperiment) {
   // Same test used for experiment::SetExperimentCookie in experiment_util_test.
   ResponseHeaders resp_headers;
   GoogleString url = "http://www.test.com/stuff/some_page.html";
-  experiment_matcher_.StoreExperimentData(
-      options.experiment_id(), url, 0, &resp_headers);
+  experiment_matcher_.StoreExperimentData(options.experiment_id(), url, 0,
+                                          &resp_headers);
   ASSERT_TRUE(resp_headers.Has(HttpAttributes::kSetCookie));
   ConstStringStarVector v;
   EXPECT_TRUE(resp_headers.Lookup(HttpAttributes::kSetCookie, &v));
   ASSERT_EQ(1, v.size());
   GoogleString expires;
   ConvertTimeToString(0, &expires);
-  GoogleString expected = StringPrintf(
+  GoogleString expected = absl::StrFormat(
       "PageSpeedExperiment=1; Expires=%s; Domain=.www.test.com; Path=/",
       expires.c_str());
   EXPECT_EQ(expected, *v[0]);
@@ -266,9 +264,8 @@ TEST_F(ExperimentMatcherTest, ExperimentMatchesDeviceType) {
     req_headers.Replace(HttpAttributes::kUserAgent,
                         UserAgentMatcherTestBase::kAndroidChrome21UserAgent);
 
-    bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(req_headers,
-                                                                  matcher,
-                                                                  &options);
+    bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(
+        req_headers, matcher, &options);
 
     ASSERT_TRUE(need_cookie);
     EXPECT_EQ(0, options.experiment_id());
@@ -287,9 +284,8 @@ TEST_F(ExperimentMatcherTest, ExperimentMatchesDeviceType) {
     req_headers.Replace(HttpAttributes::kUserAgent,
                         UserAgentMatcherTestBase::kChrome18UserAgent);
 
-    bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(req_headers,
-                                                                  matcher,
-                                                                  &options);
+    bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(
+        req_headers, matcher, &options);
 
     ASSERT_TRUE(need_cookie);
     EXPECT_EQ(1, options.experiment_id());
@@ -308,9 +304,8 @@ TEST_F(ExperimentMatcherTest, ExperimentMatchesDeviceType) {
     req_headers.Replace(HttpAttributes::kUserAgent,
                         UserAgentMatcherTestBase::kIPadChrome36UserAgent);
 
-    bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(req_headers,
-                                                                  matcher,
-                                                                  &options);
+    bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(
+        req_headers, matcher, &options);
 
     ASSERT_TRUE(need_cookie);
     EXPECT_EQ(1, options.experiment_id());
@@ -329,14 +324,12 @@ TEST_F(ExperimentMatcherTest, ExperimentMatchesDeviceType) {
     req_headers.Replace(HttpAttributes::kUserAgent,
                         UserAgentMatcherTestBase::kChrome18UserAgent);
 
-    bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(req_headers,
-                                                                  matcher,
-                                                                  &options);
+    bool need_cookie = experiment_matcher_.ClassifyIntoExperiment(
+        req_headers, matcher, &options);
 
     ASSERT_TRUE(need_cookie);
     EXPECT_EQ(0, options.experiment_id());
   }
 }
-
 
 }  // namespace net_instaweb

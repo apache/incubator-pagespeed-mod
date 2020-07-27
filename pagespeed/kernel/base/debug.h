@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_DEBUG_H_
 #define PAGESPEED_KERNEL_BASE_DEBUG_H_
 
 #include "pagespeed/kernel/base/string.h"
 // Use Chromium debug support.
-#include "base/debug/stack_trace.h"
+//#include "base/debug/stack_trace.h"
 
 namespace net_instaweb {
 

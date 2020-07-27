@@ -17,16 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/platform.h"
 
+#include "pagespeed/kernel/base/checking_thread_system.h"
+#include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
-
 #include "pagespeed/kernel/thread/pthread_thread_system.h"
-#include "pagespeed/kernel/base/checking_thread_system.h"
-
-#include "pagespeed/kernel/base/posix_timer.h"
 
 namespace net_instaweb {
 
@@ -39,8 +36,6 @@ ThreadSystem* Platform::CreateThreadSystem() {
 #endif
 }
 
-Timer* Platform::CreateTimer() {
-  return new PosixTimer;
-}
+Timer* Platform::CreateTimer() { return new PosixTimer; }
 
 }  // namespace net_instaweb

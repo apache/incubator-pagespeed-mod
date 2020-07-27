@@ -17,10 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/key_value_codec.h"
 
-#include <limits.h>                     // for CHAR_BIT
+#include <climits>  // for CHAR_BIT
 #include <cstddef>
 
 #include "pagespeed/kernel/base/basictypes.h"

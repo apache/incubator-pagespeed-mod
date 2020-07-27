@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Very simple memory debugging overrides for operator new/delete, to
 // help us quickly find simple memory violations:
 //   1. Double destruct
@@ -56,6 +55,7 @@
 #ifndef NDEBUG
 
 #include <cstdlib>
+
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
@@ -116,11 +116,11 @@ void debug_free(void* ptr) {
 #define __THROW
 #endif
 
-void* operator new(size_t size) throw (std::bad_alloc) {
+void* operator new(size_t size) throw(std::bad_alloc) {
   return debug_malloc(size);
 }
 
-void* operator new[](size_t size) throw (std::bad_alloc) {
+void* operator new[](size_t size) throw(std::bad_alloc) {
   return debug_malloc(size);
 }
 
@@ -128,11 +128,9 @@ void* operator new(size_t size, const std::nothrow_t&) __THROW {
   return debug_malloc(size);
 }
 
-void operator delete(void* ptr) __THROW {
-  debug_free(ptr);
-}
+void operator delete(void* ptr)__THROW { debug_free(ptr); }
 
-void operator delete(void* ptr, const std::nothrow_t&) __THROW {
+void operator delete(void* ptr, const std::nothrow_t&)__THROW {
   debug_free(ptr);
 }
 
@@ -140,9 +138,7 @@ void* operator new[](size_t size, const std::nothrow_t&) __THROW {
   return debug_malloc(size);
 }
 
-void operator delete[](void* ptr) __THROW {
-  debug_free(ptr);
-}
+void operator delete[](void* ptr) __THROW { debug_free(ptr); }
 
 void operator delete[](void* ptr, const std::nothrow_t&) __THROW {
   debug_free(ptr);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/collect_dependencies_filter.h"
 
 #include "net/instaweb/http/public/http_cache.h"
@@ -67,9 +66,9 @@ class CollectDependenciesFilterTest : public RewriteTestBase {
     SetResponseWithDefaultHeaders("c.css", kContentTypeCss,
                                   " *  { display: list-item }", 150);
 
-    SetResponseWithDefaultHeaders("b.js",  kContentTypeJavascript,
+    SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript,
                                   " var b  = 42", 200);
-    SetResponseWithDefaultHeaders("d.js",  kContentTypeJavascript,
+    SetResponseWithDefaultHeaders("d.js", kContentTypeJavascript,
                                   " var d  = 32", 250);
     start_time_ms_ = timer()->NowMs();
   }
@@ -100,12 +99,13 @@ TEST_F(CollectDependenciesFilterTest, BasicOperation) {
   options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
   rewrite_driver()->AddFilters();
 
-  const char kInput[] = "<link rel=stylesheet href=a.css>"
-                        "<script src=b.js></script>";
+  const char kInput[] =
+      "<link rel=stylesheet href=a.css>"
+      "<script src=b.js></script>";
 
   const char kOutput[] =
-    "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>"
-    "<script src=b.js.pagespeed.jm.0.js></script>";
+      "<link rel=stylesheet href=A.a.css.pagespeed.cf.0.css>"
+      "<script src=b.js.pagespeed.jm.0.js></script>";
 
   ValidateExpected("basic_res", kInput, kOutput);
 
@@ -115,39 +115,52 @@ TEST_F(CollectDependenciesFilterTest, BasicOperation) {
   rewrite_driver()->StartParse(kTestDomain);
   ASSERT_TRUE(tracker->read_in_info() != nullptr);
 
-  EXPECT_THAT(*tracker->read_in_info(), EqualsProto(StrCat(
-      "dependency {"
-        "url: 'http://test.com/A.a.css.pagespeed.cf.0.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(100), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 0"
-      "}"
-      "dependency {"
-        "url: 'http://test.com/b.js.pagespeed.jm.0.js'"
-        "content_type: DEP_JAVASCRIPT "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(200), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 1"
-      "}")));
+  EXPECT_THAT(
+      *tracker->read_in_info(),
+      EqualsProto(StrCat("dependency {"
+                         "url: 'http://test.com/A.a.css.pagespeed.cf.0.css'"
+                         "content_type: DEP_CSS "
+                         "validity_info {"
+                         "type: CACHED "
+                         "expiration_time_ms: ",
+                         FormatRelTimeSec(100),
+                         " "
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "validity_info {"
+                         "type: CACHED "
+                         "last_modified_time_ms: ",
+                         FormatRelTimeSec(0), " ",
+                         "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+                         " "
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "order_key: 0"
+                         "}"
+                         "dependency {"
+                         "url: 'http://test.com/b.js.pagespeed.jm.0.js'"
+                         "content_type: DEP_JAVASCRIPT "
+                         "validity_info {"
+                         "type: CACHED "
+                         "expiration_time_ms: ",
+                         FormatRelTimeSec(200),
+                         " "
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "validity_info {"
+                         "type: CACHED "
+                         "last_modified_time_ms: ",
+                         FormatRelTimeSec(0), " ",
+                         "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+                         " "
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "order_key: 1"
+                         "}")));
 
   rewrite_driver()->FinishParse();
 }
@@ -170,27 +183,33 @@ TEST_F(CollectDependenciesFilterTest, MediaTopLevel) {
   DependencyTracker* tracker = rewrite_driver()->dependency_tracker();
   rewrite_driver()->StartParse(kTestDomain);
   ASSERT_TRUE(tracker->read_in_info() != nullptr);
-  EXPECT_THAT(*tracker->read_in_info(), EqualsProto(StrCat(
-      "dependency {"
-        "url: 'http://test.com/a.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(100), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 0"
-      "}"
-      "dependency {"
-        "url: 'http://test.com/e.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(400), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 1"
-      "}")));
+  EXPECT_THAT(*tracker->read_in_info(),
+              EqualsProto(StrCat("dependency {"
+                                 "url: 'http://test.com/a.css'"
+                                 "content_type: DEP_CSS "
+                                 "validity_info {"
+                                 "type: CACHED "
+                                 "expiration_time_ms: ",
+                                 FormatRelTimeSec(100),
+                                 " "
+                                 "date_ms: ",
+                                 FormatRelTimeSec(0),
+                                 "}"
+                                 "order_key: 0"
+                                 "}"
+                                 "dependency {"
+                                 "url: 'http://test.com/e.css'"
+                                 "content_type: DEP_CSS "
+                                 "validity_info {"
+                                 "type: CACHED "
+                                 "expiration_time_ms: ",
+                                 FormatRelTimeSec(400),
+                                 " "
+                                 "date_ms: ",
+                                 FormatRelTimeSec(0),
+                                 "}"
+                                 "order_key: 1"
+                                 "}")));
 
   rewrite_driver()->FinishParse();
 }
@@ -201,16 +220,17 @@ TEST_F(CollectDependenciesFilterTest, HandleEmptyResources) {
 
   // Using RememberFailure seems like the easiest way of getting empty
   // Resource objects.
-  http_cache()->RememberFailure(
-      StrCat(kTestDomain, "e.css"), rewrite_driver()->CacheFragment(),
-      kFetchStatusOtherError, message_handler());
+  http_cache()->RememberFailure(StrCat(kTestDomain, "e.css"),
+                                rewrite_driver()->CacheFragment(),
+                                kFetchStatusOtherError, message_handler());
 
-  http_cache()->RememberFailure(
-      StrCat(kTestDomain, "f.js"), rewrite_driver()->CacheFragment(),
-      kFetchStatusOtherError, message_handler());
+  http_cache()->RememberFailure(StrCat(kTestDomain, "f.js"),
+                                rewrite_driver()->CacheFragment(),
+                                kFetchStatusOtherError, message_handler());
 
-  const char kInput[] = "<link rel=stylesheet href=e.css>"
-                        "<script src=f.js></script>";
+  const char kInput[] =
+      "<link rel=stylesheet href=e.css>"
+      "<script src=f.js></script>";
   ValidateNoChanges("unoptimized", kInput);
 
   // Read stuff back in from pcache.
@@ -218,24 +238,25 @@ TEST_F(CollectDependenciesFilterTest, HandleEmptyResources) {
   DependencyTracker* tracker = rewrite_driver()->dependency_tracker();
   rewrite_driver()->StartParse(kTestDomain);
   ASSERT_TRUE(tracker->read_in_info() != nullptr);
-  EXPECT_THAT(*tracker->read_in_info(), EqualsProto(
-      "dependency {"
-        "url: 'http://test.com/e.css'"
-        "content_type: DEP_CSS "
-        "order_key: 0"
-      "}"
-      "dependency {"
-        "url: 'http://test.com/f.js'"
-        "content_type: DEP_JAVASCRIPT "
-        "order_key: 1"
-      "}"));
+  EXPECT_THAT(*tracker->read_in_info(),
+              EqualsProto("dependency {"
+                          "url: 'http://test.com/e.css'"
+                          "content_type: DEP_CSS "
+                          "order_key: 0"
+                          "}"
+                          "dependency {"
+                          "url: 'http://test.com/f.js'"
+                          "content_type: DEP_JAVASCRIPT "
+                          "order_key: 1"
+                          "}"));
 
   rewrite_driver()->FinishParse();
 }
 
 TEST_F(CollectDependenciesFilterTest, Unoptimized) {
-  const char kInput[] = "<link rel=stylesheet href=a.css>"
-                        "<script src=b.js></script>";
+  const char kInput[] =
+      "<link rel=stylesheet href=a.css>"
+      "<script src=b.js></script>";
   ValidateNoChanges("unoptimized", kInput);
 
   // Read stuff back in from pcache.
@@ -243,27 +264,33 @@ TEST_F(CollectDependenciesFilterTest, Unoptimized) {
   DependencyTracker* tracker = rewrite_driver()->dependency_tracker();
   rewrite_driver()->StartParse(kTestDomain);
   ASSERT_TRUE(tracker->read_in_info() != nullptr);
-  EXPECT_THAT(*tracker->read_in_info(), EqualsProto(StrCat(
-      "dependency {"
-        "url: 'http://test.com/a.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(100), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 0"
-      "}"
-      "dependency {"
-        "url: 'http://test.com/b.js'"
-        "content_type: DEP_JAVASCRIPT "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(200), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 1"
-      "}")));
+  EXPECT_THAT(*tracker->read_in_info(),
+              EqualsProto(StrCat("dependency {"
+                                 "url: 'http://test.com/a.css'"
+                                 "content_type: DEP_CSS "
+                                 "validity_info {"
+                                 "type: CACHED "
+                                 "expiration_time_ms: ",
+                                 FormatRelTimeSec(100),
+                                 " "
+                                 "date_ms: ",
+                                 FormatRelTimeSec(0),
+                                 "}"
+                                 "order_key: 0"
+                                 "}"
+                                 "dependency {"
+                                 "url: 'http://test.com/b.js'"
+                                 "content_type: DEP_JAVASCRIPT "
+                                 "validity_info {"
+                                 "type: CACHED "
+                                 "expiration_time_ms: ",
+                                 FormatRelTimeSec(200),
+                                 " "
+                                 "date_ms: ",
+                                 FormatRelTimeSec(0),
+                                 "}"
+                                 "order_key: 1"
+                                 "}")));
 
   rewrite_driver()->FinishParse();
 }
@@ -279,12 +306,13 @@ TEST_F(CollectDependenciesFilterTest, Inliners) {
   options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
   rewrite_driver()->AddFilters();
 
-  const char kInput[] = "<link rel=stylesheet href=a.css>"
-                        "<script src=b.js></script>";
+  const char kInput[] =
+      "<link rel=stylesheet href=a.css>"
+      "<script src=b.js></script>";
 
   const char kOutput[] =
-    "<style>*{display:block}</style>"
-    "<script>var b=42</script>";
+      "<style>*{display:block}</style>"
+      "<script>var b=42</script>";
 
   ValidateExpected("inliners", kInput, kOutput);
 
@@ -305,10 +333,11 @@ TEST_F(CollectDependenciesFilterTest, Combiners) {
   options()->EnableFilter(RewriteOptions::kCombineJavascript);
   rewrite_driver()->AddFilters();
 
-  const char kInput[] = "<link rel=stylesheet href=a.css>"
-                        "<link rel=stylesheet href=c.css>"
-                        "<script src=b.js></script>"
-                        "<script src=d.js></script>";
+  const char kInput[] =
+      "<link rel=stylesheet href=a.css>"
+      "<link rel=stylesheet href=c.css>"
+      "<script src=b.js></script>"
+      "<script src=d.js></script>";
   const char kOutput[] =
       "<link rel=stylesheet href=a.css+c.css.pagespeed.cc.0.css>"
       "<script src=\"b.js+d.js.pagespeed.jc.0.js\"></script>"
@@ -321,28 +350,38 @@ TEST_F(CollectDependenciesFilterTest, Combiners) {
   DependencyTracker* tracker = rewrite_driver()->dependency_tracker();
   rewrite_driver()->StartParse(kTestDomain);
   ASSERT_TRUE(tracker->read_in_info() != nullptr);
-  EXPECT_THAT(*tracker->read_in_info(), EqualsProto(StrCat(
-      "dependency {"
-        "url: 'http://test.com/a.css+c.css.pagespeed.cc.0.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(100), " "  // a.css
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(150), " "  // c.css
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",  // a + c
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 0"
-      "}")));
+  EXPECT_THAT(
+      *tracker->read_in_info(),
+      EqualsProto(StrCat("dependency {"
+                         "url: 'http://test.com/a.css+c.css.pagespeed.cc.0.css'"
+                         "content_type: DEP_CSS "
+                         "validity_info {"
+                         "type: CACHED "
+                         "expiration_time_ms: ",
+                         FormatRelTimeSec(100),
+                         " "  // a.css
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "validity_info {"
+                         "type: CACHED "
+                         "expiration_time_ms: ",
+                         FormatRelTimeSec(150),
+                         " "  // c.css
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "validity_info {"
+                         "type: CACHED "
+                         "last_modified_time_ms: ",
+                         FormatRelTimeSec(0), " ",  // a + c
+                         "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+                         " "
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "order_key: 0"
+                         "}")));
   rewrite_driver()->FinishParse();
 }
 
@@ -356,10 +395,11 @@ TEST_F(CollectDependenciesFilterTest, Chain) {
   options()->EnableFilter(RewriteOptions::kExtendCacheScripts);
   rewrite_driver()->AddFilters();
 
-  const char kInput[] = "<link rel=stylesheet href=a.css>"
-                        "<link rel=stylesheet href=c.css>"
-                        "<script src=b.js></script>"
-                        "<script src=d.js></script>";
+  const char kInput[] =
+      "<link rel=stylesheet href=a.css>"
+      "<link rel=stylesheet href=c.css>"
+      "<script src=b.js></script>"
+      "<script src=d.js></script>";
   const char kOutput[] =
       "<link rel=stylesheet href=A.a.css+c.css,Mcc.0.css.pagespeed.cf.0.css>"
       "<script src=b.js.pagespeed.jm.0.js></script>"
@@ -371,66 +411,93 @@ TEST_F(CollectDependenciesFilterTest, Chain) {
   DependencyTracker* tracker = rewrite_driver()->dependency_tracker();
   rewrite_driver()->StartParse(kTestDomain);
   ASSERT_TRUE(tracker->read_in_info() != nullptr);
-  EXPECT_THAT(*tracker->read_in_info(), EqualsProto(StrCat(StrCat(
-      "dependency {"
-        "url: 'http://test.com/A.a.css+c.css,Mcc.0.css.pagespeed.cf.0.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(100), " "  // a.css
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(150), " "  // c.css
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",  // a + c
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",  // (a + c).cf
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 0"
-      "}"),
-      "dependency {"
-        "url: 'http://test.com/b.js.pagespeed.jm.0.js'"
-        "content_type: DEP_JAVASCRIPT "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(200), " "  // b.js
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",  // b.js.jm
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 2"
-      "}"
-      "dependency {"
-        "url: 'http://test.com/d.js.pagespeed.jm.0.js'"
-        "content_type: DEP_JAVASCRIPT "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(250), " "  // d.js
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",  // d.js.jm
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 3"
-      "}")));
+  EXPECT_THAT(
+      *tracker->read_in_info(),
+      EqualsProto(StrCat(
+          StrCat("dependency {"
+                 "url: "
+                 "'http://test.com/A.a.css+c.css,Mcc.0.css.pagespeed.cf.0.css'"
+                 "content_type: DEP_CSS "
+                 "validity_info {"
+                 "type: CACHED "
+                 "expiration_time_ms: ",
+                 FormatRelTimeSec(100),
+                 " "  // a.css
+                 "date_ms: ",
+                 FormatRelTimeSec(0),
+                 "}"
+                 "validity_info {"
+                 "type: CACHED "
+                 "expiration_time_ms: ",
+                 FormatRelTimeSec(150),
+                 " "  // c.css
+                 "date_ms: ",
+                 FormatRelTimeSec(0),
+                 "}"
+                 "validity_info {"
+                 "type: CACHED "
+                 "last_modified_time_ms: ",
+                 FormatRelTimeSec(0), " ",  // a + c
+                 "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+                 " "
+                 "date_ms: ",
+                 FormatRelTimeSec(0),
+                 "}"
+                 "validity_info {"
+                 "type: CACHED "
+                 "last_modified_time_ms: ",
+                 FormatRelTimeSec(0), " ",  // (a + c).cf
+                 "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+                 " "
+                 "date_ms: ",
+                 FormatRelTimeSec(0),
+                 "}"
+                 "order_key: 0"
+                 "}"),
+          "dependency {"
+          "url: 'http://test.com/b.js.pagespeed.jm.0.js'"
+          "content_type: DEP_JAVASCRIPT "
+          "validity_info {"
+          "type: CACHED "
+          "expiration_time_ms: ",
+          FormatRelTimeSec(200),
+          " "  // b.js
+          "date_ms: ",
+          FormatRelTimeSec(0),
+          "}"
+          "validity_info {"
+          "type: CACHED "
+          "last_modified_time_ms: ",
+          FormatRelTimeSec(0), " ",  // b.js.jm
+          "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+          " "
+          "date_ms: ",
+          FormatRelTimeSec(0),
+          "}"
+          "order_key: 2"
+          "}"
+          "dependency {"
+          "url: 'http://test.com/d.js.pagespeed.jm.0.js'"
+          "content_type: DEP_JAVASCRIPT "
+          "validity_info {"
+          "type: CACHED "
+          "expiration_time_ms: ",
+          FormatRelTimeSec(250),
+          " "  // d.js
+          "date_ms: ",
+          FormatRelTimeSec(0),
+          "}"
+          "validity_info {"
+          "type: CACHED "
+          "last_modified_time_ms: ",
+          FormatRelTimeSec(0), " ",  // d.js.jm
+          "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+          " "
+          "date_ms: ",
+          FormatRelTimeSec(0),
+          "}"
+          "order_key: 3"
+          "}")));
   rewrite_driver()->FinishParse();
 }
 
@@ -439,13 +506,14 @@ TEST_F(CollectDependenciesFilterTest, Indirect) {
   SetResponseWithDefaultHeaders("d.css", kContentTypeCss,
                                 "@import \"i1.css\" all;\n"
                                 "@import \"i2.css\" print, screen;\n"
-                                "@import \"i3.css\" print;         ", 300);
+                                "@import \"i3.css\" print;         ",
+                                300);
   options()->EnableFilter(RewriteOptions::kRewriteCss);
   rewrite_driver()->AddFilters();
 
   const char kInput[] = "<link rel=stylesheet href=d.css>";
   const char kOutput[] =
-    "<link rel=stylesheet href=A.d.css.pagespeed.cf.0.css>";
+      "<link rel=stylesheet href=A.d.css.pagespeed.cf.0.css>";
 
   ValidateExpected("basic_res", kInput, kOutput);
 
@@ -453,57 +521,76 @@ TEST_F(CollectDependenciesFilterTest, Indirect) {
   DependencyTracker* tracker = rewrite_driver()->dependency_tracker();
   rewrite_driver()->StartParse(kTestDomain);
   ASSERT_TRUE(tracker->read_in_info() != nullptr);
-  EXPECT_THAT(*tracker->read_in_info(), EqualsProto(StrCat(StrCat(
-      "dependency {"
-        "url: 'http://test.com/A.d.css.pagespeed.cf.0.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(300), " "  // d.css
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",  // d.cf
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 0"
-      "}"),
-      "dependency {"
-        "url: 'http://test.com/i1.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(300), " "  // d.css
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",  // d.cf
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 0 "
-        "order_key: 1"
-      "}"
-      "dependency {"
-        "url: 'http://test.com/i2.css'"
-        "content_type: DEP_CSS "
-        "validity_info {"
-            "type: CACHED "
-            "expiration_time_ms: ", FormatRelTimeSec(300), " "  // d.css
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "validity_info {"
-            "type: CACHED "
-            "last_modified_time_ms: ", FormatRelTimeSec(0), " ",  // d.cf
-            "expiration_time_ms: ", FormatRelTimeSec(kYearSec), " "
-            "date_ms: ", FormatRelTimeSec(0),
-        "}"
-        "order_key: 0 "
-        "order_key: 2"
-      "}")));
+  EXPECT_THAT(*tracker->read_in_info(),
+              EqualsProto(StrCat(
+                  StrCat("dependency {"
+                         "url: 'http://test.com/A.d.css.pagespeed.cf.0.css'"
+                         "content_type: DEP_CSS "
+                         "validity_info {"
+                         "type: CACHED "
+                         "expiration_time_ms: ",
+                         FormatRelTimeSec(300),
+                         " "  // d.css
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "validity_info {"
+                         "type: CACHED "
+                         "last_modified_time_ms: ",
+                         FormatRelTimeSec(0), " ",  // d.cf
+                         "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+                         " "
+                         "date_ms: ",
+                         FormatRelTimeSec(0),
+                         "}"
+                         "order_key: 0"
+                         "}"),
+                  "dependency {"
+                  "url: 'http://test.com/i1.css'"
+                  "content_type: DEP_CSS "
+                  "validity_info {"
+                  "type: CACHED "
+                  "expiration_time_ms: ",
+                  FormatRelTimeSec(300),
+                  " "  // d.css
+                  "date_ms: ",
+                  FormatRelTimeSec(0),
+                  "}"
+                  "validity_info {"
+                  "type: CACHED "
+                  "last_modified_time_ms: ",
+                  FormatRelTimeSec(0), " ",  // d.cf
+                  "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+                  " "
+                  "date_ms: ",
+                  FormatRelTimeSec(0),
+                  "}"
+                  "order_key: 0 "
+                  "order_key: 1"
+                  "}"
+                  "dependency {"
+                  "url: 'http://test.com/i2.css'"
+                  "content_type: DEP_CSS "
+                  "validity_info {"
+                  "type: CACHED "
+                  "expiration_time_ms: ",
+                  FormatRelTimeSec(300),
+                  " "  // d.css
+                  "date_ms: ",
+                  FormatRelTimeSec(0),
+                  "}"
+                  "validity_info {"
+                  "type: CACHED "
+                  "last_modified_time_ms: ",
+                  FormatRelTimeSec(0), " ",  // d.cf
+                  "expiration_time_ms: ", FormatRelTimeSec(kYearSec),
+                  " "
+                  "date_ms: ",
+                  FormatRelTimeSec(0),
+                  "}"
+                  "order_key: 0 "
+                  "order_key: 2"
+                  "}")));
   rewrite_driver()->FinishParse();
 }
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SINGLE_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SINGLE_REWRITE_CONTEXT_H_
 
@@ -41,7 +40,7 @@ class SingleRewriteContext : public RewriteContext {
   // allocated with 'new'.
   SingleRewriteContext(RewriteDriver* driver, RewriteContext* parent,
                        ResourceContext* resource_context);
-  virtual ~SingleRewriteContext();
+  ~SingleRewriteContext() override;
 
  protected:
   // Subclasses of SingleRewriteContext must override this:
@@ -49,15 +48,13 @@ class SingleRewriteContext : public RewriteContext {
                              const OutputResourcePtr& output) = 0;
 
   // SingleRewriteContext takes care of these methods from RewriteContext:
-  virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs);
-  virtual void Rewrite(int partition_index,
-                       CachedResult* partition,
-                       const OutputResourcePtr& output);
+  bool Partition(OutputPartitions* partitions,
+                 OutputResourceVector* outputs) override;
+  void Rewrite(int partition_index, CachedResult* partition,
+               const OutputResourcePtr& output) override;
 
   // Adds a link: rel=canonical header pointing to the input URL as canonical.
-  void AddLinkRelCanonical(const ResourcePtr& input,
-                           ResponseHeaders* output);
+  void AddLinkRelCanonical(const ResourcePtr& input, ResponseHeaders* output);
 
   // Helper for using above in FixFetchFallbackHeaders()
   void AddLinkRelCanonicalForFallbackHeaders(ResponseHeaders* output);

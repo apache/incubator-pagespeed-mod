@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_POOL_ELEMENT_H_
 #define PAGESPEED_KERNEL_BASE_POOL_ELEMENT_H_
 
@@ -33,12 +32,12 @@
 // at pool construction time instead.
 namespace net_instaweb {
 
-template<class T>
+template <class T>
 class PoolElement {
  public:
   typedef typename std::list<T*>::iterator Position;
 
-  PoolElement() { }
+  PoolElement() {}
 
   // Returns a pointer to a mutable location holding the position of
   // the element in any containing pool.

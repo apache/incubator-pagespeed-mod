@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -45,8 +44,8 @@ class DomainLawyerTest : public testing::Test {
         port_request_("http://www.nytimes.com:8080/index.html"),
         https_request_("https://www.nytimes.com/index.html"),
         message_handler_(new NullMutex) {
-    domain_lawyer_with_all_domains_authorized_.AddDomain(
-        "*", &message_handler_);
+    domain_lawyer_with_all_domains_authorized_.AddDomain("*",
+                                                         &message_handler_);
   }
 
   // Syntactic sugar to map a request.
@@ -72,8 +71,8 @@ class DomainLawyerTest : public testing::Test {
     bool is_proxy = true;
     out->clear();
     GoogleString host_header;
-    return domain_lawyer_.MapOrigin(in, out, &host_header,
-                                    &is_proxy) && !is_proxy;
+    return domain_lawyer_.MapOrigin(in, out, &host_header, &is_proxy) &&
+           !is_proxy;
   }
 
   bool MapOriginAndHost(const StringPiece& in, GoogleString* origin,
@@ -81,8 +80,8 @@ class DomainLawyerTest : public testing::Test {
     bool is_proxy = true;
     origin->clear();
     host_header->clear();
-    return domain_lawyer_.MapOrigin(in, origin, host_header,
-                                    &is_proxy) && !is_proxy;
+    return domain_lawyer_.MapOrigin(in, origin, host_header, &is_proxy) &&
+           !is_proxy;
   }
 
   bool MapProxy(const StringPiece& in, GoogleString* out) {
@@ -90,7 +89,7 @@ class DomainLawyerTest : public testing::Test {
     out->clear();
     GoogleString host_header;
     return domain_lawyer_.MapOrigin(in, out, &host_header, &is_proxy) &&
-      is_proxy;
+           is_proxy;
   }
 
   bool AddOriginDomainMapping(const StringPiece& dest, const StringPiece& src) {
@@ -142,8 +141,8 @@ TEST_F(DomainLawyerTest, AbsoluteDomain) {
 
 TEST_F(DomainLawyerTest, ExternalDomainNotDeclared) {
   GoogleString mapped_domain_name;
-  EXPECT_FALSE(MapRequest(
-      orig_request_, StrCat(kCdnPrefix, kResourceUrl), &mapped_domain_name));
+  EXPECT_FALSE(MapRequest(orig_request_, StrCat(kCdnPrefix, kResourceUrl),
+                          &mapped_domain_name));
 }
 
 TEST_F(DomainLawyerTest, ExternalDomainDeclared) {
@@ -157,8 +156,8 @@ TEST_F(DomainLawyerTest, ExternalDomainDeclared) {
   ASSERT_TRUE(domain_lawyer_.AddDomain(cdn_domain, &message_handler_));
   EXPECT_TRUE(IsDomainAuthorized(orig_request_, cdn_domain));
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      orig_request_, StrCat(kCdnPrefix, kResourceUrl), &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(orig_request_, StrCat(kCdnPrefix, kResourceUrl),
+                         &mapped_domain_name));
   EXPECT_STREQ(cdn_domain, mapped_domain_name);
 
   // Make sure that we do not allow requests when the port is present; we've
@@ -168,20 +167,20 @@ TEST_F(DomainLawyerTest, ExternalDomainDeclared) {
   GoogleString orig_cdn_domain(kCdnPrefix, STATIC_STRLEN(kCdnPrefix) - 1);
   GoogleString port_cdn_domain(cdn_domain.data(), cdn_domain.size() - 1);
   port_cdn_domain += ":8080/";
-  EXPECT_FALSE(MapRequest(
-      orig_request_, StrCat(port_cdn_domain, "/", kResourceUrl),
-      &mapped_domain_name));
-  EXPECT_FALSE(domain_lawyer_.DoDomainsServeSameContent(
-      port_cdn_domain, cdn_domain));
+  EXPECT_FALSE(MapRequest(orig_request_,
+                          StrCat(port_cdn_domain, "/", kResourceUrl),
+                          &mapped_domain_name));
+  EXPECT_FALSE(
+      domain_lawyer_.DoDomainsServeSameContent(port_cdn_domain, cdn_domain));
 }
 
 TEST_F(DomainLawyerTest, ExternalUpperCaseDomainDeclared) {
   GoogleString cdn_domain(kCdnPrefix, STATIC_STRLEN(kCdnPrefix));
-  UpperString(&cdn_domain);   // will get normalized in AddDomain.
+  UpperString(&cdn_domain);  // will get normalized in AddDomain.
   ASSERT_TRUE(domain_lawyer_.AddDomain(cdn_domain, &message_handler_));
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      orig_request_, StrCat(kCdnPrefix, kResourceUrl), &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(orig_request_, StrCat(kCdnPrefix, kResourceUrl),
+                         &mapped_domain_name));
   LowerString(&cdn_domain);
   EXPECT_STREQ(cdn_domain, mapped_domain_name);
 
@@ -192,20 +191,20 @@ TEST_F(DomainLawyerTest, ExternalUpperCaseDomainDeclared) {
   GoogleString orig_cdn_domain(kCdnPrefix, STATIC_STRLEN(kCdnPrefix) - 1);
   GoogleString port_cdn_domain(cdn_domain.data(), cdn_domain.size() - 1);
   port_cdn_domain += ":8080/";
-  EXPECT_FALSE(MapRequest(
-      orig_request_, StrCat(port_cdn_domain, "/", kResourceUrl),
-      &mapped_domain_name));
+  EXPECT_FALSE(MapRequest(orig_request_,
+                          StrCat(port_cdn_domain, "/", kResourceUrl),
+                          &mapped_domain_name));
 }
 
 TEST_F(DomainLawyerTest, MixedCasePath) {
   GoogleUrl context_gurl("http://origin.com/index.html");
   ASSERT_TRUE(domain_lawyer_.AddDomain("EXAMPLE.com/HI/lo", &message_handler_));
-  EXPECT_TRUE(IsDomainAuthorized(context_gurl,
-                                 "http://example.com/HI/lo/file"));
-  EXPECT_FALSE(IsDomainAuthorized(context_gurl,
-                                  "http://example.com/hi/lo/file"));
-  EXPECT_FALSE(IsDomainAuthorized(context_gurl,
-                                  "https://example.com/HI/lo/file"));
+  EXPECT_TRUE(
+      IsDomainAuthorized(context_gurl, "http://example.com/HI/lo/file"));
+  EXPECT_FALSE(
+      IsDomainAuthorized(context_gurl, "http://example.com/hi/lo/file"));
+  EXPECT_FALSE(
+      IsDomainAuthorized(context_gurl, "https://example.com/HI/lo/file"));
 }
 
 TEST_F(DomainLawyerTest, RedundantPortsOnDeclaration) {
@@ -237,8 +236,8 @@ TEST_F(DomainLawyerTest, ExternalDomainDeclaredWithoutScheme) {
   ASSERT_TRUE(domain_lawyer_.AddDomain(kCdnPrefix + strlen("http://"),
                                        &message_handler_));
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      orig_request_, StrCat(kCdnPrefix, kResourceUrl), &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(orig_request_, StrCat(kCdnPrefix, kResourceUrl),
+                         &mapped_domain_name));
   EXPECT_STREQ(cdn_domain, mapped_domain_name);
 }
 
@@ -248,8 +247,8 @@ TEST_F(DomainLawyerTest, ExternalDomainDeclaredWithoutTrailingSlash) {
   StringPiece cdn_domain_no_slash(kCdnPrefix, STATIC_STRLEN(kCdnPrefix) - 1);
   ASSERT_TRUE(domain_lawyer_.AddDomain(cdn_domain_no_slash, &message_handler_));
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      orig_request_, StrCat(kCdnPrefix, kResourceUrl), &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(orig_request_, StrCat(kCdnPrefix, kResourceUrl),
+                         &mapped_domain_name));
   EXPECT_STREQ(cdn_domain, mapped_domain_name);
 }
 
@@ -257,8 +256,8 @@ TEST_F(DomainLawyerTest, WildcardDomainDeclared) {
   StringPiece cdn_domain(kCdnPrefix, STATIC_STRLEN(kCdnPrefix));
   ASSERT_TRUE(domain_lawyer_.AddDomain("*.nytimes.com", &message_handler_));
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      orig_request_, StrCat(kCdnPrefix, kResourceUrl), &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(orig_request_, StrCat(kCdnPrefix, kResourceUrl),
+                         &mapped_domain_name));
   EXPECT_STREQ(cdn_domain, mapped_domain_name);
 }
 
@@ -270,16 +269,16 @@ TEST_F(DomainLawyerTest, RelativeDomainPort) {
 
 TEST_F(DomainLawyerTest, AbsoluteDomainPort) {
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      port_request_, StrCat(kRequestDomainPort, kResourceUrl),
-      &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(port_request_,
+                         StrCat(kRequestDomainPort, kResourceUrl),
+                         &mapped_domain_name));
   EXPECT_STREQ(kRequestDomainPort, mapped_domain_name);
 }
 
 TEST_F(DomainLawyerTest, PortExternalDomainNotDeclared) {
   GoogleString mapped_domain_name;
-  EXPECT_FALSE(MapRequest(
-      port_request_, StrCat(kCdnPrefix, kResourceUrl), &mapped_domain_name));
+  EXPECT_FALSE(MapRequest(port_request_, StrCat(kCdnPrefix, kResourceUrl),
+                          &mapped_domain_name));
 }
 
 TEST_F(DomainLawyerTest, PortExternalDomainDeclared) {
@@ -287,9 +286,8 @@ TEST_F(DomainLawyerTest, PortExternalDomainDeclared) {
   port_cdn_domain += ":8080/";
   ASSERT_TRUE(domain_lawyer_.AddDomain(port_cdn_domain, &message_handler_));
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      port_request_, StrCat(port_cdn_domain, kResourceUrl),
-      &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(port_request_, StrCat(port_cdn_domain, kResourceUrl),
+                         &mapped_domain_name));
   EXPECT_STREQ(port_cdn_domain, mapped_domain_name);
 
   // Make sure that we do not allow requests when the port is missing; we've
@@ -312,8 +310,8 @@ TEST_F(DomainLawyerTest, PortWildcardDomainDeclared) {
 }
 
 TEST_F(DomainLawyerTest, HttpsDomain) {
-  ASSERT_TRUE(domain_lawyer_.AddDomain("https://nytimes.com",
-                                       &message_handler_));
+  ASSERT_TRUE(
+      domain_lawyer_.AddDomain("https://nytimes.com", &message_handler_));
 }
 
 TEST_F(DomainLawyerTest, ResourceFromHttpsPage) {
@@ -332,19 +330,19 @@ TEST_F(DomainLawyerTest, MapHttpsAcrossHosts) {
   ASSERT_TRUE(AddOriginDomainMapping("https://secure.nytimes.com",
                                      "http://insecure.nytimes.com"));
   GoogleString mapped;
-  ASSERT_TRUE(MapOrigin(
-      "https://secure.nytimes.com/css/stylesheet.css", &mapped));
+  ASSERT_TRUE(
+      MapOrigin("https://secure.nytimes.com/css/stylesheet.css", &mapped));
   EXPECT_STREQ("http://insecure.nytimes.com/css/stylesheet.css", mapped);
-  ASSERT_TRUE(MapOrigin(
-      "http://insecure.nytimes.com/css/stylesheet.css", &mapped));
+  ASSERT_TRUE(
+      MapOrigin("http://insecure.nytimes.com/css/stylesheet.css", &mapped));
   EXPECT_EQ("https://secure.nytimes.com/css/stylesheet.css", mapped);
 }
 
 TEST_F(DomainLawyerTest, MapHttpsAcrossSchemes) {
-  ASSERT_TRUE(AddOriginDomainMapping("http://nytimes.com",
-                                     "https://nytimes.com"));
-  ASSERT_TRUE(AddOriginDomainMapping("https://nytimes.com",
-                                     "http://nytimes.com"));
+  ASSERT_TRUE(
+      AddOriginDomainMapping("http://nytimes.com", "https://nytimes.com"));
+  ASSERT_TRUE(
+      AddOriginDomainMapping("https://nytimes.com", "http://nytimes.com"));
   GoogleString mapped;
   ASSERT_TRUE(MapOrigin("https://nytimes.com/css/stylesheet.css", &mapped));
   EXPECT_STREQ("http://nytimes.com/css/stylesheet.css", mapped);
@@ -353,8 +351,8 @@ TEST_F(DomainLawyerTest, MapHttpsAcrossSchemes) {
 }
 
 TEST_F(DomainLawyerTest, MapHttpsAcrossPorts) {
-  ASSERT_TRUE(AddOriginDomainMapping("http://nytimes.com:8181",
-                                     "https://nytimes.com"));
+  ASSERT_TRUE(
+      AddOriginDomainMapping("http://nytimes.com:8181", "https://nytimes.com"));
   GoogleString mapped;
   ASSERT_TRUE(MapOrigin("https://nytimes.com/css/stylesheet.css", &mapped));
   EXPECT_STREQ("http://nytimes.com:8181/css/stylesheet.css", mapped);
@@ -364,8 +362,8 @@ TEST_F(DomainLawyerTest, MapHttpsAcrossSchemesAndPorts) {
   ASSERT_TRUE(AddOriginDomainMapping("http://localhost:8080",
                                      "https://nytimes.com:8443"));
   GoogleString mapped;
-  ASSERT_TRUE(MapOrigin(
-      "https://nytimes.com:8443/css/stylesheet.css", &mapped));
+  ASSERT_TRUE(
+      MapOrigin("https://nytimes.com:8443/css/stylesheet.css", &mapped));
   EXPECT_STREQ("http://localhost:8080/css/stylesheet.css", mapped);
 }
 
@@ -376,12 +374,12 @@ TEST_F(DomainLawyerTest, AddTwoProtocolDomainMapping) {
   EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
   GoogleString mapped;
   GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("http://www.nytimes.com/index.html", &mapped,
+                               &host_header));
   EXPECT_STREQ("http://ref.nytimes.com/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("https://www.nytimes.com/index.html", &mapped,
+                               &host_header));
   EXPECT_STREQ("https://ref.nytimes.com/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com", host_header);
 }
@@ -393,12 +391,12 @@ TEST_F(DomainLawyerTest, AddTwoProtocolDomainMappingWithRefPort) {
   EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
   GoogleString mapped;
   GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("http://www.nytimes.com/index.html", &mapped,
+                               &host_header));
   EXPECT_STREQ("http://ref.nytimes.com:8089/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("https://www.nytimes.com/index.html", &mapped,
+                               &host_header));
   EXPECT_STREQ("https://ref.nytimes.com:8089/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com", host_header);
 }
@@ -410,20 +408,20 @@ TEST_F(DomainLawyerTest, AddTwoProtocolDomainMappingWithServingPort) {
   EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
   GoogleString mapped;
   GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com:8080/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("http://www.nytimes.com:8080/index.html",
+                               &mapped, &host_header));
   EXPECT_STREQ("http://ref.nytimes.com/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com:8080", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("http://www.nytimes.com/index.html", &mapped,
+                               &host_header));
   EXPECT_STREQ("http://www.nytimes.com/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com:8080/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("https://www.nytimes.com:8080/index.html",
+                               &mapped, &host_header));
   EXPECT_STREQ("https://ref.nytimes.com/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com:8080", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("https://www.nytimes.com/index.html", &mapped,
+                               &host_header));
   EXPECT_STREQ("https://www.nytimes.com/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com", host_header);
 }
@@ -435,12 +433,12 @@ TEST_F(DomainLawyerTest, AddTwoProtocolDomainMappingWithBothPorts) {
   EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
   GoogleString mapped;
   GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com:8080/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("http://www.nytimes.com:8080/index.html",
+                               &mapped, &host_header));
   EXPECT_STREQ("http://ref.nytimes.com:9999/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com:8080", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com:8080/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("https://www.nytimes.com:8080/index.html",
+                               &mapped, &host_header));
   EXPECT_STREQ("https://ref.nytimes.com:9999/index.html", mapped);
   EXPECT_STREQ("www.nytimes.com:8080", host_header);
 }
@@ -453,12 +451,12 @@ TEST_F(DomainLawyerTest, AddTwoProtocolDomainMappingWithHostHeader) {
   EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
   GoogleString mapped;
   GoogleString host_header;
-  ASSERT_TRUE(MapOriginAndHost(
-      "http://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("http://www.nytimes.com/index.html", &mapped,
+                               &host_header));
   EXPECT_STREQ("http://ref.nytimes.com/index.html", mapped);
   EXPECT_STREQ("host.nytimes.com", host_header);
-  ASSERT_TRUE(MapOriginAndHost(
-      "https://www.nytimes.com/index.html", &mapped, &host_header));
+  ASSERT_TRUE(MapOriginAndHost("https://www.nytimes.com/index.html", &mapped,
+                               &host_header));
   EXPECT_STREQ("https://ref.nytimes.com/index.html", mapped);
   EXPECT_STREQ("host.nytimes.com", host_header);
 }
@@ -469,22 +467,21 @@ TEST_F(DomainLawyerTest, MapOriginExplicitHost) {
   bool is_proxy = true;
   GoogleString out;
   GoogleString host;
-  ASSERT_TRUE(domain_lawyer_.MapOrigin("http://www.domain/foo.css",
-                                       &out, &host, &is_proxy));
+  ASSERT_TRUE(domain_lawyer_.MapOrigin("http://www.domain/foo.css", &out, &host,
+                                       &is_proxy));
   EXPECT_STREQ("http://origin/foo.css", out);
   EXPECT_STREQ("host", host);
   EXPECT_FALSE(is_proxy);
 }
 
 TEST_F(DomainLawyerTest, MapOriginWithoutExplicitHost) {
-  ASSERT_TRUE(domain_lawyer_.AddOriginDomainMapping("origin", "*domain",
-                                                    "" /* host_header */,
-                                                    &message_handler_));
+  ASSERT_TRUE(domain_lawyer_.AddOriginDomainMapping(
+      "origin", "*domain", "" /* host_header */, &message_handler_));
   bool is_proxy = true;
   GoogleString out;
   GoogleString host;
-  ASSERT_TRUE(domain_lawyer_.MapOrigin("http://www.domain/foo.css",
-                                       &out, &host, &is_proxy));
+  ASSERT_TRUE(domain_lawyer_.MapOrigin("http://www.domain/foo.css", &out, &host,
+                                       &is_proxy));
   EXPECT_STREQ("http://origin/foo.css", out);
   EXPECT_STREQ("www.domain", host);
   EXPECT_FALSE(is_proxy);
@@ -527,8 +524,7 @@ TEST_F(DomainLawyerTest, RewriteHttpsAcrossPorts) {
   EXPECT_STREQ("http://nytimes.com:8181/", mapped_domain_name);
   // Fails because http://nytimes/ is not authorized.
   GoogleUrl nyt_https("https://nytimes.com/index.html");
-  ASSERT_FALSE(MapRequest(nyt_https,
-                          "http://nytimes.com/css/stylesheet.css",
+  ASSERT_FALSE(MapRequest(nyt_https, "http://nytimes.com/css/stylesheet.css",
                           &mapped_domain_name));
   // Succeeds because http://nytimes:8181/ is authorized & matches the request.
   ASSERT_TRUE(MapRequest(nyt_https,
@@ -536,31 +532,27 @@ TEST_F(DomainLawyerTest, RewriteHttpsAcrossPorts) {
                          &mapped_domain_name));
   EXPECT_STREQ("http://nytimes.com:8181/", mapped_domain_name);
   // Succeeds because https://nytimes/ maps to http://nytimes:8181/.
-  ASSERT_TRUE(MapRequest(nyt_https,
-                         "https://nytimes.com/css/stylesheet.css",
+  ASSERT_TRUE(MapRequest(nyt_https, "https://nytimes.com/css/stylesheet.css",
                          &mapped_domain_name));
   EXPECT_STREQ("http://nytimes.com:8181/", mapped_domain_name);
 }
 
 TEST_F(DomainLawyerTest, RewriteHttpsAcrossSchemes) {
-  ASSERT_TRUE(AddRewriteDomainMapping("http://nytimes.com",
-                                      "https://nytimes.com"));
+  ASSERT_TRUE(
+      AddRewriteDomainMapping("http://nytimes.com", "https://nytimes.com"));
   EXPECT_TRUE(domain_lawyer_.can_rewrite_domains());
   GoogleString mapped_domain_name;
   GoogleUrl nyt_http("http://nytimes.com/index.html");
-  ASSERT_TRUE(MapRequest(nyt_http,
-                         "https://nytimes.com/css/stylesheet.css",
+  ASSERT_TRUE(MapRequest(nyt_http, "https://nytimes.com/css/stylesheet.css",
                          &mapped_domain_name));
   EXPECT_STREQ("http://nytimes.com/", mapped_domain_name);
   // Succeeds because http://nytimes/ is authorized and matches the request.
   GoogleUrl nyt_https("https://nytimes.com/index.html");
-  ASSERT_TRUE(MapRequest(nyt_https,
-                         "http://nytimes.com/css/stylesheet.css",
+  ASSERT_TRUE(MapRequest(nyt_https, "http://nytimes.com/css/stylesheet.css",
                          &mapped_domain_name));
   EXPECT_STREQ("http://nytimes.com/", mapped_domain_name);
   // Succeeds because https://nytimes/ maps to http://nytimes/.
-  ASSERT_TRUE(MapRequest(nyt_https,
-                         "https://nytimes.com/css/stylesheet.css",
+  ASSERT_TRUE(MapRequest(nyt_https, "https://nytimes.com/css/stylesheet.css",
                          &mapped_domain_name));
   EXPECT_STREQ("http://nytimes.com/", mapped_domain_name);
 }
@@ -587,8 +579,8 @@ TEST_F(DomainLawyerTest, RewriteHttpsAcrossSchemesAndPorts) {
                          &mapped_domain_name));
   EXPECT_STREQ("http://localhost:8080/", mapped_domain_name);
   // Relative path also succeeds.
-  ASSERT_TRUE(MapRequest(https_nyt_8443, "css/stylesheet.css",
-                         &mapped_domain_name));
+  ASSERT_TRUE(
+      MapRequest(https_nyt_8443, "css/stylesheet.css", &mapped_domain_name));
   EXPECT_STREQ("http://localhost:8080/", mapped_domain_name);
 }
 
@@ -614,8 +606,8 @@ TEST_F(DomainLawyerTest, RewriteHttpsToHttps) {
                          &mapped_domain_name));
   EXPECT_STREQ("https://localhost:8443/", mapped_domain_name);
   // Relative path also succeeds.
-  ASSERT_TRUE(MapRequest(https_nyt_8443, "css/stylesheet.css",
-                         &mapped_domain_name));
+  ASSERT_TRUE(
+      MapRequest(https_nyt_8443, "css/stylesheet.css", &mapped_domain_name));
   EXPECT_STREQ("https://localhost:8443/", mapped_domain_name);
 }
 
@@ -627,26 +619,26 @@ TEST_F(DomainLawyerTest, AddTwoProtocolRewriteDomainMapping) {
   GoogleUrl containing_page_http("http://www.nytimes.com/index.html");
   GoogleUrl containing_page_https("https://www.nytimes.com/index.html");
   // http page asks for http stylesheet.
-  ASSERT_TRUE(MapRequest(
-      containing_page_http,
-      "http://ref.nytimes.com/css/stylesheet.css", &mapped_domain));
+  ASSERT_TRUE(MapRequest(containing_page_http,
+                         "http://ref.nytimes.com/css/stylesheet.css",
+                         &mapped_domain));
   EXPECT_STREQ("http://www.nytimes.com/", mapped_domain);
   // http page asks for an https stylesheet.  Should still re-map.
-  ASSERT_TRUE(MapRequest(
-      containing_page_http,
-      "https://ref.nytimes.com/css/stylesheet.css", &mapped_domain));
+  ASSERT_TRUE(MapRequest(containing_page_http,
+                         "https://ref.nytimes.com/css/stylesheet.css",
+                         &mapped_domain));
   EXPECT_STREQ("https://www.nytimes.com/", mapped_domain);
   // https page asks for an https stylesheet.
-  ASSERT_TRUE(MapRequest(
-      containing_page_https,
-      "https://ref.nytimes.com/css/stylesheet.css", &mapped_domain));
+  ASSERT_TRUE(MapRequest(containing_page_https,
+                         "https://ref.nytimes.com/css/stylesheet.css",
+                         &mapped_domain));
   EXPECT_STREQ("https://www.nytimes.com/", mapped_domain);
   // https page asks for an http stylesheet.  It shouldn't be doing that, but we
   // preserve the bad behavior so the user realizes something fishy could
   // happen.
-  ASSERT_TRUE(MapRequest(
-      containing_page_https,
-      "http://ref.nytimes.com/css/stylesheet.css", &mapped_domain));
+  ASSERT_TRUE(MapRequest(containing_page_https,
+                         "http://ref.nytimes.com/css/stylesheet.css",
+                         &mapped_domain));
   EXPECT_STREQ("http://www.nytimes.com/", mapped_domain);
 }
 
@@ -680,10 +672,8 @@ TEST_F(DomainLawyerTest, VerifyPortIsDistinct1) {
   ASSERT_TRUE(domain_lawyer_.AddDomain("www.example.com", &message_handler_));
   GoogleString mapped_domain_name;
   GoogleUrl context_gurl("http://www.other.com/index.html");
-  EXPECT_FALSE(MapRequest(
-      context_gurl,
-      "http://www.example.com:81/styles.css",
-      &mapped_domain_name));
+  EXPECT_FALSE(MapRequest(context_gurl, "http://www.example.com:81/styles.css",
+                          &mapped_domain_name));
 }
 
 TEST_F(DomainLawyerTest, VerifyPortIsDistinct2) {
@@ -691,91 +681,71 @@ TEST_F(DomainLawyerTest, VerifyPortIsDistinct2) {
       domain_lawyer_.AddDomain("www.example.com:81", &message_handler_));
   GoogleString mapped_domain_name;
   GoogleUrl context_gurl("http://www.other.com/index.html");
-  EXPECT_FALSE(MapRequest(
-      context_gurl,
-      "http://www.example.com/styles.css",
-      &mapped_domain_name));
+  EXPECT_FALSE(MapRequest(context_gurl, "http://www.example.com/styles.css",
+                          &mapped_domain_name));
 }
 
 TEST_F(DomainLawyerTest, VerifyWildcardedPortSpec) {
   ASSERT_TRUE(domain_lawyer_.AddDomain("www.example.com*", &message_handler_));
   GoogleUrl context_gurl("http://www.origin.com/index.html");
   GoogleString mapped_domain_name;
-  EXPECT_TRUE(MapRequest(
-      context_gurl,
-      "http://www.example.com/styles.css",
-      &mapped_domain_name));
-  EXPECT_TRUE(MapRequest(
-      context_gurl,
-      "http://www.example.com:81/styles.css",
-      &mapped_domain_name));
+  EXPECT_TRUE(MapRequest(context_gurl, "http://www.example.com/styles.css",
+                         &mapped_domain_name));
+  EXPECT_TRUE(MapRequest(context_gurl, "http://www.example.com:81/styles.css",
+                         &mapped_domain_name));
 }
 
 TEST_F(DomainLawyerTest, MapRewriteDomain) {
   GoogleUrl context_gurl("http://www.origin.com/index.html");
   ASSERT_TRUE(domain_lawyer_.AddDomain("http://cdn.com/", &message_handler_));
-  ASSERT_TRUE(domain_lawyer_.AddDomain("http://origin.com/",
-                                       &message_handler_));
-  EXPECT_FALSE(domain_lawyer_.DoDomainsServeSameContent(
-      "cdn.com", "origin.com"));
+  ASSERT_TRUE(
+      domain_lawyer_.AddDomain("http://origin.com/", &message_handler_));
+  EXPECT_FALSE(
+      domain_lawyer_.DoDomainsServeSameContent("cdn.com", "origin.com"));
   ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com", "http://origin.com"));
-  EXPECT_TRUE(domain_lawyer_.DoDomainsServeSameContent(
-      "cdn.com", "origin.com"));
+  EXPECT_TRUE(
+      domain_lawyer_.DoDomainsServeSameContent("cdn.com", "origin.com"));
   EXPECT_TRUE(domain_lawyer_.can_rewrite_domains());
   // First try the mapping from "origin.com" to "cdn.com".
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      context_gurl,
-      "http://origin.com/styles/blue.css",
-      &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(context_gurl, "http://origin.com/styles/blue.css",
+                         &mapped_domain_name));
   EXPECT_STREQ("http://cdn.com/", mapped_domain_name);
 
   // But a relative reference will not map because we mapped "origin.com",
   // not "www.origin.com".
-  ASSERT_TRUE(MapRequest(
-      context_gurl,
-      "styles/blue.css",
-      &mapped_domain_name));
+  ASSERT_TRUE(MapRequest(context_gurl, "styles/blue.css", &mapped_domain_name));
   EXPECT_STREQ("http://www.origin.com/", mapped_domain_name);
 
   // Now add the mapping from "www".
-  ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com",
-                                      "http://www.origin.com"));
-  ASSERT_TRUE(MapRequest(
-      context_gurl,
-      "styles/blue.css",
-      &mapped_domain_name));
+  ASSERT_TRUE(
+      AddRewriteDomainMapping("http://cdn.com", "http://www.origin.com"));
+  ASSERT_TRUE(MapRequest(context_gurl, "styles/blue.css", &mapped_domain_name));
   EXPECT_STREQ("http://cdn.com/", mapped_domain_name);
 }
 
 TEST_F(DomainLawyerTest, MapRewriteDomainAndPath) {
   GoogleUrl context_gurl("http://www.origin.com/index.html");
-  ASSERT_TRUE(domain_lawyer_.AddDomain("http://cdn.com/origin/",
-                                       &message_handler_));
-  ASSERT_TRUE(domain_lawyer_.AddDomain("http://origin.com/",
-                                       &message_handler_));
-  ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com/origin",
-                                      "http://origin.com"));
+  ASSERT_TRUE(
+      domain_lawyer_.AddDomain("http://cdn.com/origin/", &message_handler_));
+  ASSERT_TRUE(
+      domain_lawyer_.AddDomain("http://origin.com/", &message_handler_));
+  ASSERT_TRUE(
+      AddRewriteDomainMapping("http://cdn.com/origin", "http://origin.com"));
   EXPECT_TRUE(domain_lawyer_.can_rewrite_domains());
   // First try the mapping from "origin.com" to "cdn.com/origin".
   GoogleUrl resolved_request;
   GoogleString mapped_domain_name;
-  ASSERT_TRUE(MapRequest(
-      context_gurl,
-      "http://origin.com/styles/blue.css",
-      &mapped_domain_name,
-      &resolved_request));
+  ASSERT_TRUE(MapRequest(context_gurl, "http://origin.com/styles/blue.css",
+                         &mapped_domain_name, &resolved_request));
   EXPECT_STREQ("http://cdn.com/origin/", mapped_domain_name);
   EXPECT_STREQ("http://cdn.com/origin/styles/blue.css",
                resolved_request.Spec());
 
   // But a relative reference will not map because we mapped "origin.com",
   // not "www.origin.com".
-  ASSERT_TRUE(MapRequest(
-      context_gurl,
-      "styles/blue.css",
-      &mapped_domain_name,
-      &resolved_request));
+  ASSERT_TRUE(MapRequest(context_gurl, "styles/blue.css", &mapped_domain_name,
+                         &resolved_request));
   EXPECT_STREQ("http://www.origin.com/", mapped_domain_name);
   EXPECT_STREQ("http://www.origin.com/styles/blue.css",
                resolved_request.Spec());
@@ -783,11 +753,8 @@ TEST_F(DomainLawyerTest, MapRewriteDomainAndPath) {
   // Now add the mapping from "www".
   ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com/origin",
                                       "http://www.origin.com"));
-  ASSERT_TRUE(MapRequest(
-      context_gurl,
-      "styles/blue.css",
-      &mapped_domain_name,
-      &resolved_request));
+  ASSERT_TRUE(MapRequest(context_gurl, "styles/blue.css", &mapped_domain_name,
+                         &resolved_request));
   EXPECT_STREQ("http://cdn.com/origin/", mapped_domain_name);
   EXPECT_STREQ("http://cdn.com/origin/styles/blue.css",
                resolved_request.Spec());
@@ -795,12 +762,11 @@ TEST_F(DomainLawyerTest, MapRewriteDomainAndPath) {
 
 TEST_F(DomainLawyerTest, RewriteWithPath) {
   GoogleUrl context_gurl("http://example.com/index.html");
-  ASSERT_TRUE(AddRewriteDomainMapping(
-      "http://example.com/static/images/", "http://static.com/images/"));
+  ASSERT_TRUE(AddRewriteDomainMapping("http://example.com/static/images/",
+                                      "http://static.com/images/"));
   GoogleString mapped_domain_name;
   GoogleUrl resolved_request;
-  ASSERT_TRUE(MapRequest(context_gurl,
-                         "http://static.com/images/teapot.png",
+  ASSERT_TRUE(MapRequest(context_gurl, "http://static.com/images/teapot.png",
                          &mapped_domain_name, &resolved_request));
   EXPECT_STREQ("http://example.com/static/images/", mapped_domain_name);
   EXPECT_STREQ("http://example.com/static/images/teapot.png",
@@ -808,28 +774,28 @@ TEST_F(DomainLawyerTest, RewriteWithPath) {
 }
 
 TEST_F(DomainLawyerTest, OriginWithPath) {
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "http://origin.com/subdir/", "http://external.com"));
+  ASSERT_TRUE(AddOriginDomainMapping("http://origin.com/subdir/",
+                                     "http://external.com"));
   GoogleString origin_url;
   ASSERT_TRUE(MapOrigin("http://external.com/styles/main.css", &origin_url));
   EXPECT_STREQ("http://origin.com/subdir/styles/main.css", origin_url);
 }
 
 TEST_F(DomainLawyerTest, OriginWithPathOnSource) {
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "http://origin.com/subdir/", "http://external.com/path"));
+  ASSERT_TRUE(AddOriginDomainMapping("http://origin.com/subdir/",
+                                     "http://external.com/path"));
   GoogleString origin_url;
-  ASSERT_TRUE(MapOrigin("http://external.com/path/styles/main.css",
-                        &origin_url));
+  ASSERT_TRUE(
+      MapOrigin("http://external.com/path/styles/main.css", &origin_url));
   EXPECT_STREQ("http://origin.com/subdir/styles/main.css", origin_url);
 }
 
 TEST_F(DomainLawyerTest, OriginAndExternWithPaths) {
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "http://origin.com/subdir/", "http://external.com/static/"));
+  ASSERT_TRUE(AddOriginDomainMapping("http://origin.com/subdir/",
+                                     "http://external.com/static/"));
   GoogleString origin_url;
-  ASSERT_TRUE(MapOrigin("http://external.com/static/styles/main.css",
-                        &origin_url));
+  ASSERT_TRUE(
+      MapOrigin("http://external.com/static/styles/main.css", &origin_url));
   EXPECT_STREQ("http://origin.com/subdir/styles/main.css", origin_url);
 }
 
@@ -837,12 +803,12 @@ TEST_F(DomainLawyerTest, OriginAndExternWithMultipleMatches) {
   domain_lawyer_.AddDomain("http://origin.com", &message_handler_);
   domain_lawyer_.AddDomain("http://origin.com/a/b", &message_handler_);
   domain_lawyer_.AddDomain("http://external.com", &message_handler_);
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "http://origin.com/a/", "http://external.com/static/"));
+  ASSERT_TRUE(AddOriginDomainMapping("http://origin.com/a/",
+                                     "http://external.com/static/"));
 
   GoogleString origin_url;
-  ASSERT_TRUE(MapOrigin("http://external.com/static/styles/main.css",
-                        &origin_url));
+  ASSERT_TRUE(
+      MapOrigin("http://external.com/static/styles/main.css", &origin_url));
   EXPECT_STREQ("http://origin.com/a/styles/main.css", origin_url);
 
   // No mappings should occur on a top level page on external.com,
@@ -854,42 +820,39 @@ TEST_F(DomainLawyerTest, OriginAndExternWithMultipleMatches) {
 }
 
 TEST_F(DomainLawyerTest, RootDomainOfProxySourceNotAuthorized) {
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "http://origin.com/a/", "http://external.com/static/"));
+  ASSERT_TRUE(AddOriginDomainMapping("http://origin.com/a/",
+                                     "http://external.com/static/"));
   GoogleUrl context_gurl("http://origin.com/index.html");
   GoogleUrl external_domain("http://external.com");
 
   // It is not OK to rewrite content on external.com.
-  EXPECT_FALSE(domain_lawyer_.IsDomainAuthorized(context_gurl,
-                                                 external_domain));
-  EXPECT_TRUE(
-      domain_lawyer_with_all_domains_authorized_.IsDomainAuthorized(
-          context_gurl, external_domain));
+  EXPECT_FALSE(
+      domain_lawyer_.IsDomainAuthorized(context_gurl, external_domain));
+  EXPECT_TRUE(domain_lawyer_with_all_domains_authorized_.IsDomainAuthorized(
+      context_gurl, external_domain));
 
   // But it *is* OK to rewrite content on external.com/static.
   external_domain.Reset("http://external.com/static/");
-  EXPECT_TRUE(domain_lawyer_.IsDomainAuthorized(context_gurl,
-                                                external_domain));
+  EXPECT_TRUE(domain_lawyer_.IsDomainAuthorized(context_gurl, external_domain));
 }
 
 TEST_F(DomainLawyerTest, OriginAndExternWithMultipleMatchesDoubleSlash) {
   domain_lawyer_.AddDomain("http://origin.com", &message_handler_);
   domain_lawyer_.AddDomain("http://external.com", &message_handler_);
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "http://origin.com/subdir/", "http://external.com/static/"));
+  ASSERT_TRUE(AddOriginDomainMapping("http://origin.com/subdir/",
+                                     "http://external.com/static/"));
 
   GoogleString origin_url;
-  ASSERT_TRUE(MapOrigin("http://external.com/static/styles//main.css",
-                        &origin_url));
+  ASSERT_TRUE(
+      MapOrigin("http://external.com/static/styles//main.css", &origin_url));
   EXPECT_STREQ("http://origin.com/subdir/styles//main.css", origin_url);
 }
 
 TEST_F(DomainLawyerTest, MapOriginDomain) {
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "http://localhost:8080", "http://origin.com:8080"));
+  ASSERT_TRUE(AddOriginDomainMapping("http://localhost:8080",
+                                     "http://origin.com:8080"));
   GoogleString mapped;
-  ASSERT_TRUE(MapOrigin("http://origin.com:8080/a/b/c?d=f",
-                                       &mapped));
+  ASSERT_TRUE(MapOrigin("http://origin.com:8080/a/b/c?d=f", &mapped));
   EXPECT_STREQ("http://localhost:8080/a/b/c?d=f", mapped);
 
   // The origin domain, which might be, say, 'localhost', is not necessarily
@@ -912,9 +875,9 @@ TEST_F(DomainLawyerTest, MapOriginDomain) {
 
 TEST_F(DomainLawyerTest, ProxyExternalResource) {
   GoogleUrl context_gurl("http://origin.com/index.html");
-  ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping(
-      "http://origin.com/external", "http://external.com/static", "",
-      &message_handler_));
+  ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping("http://origin.com/external",
+                                                   "http://external.com/static",
+                                                   "", &message_handler_));
 
   // Map proxy_this.png to a subdirectory in origin.com.
   GoogleUrl resolved_request;
@@ -962,19 +925,17 @@ TEST_F(DomainLawyerTest, ProxyExternalResourceToCDN) {
 
   // We should also rewrite proxy.com/external to cdn.com/external for looking
   // up cached resources on proxy.com.
-  ASSERT_TRUE(
-      MapRequest(context_gurl,
+  ASSERT_TRUE(MapRequest(context_gurl,
                          "http://proxy.com/external/images/proxy_this.png",
-                         &mapped_domain_name,
-                         &resolved_request));
+                         &mapped_domain_name, &resolved_request));
   EXPECT_STREQ("http://cdn.com/external/images/proxy_this.png",
                resolved_request.Spec());
 
   GoogleString external_url;
 
   // Map CDN domain to Origin
-  ASSERT_TRUE(MapProxy("http://cdn.com/external/images/proxy_this.png",
-                        &external_url));
+  ASSERT_TRUE(
+      MapProxy("http://cdn.com/external/images/proxy_this.png", &external_url));
   EXPECT_EQ(kUrlToProxy, external_url);
 
   // Map Proxy domain to Origin
@@ -1037,23 +998,23 @@ TEST_F(DomainLawyerTest, ProxyExternalResourceFromHttps) {
 TEST_F(DomainLawyerTest, ProxyAmbiguous) {
   GoogleUrl context_gurl("http://origin.com/index.html");
   ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping(
-      "http://proxy.com/origin", "http://origin.com", "",  &message_handler_));
+      "http://proxy.com/origin", "http://origin.com", "", &message_handler_));
 
   GoogleString out;
   EXPECT_TRUE(MapProxy("http://proxy.com/origin/x", &out));
   EXPECT_STREQ("http://origin.com/x", out);
 
   // We don't allow proxy/proxy conflicts.
-  EXPECT_FALSE(domain_lawyer_.AddProxyDomainMapping(
-      "http://proxy.com/origin", "http://ambiguous.com", "",
-      &message_handler_));
+  EXPECT_FALSE(domain_lawyer_.AddProxyDomainMapping("http://proxy.com/origin",
+                                                    "http://ambiguous.com", "",
+                                                    &message_handler_));
 
   EXPECT_TRUE(MapProxy("http://proxy.com/origin/x", &out));
   EXPECT_STREQ("http://origin.com/x", out);
 
   // We don't allow origin/proxy conflicts either.
-  EXPECT_FALSE(AddOriginDomainMapping(
-      "http://ambiguous.com", "http://proxy.com/origin"));
+  EXPECT_FALSE(AddOriginDomainMapping("http://ambiguous.com",
+                                      "http://proxy.com/origin"));
 
   EXPECT_TRUE(MapProxy("http://proxy.com/origin/x", &out));
   EXPECT_STREQ("http://origin.com/x", out);
@@ -1075,10 +1036,9 @@ TEST_F(DomainLawyerTest, ProxyAmbiguous) {
 TEST_F(DomainLawyerTest, Merge) {
   // Add some mappings for domain_lawywer_.
   ASSERT_TRUE(domain_lawyer_.AddDomain("http://d1.com/", &message_handler_));
-  ASSERT_TRUE(AddRewriteDomainMapping(
-      "http://cdn1.com", "http://www.o1.com"));
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "http://localhost:8080", "http://o1.com:8080"));
+  ASSERT_TRUE(AddRewriteDomainMapping("http://cdn1.com", "http://www.o1.com"));
+  ASSERT_TRUE(
+      AddOriginDomainMapping("http://localhost:8080", "http://o1.com:8080"));
   ASSERT_TRUE(domain_lawyer_.AddProxyDomainMapping(
       "http://proxy.com/origin", "http://origin.com", "", &message_handler_));
 
@@ -1118,14 +1078,14 @@ TEST_F(DomainLawyerTest, Merge) {
   GoogleString mapped;
   GoogleUrl resolved_request;
   GoogleUrl o1_index_gurl("http://www.o1.com/index.html");
-  ASSERT_TRUE(merged.MapRequestToDomain(
-      o1_index_gurl,
-      "styles/blue.css", &mapped, &resolved_request, &message_handler_));
+  ASSERT_TRUE(merged.MapRequestToDomain(o1_index_gurl, "styles/blue.css",
+                                        &mapped, &resolved_request,
+                                        &message_handler_));
   EXPECT_STREQ("http://cdn1.com/", mapped);
   GoogleUrl o2_index_gurl("http://www.o2.com/index.html");
-  ASSERT_TRUE(merged.MapRequestToDomain(
-      o2_index_gurl,
-      "styles/blue.css", &mapped, &resolved_request, &message_handler_));
+  ASSERT_TRUE(merged.MapRequestToDomain(o2_index_gurl, "styles/blue.css",
+                                        &mapped, &resolved_request,
+                                        &message_handler_));
   EXPECT_STREQ("http://cdn2.com/", mapped);
 
   bool is_proxy = true;
@@ -1145,21 +1105,21 @@ TEST_F(DomainLawyerTest, Merge) {
   // The conflict will be silently resolved to prefer the mapping from
   // the domain that got merged, which is domain_laywer_1, overriding
   // what was previously in the target.
-  ASSERT_TRUE(merged.MapOrigin("http://common_src1", &mapped, &host_header,
-                               &is_proxy));
+  ASSERT_TRUE(
+      merged.MapOrigin("http://common_src1", &mapped, &host_header, &is_proxy));
   EXPECT_STREQ("http://dest1/", mapped);
   EXPECT_STREQ("common_src1", host_header);
   EXPECT_FALSE(is_proxy);
 
   // Now check the domains that were added.
-  ASSERT_TRUE(merged.MapOrigin("http://common_src2", &mapped, &host_header,
-                               &is_proxy));
+  ASSERT_TRUE(
+      merged.MapOrigin("http://common_src2", &mapped, &host_header, &is_proxy));
   EXPECT_STREQ("http://dest2/", mapped);
   EXPECT_STREQ("common_src2", host_header);
   EXPECT_FALSE(is_proxy);
 
-  ASSERT_TRUE(merged.MapOrigin("http://common_src3", &mapped, &host_header,
-                               &is_proxy));
+  ASSERT_TRUE(
+      merged.MapOrigin("http://common_src3", &mapped, &host_header, &is_proxy));
   EXPECT_STREQ("http://dest4/", mapped);
   EXPECT_STREQ("common_src3", host_header);
   EXPECT_FALSE(is_proxy);
@@ -1196,17 +1156,17 @@ TEST_F(DomainLawyerTest, AddMappingFailures) {
   ASSERT_FALSE(AddRewriteDomainMapping("http://cdn.com", ","));
 
   // Ensure that we ignore a mapping of a domain to itself.
-  ASSERT_FALSE(AddRewriteDomainMapping("http://origin.com",
-                                       "http://origin.com"));
+  ASSERT_FALSE(
+      AddRewriteDomainMapping("http://origin.com", "http://origin.com"));
   EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
   ASSERT_FALSE(AddRewriteDomainMapping("http://origin.com/newroot",
                                        "http://origin.com"));
   EXPECT_FALSE(domain_lawyer_.can_rewrite_domains());
 
-  ASSERT_FALSE(AddRewriteDomainMapping("http://origin.com",
-                                       "http://origin.com,"));
-  ASSERT_FALSE(AddRewriteDomainMapping("http://origin.com",
-                                       ",http://origin.com"));
+  ASSERT_FALSE(
+      AddRewriteDomainMapping("http://origin.com", "http://origin.com,"));
+  ASSERT_FALSE(
+      AddRewriteDomainMapping("http://origin.com", ",http://origin.com"));
   ASSERT_FALSE(AddRewriteDomainMapping("http://origin.com/newroot",
                                        "http://origin.com,"));
   ASSERT_FALSE(AddRewriteDomainMapping("http://origin.com/newroot",
@@ -1220,8 +1180,8 @@ TEST_F(DomainLawyerTest, AddMappingFailures) {
   // You can use wildcard in source domains for Rewrite and Origin, but not
   // Sharding.
   EXPECT_TRUE(AddRewriteDomainMapping("foo.com", "bar*.com"));
-  EXPECT_TRUE(domain_lawyer_.AddOriginDomainMapping("foo.com", "bar*.com",
-                                                    "", &message_handler_));
+  EXPECT_TRUE(domain_lawyer_.AddOriginDomainMapping("foo.com", "bar*.com", "",
+                                                    &message_handler_));
   EXPECT_FALSE(AddShard("foo.com", "bar*.com"));
 
   EXPECT_TRUE(AddShard("foo.com", "bar1.com,bar2.com"));
@@ -1266,8 +1226,8 @@ TEST_F(DomainLawyerTest, WillDomainChange) {
 }
 
 TEST_F(DomainLawyerTest, WillDomainChangeSubdirectory) {
-  ASSERT_TRUE(AddRewriteDomainMapping("http://cdn.com",
-                                      "http://origin.com/subdir"));
+  ASSERT_TRUE(
+      AddRewriteDomainMapping("http://cdn.com", "http://origin.com/subdir"));
   EXPECT_FALSE(WillDomainChange("http://origin.com/"));
   EXPECT_FALSE(WillDomainChange("http://origin.com/subdirx"));
   EXPECT_TRUE(WillDomainChange("http://origin.com/subdir/x"));
@@ -1311,12 +1271,10 @@ TEST_F(DomainLawyerTest, MapShardToOriginDomain) {
 }
 
 TEST_F(DomainLawyerTest, ConflictedOrigin1) {
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "localhost", "myhost.com"));
+  ASSERT_TRUE(AddOriginDomainMapping("localhost", "myhost.com"));
   EXPECT_EQ(0, message_handler_.SeriousMessages());
 
-  ASSERT_TRUE(AddOriginDomainMapping(
-      "other", "myhost.com"));
+  ASSERT_TRUE(AddOriginDomainMapping("other", "myhost.com"));
   EXPECT_EQ(1, message_handler_.SeriousMessages());
 
   // The second one will win.
@@ -1482,10 +1440,11 @@ TEST_F(DomainLawyerTest, WildcardOrder) {
   // Define a second lawyer with definitions "*abc*.com" which should
   // come after "abc*.com".
   DomainLawyer second_lawyer, merged_lawyer;
-  ASSERT_TRUE(second_lawyer.AddOriginDomainMapping("host3", "*abc*.com",
-                                                   "", &message_handler_));
+  ASSERT_TRUE(second_lawyer.AddOriginDomainMapping("host3", "*abc*.com", "",
+                                                   &message_handler_));
   ASSERT_TRUE(second_lawyer.AddOriginDomainMapping(
-      "host1", "abc*.com", "", &message_handler_));  // duplicate entry.
+      "host1", "abc*.com", "",
+      &message_handler_));  // duplicate entry.
   merged_lawyer.Merge(domain_lawyer_);
   merged_lawyer.Merge(second_lawyer);
   EXPECT_EQ(3, merged_lawyer.num_wildcarded_domains());
@@ -1495,13 +1454,13 @@ TEST_F(DomainLawyerTest, WildcardOrder) {
   // 42 and 'a' is ascii 97, and the domain-map is over GoogleString.
   bool is_proxy = true;
   GoogleString host_header;
-  ASSERT_TRUE(merged_lawyer.MapOrigin("http://abc.com/x", &mapped,
-                                      &host_header, &is_proxy));
+  ASSERT_TRUE(merged_lawyer.MapOrigin("http://abc.com/x", &mapped, &host_header,
+                                      &is_proxy));
   EXPECT_STREQ("http://host1/x", mapped);
   EXPECT_FALSE(is_proxy);
   is_proxy = true;
-  ASSERT_TRUE(merged_lawyer.MapOrigin("http://xyz.com/x", &mapped,
-                                      &host_header, &is_proxy));
+  ASSERT_TRUE(merged_lawyer.MapOrigin("http://xyz.com/x", &mapped, &host_header,
+                                      &is_proxy));
   EXPECT_STREQ("http://host2/x", mapped);
   EXPECT_FALSE(is_proxy);
   is_proxy = true;
@@ -1518,40 +1477,52 @@ TEST_F(DomainLawyerTest, ComputeSignatureTest) {
   ASSERT_TRUE(first_lawyer.AddOriginDomainMapping("host2", "*def*.com", "h2",
                                                   &message_handler_));
 
-  ASSERT_TRUE(second_lawyer.AddRewriteDomainMapping("cdn.com",
-                                                    "myhost1.com,myhost2.com",
-                                                    &message_handler_));
-  EXPECT_STREQ("D:http://*abc*.com/__a_" "O:http://host1/_"
-               "-"
-               "D:http://*def*.com/__a_" "O:http://host2/_"
-               "-"
-               "D:http://host1/__n_"
-               "-"
-               "D:http://host2/__n_" "H:h2|"
-               "-",
-               first_lawyer.Signature());
-  EXPECT_STREQ("D:http://cdn.com/__a_"
-               "-"
-               "D:http://myhost1.com/__a_" "R:http://cdn.com/_"
-               "-"
-               "D:http://myhost2.com/__a_" "R:http://cdn.com/_"
-               "-",
-               second_lawyer.Signature());
+  ASSERT_TRUE(second_lawyer.AddRewriteDomainMapping(
+      "cdn.com", "myhost1.com,myhost2.com", &message_handler_));
+  EXPECT_STREQ(
+      "D:http://*abc*.com/__a_"
+      "O:http://host1/_"
+      "-"
+      "D:http://*def*.com/__a_"
+      "O:http://host2/_"
+      "-"
+      "D:http://host1/__n_"
+      "-"
+      "D:http://host2/__n_"
+      "H:h2|"
+      "-",
+      first_lawyer.Signature());
+  EXPECT_STREQ(
+      "D:http://cdn.com/__a_"
+      "-"
+      "D:http://myhost1.com/__a_"
+      "R:http://cdn.com/_"
+      "-"
+      "D:http://myhost2.com/__a_"
+      "R:http://cdn.com/_"
+      "-",
+      second_lawyer.Signature());
 
   EXPECT_TRUE(first_lawyer.AddShard("domain1", "shard", &message_handler_));
-  EXPECT_STREQ("D:http://*abc*.com/__a_" "O:http://host1/_"
-               "-"
-               "D:http://*def*.com/__a_" "O:http://host2/_"
-               "-"
-               "D:http://domain1/__a_" "S:http://shard/_"
-               "-"
-               "D:http://host1/__n_"
-               "-"
-               "D:http://host2/__n_" "H:h2|"
-               "-"
-               "D:http://shard/__a_" "R:http://domain1/_"
-               "-",
-               first_lawyer.Signature());
+  EXPECT_STREQ(
+      "D:http://*abc*.com/__a_"
+      "O:http://host1/_"
+      "-"
+      "D:http://*def*.com/__a_"
+      "O:http://host2/_"
+      "-"
+      "D:http://domain1/__a_"
+      "S:http://shard/_"
+      "-"
+      "D:http://host1/__n_"
+      "-"
+      "D:http://host2/__n_"
+      "H:h2|"
+      "-"
+      "D:http://shard/__a_"
+      "R:http://domain1/_"
+      "-",
+      first_lawyer.Signature());
 }
 
 TEST_F(DomainLawyerTest, ToStringTest) {
@@ -1565,9 +1536,8 @@ TEST_F(DomainLawyerTest, ToStringTest) {
       "http://static.example.com/ Auth\n",
       first_lawyer.ToString());
 
-  EXPECT_TRUE(second_lawyer.AddRewriteDomainMapping("myhost.cdn.com",
-                                                    "myhost1.com,myhost2.com",
-                                                    &message_handler_));
+  EXPECT_TRUE(second_lawyer.AddRewriteDomainMapping(
+      "myhost.cdn.com", "myhost1.com,myhost2.com", &message_handler_));
   EXPECT_TRUE(
       second_lawyer.AddShard("domain1", "shard,shard2", &message_handler_));
   EXPECT_STREQ(

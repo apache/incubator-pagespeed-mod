@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_URL_ASYNC_FETCHER_H_
 
@@ -47,8 +46,7 @@ class UrlAsyncFetcher {
   //
   // TODO(sligocki): GoogleString -> GoogleUrl or at least StringPiece.
   // TODO(sligocki): Include the URL in the fetch, like the request headers.
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
+  virtual void Fetch(const GoogleString& url, MessageHandler* message_handler,
                      AsyncFetch* fetch) = 0;
 
   // Determine if the fetcher supports fetching using HTTPS. By default we

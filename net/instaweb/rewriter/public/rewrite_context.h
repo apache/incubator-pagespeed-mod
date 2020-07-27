@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_CONTEXT_H_
 
@@ -56,11 +55,7 @@ class Statistics;
 class Variable;
 class FreshenMetadataUpdateManager;
 
-enum class RenderOp {
-  kDontRender,
-  kRenderOnlyCspWarning,
-  kRender
-};
+enum class RenderOp { kDontRender, kRenderOnlyCspWarning, kRender };
 
 // RewriteContext manages asynchronous rewriting of some n >= 1 resources (think
 // CSS, JS, or images) into m >= 0 improved versions (typically, n = m = 1).
@@ -176,7 +171,7 @@ class RewriteContext {
     bool useable_cache_content;
     bool is_stale_rewrite;
     InputInfoStarVector revalidate;
-    scoped_ptr<OutputPartitions> partitions;
+    std::unique_ptr<OutputPartitions> partitions;
   };
 
   // Used for LookupMetadataForOutputResource.
@@ -186,6 +181,7 @@ class RewriteContext {
     virtual ~CacheLookupResultCallback();
     virtual void Done(const GoogleString& cache_key,
                       CacheLookupResult* result) = 0;
+
    private:
     DISALLOW_COPY_AND_ASSIGN(CacheLookupResultCallback);
   };
@@ -256,8 +252,7 @@ class RewriteContext {
   //
   // True is returned if an asynchronous fetch got queued up.
   // If false, fetch->Done() will not be called.
-  bool Fetch(const OutputResourcePtr& output_resource,
-             AsyncFetch* fetch,
+  bool Fetch(const OutputResourcePtr& output_resource, AsyncFetch* fetch,
              MessageHandler* message_handler);
 
   // If true, we have determined that this job can't be rendered just
@@ -286,9 +281,7 @@ class RewriteContext {
   int num_nested() const { return nested_.size(); }
   RewriteContext* nested(int i) const { return nested_[i]; }
 
-  RewriteDriver* Driver() const {
-    return driver_;
-  }
+  RewriteDriver* Driver() const { return driver_; }
 
   // If called with true, forces a rewrite and re-generates the output.
   void set_force_rewrite(bool x) { force_rewrite_ = x; }
@@ -389,8 +382,7 @@ class RewriteContext {
   // TODO(jmarantz): check for resource completion from a different
   // thread (while we were waiting for resource fetches) when Rewrite
   // gets called.
-  virtual void Rewrite(int partition_index,
-                       CachedResult* partition,
+  virtual void Rewrite(int partition_index, CachedResult* partition,
                        const OutputResourcePtr& output) = 0;
 
   // Called by subclasses when an individual rewrite partition is
@@ -485,8 +477,7 @@ class RewriteContext {
   // it isn't going to be modified in the method, ResourceContext is passed
   // as a const pointer.
   // TODO(morlovich): This seems to overlap with CacheKeySuffix.
-  virtual GoogleString UserAgentCacheKey(
-      const ResourceContext* context) const {
+  virtual GoogleString UserAgentCacheKey(const ResourceContext* context) const {
     return "";
   }
 
@@ -645,12 +636,9 @@ class RewriteContext {
   // the RewriteContext of appropriate type and the OutputResource already
   // created. Takes ownership of rewrite_context.
   static bool LookupMetadataForOutputResourceImpl(
-      OutputResourcePtr output_resource,
-      const GoogleUrl& gurl,
-      RewriteContext* rewrite_context,
-      RewriteDriver* driver,
-      GoogleString* error_out,
-      CacheLookupResultCallback* callback);
+      OutputResourcePtr output_resource, const GoogleUrl& gurl,
+      RewriteContext* rewrite_context, RewriteDriver* driver,
+      GoogleString* error_out, CacheLookupResultCallback* callback);
 
  private:
   class OutputCacheCallback;
@@ -672,10 +660,10 @@ class RewriteContext {
   // whether using the 0th input resource would be an acceptable substitute
   // for output when:
   enum FallbackCondition {
-    kFallbackDiscretional,   // trying to produce result quicker to improve
-                             // latency
-    kFallbackEmergency    // rewrite failed and output would otherwise not
-                          // be available
+    kFallbackDiscretional,  // trying to produce result quicker to improve
+                            // latency
+    kFallbackEmergency      // rewrite failed and output would otherwise not
+                            // be available
   };
 
   // Callback helper functions.
@@ -854,10 +842,8 @@ class RewriteContext {
 
   // Sets up all the state needed for Fetch, but doesn't register this context
   // or actually start the rewrite process.
-  bool PrepareFetch(
-      const OutputResourcePtr& output_resource,
-      AsyncFetch* fetch,
-      MessageHandler* message_handler);
+  bool PrepareFetch(const OutputResourcePtr& output_resource, AsyncFetch* fetch,
+                    MessageHandler* message_handler);
 
   // Creates an output resource that corresponds to a full URL stored in
   // metadata cache.
@@ -921,24 +907,24 @@ class RewriteContext {
   // PSOL modules for debug.
   AtomicBool frozen_;
 
-  scoped_ptr<OutputPartitions> partitions_;
+  std::unique_ptr<OutputPartitions> partitions_;
   OutputResourceVector outputs_;
   int outstanding_fetches_;
   int outstanding_rewrites_;
-  scoped_ptr<ResourceContext> resource_context_;
+  std::unique_ptr<ResourceContext> resource_context_;
   GoogleString partition_key_;
 
   UrlSegmentEncoder default_encoder_;
 
   // Lock guarding output partitioning and rewriting.  Lazily initialized by
   // Lock(), unlocked on destruction or the end of Finish().
-  scoped_ptr<NamedLock> lock_;
+  std::unique_ptr<NamedLock> lock_;
 
   // When this rewrite object is created on behalf of a fetch, we must
   // keep the response_writer, request_headers, and callback in the
   // FetchContext so they can be used once the inputs are available.
   class FetchContext;
-  scoped_ptr<FetchContext> fetch_;
+  std::unique_ptr<FetchContext> fetch_;
 
   // Track the RewriteContexts that must be run after this one because they
   // share a slot.
@@ -1052,7 +1038,7 @@ class RewriteContext {
   // Transaction context from CentralController, if
   // ScheduleViaCentralController() returned true. Communicates back to
   // CentralController on destruction, or when explicitly invoked.
-  scoped_ptr<ScheduleRewriteContext> schedule_rewrite_context_;
+  std::unique_ptr<ScheduleRewriteContext> schedule_rewrite_context_;
 
   Variable* const num_rewrites_abandoned_for_lock_contention_;
   DISALLOW_COPY_AND_ASSIGN(RewriteContext);

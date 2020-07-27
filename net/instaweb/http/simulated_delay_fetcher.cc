@@ -41,15 +41,13 @@ const char SimulatedDelayFetcher::kPayload[] = "A very complex webpage";
 // SimulatedDelayFetcher lets one configure various per-host delays, and will
 // make hardcoded replies according to those replies. This exists to help run
 // simulations of server behavior with sites of widely various speeds.
-SimulatedDelayFetcher::SimulatedDelayFetcher(
-    ThreadSystem* thread_system,
-    Timer* timer,
-    Scheduler* scheduler,
-    MessageHandler* handler,
-    FileSystem* file_system,
-    StringPiece delay_map_path,
-    StringPiece request_log_path,
-    int request_log_flush_frequency)
+SimulatedDelayFetcher::SimulatedDelayFetcher(ThreadSystem* thread_system,
+                                             Timer* timer, Scheduler* scheduler,
+                                             MessageHandler* handler,
+                                             FileSystem* file_system,
+                                             StringPiece delay_map_path,
+                                             StringPiece request_log_path,
+                                             int request_log_flush_frequency)
     : timer_(timer),
       scheduler_(scheduler),
       message_handler_(handler),
@@ -57,9 +55,8 @@ SimulatedDelayFetcher::SimulatedDelayFetcher(
       request_log_flush_frequency_(request_log_flush_frequency),
       mutex_(thread_system->NewMutex()),
       request_log_outstanding_(0),
-      request_log_(
-          file_system_->OpenOutputFile(request_log_path.as_string().c_str(),
-                                       message_handler_)) {
+      request_log_(file_system_->OpenOutputFile(
+          request_log_path.as_string().c_str(), message_handler_)) {
   ParseDelayMap(delay_map_path);
 }
 
@@ -81,8 +78,8 @@ void SimulatedDelayFetcher::Fetch(const GoogleString& url,
   GoogleString host = gurl.Host().as_string();
   DelayMap::iterator delay = delays_ms_.find(host);
   if (delay == delays_ms_.end()) {
-    message_handler_->Message(
-        kWarning, "Host not in delay map:%s", host.c_str());
+    message_handler_->Message(kWarning, "Host not in delay map:%s",
+                              host.c_str());
     fetch->Done(false);
   } else {
     int64 now_ms = timer_->NowMs();
@@ -123,8 +120,7 @@ void SimulatedDelayFetcher::ProduceReply(AsyncFetch* fetch) {
 
 void SimulatedDelayFetcher::ParseDelayMap(StringPiece delay_map_path) {
   GoogleString contents;
-  if (!file_system_->ReadFile(delay_map_path.as_string().c_str(),
-                              &contents,
+  if (!file_system_->ReadFile(delay_map_path.as_string().c_str(), &contents,
                               message_handler_)) {
     return;
   }
@@ -141,18 +137,16 @@ void SimulatedDelayFetcher::ParseDelayMap(StringPiece delay_map_path) {
     StringPieceVector host_delay;
     SplitStringUsingSubstr(pairs[i], "=", &host_delay);
     if (host_delay.size() != 2) {
-      message_handler_->Message(
-          kWarning, "Unable to parse host=delay spec:%s",
-          pairs[i].as_string().c_str());
+      message_handler_->Message(kWarning, "Unable to parse host=delay spec:%s",
+                                pairs[i].as_string().c_str());
       continue;
     }
     TrimWhitespace(&host_delay[0]);
     TrimWhitespace(&host_delay[1]);
     int delay_ms = 0;
     if (!StringToInt(host_delay[1], &delay_ms)) {
-      message_handler_->Message(
-          kWarning, "Unable to parse delay spec:%s",
-          host_delay[1].as_string().c_str());
+      message_handler_->Message(kWarning, "Unable to parse delay spec:%s",
+                                host_delay[1].as_string().c_str());
       continue;
     }
     delays_ms_[host_delay[0].as_string()] = delay_ms;

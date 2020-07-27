@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/scanline_interface_frame_adapter.h"
 
 #include "base/logging.h"
@@ -30,8 +29,9 @@ namespace image_compression {
 ////////// FrameToScanlineReaderAdapter
 
 FrameToScanlineReaderAdapter::FrameToScanlineReaderAdapter(
-    MultipleFrameReader* frame_reader) : impl_(frame_reader) {
-  CHECK(frame_reader != NULL);
+    MultipleFrameReader* frame_reader)
+    : impl_(frame_reader) {
+  CHECK(frame_reader != nullptr);
   CHECK(Reset());
 }
 
@@ -54,8 +54,7 @@ bool FrameToScanlineReaderAdapter::IsProgressive() {
 }
 
 ScanlineStatus FrameToScanlineReaderAdapter::InitializeWithStatus(
-    const void* image_buffer,
-    size_t const buffer_length) {
+    const void* image_buffer, size_t const buffer_length) {
   ScanlineStatus status;
   if ((impl_->Initialize(image_buffer, buffer_length, &status) &&
        impl_->GetImageSpec(&image_spec_, &status) &&
@@ -64,17 +63,15 @@ ScanlineStatus FrameToScanlineReaderAdapter::InitializeWithStatus(
     if (image_spec_.num_frames > 1) {
       status = PS_LOGGED_STATUS(
           PS_DLOG_INFO, impl_->message_handler(),
-          SCANLINE_STATUS_UNSUPPORTED_FEATURE,
-          FRAME_TO_SCANLINE_READER_ADAPTER,
+          SCANLINE_STATUS_UNSUPPORTED_FEATURE, FRAME_TO_SCANLINE_READER_ADAPTER,
           "animated images not supported in Scanline interface. %s",
           image_spec_.ToString().c_str());
     } else if ((frame_spec_.width != image_spec_.width) ||
                (frame_spec_.height != image_spec_.height)) {
-      status = PS_LOGGED_STATUS(
-          PS_LOG_INFO, impl_->message_handler(),
-          SCANLINE_STATUS_PARSE_ERROR,
-          FRAME_TO_SCANLINE_READER_ADAPTER,
-          "frame must have same dimensions as image");
+      status = PS_LOGGED_STATUS(PS_LOG_INFO, impl_->message_handler(),
+                                SCANLINE_STATUS_PARSE_ERROR,
+                                FRAME_TO_SCANLINE_READER_ADAPTER,
+                                "frame must have same dimensions as image");
     }
   }
   return status;
@@ -97,19 +94,16 @@ PixelFormat FrameToScanlineReaderAdapter::GetPixelFormat() {
   return frame_spec_.pixel_format;
 }
 
-
 ////////// FrameToScanlineWriterAdapter
 
 FrameToScanlineWriterAdapter::FrameToScanlineWriterAdapter(
     MultipleFrameWriter* const frame_writer)
     : impl_(frame_writer), init_done_(false) {
-  CHECK(frame_writer != NULL);
+  CHECK(frame_writer != nullptr);
 }
 
 ScanlineStatus FrameToScanlineWriterAdapter::InitWithStatus(
-    const size_t width,
-    const size_t height,
-    const PixelFormat pixel_format) {
+    const size_t width, const size_t height, const PixelFormat pixel_format) {
   image_spec_.width = width;
   image_spec_.height = height;
 
@@ -129,8 +123,7 @@ ScanlineStatus FrameToScanlineWriterAdapter::InitWithStatus(
 }
 
 ScanlineStatus FrameToScanlineWriterAdapter::InitializeWriteWithStatus(
-    const void* const config,
-    GoogleString* const out) {
+    const void* const config, GoogleString* const out) {
   if (!init_done_) {
     return PS_LOGGED_STATUS(PS_LOG_DFATAL, impl_->message_handler(),
                             SCANLINE_STATUS_INVOCATION_ERROR,
@@ -144,7 +137,7 @@ ScanlineStatus FrameToScanlineWriterAdapter::InitializeWriteWithStatus(
   bool success = (impl_->Initialize(config, out, &status) &&
                   impl_->PrepareImage(&image_spec_, &status) &&
                   impl_->PrepareNextFrame(&frame_spec_, &status));
-  (void) success;
+  (void)success;
   return status;
 }
 
@@ -157,7 +150,6 @@ ScanlineStatus FrameToScanlineWriterAdapter::FinalizeWriteWithStatus() {
   return impl_->FinalizeWrite();
 }
 
-
 ////////// ScanlineToFrameReaderAdapter
 
 ScanlineToFrameReaderAdapter::ScanlineToFrameReaderAdapter(
@@ -166,7 +158,7 @@ ScanlineToFrameReaderAdapter::ScanlineToFrameReaderAdapter(
     : MultipleFrameReader(message_handler),
       state_(UNINITIALIZED),
       impl_(scanline_reader) {
-  CHECK(scanline_reader != NULL);
+  CHECK(scanline_reader != nullptr);
 }
 
 ScanlineStatus ScanlineToFrameReaderAdapter::Reset() {
@@ -174,17 +166,17 @@ ScanlineStatus ScanlineToFrameReaderAdapter::Reset() {
   frame_spec_.Reset();
   image_spec_.Reset();
 
-  return (impl_->Reset() ?
-          ScanlineStatus(SCANLINE_STATUS_SUCCESS) :
-          PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
-                           SCANLINE_STATUS_INTERNAL_ERROR,
-                           SCANLINE_TO_FRAME_READER_ADAPTER,
-                           "Error in ScanlineReaderInterface::Reset()"));
+  return (impl_->Reset()
+              ? ScanlineStatus(SCANLINE_STATUS_SUCCESS)
+              : PS_LOGGED_STATUS(PS_LOG_ERROR, message_handler(),
+                                 SCANLINE_STATUS_INTERNAL_ERROR,
+                                 SCANLINE_TO_FRAME_READER_ADAPTER,
+                                 "Error in ScanlineReaderInterface::Reset()"));
 }
 
 ScanlineStatus ScanlineToFrameReaderAdapter::Initialize() {
-  ScanlineStatus status = impl_->InitializeWithStatus(image_buffer_,
-                                                      buffer_length_);
+  ScanlineStatus status =
+      impl_->InitializeWithStatus(image_buffer_, buffer_length_);
 
   if (status.Success()) {
     image_spec_.width = impl_->GetImageWidth();
@@ -201,10 +193,9 @@ ScanlineStatus ScanlineToFrameReaderAdapter::Initialize() {
 ScanlineStatus ScanlineToFrameReaderAdapter::PrepareNextFrame() {
   if (!HasMoreFrames()) {
     state_ = ERROR;
-    return PS_LOGGED_STATUS(PS_LOG_DFATAL, message_handler(),
-                            SCANLINE_STATUS_INVOCATION_ERROR,
-                            SCANLINE_TO_FRAME_READER_ADAPTER,
-                            "PrepareNextFrame()");
+    return PS_LOGGED_STATUS(
+        PS_LOG_DFATAL, message_handler(), SCANLINE_STATUS_INVOCATION_ERROR,
+        SCANLINE_TO_FRAME_READER_ADAPTER, "PrepareNextFrame()");
   }
 
   frame_spec_.Reset();
@@ -251,17 +242,17 @@ ScanlineStatus ScanlineToFrameReaderAdapter::GetFrameSpec(
 
 ScanlineToFrameWriterAdapter::ScanlineToFrameWriterAdapter(
     ScanlineWriterInterface* const scanline_writer,
-    MessageHandler* const handler) : MultipleFrameWriter(handler),
-                                     state_(UNINITIALIZED),
-                                     impl_(scanline_writer),
-                                     config_(NULL),
-                                     out_(NULL) {
-  CHECK(scanline_writer != NULL);
+    MessageHandler* const handler)
+    : MultipleFrameWriter(handler),
+      state_(UNINITIALIZED),
+      impl_(scanline_writer),
+      config_(nullptr),
+      out_(nullptr) {
+  CHECK(scanline_writer != nullptr);
 }
 
 ScanlineStatus ScanlineToFrameWriterAdapter::Initialize(
-    const void* const config,
-    GoogleString* const out) {
+    const void* const config, GoogleString* const out) {
   config_ = config;
   out_ = out;
   state_ = INITIALIZED;
@@ -280,9 +271,8 @@ ScanlineStatus ScanlineToFrameWriterAdapter::PrepareNextFrame(
   }
 
   frame_spec_ = spec;
-  ScanlineStatus status = impl_->InitWithStatus(image_spec_->width,
-                                                image_spec_->height,
-                                                frame_spec_->pixel_format);
+  ScanlineStatus status = impl_->InitWithStatus(
+      image_spec_->width, image_spec_->height, frame_spec_->pixel_format);
   if (status.Success()) {
     status = impl_->InitializeWriteWithStatus(config_, out_);
   }

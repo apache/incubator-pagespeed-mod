@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 // Unit-test the lru cache
 
 #include "net/instaweb/http/public/http_value.h"
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -29,15 +29,11 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/response_headers.h"
 
-namespace {
-const int kMaxSize = 100;
-}
-
 namespace net_instaweb {
 
 class HTTPValueTest : public testing::Test {
  protected:
-  HTTPValueTest() { }
+  HTTPValueTest() {}
 
   void FillResponseHeaders(ResponseHeaders* meta_data) {
     meta_data->SetStatusAndReason(HttpStatus::kOK);
@@ -283,14 +279,19 @@ TEST_F(HTTPValueEncodeTest, EncodeDecodeGold) {
       "\x96\xCC\xD5)8\x1@\x1JR\n\x6"
       "Server\x12HApache/2.2.29 (Unix) mod_ssl/2.2.29 OpenSSL/1.0.1j DAV/2"
       " mod_fcgid/2.3.9J.\n\r"
-      "Last-Modified\x12\x1D" "Fri, 20 Feb 2015 18:10:04 GMTJ\x16\n\r"
-      "Accept-Ranges\x12\x5" "bytesJ\x14\n\xE"
-      "Content-Length\x12\x2" "21J\x13\n\xE"
-      "X-Extra-Header\x12\x1" "1J$\n\r"
+      "Last-Modified\x12\x1D"
+      "Fri, 20 Feb 2015 18:10:04 GMTJ\x16\n\r"
+      "Accept-Ranges\x12\x5"
+      "bytesJ\x14\n\xE"
+      "Content-Length\x12\x2"
+      "21J\x13\n\xE"
+      "X-Extra-Header\x12\x1"
+      "1J$\n\r"
       "Cache-Control\x12\x13public, max-age=600J\x18\n\f"
       "Content-Type\x12\btext/cssJ\x1A\n\x4"
       "Etag\x12\x12W/\"PSA-35DPOkCBal\"J%\n\x4"
-      "Date\x12\x1D" "Fri, 15 May 2015 21:40:32 GMTP"
+      "Date\x12\x1D"
+      "Fri, 15 May 2015 21:40:32 GMTP"
       "\xE0\xC8\xBA\xC1\xBA)X\xC0\xCF$h\0p\0."
       "blue {color: blue;}\n";
   StringPiece header_first_golden_value(
@@ -302,14 +303,19 @@ TEST_F(HTTPValueEncodeTest, EncodeDecodeGold) {
       "\xBA\xCC\xD5)0\x80\x89\x96\xCC\xD5)8\x1@\x1JR\n\x6"
       "Server\x12HApache/2.2.29 (Unix) mod_ssl/2.2.29 OpenSSL/1.0.1j DAV/2"
       " mod_fcgid/2.3.9J.\n\r"
-      "Last-Modified\x12\x1D" "Fri, 20 Feb 2015 18:10:04 GMTJ\x16\n\r"
-      "Accept-Ranges\x12\x5" "bytesJ\x14\n\xE"
-      "Content-Length\x12\x2" "21J\x13\n\xE"
-      "X-Extra-Header\x12\x1" "1J$\n\r"
+      "Last-Modified\x12\x1D"
+      "Fri, 20 Feb 2015 18:10:04 GMTJ\x16\n\r"
+      "Accept-Ranges\x12\x5"
+      "bytesJ\x14\n\xE"
+      "Content-Length\x12\x2"
+      "21J\x13\n\xE"
+      "X-Extra-Header\x12\x1"
+      "1J$\n\r"
       "Cache-Control\x12\x13public, max-age=600J\x18\n\f"
       "Content-Type\x12\btext/cssJ\x1A\n\x4"
       "Etag\x12\x12W/\"PSA-35DPOkCBal\"J%\n\x4"
-      "Date\x12\x1D" "Fri, 15 May 2015 21:40:32 GMTX\xC0\xCF$h\0p\0";
+      "Date\x12\x1D"
+      "Fri, 15 May 2015 21:40:32 GMTX\xC0\xCF$h\0p\0";
   StringPiece body_first_golden_value(
       body_first_golden_value_buf, STATIC_STRLEN(body_first_golden_value_buf));
 

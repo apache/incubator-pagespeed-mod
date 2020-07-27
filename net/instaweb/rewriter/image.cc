@@ -17,17 +17,17 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/image.h"
 
 #include <algorithm>
 #include <cstddef>
+#include <memory>
 
 extern "C" {
 #ifdef USE_SYSTEM_ZLIB
 #include "zlib.h"
 #else
-#include "third_party/zlib/src/zlib.h"
+#include "external/envoy/bazel/foreign_cc/zlib/include/zlib.h"
 #endif
 }  // extern "C"
 
@@ -63,12 +63,12 @@ extern "C" {
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/decode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/decode.h"
 #endif
 #ifdef USE_SYSTEM_LIBPNG
 #include "png.h"  // NOLINT
 #else
-#include "third_party/libpng/src/png.h"
+#include "external/libpng/png.h"
 #endif
 }
 
@@ -98,11 +98,11 @@ using pagespeed::image_compression::RGBA_8888;
 using pagespeed::image_compression::ScanlineReaderInterface;
 using pagespeed::image_compression::ScanlineResizer;
 using pagespeed::image_compression::ScanlineWriterInterface;
-using pagespeed::image_compression::WebpConfiguration;
-using pagespeed::image_compression::WEBP_NONE;
-using pagespeed::image_compression::WEBP_LOSSY;
-using pagespeed::image_compression::WEBP_LOSSLESS;
 using pagespeed::image_compression::WEBP_ANIMATED;
+using pagespeed::image_compression::WEBP_LOSSLESS;
+using pagespeed::image_compression::WEBP_LOSSY;
+using pagespeed::image_compression::WEBP_NONE;
+using pagespeed::image_compression::WebpConfiguration;
 
 namespace net_instaweb {
 
@@ -140,9 +140,9 @@ const uint8 kAlphaOpaque = 255;
 void UpdateWebpStats(bool ok, bool was_timed_out, int64 time_elapsed_ms,
                      Image::ConversionVariables::VariableType var_type,
                      Image::ConversionVariables* conversion_vars) {
-  if (conversion_vars != NULL) {
+  if (conversion_vars != nullptr) {
     Image::ConversionBySourceVariable* the_var = conversion_vars->Get(var_type);
-    if (the_var != NULL) {
+    if (the_var != nullptr) {
       if (was_timed_out) {
         the_var->timeout_count->Add(1);
         DCHECK(!ok);
@@ -191,16 +191,14 @@ ImageFormat GetOutputImageFormat(ImageFormat in_format) {
 }
 
 ScanlineWriterInterface* CreateUncompressedPngWriter(
-    size_t width, size_t height, GoogleString* output,
-    MessageHandler* handler, bool use_transparent_for_blank_image) {
+    size_t width, size_t height, GoogleString* output, MessageHandler* handler,
+    bool use_transparent_for_blank_image) {
   PngCompressParams config(PNG_FILTER_NONE, Z_NO_COMPRESSION, false);
   PixelFormat pixel_format =
-      use_transparent_for_blank_image ?
-      RGBA_8888 :
-      RGB_888;
-  return CreateScanlineWriter(
-      pagespeed::image_compression::IMAGE_PNG,
-      pixel_format, width, height, &config, output, handler);
+      use_transparent_for_blank_image ? RGBA_8888 : RGB_888;
+  return CreateScanlineWriter(pagespeed::image_compression::IMAGE_PNG,
+                              pixel_format, width, height, &config, output,
+                              handler);
 }
 
 }  // namespace
@@ -209,27 +207,22 @@ ScanlineWriterInterface* CreateUncompressedPngWriter(
 
 class ImageImpl : public Image {
  public:
-  ImageImpl(const StringPiece& original_contents,
-            const GoogleString& url,
-            const StringPiece& file_prefix,
-            CompressionOptions* options,
-            Timer* timer,
-            MessageHandler* handler);
-  ImageImpl(int width, int height, ImageType type,
-            const StringPiece& tmp_dir,
-            Timer* timer, MessageHandler* handler,
-            CompressionOptions* options);
+  ImageImpl(const StringPiece& original_contents, const GoogleString& url,
+            const StringPiece& file_prefix, CompressionOptions* options,
+            Timer* timer, MessageHandler* handler);
+  ImageImpl(int width, int height, ImageType type, const StringPiece& tmp_dir,
+            Timer* timer, MessageHandler* handler, CompressionOptions* options);
 
-  virtual void Dimensions(ImageDim* natural_dim);
-  virtual bool ResizeTo(const ImageDim& new_dim);
-  virtual bool DrawImage(Image* image, int x, int y);
-  virtual bool EnsureLoaded(bool output_useful);
-  virtual bool ShouldConvertToProgressive(int64 quality) const;
-  virtual void SetResizedDimensions(const ImageDim& dims) { dims_ = dims; }
-  virtual void SetTransformToLowRes();
-  virtual const GoogleString& url() { return url_; }
-  virtual const GoogleString& debug_message() { return debug_message_; }
-  virtual const GoogleString& resize_debug_message() {
+  void Dimensions(ImageDim* natural_dim) override;
+  bool ResizeTo(const ImageDim& new_dim) override;
+  bool DrawImage(Image* image, int x, int y) override;
+  bool EnsureLoaded(bool output_useful) override;
+  bool ShouldConvertToProgressive(int64 quality) const override;
+  void SetResizedDimensions(const ImageDim& dims) override { dims_ = dims; }
+  void SetTransformToLowRes() override;
+  const GoogleString& url() override { return url_; }
+  const GoogleString& debug_message() override { return debug_message_; }
+  const GoogleString& resize_debug_message() override {
     return resize_debug_message_;
   }
 
@@ -248,15 +241,13 @@ class ImageImpl : public Image {
   static const int kMaxConversionAttempts = 2;
 
   // Concrete helper methods called by parent class
-  virtual void ComputeImageType();
-  virtual bool ComputeOutputContents();
+  void ComputeImageType() override;
+  bool ComputeOutputContents() override;
 
   bool ComputeOutputContentsFromGifOrPng(
       const GoogleString& string_for_image,
-      const PngReaderInterface* png_reader,
-      bool fall_back_to_png,
-      const char* dbg_input_format,
-      ImageType input_type,
+      const PngReaderInterface* png_reader, bool fall_back_to_png,
+      const char* dbg_input_format, ImageType input_type,
       ConversionVariables::VariableType var_type);
 
   // Helper methods
@@ -274,45 +265,37 @@ class ImageImpl : public Image {
                             JpegCompressionOptions* jpeg_options);
 
   // Optimizes the png image_data, readable via png_reader.
-  bool OptimizePng(
-      const PngReaderInterface& png_reader,
-      const GoogleString& image_data);
+  bool OptimizePng(const PngReaderInterface& png_reader,
+                   const GoogleString& image_data);
 
   // Converts image_data, readable via png_reader, to a jpeg if
   // possible or a png if not, using the settings in options_.
-  bool OptimizePngOrConvertToJpeg(
-      const PngReaderInterface& png_reader,
-      const GoogleString& image_data);
+  bool OptimizePngOrConvertToJpeg(const PngReaderInterface& png_reader,
+                                  const GoogleString& image_data);
 
   // Converts image_data, readable via png_reader, to a webp using the
   // settings in options_, if allowed by those settings. The alpha channel
   // is always losslessly compressed, while the color may be lossily or
   // or losslessly compressed, depending on 'compress_color_losslessly'.
-  bool ConvertPngToWebp(
-      const PngReaderInterface& png_reader,
-      const GoogleString& image_data,
-      bool compress_color_losslessly,
-      bool has_transparency,
-      ConversionVariables::VariableType var_type);
+  bool ConvertPngToWebp(const PngReaderInterface& png_reader,
+                        const GoogleString& image_data,
+                        bool compress_color_losslessly, bool has_transparency,
+                        ConversionVariables::VariableType var_type);
 
   // Convert the JPEG in original_jpeg to WebP format in
   // compressed_webp using the quality specified in
   // configured_quality.
-  bool ConvertJpegToWebp(
-      const GoogleString& original_jpeg, int configured_quality,
-      GoogleString* compressed_webp);
+  bool ConvertJpegToWebp(const GoogleString& original_jpeg,
+                         int configured_quality, GoogleString* compressed_webp);
 
-  static bool ContinueWebpConversion(
-      int percent,
-      void* user_data);
+  static bool ContinueWebpConversion(int percent, void* user_data);
 
   // Determines whether we can attempt a libpagespeed conversion
   // without exceeding kMaxConversionAttempts. If so, increments the
   // number of attempts.
   bool MayConvert() {
     if (options_.get()) {
-      VLOG(1) << "Conversions attempted: "
-              << options_->conversions_attempted;
+      VLOG(1) << "Conversions attempted: " << options_->conversions_attempted;
       if (options_->conversions_attempted < kMaxConversionAttempts) {
         ++options_->conversions_attempted;
         return true;
@@ -322,9 +305,8 @@ class ImageImpl : public Image {
   }
 
   int GetJpegQualityFromImage(const StringPiece& contents) {
-    const int quality = JpegUtils::GetImageQualityFromImage(contents.data(),
-                                                            contents.size(),
-                                                            handler_.get());
+    const int quality = JpegUtils::GetImageQualityFromImage(
+        contents.data(), contents.size(), handler_.get());
     return quality;
   }
 
@@ -334,13 +316,13 @@ class ImageImpl : public Image {
   bool ConvertAnimatedGifToWebp(bool has_transparency);
 
   const GoogleString file_prefix_;
-  scoped_ptr<MessageHandler> handler_;
+  std::unique_ptr<MessageHandler> handler_;
   bool changed_;
   const GoogleString url_;
   ImageDim dims_;
   ImageDim resized_dimensions_;
   GoogleString resized_image_;
-  scoped_ptr<Image::CompressionOptions> options_;
+  std::unique_ptr<Image::CompressionOptions> options_;
   bool low_quality_enabled_;
   Timer* timer_;
   GoogleString debug_message_;
@@ -367,13 +349,11 @@ Image::Image(const StringPiece& original_contents)
       original_contents_(original_contents),
       output_contents_(),
       output_valid_(false),
-      rewrite_attempted_(false) { }
+      rewrite_attempted_(false) {}
 
 ImageImpl::ImageImpl(const StringPiece& original_contents,
-                     const GoogleString& url,
-                     const StringPiece& file_prefix,
-                     CompressionOptions* options,
-                     Timer* timer,
+                     const GoogleString& url, const StringPiece& file_prefix,
+                     CompressionOptions* options, Timer* timer,
                      MessageHandler* handler)
     : Image(original_contents),
       file_prefix_(file_prefix.data(), file_prefix.size()),
@@ -383,17 +363,15 @@ ImageImpl::ImageImpl(const StringPiece& original_contents,
       low_quality_enabled_(false),
       timer_(timer) {
   const GoogleString annotation = StrCat(url, ": ");
-  handler_.reset(new AnnotatedMessageHandler(annotation, handler));
+  handler_ = std::make_unique<AnnotatedMessageHandler>(annotation, handler);
 }
 
-Image* NewImage(const StringPiece& original_contents,
-                const GoogleString& url,
+Image* NewImage(const StringPiece& original_contents, const GoogleString& url,
                 const StringPiece& file_prefix,
-                Image::CompressionOptions* options,
-                Timer* timer,
+                Image::CompressionOptions* options, Timer* timer,
                 MessageHandler* handler) {
-  return new ImageImpl(original_contents, url, file_prefix, options,
-                       timer, handler);
+  return new ImageImpl(original_contents, url, file_prefix, options, timer,
+                       handler);
 }
 
 Image::Image(ImageType type)
@@ -401,12 +379,11 @@ Image::Image(ImageType type)
       original_contents_(),
       output_contents_(),
       output_valid_(false),
-      rewrite_attempted_(false) { }
+      rewrite_attempted_(false) {}
 
 ImageImpl::ImageImpl(int width, int height, ImageType type,
-                     const StringPiece& tmp_dir,
-                     Timer* timer, MessageHandler* handler,
-                     CompressionOptions* options)
+                     const StringPiece& tmp_dir, Timer* timer,
+                     MessageHandler* handler, CompressionOptions* options)
     : Image(type),
       file_prefix_(tmp_dir.data(), tmp_dir.size()),
       changed_(false),
@@ -415,15 +392,16 @@ ImageImpl::ImageImpl(int width, int height, ImageType type,
   options_.reset(options);
   dims_.set_width(width);
   dims_.set_height(height);
-  handler_.reset(new AnnotatedMessageHandler(handler));
+  handler_ = std::make_unique<AnnotatedMessageHandler>(handler);
 }
 
 bool ImageImpl::GenerateBlankImage() {
   DCHECK(image_type_ == IMAGE_PNG) << "Blank image must be a PNG.";
 
-  if (pagespeed::image_compression::GenerateBlankImage(dims_.width(),
-      dims_.height(), options_->use_transparent_for_blank_image,
-      &output_contents_, handler_.get())) {
+  if (pagespeed::image_compression::GenerateBlankImage(
+          dims_.width(), dims_.height(),
+          options_->use_transparent_for_blank_image, &output_contents_,
+          handler_.get())) {
     output_valid_ = true;
     return true;
   }
@@ -431,19 +409,18 @@ bool ImageImpl::GenerateBlankImage() {
 }
 
 Image* BlankImageWithOptions(int width, int height, ImageType type,
-                             const StringPiece& tmp_dir,
-                             Timer* timer, MessageHandler* handler,
+                             const StringPiece& tmp_dir, Timer* timer,
+                             MessageHandler* handler,
                              Image::CompressionOptions* options) {
-  scoped_ptr<ImageImpl> image(new ImageImpl(width, height, type, tmp_dir,
-                                            timer, handler, options));
-  if (image != NULL && image->GenerateBlankImage()) {
+  std::unique_ptr<ImageImpl> image(
+      new ImageImpl(width, height, type, tmp_dir, timer, handler, options));
+  if (image != nullptr && image->GenerateBlankImage()) {
     return image.release();
   }
-  return NULL;
+  return nullptr;
 }
 
-Image::~Image() {
-}
+Image::~Image() {}
 
 // Looks through blocks of jpeg stream to find SOFn block
 // indicating encoding and dimensions of image.
@@ -488,8 +465,8 @@ void ImageImpl::FindJpegSize() {
     }
     pos += length;
   }
-  if (!ImageUrlEncoder::HasValidDimensions(dims_) ||
-      (dims_.height() <= 0) || (dims_.width() <= 0)) {
+  if (!ImageUrlEncoder::HasValidDimensions(dims_) || (dims_.height() <= 0) ||
+      (dims_.width() <= 0)) {
     dims_.Clear();
     PS_LOG_INFO(handler_, "Couldn't find jpeg dimensions (data truncated?).");
   }
@@ -513,7 +490,8 @@ void ImageImpl::FindPngSize() {
     dims_.set_height(PngIntAtPosition(
         buf, ImageHeaders::kIHDRDataStart + ImageHeaders::kPngIntSize));
   } else {
-    PS_LOG_INFO(handler_, "Couldn't find png dimensions "
+    PS_LOG_INFO(handler_,
+                "Couldn't find png dimensions "
                 "(data truncated or IHDR missing).");
   }
 }
@@ -574,7 +552,7 @@ void ImageImpl::ComputeImageType() {
 }
 
 const ContentType* Image::TypeToContentType(ImageType image_type) {
-  const ContentType* res = NULL;
+  const ContentType* res = nullptr;
   switch (image_type) {
     case IMAGE_UNKNOWN:
       break;
@@ -633,9 +611,7 @@ bool ImageImpl::ComputePngTransparency(const StringPiece& buf) {
   return has_transparency;
 }
 
-bool ImageImpl::EnsureLoaded(bool output_useful) {
-  return true;
-}
+bool ImageImpl::EnsureLoaded(bool output_useful) { return true; }
 
 // Determine the quality level for compressing the resized image.
 // If a JPEG image needs resizing, we decompress it first, then resize it,
@@ -646,8 +622,8 @@ bool ImageImpl::EnsureLoaded(bool output_useful) {
 // a predefined default quality.
 int ImageImpl::EstimateQualityForResizedJpeg() {
   int input_quality = GetJpegQualityFromImage(original_contents_);
-  int output_quality = std::min(ImageHeaders::kMaxJpegQuality,
-                                options_->jpeg_quality);
+  int output_quality =
+      std::min(ImageHeaders::kMaxJpegQuality, options_->jpeg_quality);
   if (input_quality > 0 && output_quality > 0) {
     return std::min(input_quality, output_quality);
   } else if (input_quality > 0) {
@@ -684,15 +660,13 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
     return false;
   }
 
-  scoped_ptr<ScanlineReaderInterface> image_reader(
-      CreateScanlineReader(original_format,
-                           original_contents_.data(),
-                           original_contents_.length(),
-                           handler_.get()));
-  if (image_reader == NULL) {
+  std::unique_ptr<ScanlineReaderInterface> image_reader(
+      CreateScanlineReader(original_format, original_contents_.data(),
+                           original_contents_.length(), handler_.get()));
+  if (image_reader == nullptr) {
     resize_debug_message_ =
-        StringPrintf("Cannot resize: Cannot open the image%s to resize",
-                     debug_message_url_.c_str());
+        absl::StrFormat("Cannot resize: Cannot open the image%s to resize",
+                        debug_message_url_.c_str());
     PS_LOG_INFO(handler_, "Cannot open the image to resize.");
     return false;
   }
@@ -701,75 +675,62 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   if (!resizer.Initialize(image_reader.get(), new_dim.width(),
                           new_dim.height())) {
     resize_debug_message_ =
-        StringPrintf("Cannot resize%s: Unable to initialize resizer",
-                     debug_message_url_.c_str());
+        absl::StrFormat("Cannot resize%s: Unable to initialize resizer",
+                        debug_message_url_.c_str());
     return false;
   }
 
   // Create a writer.
-  scoped_ptr<ScanlineWriterInterface> writer;
+  std::unique_ptr<ScanlineWriterInterface> writer;
   const ImageFormat resized_format = GetOutputImageFormat(original_format);
   switch (resized_format) {
-    case pagespeed::image_compression::IMAGE_JPEG:
-      {
-        JpegCompressionOptions jpeg_config;
-        jpeg_config.lossy = true;
-        jpeg_config.lossy_options.quality = EstimateQualityForResizedJpeg();
-        writer.reset(CreateScanlineWriter(resized_format,
-                                          resizer.GetPixelFormat(),
-                                          resizer.GetImageWidth(),
-                                          resizer.GetImageHeight(),
-                                          &jpeg_config,
-                                          &resized_image_,
-                                          handler_.get()));
-      }
-      break;
+    case pagespeed::image_compression::IMAGE_JPEG: {
+      JpegCompressionOptions jpeg_config;
+      jpeg_config.lossy = true;
+      jpeg_config.lossy_options.quality = EstimateQualityForResizedJpeg();
+      writer.reset(CreateScanlineWriter(
+          resized_format, resizer.GetPixelFormat(), resizer.GetImageWidth(),
+          resizer.GetImageHeight(), &jpeg_config, &resized_image_,
+          handler_.get()));
+    } break;
 
-    case pagespeed::image_compression::IMAGE_PNG:
-      {
-        PngCompressParams png_config(PNG_FILTER_NONE, Z_DEFAULT_STRATEGY,
-                                     false);
-        writer.reset(CreateScanlineWriter(resized_format,
-                                          resizer.GetPixelFormat(),
-                                          resizer.GetImageWidth(),
-                                          resizer.GetImageHeight(),
-                                          &png_config,
-                                          &resized_image_,
-                                          handler_.get()));
-      }
-      break;
+    case pagespeed::image_compression::IMAGE_PNG: {
+      PngCompressParams png_config(PNG_FILTER_NONE, Z_DEFAULT_STRATEGY, false);
+      writer.reset(CreateScanlineWriter(
+          resized_format, resizer.GetPixelFormat(), resizer.GetImageWidth(),
+          resizer.GetImageHeight(), &png_config, &resized_image_,
+          handler_.get()));
+    } break;
 
     default:
       resize_debug_message_ =
-          StringPrintf("Cannot resize%s: Unsupported image format",
-                       debug_message_url_.c_str());
+          absl::StrFormat("Cannot resize%s: Unsupported image format",
+                          debug_message_url_.c_str());
       PS_LOG_DFATAL(handler_, "Unsupported image format");
   }
 
-  if (writer == NULL) {
+  if (writer == nullptr) {
     return false;
   }
 
   // Resize the image and save the results in 'resized_image_'.
-  void* scanline = NULL;
+  void* scanline = nullptr;
   while (resizer.HasMoreScanLines()) {
     if (!resizer.ReadNextScanline(&scanline)) {
-      resize_debug_message_ =
-          StringPrintf("Cannot resize%s: Reading image failed",
-                       debug_message_url_.c_str());
+      resize_debug_message_ = absl::StrFormat(
+          "Cannot resize%s: Reading image failed", debug_message_url_.c_str());
       return false;
     }
     if (!writer->WriteNextScanline(scanline)) {
-      resize_debug_message_ =
-          StringPrintf("Cannot resize%s: Writing image failed",
-                       debug_message_url_.c_str());
+      resize_debug_message_ = absl::StrFormat(
+          "Cannot resize%s: Writing image failed", debug_message_url_.c_str());
       return false;
     }
   }
   if (!writer->FinalizeWrite()) {
     resize_debug_message_ =
-        StringPrintf("Cannot resize%s: Finalizing writing image failed",
-                     debug_message_url_.c_str());
+        absl::StrFormat("Cannot resize%s: Finalizing writing image failed",
+                        debug_message_url_.c_str());
     return false;
   }
 
@@ -778,11 +739,10 @@ bool ImageImpl::ResizeTo(const ImageDim& new_dim) {
   rewrite_attempted_ = false;
   output_contents_.clear();
   resized_dimensions_ = new_dim;
-  resize_debug_message_ = StringPrintf(
-      "Resized image%s from %dx%d to %dx%d",
-      debug_message_url_.c_str(),
-      dims_.width(), dims_.height(),
-      resized_dimensions_.width(), resized_dimensions_.height());
+  resize_debug_message_ = absl::StrFormat(
+      "Resized image%s from %dx%d to %dx%d", debug_message_url_.c_str(),
+      dims_.width(), dims_.height(), resized_dimensions_.width(),
+      resized_dimensions_.height());
   return true;
 }
 
@@ -851,7 +811,7 @@ bool ImageImpl::ComputeOutputContents() {
     // args rather than const string&.  We would save lots of string-copying
     // if we made that change.
     GoogleString string_for_image(contents.data(), contents.size());
-    scoped_ptr<PngReaderInterface> png_reader;
+    std::unique_ptr<PngReaderInterface> png_reader;
     switch (image_type()) {
       case IMAGE_UNKNOWN:
         break;
@@ -859,9 +819,8 @@ bool ImageImpl::ComputeOutputContents() {
       case IMAGE_WEBP_LOSSLESS_OR_ALPHA:
         if (resized || options_->recompress_webp) {
           ok = MayConvert() &&
-              ReduceWebpImageQuality(string_for_image,
-                                     options_->webp_quality,
-                                     &output_contents_);
+               ReduceWebpImageQuality(string_for_image, options_->webp_quality,
+                                      &output_contents_);
         }
         // TODO(pulkitg): Convert a webp image to jpeg image if
         // web_preferred_ is false.
@@ -871,8 +830,7 @@ bool ImageImpl::ComputeOutputContents() {
         ok = false;
         break;
       case IMAGE_JPEG:
-        if (MayConvert() &&
-            options_->convert_jpeg_to_webp &&
+        if (MayConvert() && options_->convert_jpeg_to_webp &&
             (options_->preferred_webp != WEBP_NONE)) {
           ok = ConvertJpegToWebp(string_for_image, options_->webp_quality,
                                  &output_contents_);
@@ -884,8 +842,7 @@ bool ImageImpl::ComputeOutputContents() {
         }
         if (ok) {
           image_type_ = IMAGE_WEBP;
-        } else if (MayConvert() &&
-                   (resized || options_->recompress_jpeg)) {
+        } else if (MayConvert() && (resized || options_->recompress_jpeg)) {
           JpegCompressionOptions jpeg_options;
           ConvertToJpegOptions(*options_.get(), &jpeg_options);
           ok = OptimizeJpegWithOptions(string_for_image, &output_contents_,
@@ -894,35 +851,29 @@ bool ImageImpl::ComputeOutputContents() {
         }
         break;
       case IMAGE_PNG:
-        png_reader.reset(new PngReader(handler_.get()));
+        png_reader = std::make_unique<PngReader>(handler_.get());
         ok = ComputeOutputContentsFromGifOrPng(
-            string_for_image,
-            png_reader.get(),
+            string_for_image, png_reader.get(),
             (resized || options_->recompress_png) /* fall_back_to_png */,
-            kPngString,
-            IMAGE_PNG,
-            Image::ConversionVariables::FROM_PNG);
+            kPngString, IMAGE_PNG, Image::ConversionVariables::FROM_PNG);
         break;
       case IMAGE_GIF:
         ImageType current_image_type = IMAGE_GIF;
         if (resized) {
           // If the GIF image has been resized, it has already been
           // converted to a PNG image.
-          png_reader.reset(new PngReader(handler_.get()));
+          png_reader = std::make_unique<PngReader>(handler_.get());
           current_image_type = IMAGE_PNG;
         } else if (options_->convert_gif_to_png || low_quality_enabled_ ||
                    options_->allow_webp_animated) {
-          png_reader.reset(new GifReader(handler_.get()));
+          png_reader = std::make_unique<GifReader>(handler_.get());
         } else {
           break;
         }
         ok = ComputeOutputContentsFromGifOrPng(
-            string_for_image,
-            png_reader.get(),
-            options_->convert_gif_to_png /* fall_back_to_png */,
-            kGifString,
-            current_image_type,
-            Image::ConversionVariables::FROM_GIF);
+            string_for_image, png_reader.get(),
+            options_->convert_gif_to_png /* fall_back_to_png */, kGifString,
+            current_image_type, Image::ConversionVariables::FROM_GIF);
         break;
     }
     output_valid_ = ok;
@@ -930,9 +881,9 @@ bool ImageImpl::ComputeOutputContents() {
   return output_valid_;
 }
 
-inline bool ImageImpl::ConvertJpegToWebp(
-    const GoogleString& original_jpeg, int configured_quality,
-    GoogleString* compressed_webp) {
+inline bool ImageImpl::ConvertJpegToWebp(const GoogleString& original_jpeg,
+                                         int configured_quality,
+                                         GoogleString* compressed_webp) {
   ConversionTimeoutHandler timeout_handler(options_->webp_conversion_timeout_ms,
                                            timer_, handler_.get());
   timeout_handler.Start(compressed_webp);
@@ -945,18 +896,18 @@ inline bool ImageImpl::ConvertJpegToWebp(
   int64 time_elapsed_ms = timeout_handler.time_elapsed_ms();
 
   UpdateWebpStats(ok, was_timed_out, time_elapsed_ms,
-                 Image::ConversionVariables::FROM_JPEG,
-                 options_->webp_conversion_variables);
+                  Image::ConversionVariables::FROM_JPEG,
+                  options_->webp_conversion_variables);
 
   UpdateWebpStats(ok, was_timed_out, time_elapsed_ms,
-                 Image::ConversionVariables::OPAQUE,
-                 options_->webp_conversion_variables);
+                  Image::ConversionVariables::OPAQUE,
+                  options_->webp_conversion_variables);
   return ok;
 }
 
 bool ImageImpl::ConvertAnimatedGifToWebp(bool has_transparency) {
-  ConversionTimeoutHandler timeout_handler(
-      options_->webp_conversion_timeout_ms, timer_, handler_.get());
+  ConversionTimeoutHandler timeout_handler(options_->webp_conversion_timeout_ms,
+                                           timer_, handler_.get());
   timeout_handler.Start(&output_contents_);
 
   // Parameters controlling WebP compression.
@@ -973,23 +924,19 @@ bool ImageImpl::ConvertAnimatedGifToWebp(bool has_transparency) {
   webp_config.alpha_compression = 1;  // alpha plane compressed losslessly
 
   pagespeed::image_compression::ScanlineStatus status;
-  scoped_ptr<pagespeed::image_compression::MultipleFrameReader> reader(
+  std::unique_ptr<pagespeed::image_compression::MultipleFrameReader> reader(
       CreateImageFrameReader(
-          pagespeed::image_compression::IMAGE_GIF,
-          original_contents_.data(),
-          original_contents_.length(),
-          handler_.get(), &status));
+          pagespeed::image_compression::IMAGE_GIF, original_contents_.data(),
+          original_contents_.length(), handler_.get(), &status));
   if (!status.Success()) {
     PS_LOG_ERROR(handler_, "Cannot read the animated GIF image.");
     return false;
   }
 
-  scoped_ptr<pagespeed::image_compression::MultipleFrameWriter> writer(
-      CreateImageFrameWriter(
-          pagespeed::image_compression::IMAGE_WEBP,
-          &webp_config,
-          &output_contents_,
-          handler_.get(), &status));
+  std::unique_ptr<pagespeed::image_compression::MultipleFrameWriter> writer(
+      CreateImageFrameWriter(pagespeed::image_compression::IMAGE_WEBP,
+                             &webp_config, &output_contents_, handler_.get(),
+                             &status));
   if (!status.Success()) {
     PS_LOG_ERROR(handler_, "Cannot create an animated WebP image for output.");
     return false;
@@ -999,11 +946,10 @@ bool ImageImpl::ConvertAnimatedGifToWebp(bool has_transparency) {
   // format conversion and compression.
   pagespeed::image_compression::ImageSpec image_spec;
   pagespeed::image_compression::FrameSpec frame_spec;
-  const void* scan_row = NULL;
+  const void* scan_row = nullptr;
   if (reader->GetImageSpec(&image_spec, &status) &&
       writer->PrepareImage(&image_spec, &status)) {
-    while (reader->HasMoreFrames() &&
-           reader->PrepareNextFrame(&status) &&
+    while (reader->HasMoreFrames() && reader->PrepareNextFrame(&status) &&
            reader->GetFrameSpec(&frame_spec, &status) &&
            writer->PrepareNextFrame(&frame_spec, &status)) {
       while (reader->HasMoreScanlines() &&
@@ -1025,20 +971,16 @@ bool ImageImpl::ConvertAnimatedGifToWebp(bool has_transparency) {
                   options_->webp_conversion_variables);
 
   UpdateWebpStats(ok, was_timed_out, time_elapsed_ms,
-                  (has_transparency ?
-                   Image::ConversionVariables::NONOPAQUE :
-                   Image::ConversionVariables::OPAQUE),
+                  (has_transparency ? Image::ConversionVariables::NONOPAQUE
+                                    : Image::ConversionVariables::OPAQUE),
                   options_->webp_conversion_variables);
 
   return ok;
 }
 
 inline bool ImageImpl::ComputeOutputContentsFromGifOrPng(
-    const GoogleString& string_for_image,
-    const PngReaderInterface* png_reader,
-    bool fall_back_to_png,
-    const char* dbg_input_format,
-    ImageType input_type,
+    const GoogleString& string_for_image, const PngReaderInterface* png_reader,
+    bool fall_back_to_png, const char* dbg_input_format, ImageType input_type,
     ConversionVariables::VariableType var_type) {
   // Don't try to optimize empty images, it just messes things up.
   if (dims_.width() <= 0 || dims_.height() <= 0) {
@@ -1052,19 +994,18 @@ inline bool ImageImpl::ComputeOutputContentsFromGifOrPng(
   bool compress_color_losslessly = false;
   ImageType output_type = IMAGE_UNKNOWN;
 
-  AnalyzeImage(ImageTypeToImageFormat(input_type),
-               string_for_image.data(), string_for_image.length(),
-               NULL /* width */, NULL /* height */, NULL /* is_progressive */,
-               &is_animated, &has_transparency, &is_photo,
-               NULL /* quality */, NULL /* reader */, handler_.get());
+  AnalyzeImage(ImageTypeToImageFormat(input_type), string_for_image.data(),
+               string_for_image.length(), nullptr /* width */,
+               nullptr /* height */, nullptr /* is_progressive */, &is_animated,
+               &has_transparency, &is_photo, nullptr /* quality */,
+               nullptr /* reader */, handler_.get());
 
-  debug_message_ = StringPrintf("Image%s has%s transparent pixels,"
-                                " is%s sensitive to compression noise, and"
-                                " has%s animation.",
-                                debug_message_url_.c_str(),
-                                (has_transparency ? "" : " no"),
-                                (is_photo ? " not" : ""),
-                                (is_animated ? "" : " no"));
+  debug_message_ = absl::StrFormat(
+      "Image%s has%s transparent pixels,"
+      " is%s sensitive to compression noise, and"
+      " has%s animation.",
+      debug_message_url_.c_str(), (has_transparency ? "" : " no"),
+      (is_photo ? " not" : ""), (is_animated ? "" : " no"));
 
   // By default, a lossless image conversion is eligible for lossless webp
   // conversion.
@@ -1081,16 +1022,14 @@ inline bool ImageImpl::ComputeOutputContentsFromGifOrPng(
     if (!has_transparency) {
       // No alpha; can be converted to WebP lossy or JPEG.
       if (options_->preferred_webp != WEBP_NONE &&
-          options_->convert_jpeg_to_webp &&
-          options_->webp_quality > 0) {
+          options_->convert_jpeg_to_webp && options_->webp_quality > 0) {
         compress_color_losslessly = false;
         output_type = IMAGE_WEBP;
       } else if (options_->jpeg_quality > 0) {
         output_type = IMAGE_JPEG;
       }
     } else {
-      if (options_->allow_webp_alpha &&
-          options_->convert_jpeg_to_webp &&
+      if (options_->allow_webp_alpha && options_->convert_jpeg_to_webp &&
           options_->webp_quality > 0) {
         compress_color_losslessly = false;
         output_type = IMAGE_WEBP_LOSSLESS_OR_ALPHA;
@@ -1110,10 +1049,9 @@ inline bool ImageImpl::ComputeOutputContentsFromGifOrPng(
   } else {
     if (output_type == IMAGE_WEBP ||
         output_type == IMAGE_WEBP_LOSSLESS_OR_ALPHA) {
-      ok = MayConvert() &&
-          ConvertPngToWebp(*png_reader, string_for_image,
-                           compress_color_losslessly, has_transparency,
-                           var_type);
+      ok = MayConvert() && ConvertPngToWebp(*png_reader, string_for_image,
+                                            compress_color_losslessly,
+                                            has_transparency, var_type);
       // TODO(huibao): Re-evaluate why we need to try a different format, if the
       // conversion to WebP failed.
       if (!ok) {
@@ -1130,18 +1068,15 @@ inline bool ImageImpl::ComputeOutputContentsFromGifOrPng(
     if (output_type == IMAGE_JPEG) {
       JpegCompressionOptions jpeg_options;
       ConvertToJpegOptions(*options_.get(), &jpeg_options);
-      ok = MayConvert() &&
-          ImageConverter::ConvertPngToJpeg(*png_reader, string_for_image,
-                                           jpeg_options, &output_contents_,
-                                           handler_.get());
+      ok = MayConvert() && ImageConverter::ConvertPngToJpeg(
+                               *png_reader, string_for_image, jpeg_options,
+                               &output_contents_, handler_.get());
     }
 
     if (!ok && fall_back_to_png) {
-      ok = MayConvert() &&
-          PngOptimizer::OptimizePngBestCompression(*png_reader,
-                                                   string_for_image,
-                                                   &output_contents_,
-                                                   handler_.get());
+      ok = MayConvert() && PngOptimizer::OptimizePngBestCompression(
+                               *png_reader, string_for_image, &output_contents_,
+                               handler_.get());
       output_type = IMAGE_PNG;
     }
   }
@@ -1159,12 +1094,11 @@ inline bool ImageImpl::ComputeOutputContentsFromGifOrPng(
   return ok;
 }
 
-bool ImageImpl::ConvertPngToWebp(
-      const PngReaderInterface& png_reader,
-      const GoogleString& input_image,
-      bool compress_color_losslessly,
-      bool has_transparency,
-      ConversionVariables::VariableType var_type) {
+bool ImageImpl::ConvertPngToWebp(const PngReaderInterface& png_reader,
+                                 const GoogleString& input_image,
+                                 bool compress_color_losslessly,
+                                 bool has_transparency,
+                                 ConversionVariables::VariableType var_type) {
   ConversionTimeoutHandler timeout_handler(options_->webp_conversion_timeout_ms,
                                            timer_, handler_.get());
   WebpConfiguration webp_config;
@@ -1202,9 +1136,9 @@ bool ImageImpl::ConvertPngToWebp(
   // PixelFormatOptimizer has a more expensive, but comprehensive solution.
   bool not_used;
   timeout_handler.Start(&output_contents_);
-  bool ok = ImageConverter::ConvertPngToWebp(
-      png_reader, input_image, webp_config,
-      &output_contents_, &not_used, handler_.get());
+  bool ok = ImageConverter::ConvertPngToWebp(png_reader, input_image,
+                                             webp_config, &output_contents_,
+                                             &not_used, handler_.get());
 
   if (ok) {
     image_type_ = target_image_type;
@@ -1218,38 +1152,32 @@ bool ImageImpl::ConvertPngToWebp(
                   options_->webp_conversion_variables);
 
   UpdateWebpStats(ok, was_timed_out, time_elapsed_ms,
-                  (has_transparency ?
-                   Image::ConversionVariables::NONOPAQUE :
-                   Image::ConversionVariables::OPAQUE),
+                  (has_transparency ? Image::ConversionVariables::NONOPAQUE
+                                    : Image::ConversionVariables::OPAQUE),
                   options_->webp_conversion_variables);
 
   return ok;
 }
 
-bool ImageImpl::OptimizePng(
-    const PngReaderInterface& png_reader,
-    const GoogleString& image_data) {
+bool ImageImpl::OptimizePng(const PngReaderInterface& png_reader,
+                            const GoogleString& image_data) {
   bool ok = MayConvert() &&
-      PngOptimizer::OptimizePngBestCompression(png_reader,
-                                               image_data,
-                                               &output_contents_,
-                                               handler_.get());
+            PngOptimizer::OptimizePngBestCompression(
+                png_reader, image_data, &output_contents_, handler_.get());
   if (ok) {
     image_type_ = IMAGE_PNG;
   }
   return ok;
 }
 
-bool ImageImpl::OptimizePngOrConvertToJpeg(
-    const PngReaderInterface& png_reader,
-    const GoogleString& image_data) {
+bool ImageImpl::OptimizePngOrConvertToJpeg(const PngReaderInterface& png_reader,
+                                           const GoogleString& image_data) {
   bool is_png;
   JpegCompressionOptions jpeg_options;
   ConvertToJpegOptions(*options_.get(), &jpeg_options);
-  bool ok = MayConvert() &&
-      ImageConverter::OptimizePngOrConvertToJpeg(
-          png_reader, image_data, jpeg_options,
-          &output_contents_, &is_png, handler_.get());
+  bool ok = MayConvert() && ImageConverter::OptimizePngOrConvertToJpeg(
+                                png_reader, image_data, jpeg_options,
+                                &output_contents_, &is_png, handler_.get());
   if (ok) {
     if (is_png) {
       image_type_ = IMAGE_PNG;
@@ -1272,8 +1200,7 @@ void ImageImpl::ConvertToJpegOptions(const Image::CompressionOptions& options,
     // quality is less than the quality we want to set for final compression and
     // num progressive scans is not set. Incase we are not able to decode the
     // input image quality, then we use lossless path.
-    if (image_type() != IMAGE_JPEG ||
-        options.jpeg_num_progressive_scans > 0 ||
+    if (image_type() != IMAGE_JPEG || options.jpeg_num_progressive_scans > 0 ||
         input_quality > output_quality) {
       jpeg_options->lossy = true;
       jpeg_options->lossy_options.quality = output_quality;
@@ -1288,8 +1215,8 @@ void ImageImpl::ConvertToJpegOptions(const Image::CompressionOptions& options,
     }
   }
 
-  jpeg_options->progressive = options.progressive_jpeg &&
-      ShouldConvertToProgressive(output_quality);
+  jpeg_options->progressive =
+      options.progressive_jpeg && ShouldConvertToProgressive(output_quality);
 }
 
 bool ImageImpl::ShouldConvertToProgressive(int64 quality) const {
@@ -1323,12 +1250,10 @@ StringPiece Image::Contents() {
 
 bool ImageImpl::DrawImage(Image* image, int x, int y) {
   // Create a reader for reading the original canvas image.
-  scoped_ptr<ScanlineReaderInterface> canvas_reader(CreateScanlineReader(
-      pagespeed::image_compression::IMAGE_PNG,
-      output_contents_.data(),
-      output_contents_.length(),
-      handler_.get()));
-  if (canvas_reader == NULL) {
+  std::unique_ptr<ScanlineReaderInterface> canvas_reader(CreateScanlineReader(
+      pagespeed::image_compression::IMAGE_PNG, output_contents_.data(),
+      output_contents_.length(), handler_.get()));
+  if (canvas_reader == nullptr) {
     PS_LOG_ERROR(handler_, "Cannot open canvas image.");
     return false;
   }
@@ -1340,12 +1265,11 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
 
   // Initialize a reader for reading the image which will be sprited.
   ImageImpl* impl = static_cast<ImageImpl*>(image);
-  scoped_ptr<ScanlineReaderInterface> image_reader(CreateScanlineReader(
-      ImageTypeToImageFormat(impl->image_type()),
-                             impl->original_contents().data(),
-                             impl->original_contents().length(),
-                             handler_.get()));
-  if (image_reader == NULL) {
+  std::unique_ptr<ScanlineReaderInterface> image_reader(
+      CreateScanlineReader(ImageTypeToImageFormat(impl->image_type()),
+                           impl->original_contents().data(),
+                           impl->original_contents().length(), handler_.get()));
+  if (image_reader == nullptr) {
     PS_LOG_INFO(handler_, "Cannot open the image which will be sprited.");
     return false;
   }
@@ -1362,8 +1286,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
 
   bool has_transparency = false;
   PixelFormat output_pixel_format = RGB_888;
-  if (image_pixel_format == RGBA_8888 ||
-      canvas_pixel_format == RGBA_8888) {
+  if (image_pixel_format == RGBA_8888 || canvas_pixel_format == RGBA_8888) {
     has_transparency = true;
     output_pixel_format = RGBA_8888;
   }
@@ -1375,30 +1298,29 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
 
   // Create a writer for writing the new canvas image.
   GoogleString canvas_image;
-  scoped_ptr<ScanlineWriterInterface> canvas_writer(
-      CreateUncompressedPngWriter(canvas_width, canvas_height,
-                                  &canvas_image, handler_.get(),
-                                  has_transparency));
-  if (canvas_writer == NULL) {
+  std::unique_ptr<ScanlineWriterInterface> canvas_writer(
+      CreateUncompressedPngWriter(canvas_width, canvas_height, &canvas_image,
+                                  handler_.get(), has_transparency));
+  if (canvas_writer == nullptr) {
     PS_LOG_ERROR(handler_, "Failed to create canvas writer.");
     return false;
   }
 
   // Overlay the new image onto the canvas image.
   for (int row = 0; row < static_cast<int>(canvas_height); ++row) {
-    uint8* canvas_line = NULL;
+    uint8* canvas_line = nullptr;
     if (!canvas_reader->ReadNextScanline(
-        reinterpret_cast<void**>(&canvas_line))) {
+            reinterpret_cast<void**>(&canvas_line))) {
       PS_LOG_ERROR(handler_, "Failed to read canvas image.");
       return false;
     }
 
     if (row >= y && row < y + static_cast<int>(image_height)) {
-      uint8* image_line = NULL;
+      uint8* image_line = nullptr;
       if (!image_reader->ReadNextScanline(
-          reinterpret_cast<void**>(&image_line))) {
+              reinterpret_cast<void**>(&image_line))) {
         PS_LOG_INFO(handler_,
-                     "Failed to read the image which will be sprited.");
+                    "Failed to read the image which will be sprited.");
         return false;
       }
 
@@ -1406,8 +1328,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
       // on the webpage; it just gives a clean background to the
       // sprite image.
       memset(scanline.get(), kAlphaOpaque, x * bytes_per_pixel);
-      memset(scanline.get() + (x + image_width) * bytes_per_pixel,
-             kAlphaOpaque,
+      memset(scanline.get() + (x + image_width) * bytes_per_pixel, kAlphaOpaque,
              (canvas_width - image_width - x) * bytes_per_pixel);
 
       ExpandPixelFormat(image_width, image_pixel_format, 0, image_line,
@@ -1418,7 +1339,7 @@ bool ImageImpl::DrawImage(Image* image, int x, int y) {
     }
 
     if (!canvas_writer->WriteNextScanline(
-        reinterpret_cast<void*>(scanline.get()))) {
+            reinterpret_cast<void*>(scanline.get()))) {
       PS_LOG_ERROR(handler_, "Failed to write canvas image.");
       return false;
     }

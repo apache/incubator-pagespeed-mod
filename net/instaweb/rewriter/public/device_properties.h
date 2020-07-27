@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_DEVICE_PROPERTIES_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_DEVICE_PROPERTIES_H_
 
@@ -65,12 +64,8 @@ class DeviceProperties {
   bool IsBot() const;
   bool AcceptsGzip() const;
   UserAgentMatcher::DeviceType GetDeviceType() const;
-  bool IsMobile() const {
-    return GetDeviceType() == UserAgentMatcher::kMobile;
-  }
-  bool IsTablet() const {
-    return GetDeviceType() == UserAgentMatcher::kTablet;
-  }
+  bool IsMobile() const { return GetDeviceType() == UserAgentMatcher::kMobile; }
+  bool IsTablet() const { return GetDeviceType() == UserAgentMatcher::kTablet; }
 
   enum ImageQualityPreference {
     // Server uses its own default image quality.

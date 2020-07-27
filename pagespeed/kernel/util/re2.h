@@ -17,13 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_RE2_H_
 #define PAGESPEED_KERNEL_UTIL_RE2_H_
 
 #include "pagespeed/kernel/base/string_util.h"
-
-#include "third_party/re2/src/re2/re2.h"
+#include "re2/re2.h"
 
 using re2::RE2;
 
@@ -48,6 +46,5 @@ inline re2::StringPiece StringPieceToRe2(StringPiece sp) {
 inline StringPiece Re2ToStringPiece(re2::StringPiece sp) {
   return StringPiece(sp.data(), sp.size());
 }
-
 
 #endif  // PAGESPEED_KERNEL_UTIL_RE2_H_

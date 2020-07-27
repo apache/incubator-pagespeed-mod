@@ -17,18 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/brotli_inflater.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/message_handler_test_base.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/util/simple_random.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"
+#include "pagespeed/kernel/util/simple_random.h"
 
 namespace net_instaweb {
 

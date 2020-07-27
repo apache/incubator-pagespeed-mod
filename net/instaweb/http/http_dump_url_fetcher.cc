@@ -17,12 +17,12 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
 
 #include <cstdio>
+#include <memory>
 #include <set>
-#include <utility>                     // for pair
+#include <utility>  // for pair
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -59,8 +59,7 @@ const char HttpDumpUrlFetcher::kGzipContentLengthAttribute[] =
     "X-Instaweb-Gzip-Content-Length";
 
 HttpDumpUrlFetcher::HttpDumpUrlFetcher(const StringPiece& root_dir,
-                                       FileSystem* file_system,
-                                       Timer* timer)
+                                       FileSystem* file_system, Timer* timer)
     : root_dir_(root_dir.data(), root_dir.size()),
       file_system_(file_system),
       timer_(timer),
@@ -68,8 +67,7 @@ HttpDumpUrlFetcher::HttpDumpUrlFetcher(const StringPiece& root_dir,
   EnsureEndsInSlash(&root_dir_);
 }
 
-HttpDumpUrlFetcher::~HttpDumpUrlFetcher() {
-}
+HttpDumpUrlFetcher::~HttpDumpUrlFetcher() {}
 
 bool HttpDumpUrlFetcher::GetFilenameFromUrl(const StringPiece& root_dir,
                                             const GoogleUrl& gurl,
@@ -119,10 +117,9 @@ class HttpResponseWriter : public Writer {
         want_gzip_(want_gzip),
         first_write_(true),
         writer_(writer),
-        response_(response) {
-  }
+        response_(response) {}
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     bool ret = true;
 
     // We don't store the request headers with the slurped file.  So if
@@ -134,12 +131,12 @@ class HttpResponseWriter : public Writer {
       CHECK(response_->headers_complete());
       CharStarVector v;
       if (!want_gzip_ && response_->IsGzipped()) {
-        inflater_.reset(new GzipInflater(GzipInflater::kGzip));
+        inflater_ = std::make_unique<GzipInflater>(GzipInflater::kGzip);
         CHECK(inflater_->Init());
         response_->RemoveAll(HttpAttributes::kContentEncoding);
       }
     }
-    if (inflater_.get() != NULL) {
+    if (inflater_.get() != nullptr) {
       CHECK(!inflater_->HasUnconsumedInput());
       CHECK(inflater_->SetInput(str.data(), str.size()));
       gzip_content_length_ += str.size();
@@ -167,7 +164,7 @@ class HttpResponseWriter : public Writer {
     return ret;
   }
 
-  bool Flush(MessageHandler* handler) {
+  bool Flush(MessageHandler* handler) override {
     return writer_->Flush(handler);
   }
 
@@ -182,13 +179,13 @@ class HttpResponseWriter : public Writer {
   bool first_write_;
   Writer* writer_;
   ResponseHeaders* response_;
-  scoped_ptr<GzipInflater> inflater_;
+  std::unique_ptr<GzipInflater> inflater_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpResponseWriter);
 };
 
-void HttpDumpUrlFetcher::Fetch(
-    const GoogleString& url, MessageHandler* handler, AsyncFetch* fetch) {
+void HttpDumpUrlFetcher::Fetch(const GoogleString& url, MessageHandler* handler,
+                               AsyncFetch* fetch) {
   bool ret = false;
   GoogleString filename;
   GoogleUrl gurl(url);
@@ -200,7 +197,7 @@ void HttpDumpUrlFetcher::Fetch(
     // Pass in NullMessageHandler so that we don't get errors for file not found
     FileSystem::InputFile* file =
         file_system_->OpenInputFile(filename.c_str(), &null_handler);
-    if (file != NULL) {
+    if (file != nullptr) {
       CharStarVector v;
       // TODO(jmarantz): handle 'deflate'.
       bool want_gzip = request_headers.AcceptsGzip();
@@ -228,8 +225,8 @@ void HttpDumpUrlFetcher::Fetch(
           response_headers->SetContentLength(writer.content_length());
         }
         if (writer.gzip_content_length() != 0) {
-          response_headers->Add(kGzipContentLengthAttribute, IntegerToString(
-              writer.gzip_content_length()));
+          response_headers->Add(kGzipContentLengthAttribute,
+                                IntegerToString(writer.gzip_content_length()));
         }
         response_headers->ComputeCaching();
         fetch->Write(output_buffer, handler);
@@ -246,12 +243,11 @@ void HttpDumpUrlFetcher::Fetch(
                        filename.c_str(), url.c_str());
     }
   } else {
-    handler->Message(kError,
-                     "HttpDumpUrlFetcher: Requested invalid URL %s",
+    handler->Message(kError, "HttpDumpUrlFetcher: Requested invalid URL %s",
                      url.c_str());
   }
 
-  if ((urls_.get() != NULL) && urls_->insert(url).second) {
+  if ((urls_.get() != nullptr) && urls_->insert(url).second) {
     fprintf(stdout, "url: %s\n", url.c_str());
   }
 
@@ -260,9 +256,9 @@ void HttpDumpUrlFetcher::Fetch(
 
 void HttpDumpUrlFetcher::set_print_urls(bool on) {
   if (on) {
-    urls_.reset(new StringSet);
+    urls_ = std::make_unique<StringSet>();
   } else {
-    urls_.reset(NULL);
+    urls_.reset(nullptr);
   }
 }
 

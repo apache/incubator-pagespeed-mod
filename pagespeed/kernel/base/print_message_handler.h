@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_PRINT_MESSAGE_HANDLER_H_
 #define PAGESPEED_KERNEL_BASE_PRINT_MESSAGE_HANDLER_H_
 
@@ -31,12 +30,12 @@ namespace net_instaweb {
 class PrintMessageHandler : public MessageHandler {
  public:
   PrintMessageHandler();
-  virtual ~PrintMessageHandler();
+  ~PrintMessageHandler() override;
 
  protected:
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
+  void FileMessageSImpl(MessageType type, const char* filename, int line,
+                        const GoogleString& message) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(PrintMessageHandler);

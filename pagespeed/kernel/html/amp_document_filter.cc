@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/amp_document_filter.h"
 
 #include "pagespeed/kernel/base/string_util.h"
@@ -37,8 +36,7 @@ AmpDocumentFilter::AmpDocumentFilter(HtmlParse* html_parse,
     : html_parse_(html_parse),
       is_known_(false),
       saw_doctype_(false),
-      discovered_(discovered) {
-}
+      discovered_(discovered) {}
 
 AmpDocumentFilter::~AmpDocumentFilter() {}
 

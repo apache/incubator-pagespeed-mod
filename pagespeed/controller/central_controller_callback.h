@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_CENTRAL_CONTROLLER_CALLBACK_H_
 #define PAGESPEED_CONTROLLER_CENTRAL_CONTROLLER_CALLBACK_H_
 
@@ -63,7 +62,7 @@ namespace net_instaweb {
 template <typename TransactionContext>
 class CentralControllerCallback : public Function {
  public:
-  virtual ~CentralControllerCallback();
+  ~CentralControllerCallback() override;
 
   // Called by the CentralController at some point before Run or Cancel.
   // Takes ownership of the transaction context.
@@ -77,13 +76,13 @@ class CentralControllerCallback : public Function {
   // Function interface. These will be invoked on the RPC thread, so must be
   // quick. They just enqueue calls on sequence_ to the actual implementations
   // (RunAfterRequeue & CancelAfterRequeue).
-  virtual void Run() /* override */;
-  virtual void Cancel() /* override */;
+  void Run() override /* override */;
+  void Cancel() override /* override */;
 
  private:
   // Subclasses should implement whatever functionality they need in these.
   // They are equivalent to the Run() and Cancel() methods on Function.
-  virtual void RunImpl(scoped_ptr<TransactionContext>* context) = 0;
+  virtual void RunImpl(std::unique_ptr<TransactionContext>* context) = 0;
   virtual void CancelImpl() = 0;
 
   // Invoked via sequence_ to do the typical Function operations.
@@ -91,27 +90,28 @@ class CentralControllerCallback : public Function {
   void CancelAfterRequeue();
 
   Sequence* sequence_;
-  scoped_ptr<TransactionContext> context_;
+  std::unique_ptr<TransactionContext> context_;
 
   DISALLOW_COPY_AND_ASSIGN(CentralControllerCallback);
 };
 
 template <typename TransactionContext>
 CentralControllerCallback<TransactionContext>::CentralControllerCallback(
-    Sequence* sequence) : sequence_(sequence) {
+    Sequence* sequence)
+    : sequence_(sequence) {
   set_delete_after_callback(false);
 }
 
 template <typename TransactionContext>
-CentralControllerCallback<TransactionContext>::~CentralControllerCallback() { }
+CentralControllerCallback<TransactionContext>::~CentralControllerCallback() {}
 
 template <typename TransactionContext>
 void CentralControllerCallback<TransactionContext>::Run() {
   CHECK(context_ != NULL);
   // Now enqueue the call to actually run.
   // Will synchronously call CancelAfterRequeue if sequence_ is shutdown.
-  sequence_->Add(MakeFunction(this,
-      &CentralControllerCallback<TransactionContext>::RunAfterRequeue,
+  sequence_->Add(MakeFunction(
+      this, &CentralControllerCallback<TransactionContext>::RunAfterRequeue,
       &CentralControllerCallback<TransactionContext>::CancelAfterRequeue));
 }
 
@@ -119,8 +119,8 @@ template <typename TransactionContext>
 void CentralControllerCallback<TransactionContext>::Cancel() {
   // Server rejected the request or RPC error. Enqueue a Cancellation.
   // Will synchronously call CancelAfterRequeue if sequence_ is shutdown.
-  sequence_->Add(MakeFunction(this,
-      &CentralControllerCallback<TransactionContext>::CancelAfterRequeue,
+  sequence_->Add(MakeFunction(
+      this, &CentralControllerCallback<TransactionContext>::CancelAfterRequeue,
       &CentralControllerCallback<TransactionContext>::CancelAfterRequeue));
 }
 

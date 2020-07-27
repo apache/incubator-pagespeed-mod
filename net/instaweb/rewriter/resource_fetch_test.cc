@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-tests for ResourceFetch
 
 #include "net/instaweb/rewriter/public/resource_fetch.h"
@@ -47,8 +46,7 @@ const char kCssContent[] = "* { display: none; }";
 const char kMinimizedCssContent[] = "*{display:none}";
 const char kValue[] = "Value";
 
-class ResourceFetchTest : public RewriteTestBase {
-};
+class ResourceFetchTest : public RewriteTestBase {};
 
 TEST_F(ResourceFetchTest, BlockingFetch) {
   SetResponseWithDefaultHeaders("a.css", kContentTypeCss, kCssContent, 100);
@@ -63,12 +61,9 @@ TEST_F(ResourceFetchTest, BlockingFetch) {
   // Now fetch stuff.
   GoogleString buffer;
   StringWriter writer(&buffer);
-  SyncFetcherAdapterCallback* callback =
-      new SyncFetcherAdapterCallback(
-          server_context()->thread_system(), &writer,
-          CreateRequestContext());
-  RewriteOptions* custom_options =
-      server_context()->global_options()->Clone();
+  SyncFetcherAdapterCallback* callback = new SyncFetcherAdapterCallback(
+      server_context()->thread_system(), &writer, CreateRequestContext());
+  RewriteOptions* custom_options = server_context()->global_options()->Clone();
 
   GoogleString err;
   // Tell ResourceFetch to add a few response headers to its results.
@@ -76,54 +71,51 @@ TEST_F(ResourceFetchTest, BlockingFetch) {
   EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader("", "Bar", &err));
 
   // Empty field value gets accepted.
-  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader(
-      "X-Foo-Empty", "", &err));
+  EXPECT_TRUE(
+      custom_options->ValidateAndAddResourceHeader("X-Foo-Empty", "", &err));
 
   // No control characters allowed in field name
-  EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader(
-      "X-Foo\ncontinue", "Bar", &err));
+  EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader("X-Foo\ncontinue",
+                                                            "Bar", &err));
 
   // No control characters allowed in field value
   EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader(
       "X-Foo", "Bar\ncontinue", &err));
 
   // No separators should be accepted in the field name
-  EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader(
-      "X-Fo;o", "Bar", &err));
+  EXPECT_FALSE(
+      custom_options->ValidateAndAddResourceHeader("X-Fo;o", "Bar", &err));
 
   // Hop by hop headers should be refused.
-  EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader(
-      "Connection", "close", &err));
+  EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader("Connection",
+                                                            "close", &err));
 
   // Cache-control header should be refused.
-  EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader(
-      "Cache-Control", "private", &err));
+  EXPECT_FALSE(custom_options->ValidateAndAddResourceHeader("Cache-Control",
+                                                            "private", &err));
 
   // Request adding a reasonable header, which ResourceFetch should accept:
-  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader(
-      "X-Resource-Header", kValue, &err));
+  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader("X-Resource-Header",
+                                                           kValue, &err));
 
   // Separators should be accepted in the field value
-  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader(
-      "X-FooSeparator", "B; ar", &err));
+  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader("X-FooSeparator",
+                                                           "B; ar", &err));
 
   // Values should be trimmed.
-  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader(
-      "  X-FooTrim  ", "  Bar   ", &err));
+  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader("  X-FooTrim  ",
+                                                           "  Bar   ", &err));
 
   // Empty field value gets accepted.
-  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader(
-      "X-Foo-Spaced-Value", "aa bb", &err));
+  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader("X-Foo-Spaced-Value",
+                                                           "aa bb", &err));
 
-  RewriteDriver* custom_driver =
-      server_context()->NewCustomRewriteDriver(
-          custom_options,
-          CreateRequestContext());
+  RewriteDriver* custom_driver = server_context()->NewCustomRewriteDriver(
+      custom_options, CreateRequestContext());
 
   GoogleUrl url(Encode(kTestDomain, "cf", "0", "a.css", "css"));
-  EXPECT_TRUE(
-      ResourceFetch::BlockingFetch(
-          url, server_context(), custom_driver, callback));
+  EXPECT_TRUE(ResourceFetch::BlockingFetch(url, server_context(), custom_driver,
+                                           callback));
   EXPECT_TRUE(callback->IsDone());
   EXPECT_TRUE(callback->success());
 
@@ -136,15 +128,15 @@ TEST_F(ResourceFetchTest, BlockingFetch) {
   EXPECT_STREQ("", callback->response_headers()->Lookup1("X-Foo-Empty"));
 
   EXPECT_TRUE(callback->response_headers()->Has("X-Resource-Header"));
-  EXPECT_STREQ(
-      kValue, callback->response_headers()->Lookup1("X-Resource-Header"));
+  EXPECT_STREQ(kValue,
+               callback->response_headers()->Lookup1("X-Resource-Header"));
 
   EXPECT_TRUE(callback->response_headers()->Has("X-FooTrim"));
   EXPECT_STREQ("Bar", callback->response_headers()->Lookup1("X-FooTrim"));
 
   EXPECT_TRUE(callback->response_headers()->Has("X-Foo-Spaced-Value"));
-  EXPECT_STREQ("aa bb", callback->response_headers()->Lookup1(
-      "X-Foo-Spaced-Value"));
+  EXPECT_STREQ("aa bb",
+               callback->response_headers()->Lookup1("X-Foo-Spaced-Value"));
 
   callback->Release();
 
@@ -155,21 +147,18 @@ TEST_F(ResourceFetchTest, BlockingFetchOfInvalidUrl) {
   // Fetch stuff.
   GoogleString buffer;
   StringWriter writer(&buffer);
-  RewriteOptions* custom_options =
-      server_context()->global_options()->Clone();
+  RewriteOptions* custom_options = server_context()->global_options()->Clone();
   custom_options->set_in_place_rewriting_enabled(false);
-  RewriteDriver* custom_driver =
-      server_context()->NewCustomRewriteDriver(
-          custom_options, CreateRequestContext());
+  RewriteDriver* custom_driver = server_context()->NewCustomRewriteDriver(
+      custom_options, CreateRequestContext());
 
   GoogleString err;
-  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader(
-      "X-Resource-Header", kValue, &err));
+  EXPECT_TRUE(custom_options->ValidateAndAddResourceHeader("X-Resource-Header",
+                                                           kValue, &err));
   EXPECT_EQ("", err);
 
-  SyncFetcherAdapterCallback* callback =
-      new SyncFetcherAdapterCallback(
-          server_context()->thread_system(), &writer, CreateRequestContext());
+  SyncFetcherAdapterCallback* callback = new SyncFetcherAdapterCallback(
+      server_context()->thread_system(), &writer, CreateRequestContext());
 
   // Encode an URL then invalidate it by removing the hash. This will cause
   // RewriteDriver::DecodeOutputResourceNameHelper to reject it, which will
@@ -183,17 +172,16 @@ TEST_F(ResourceFetchTest, BlockingFetchOfInvalidUrl) {
 
   // Prior to StartWithDriver checking if the fetch was actually initiated,
   // the call to BlockingFetch would block forever; now it returns immediately.
-  EXPECT_FALSE(
-      ResourceFetch::BlockingFetch(
-          url, server_context(), custom_driver, callback));
+  EXPECT_FALSE(ResourceFetch::BlockingFetch(url, server_context(),
+                                            custom_driver, callback));
 
   // Validate our expectations w/regard to our earlier AddResponseHeader calls
   // for responses to bad urls.
   EXPECT_TRUE(callback->IsDone());
   EXPECT_FALSE(callback->success());
   EXPECT_TRUE(callback->response_headers()->Has("X-Resource-Header"));
-  EXPECT_STREQ(
-      kValue, callback->response_headers()->Lookup1("X-Resource-Header"));
+  EXPECT_STREQ(kValue,
+               callback->response_headers()->Lookup1("X-Resource-Header"));
   callback->Release();
 
   EXPECT_EQ("", buffer);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/fix_reflow_filter.h"
 
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -44,18 +43,18 @@ namespace net_instaweb {
 
 namespace {
 
-const char kRequestUrl[]  = "http://www.example.com";
-const char kCohortName[]  = "fix_reflow";
+const char kRequestUrl[] = "http://www.example.com";
+const char kCohortName[] = "fix_reflow";
 const char kNoscriptUrl[] = "http://www.example.com/?PageSpeed=noscript";
 
 }  // namespace
 
 class FixReflowFilterTest : public CustomRewriteTestBase<RewriteOptions> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();  // rewrite_driver() is valid after this.
-    const PropertyCache::Cohort* cohort = SetupCohort(
-        server_context()->page_property_cache(), kCohortName);
+    const PropertyCache::Cohort* cohort =
+        SetupCohort(server_context()->page_property_cache(), kCohortName);
     server_context()->set_fix_reflow_cohort(cohort);
     ResetDriver();
     options()->EnableFilter(RewriteOptions::kDeferJavascript);
@@ -77,9 +76,8 @@ class FixReflowFilterTest : public CustomRewriteTestBase<RewriteOptions> {
     PropertyPage* page = rewrite_driver()->property_page();
     PropertyCache* pcache = server_context_->page_property_cache();
     const PropertyCache::Cohort* cohort = pcache->GetCohort(kCohortName);
-    page->UpdateValue(cohort,
-                      FixReflowFilter::kElementRenderedHeightPropertyName,
-                      result);
+    page->UpdateValue(
+        cohort, FixReflowFilter::kElementRenderedHeightPropertyName, result);
   }
 
   void CheckFilterStatus(RewriterHtmlApplication::Status status) {
@@ -99,7 +97,7 @@ TEST_F(FixReflowFilterTest, NotInCache) {
       "</body>";
   const GoogleString expected = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
       "<div id=\"contentContainer\"><h1>Hello 1</h1>"
       "<div id=\"middleFooter\"><h3>Hello 3</h3></div></div>"
       "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>"
@@ -134,7 +132,7 @@ TEST_F(FixReflowFilterTest, InCache) {
       "</body>";
   const GoogleString expected = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
       "<div id=\"contentContainer\" style=\"min-height:10px\" "
       "data-pagespeed-fix-reflow=\"\"><h1>Hello 1</h1>"
       "<div id=\"middleFooter\"><h3>Hello 3</h3></div></div>"
@@ -142,7 +140,7 @@ TEST_F(FixReflowFilterTest, InCache) {
       "</body>");
 
   ValidateExpectedUrl(kRequestUrl, input_html, expected);
-  LoggingInfo* info =rewrite_driver()->log_record()->logging_info();
+  LoggingInfo* info = rewrite_driver()->log_record()->logging_info();
   EXPECT_EQ(1, info->rewriter_info_size());
   EXPECT_EQ("fr", info->rewriter_info(0).id());
   EXPECT_EQ(RewriterApplication::APPLIED_OK, info->rewriter_info(0).status());
@@ -165,7 +163,7 @@ TEST_F(FixReflowFilterTest, InCacheExpires) {
       "</body>";
   const GoogleString expected = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
       "<div id=\"contentContainer\"><h1>Hello 1</h1>"
       "<div id=\"middleFooter\"><h3>Hello 3</h3></div></div>"
       "<script type=\"text/javascript\" src=\"/psajs/js_defer.0.js\"></script>"
@@ -177,7 +175,7 @@ TEST_F(FixReflowFilterTest, InCacheExpires) {
 
   const GoogleString expected2 = StrCat(
       "<body>",
-      StringPrintf(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
+      absl::StrFormat(kNoScriptRedirectFormatter, kNoscriptUrl, kNoscriptUrl),
       "<div id=\"contentContainer\" style=\"min-height:20px\" "
       "data-pagespeed-fix-reflow=\"\"><h1>Hello 1</h1>"
       "<div id=\"middleFooter\" style=\"min-height:10px\" "

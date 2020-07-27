@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
-
 // Unit-test InflatingFetch.
 
-#include <cstddef>
-
 #include "net/instaweb/http/public/inflating_fetch.h"
+
+#include <cstddef>
+#include <memory>
 
 #include "net/instaweb/http/public/async_fetch.h"  // for StringAsyncFetch
 #include "net/instaweb/http/public/http_value.h"
@@ -46,13 +45,12 @@ const char kClearData[] = "Hello";
 
 // This was generated with 'xxd -i hello.gz' after gzipping a file with "Hello".
 const unsigned char kGzippedData[] = {
-  0x1f, 0x8b, 0x08, 0x08, 0x3b, 0x3a, 0xf3, 0x4e, 0x00, 0x03, 0x68, 0x65,
-  0x6c, 0x6c, 0x6f, 0x00, 0xf3, 0x48, 0xcd, 0xc9, 0xc9, 0x07, 0x00, 0x82,
-  0x89, 0xd1, 0xf7, 0x05, 0x00, 0x00, 0x00
-};
+    0x1f, 0x8b, 0x08, 0x08, 0x3b, 0x3a, 0xf3, 0x4e, 0x00, 0x03, 0x68,
+    0x65, 0x6c, 0x6c, 0x6f, 0x00, 0xf3, 0x48, 0xcd, 0xc9, 0xc9, 0x07,
+    0x00, 0x82, 0x89, 0xd1, 0xf7, 0x05, 0x00, 0x00, 0x00};
 
-bool binary_data_same(const void* left, size_t left_len,
-                      const void* right, size_t right_len) {
+bool binary_data_same(const void* left, size_t left_len, const void* right,
+                      size_t right_len) {
   return left_len == right_len && memcmp(left, right, left_len) == 0;
 }
 
@@ -63,16 +61,16 @@ namespace net_instaweb {
 class MockFetch : public StringAsyncFetch {
  public:
   explicit MockFetch(const RequestContextPtr& ctx) : StringAsyncFetch(ctx) {}
-  virtual ~MockFetch() {}
+  ~MockFetch() override {}
 
   void ExpectAcceptEncoding(const StringPiece& encoding) {
     encoding.CopyToString(&accept_encoding_);
   }
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     if (!accept_encoding_.empty()) {
-      EXPECT_TRUE(request_headers()->HasValue(
-          HttpAttributes::kAcceptEncoding, accept_encoding_));
+      EXPECT_TRUE(request_headers()->HasValue(HttpAttributes::kAcceptEncoding,
+                                              accept_encoding_));
     }
     StringAsyncFetch::HandleHeadersComplete();
   }
@@ -87,24 +85,23 @@ class MockFetch : public StringAsyncFetch {
 class InflatingFetchTest : public testing::Test {
  protected:
   InflatingFetchTest()
-      : inflating_fetch_(NULL),
+      : inflating_fetch_(nullptr),
         gzipped_data_(reinterpret_cast<const char*>(kGzippedData),
                       STATIC_STRLEN(kGzippedData)),
-        thread_system_(Platform::CreateThreadSystem()) {
-  }
+        thread_system_(Platform::CreateThreadSystem()) {}
 
-  virtual void SetUp() {
-    mock_fetch_.reset(new MockFetch(
-        RequestContext::NewTestRequestContext(thread_system_.get())));
+  void SetUp() override {
+    mock_fetch_ = std::make_unique<MockFetch>(
+        RequestContext::NewTestRequestContext(thread_system_.get()));
     inflating_fetch_ = new InflatingFetch(mock_fetch_.get());
   }
 
-  scoped_ptr<MockFetch> mock_fetch_;
+  std::unique_ptr<MockFetch> mock_fetch_;
   // Self-deletes in Done(), so no need to deallocate.
   InflatingFetch* inflating_fetch_;
   GoogleMessageHandler message_handler_;
   StringPiece gzipped_data_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
 };
 
 // Tests that if we ask for clear text & get it, we pass through the data
@@ -123,8 +120,8 @@ TEST_F(InflatingFetchTest, ClearRequestResponse) {
 // called, despite the fact that the fetcher (mocked by this code below) called
 // Done(true).
 TEST_F(InflatingFetchTest, AutoInflateGarbage) {
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
   inflating_fetch_->response_headers()->SetStatusAndReason(HttpStatus::kOK);
   inflating_fetch_->Write("this garbage won't inflate", &message_handler_);
   inflating_fetch_->Done(true);
@@ -135,8 +132,8 @@ TEST_F(InflatingFetchTest, AutoInflateGarbage) {
 // Tests that if we ask for clear text but get a properly compressed buffer,
 // that our inflating-fetch will make this transparent to our Expect callback.
 TEST_F(InflatingFetchTest, AutoInflate) {
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
   inflating_fetch_->response_headers()->SetStatusAndReason(HttpStatus::kOK);
   inflating_fetch_->response_headers()->Add(
       HttpAttributes::kContentLength, IntegerToString(gzipped_data_.size()));
@@ -145,7 +142,7 @@ TEST_F(InflatingFetchTest, AutoInflate) {
   EXPECT_EQ(kClearData, mock_fetch_->buffer())
       << "data should be auto-inflated.";
   EXPECT_TRUE(mock_fetch_->response_headers()->Lookup1(
-      HttpAttributes::kContentEncoding) == NULL)
+                  HttpAttributes::kContentEncoding) == nullptr)
       << "Content encoding should be stripped since we inflated the data.";
   // Content-length shouldn't be there (since we don't know the uncompressed
   // size early enough).
@@ -158,20 +155,20 @@ TEST_F(InflatingFetchTest, AutoInflate) {
 // Tests that if we asked for a gzipped response in the first place that
 // we don't inflate or strip the content-encoding header.
 TEST_F(InflatingFetchTest, ExpectGzipped) {
-  inflating_fetch_->request_headers()->Add(
-      HttpAttributes::kAcceptEncoding, HttpAttributes::kGzip);
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
+  inflating_fetch_->request_headers()->Add(HttpAttributes::kAcceptEncoding,
+                                           HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
   inflating_fetch_->response_headers()->SetStatusAndReason(HttpStatus::kOK);
   inflating_fetch_->Write(gzipped_data_, &message_handler_);
   inflating_fetch_->Done(true);
-  EXPECT_TRUE(
-      binary_data_same(
-          gzipped_data_.data(), gzipped_data_.length(),
-          mock_fetch_->buffer().data(), mock_fetch_->buffer().size()))
-          << "data should be untouched.";
+  EXPECT_TRUE(binary_data_same(gzipped_data_.data(), gzipped_data_.length(),
+                               mock_fetch_->buffer().data(),
+                               mock_fetch_->buffer().size()))
+      << "data should be untouched.";
   EXPECT_STREQ(HttpAttributes::kGzip, mock_fetch_->response_headers()->Lookup1(
-      HttpAttributes::kContentEncoding)) << "content-encoding not stripped.";
+                                          HttpAttributes::kContentEncoding))
+      << "content-encoding not stripped.";
   EXPECT_TRUE(mock_fetch_->done());
   EXPECT_TRUE(mock_fetch_->success());
 }
@@ -180,8 +177,8 @@ TEST_F(InflatingFetchTest, ExpectGzipped) {
 // The blacklist feature has been removed since after this test was written,
 // but behavior should be unchanged.
 TEST_F(InflatingFetchTest, ExpectUnGzippedOnEmptyBlacklist) {
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
 
   // We need to set Content-Type to one of the octet-streams types.
   inflating_fetch_->response_headers()->Add(HttpAttributes::kContentType,
@@ -193,7 +190,7 @@ TEST_F(InflatingFetchTest, ExpectUnGzippedOnEmptyBlacklist) {
       << "data should be uncompressed when blacklist filter is empty.";
   EXPECT_FALSE(
       mock_fetch_->response_headers()->Has(HttpAttributes::kContentEncoding))
-          << "content-encoding is not stripped.";
+      << "content-encoding is not stripped.";
   EXPECT_TRUE(mock_fetch_->done());
   EXPECT_TRUE(mock_fetch_->success());
 
@@ -201,8 +198,8 @@ TEST_F(InflatingFetchTest, ExpectUnGzippedOnEmptyBlacklist) {
   mock_fetch_->Reset();
   inflating_fetch_ = new InflatingFetch(mock_fetch_.get());
 
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
   inflating_fetch_->response_headers()->Add(HttpAttributes::kContentType,
                                             "image/gif");
   inflating_fetch_->response_headers()->SetStatusAndReason(HttpStatus::kOK);
@@ -212,19 +209,19 @@ TEST_F(InflatingFetchTest, ExpectUnGzippedOnEmptyBlacklist) {
       << "data should be inflated when content-type is not in blacklist.";
   EXPECT_FALSE(
       mock_fetch_->response_headers()->Has(HttpAttributes::kContentEncoding))
-          << "content-encoding is not stripped.";
+      << "content-encoding is not stripped.";
   EXPECT_TRUE(mock_fetch_->done());
   EXPECT_TRUE(mock_fetch_->success());
 }
 
 TEST_F(InflatingFetchTest, ContentGzipAndDeflatedButWantClear) {
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kDeflate);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kDeflate);
 
   // Apply gzip second so that it gets decoded first as we want to decode
   // in reverse order to how the encoding was done.
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
   inflating_fetch_->response_headers()->SetStatusAndReason(HttpStatus::kOK);
   inflating_fetch_->Write(gzipped_data_, &message_handler_);
   inflating_fetch_->Done(true);
@@ -242,10 +239,10 @@ TEST_F(InflatingFetchTest, ContentGzipAndDeflatedButWantClear) {
 // some encoder ("frob") unknown to our system does not get touched.
 // We should not attempt to gunzip the 'frob' data.
 TEST_F(InflatingFetchTest, GzippedAndFrobbedNotChanged) {
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, "frob");
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            "frob");
   inflating_fetch_->response_headers()->SetStatusAndReason(HttpStatus::kOK);
   inflating_fetch_->Write(gzipped_data_, &message_handler_);
   inflating_fetch_->Done(true);
@@ -264,15 +261,15 @@ TEST_F(InflatingFetchTest, GzippedAndFrobbedNotChanged) {
 TEST_F(InflatingFetchTest, TestEnableGzipFromBackend) {
   mock_fetch_->ExpectAcceptEncoding(HttpAttributes::kGzip);
   inflating_fetch_->EnableGzipFromBackend();
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
   inflating_fetch_->response_headers()->SetStatusAndReason(HttpStatus::kOK);
   inflating_fetch_->Write(gzipped_data_, &message_handler_);
   inflating_fetch_->Done(true);
   EXPECT_EQ(kClearData, mock_fetch_->buffer())
       << "data should be auto-inflated.";
   EXPECT_TRUE(mock_fetch_->response_headers()->Lookup1(
-      HttpAttributes::kContentEncoding) == NULL)
+                  HttpAttributes::kContentEncoding) == nullptr)
       << "Content encoding should be stripped since we inflated the data.";
   EXPECT_TRUE(mock_fetch_->done());
   EXPECT_TRUE(mock_fetch_->success());
@@ -292,10 +289,10 @@ TEST_F(InflatingFetchTest, TestEnableGzipFromBackendWithCleartext) {
 }
 
 TEST_F(InflatingFetchTest, TestEnableGzipFromBackendExpectingGzip) {
-  inflating_fetch_->request_headers()->Add(
-      HttpAttributes::kAcceptEncoding, HttpAttributes::kGzip);
-  inflating_fetch_->response_headers()->Add(
-      HttpAttributes::kContentEncoding, HttpAttributes::kGzip);
+  inflating_fetch_->request_headers()->Add(HttpAttributes::kAcceptEncoding,
+                                           HttpAttributes::kGzip);
+  inflating_fetch_->response_headers()->Add(HttpAttributes::kContentEncoding,
+                                            HttpAttributes::kGzip);
 
   // Calling EnableGzipFromBackend here has no effect in this case,
   // because above we declare that we want to see gzipped data coming
@@ -306,13 +303,13 @@ TEST_F(InflatingFetchTest, TestEnableGzipFromBackendExpectingGzip) {
   inflating_fetch_->response_headers()->SetStatusAndReason(HttpStatus::kOK);
   inflating_fetch_->Write(gzipped_data_, &message_handler_);
   inflating_fetch_->Done(true);
-  EXPECT_TRUE(
-      binary_data_same(
-          gzipped_data_.data(), gzipped_data_.length(),
-          mock_fetch_->buffer().data(), mock_fetch_->buffer().size()))
-          << "data should be untouched.";
+  EXPECT_TRUE(binary_data_same(gzipped_data_.data(), gzipped_data_.length(),
+                               mock_fetch_->buffer().data(),
+                               mock_fetch_->buffer().size()))
+      << "data should be untouched.";
   EXPECT_STREQ(HttpAttributes::kGzip, mock_fetch_->response_headers()->Lookup1(
-      HttpAttributes::kContentEncoding)) << "content-encoding not stripped.";
+                                          HttpAttributes::kContentEncoding))
+      << "content-encoding not stripped.";
   EXPECT_TRUE(mock_fetch_->done());
   EXPECT_TRUE(mock_fetch_->success());
 }

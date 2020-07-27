@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_TAG_SCANNER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_TAG_SCANNER_H_
 
@@ -68,8 +67,7 @@ class CssTagScanner {
   // attributes are identified.  NULL may be passed for nonstandard_attributes
   // to indicate the caller doesn't need them collected.
   static bool ParseCssElement(HtmlElement* element,
-                              HtmlElement::Attribute** href,
-                              const char** media,
+                              HtmlElement::Attribute** href, const char** media,
                               StringPieceVector* nonstandard_attributes);
 
   // Many callers don't care about nonstandard attributes, so we provide a
@@ -84,26 +82,22 @@ class CssTagScanner {
   // When parsing streaming input, we need to be told if the given input
   // portion goes up to end-of-file (since it affects whether something
   // may continue the last token of the input).
-  enum InputPortion {
-    kInputIncludesEnd,
-    kInputDoesNotIncludeEnd
-  };
+  enum InputPortion { kInputIncludesEnd, kInputDoesNotIncludeEnd };
 
   // Scans the contents of a CSS file, looking for the pattern url(xxx).
   // Performs an arbitrary mutation on all such URLs.
   // If xxx is quoted with single-quotes or double-quotes, those are
   // retained and the URL inside is transformed.
-  static bool TransformUrls(
-      StringPiece contents, Writer* writer, Transformer* transformer,
-      MessageHandler* handler);
+  static bool TransformUrls(StringPiece contents, Writer* writer,
+                            Transformer* transformer, MessageHandler* handler);
 
   // Like above, but handles incomplete input. In such a case, all chunks
   // other than the last one should be served with input_portion ==
   // kInputDoesNotIncludeEnd. Note that this method store some state for
   // reparsing, so you can't concurrently run two streams through the same
   // CssTagScanner object.
-  bool TransformUrlsStreaming(
-      StringPiece contents, InputPortion input_portion, Writer* writer);
+  bool TransformUrlsStreaming(StringPiece contents, InputPortion input_portion,
+                              Writer* writer);
 
   // Returns what was retained by TransformUrlsStreaming for reparsing.
   // Meant for use in tests.
@@ -124,15 +118,10 @@ class CssTagScanner {
   static bool IsAlternateStylesheet(const StringPiece& attribute_value);
 
  private:
-  enum UrlKind {
-    kNone,
-    kImport,
-    kUrl
-  };
+  enum UrlKind { kNone, kImport, kUrl };
 
-  void SerializeUrlUse(UrlKind kind, const GoogleString& url,
-                       bool is_quoted, bool have_term_quote, char quote,
-                       bool have_term_paren,
+  void SerializeUrlUse(UrlKind kind, const GoogleString& url, bool is_quoted,
+                       bool have_term_quote, char quote, bool have_term_paren,
                        Writer* writer, bool* ok);
 
   Transformer* transformer_;
@@ -153,9 +142,9 @@ class RewriteDomainTransformer : public CssTagScanner::Transformer {
                            const ServerContext* server_context,
                            const RewriteOptions* options,
                            MessageHandler* handler);
-  virtual ~RewriteDomainTransformer();
+  ~RewriteDomainTransformer() override;
 
-  virtual TransformStatus Transform(GoogleString* str);
+  TransformStatus Transform(GoogleString* str) override;
 
   void set_trim_urls(bool x) { trim_urls_ = x; }
 
@@ -171,7 +160,6 @@ class RewriteDomainTransformer : public CssTagScanner::Transformer {
 
   DISALLOW_COPY_AND_ASSIGN(RewriteDomainTransformer);
 };
-
 
 }  // namespace net_instaweb
 

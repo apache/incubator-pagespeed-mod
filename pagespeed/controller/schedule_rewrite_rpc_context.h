@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_SCHEDULE_REWRITE_RPC_CONTEXT_H_
 #define PAGESPEED_CONTROLLER_SCHEDULE_REWRITE_RPC_CONTEXT_H_
 
@@ -37,10 +36,11 @@ namespace net_instaweb {
 
 class ScheduleRewriteRpcContext : public ScheduleRewriteContext {
  public:
-  ScheduleRewriteRpcContext(
-      grpc::CentralControllerRpcService::StubInterface* stub,
-      ::grpc::CompletionQueue* queue, ThreadSystem* thread_system,
-      MessageHandler* handler, ScheduleRewriteCallback* callback);
+  ScheduleRewriteRpcContext(CentralControllerRpcService::StubInterface* stub,
+                            ::grpc::CompletionQueue* queue,
+                            ThreadSystem* thread_system,
+                            MessageHandler* handler,
+                            ScheduleRewriteCallback* callback);
 
   void MarkSucceeded() override;
   void MarkFailed() override;

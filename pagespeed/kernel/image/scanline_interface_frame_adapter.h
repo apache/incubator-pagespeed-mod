@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // This file provides two sets of adapters for use by
 // {Scanline, MultipleFrame} clients wishing to use code provided by the
 // {MultipleFrame, Scanline} classes.
@@ -34,6 +33,7 @@
 #define PAGESPEED_KERNEL_IMAGE_SCANLINE_INTERFACE_FRAME_ADAPTER_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -54,32 +54,30 @@ namespace image_compression {
 
 ////////// MultipleFrame API to Scanline API adapters.
 
-
 // The class FrameToScanlineReaderAdapter takes ownership of a
 // MultipleFrameReader and exposes ScanlineReaderInterface methods.
 class FrameToScanlineReaderAdapter : public ScanlineReaderInterface {
  public:
   // Acquires ownership of 'frame_reader'.
   explicit FrameToScanlineReaderAdapter(MultipleFrameReader* frame_reader);
-  virtual ~FrameToScanlineReaderAdapter() {}
+  ~FrameToScanlineReaderAdapter() override {}
 
-  virtual bool Reset();
-  virtual size_t GetBytesPerScanline();
-  virtual bool HasMoreScanLines();
-  virtual bool IsProgressive();
+  bool Reset() override;
+  size_t GetBytesPerScanline() override;
+  bool HasMoreScanLines() override;
+  bool IsProgressive() override;
 
   // Will return an error status if the underlying MultipleFrameReader
   // is processing an animated image.
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
-  virtual ScanlineStatus ReadNextScanlineWithStatus(
-      void** out_scanline_bytes);
-  virtual size_t GetImageHeight();
-  virtual size_t GetImageWidth();
-  virtual PixelFormat GetPixelFormat();
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                      size_t buffer_length) override;
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
+  size_t GetImageHeight() override;
+  size_t GetImageWidth() override;
+  PixelFormat GetPixelFormat() override;
 
  private:
-  net_instaweb::scoped_ptr<MultipleFrameReader> impl_;
+  std::unique_ptr<MultipleFrameReader> impl_;
 
   ImageSpec image_spec_;
   FrameSpec frame_spec_;
@@ -93,18 +91,18 @@ class FrameToScanlineWriterAdapter : public ScanlineWriterInterface {
  public:
   // Acquires ownership of 'frame_writer'.
   explicit FrameToScanlineWriterAdapter(MultipleFrameWriter* frame_writer);
-  virtual ~FrameToScanlineWriterAdapter() {}
+  ~FrameToScanlineWriterAdapter() override {}
 
-  virtual ScanlineStatus InitWithStatus(size_t width, size_t height,
-                                        PixelFormat pixel_format);
-  virtual ScanlineStatus InitializeWriteWithStatus(const void* config,
-                                                   GoogleString* out);
-  virtual ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes);
-  virtual ScanlineStatus FinalizeWriteWithStatus();
+  ScanlineStatus InitWithStatus(size_t width, size_t height,
+                                PixelFormat pixel_format) override;
+  ScanlineStatus InitializeWriteWithStatus(const void* config,
+                                           GoogleString* out) override;
+  ScanlineStatus WriteNextScanlineWithStatus(
+      const void* scanline_bytes) override;
+  ScanlineStatus FinalizeWriteWithStatus() override;
 
  private:
-  net_instaweb::scoped_ptr<MultipleFrameWriter> impl_;
+  std::unique_ptr<MultipleFrameWriter> impl_;
 
   bool init_done_;
   ImageSpec image_spec_;
@@ -112,7 +110,6 @@ class FrameToScanlineWriterAdapter : public ScanlineWriterInterface {
 
   DISALLOW_COPY_AND_ASSIGN(FrameToScanlineWriterAdapter);
 };
-
 
 ////////// Scanline API to MultipleFrame API adapters.
 
@@ -123,14 +120,14 @@ class ScanlineToFrameReaderAdapter : public MultipleFrameReader {
   // Acquires ownership of 'scanline_reader'.
   ScanlineToFrameReaderAdapter(ScanlineReaderInterface* scanline_reader,
                                MessageHandler* message_handler);
-  virtual ScanlineStatus Reset();
-  virtual ScanlineStatus Initialize();
-  virtual bool HasMoreFrames() const;
-  virtual bool HasMoreScanlines() const;
-  virtual ScanlineStatus PrepareNextFrame();
-  virtual ScanlineStatus ReadNextScanline(const void** out_scanline_bytes);
-  virtual ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const;
-  virtual ScanlineStatus GetImageSpec(ImageSpec* image_spec) const;
+  ScanlineStatus Reset() override;
+  ScanlineStatus Initialize() override;
+  bool HasMoreFrames() const override;
+  bool HasMoreScanlines() const override;
+  ScanlineStatus PrepareNextFrame() override;
+  ScanlineStatus ReadNextScanline(const void** out_scanline_bytes) override;
+  ScanlineStatus GetFrameSpec(FrameSpec* frame_spec) const override;
+  ScanlineStatus GetImageSpec(ImageSpec* image_spec) const override;
 
  private:
   enum {
@@ -144,7 +141,7 @@ class ScanlineToFrameReaderAdapter : public MultipleFrameReader {
   ImageSpec image_spec_;
   FrameSpec frame_spec_;
 
-  net_instaweb::scoped_ptr<ScanlineReaderInterface> impl_;
+  std::unique_ptr<ScanlineReaderInterface> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(ScanlineToFrameReaderAdapter);
 };
@@ -157,12 +154,11 @@ class ScanlineToFrameWriterAdapter : public MultipleFrameWriter {
   ScanlineToFrameWriterAdapter(ScanlineWriterInterface* scanline_writer,
                                MessageHandler* handler);
 
-  virtual ScanlineStatus Initialize(const void* config,
-                                    GoogleString* out);
-  virtual ScanlineStatus PrepareImage(const ImageSpec* image_spec);
-  virtual ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec);
-  virtual ScanlineStatus WriteNextScanline(const void *scanline_bytes);
-  virtual ScanlineStatus FinalizeWrite();
+  ScanlineStatus Initialize(const void* config, GoogleString* out) override;
+  ScanlineStatus PrepareImage(const ImageSpec* image_spec) override;
+  ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec) override;
+  ScanlineStatus WriteNextScanline(const void* scanline_bytes) override;
+  ScanlineStatus FinalizeWrite() override;
 
  private:
   enum {
@@ -176,7 +172,7 @@ class ScanlineToFrameWriterAdapter : public MultipleFrameWriter {
   const ImageSpec* image_spec_;
   const FrameSpec* frame_spec_;
 
-  net_instaweb::scoped_ptr<ScanlineWriterInterface> impl_;
+  std::unique_ptr<ScanlineWriterInterface> impl_;
 
   const void* config_;
   GoogleString* out_;

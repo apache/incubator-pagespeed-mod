@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_HTML_NODE_H_
 #define PAGESPEED_KERNEL_HTML_HTML_NODE_H_
 
@@ -104,21 +103,17 @@ class HtmlNode {
 
 class HtmlLeafNode : public HtmlNode {
  public:
-  virtual ~HtmlLeafNode();
-  virtual bool live() const { return (data_.get() != NULL) && data_->is_live_; }
-  virtual void MarkAsDead(const HtmlEventListIterator& end);
-  virtual GoogleString ToString() const;
+  ~HtmlLeafNode() override;
+  bool live() const override {
+    return (data_.get() != NULL) && data_->is_live_;
+  }
+  void MarkAsDead(const HtmlEventListIterator& end) override;
+  GoogleString ToString() const override;
 
   const GoogleString& contents() const { return data_->contents_; }
-  virtual HtmlEventListIterator begin() const {
-    return data_->iter_;
-  }
-  virtual HtmlEventListIterator end() const {
-    return data_->iter_;
-  }
-  void set_iter(const HtmlEventListIterator& iter) {
-    data_->iter_ = iter;
-  }
+  HtmlEventListIterator begin() const override { return data_->iter_; }
+  HtmlEventListIterator end() const override { return data_->iter_; }
+  void set_iter(const HtmlEventListIterator& iter) { data_->iter_ = iter; }
 
   void FreeData() { data_.reset(NULL); }
 
@@ -135,32 +130,29 @@ class HtmlLeafNode : public HtmlNode {
     Data(const HtmlEventListIterator& iter, const StringPiece& contents)
         : contents_(contents.data(), contents.size()),
           is_live_(true),
-          iter_(iter) {
-    }
+          iter_(iter) {}
     GoogleString contents_;
     bool is_live_;
     HtmlEventListIterator iter_;
   };
 
-  scoped_ptr<Data> data_;
+  std::unique_ptr<Data> data_;
 };
 
 // Leaf node representing a CDATA section
 class HtmlCdataNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlCdataNode();
+  ~HtmlCdataNode() override;
   friend class HtmlParse;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                        HtmlEventList* queue) override;
 
  private:
-  HtmlCdataNode(HtmlElement* parent,
-                const StringPiece& contents,
+  HtmlCdataNode(HtmlElement* parent, const StringPiece& contents,
                 const HtmlEventListIterator& iter)
-      : HtmlLeafNode(parent, iter, contents) {
-  }
+      : HtmlLeafNode(parent, iter, contents) {}
 
   DISALLOW_COPY_AND_ASSIGN(HtmlCdataNode);
 };
@@ -168,7 +160,7 @@ class HtmlCdataNode : public HtmlLeafNode {
 // Leaf node representing raw characters in HTML
 class HtmlCharactersNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlCharactersNode();
+  ~HtmlCharactersNode() override;
   void Append(const StringPiece& str) {
     mutable_contents()->append(str.data(), str.size());
   }
@@ -178,15 +170,13 @@ class HtmlCharactersNode : public HtmlLeafNode {
   using HtmlLeafNode::mutable_contents;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                        HtmlEventList* queue) override;
 
  private:
-  HtmlCharactersNode(HtmlElement* parent,
-                     const StringPiece& contents,
+  HtmlCharactersNode(HtmlElement* parent, const StringPiece& contents,
                      const HtmlEventListIterator& iter)
-      : HtmlLeafNode(parent, iter, contents) {
-  }
+      : HtmlLeafNode(parent, iter, contents) {}
 
   DISALLOW_COPY_AND_ASSIGN(HtmlCharactersNode);
 };
@@ -194,19 +184,17 @@ class HtmlCharactersNode : public HtmlLeafNode {
 // Leaf node representing an HTML comment
 class HtmlCommentNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlCommentNode();
+  ~HtmlCommentNode() override;
   friend class HtmlParse;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                        HtmlEventList* queue) override;
 
  private:
-  HtmlCommentNode(HtmlElement* parent,
-                  const StringPiece& contents,
+  HtmlCommentNode(HtmlElement* parent, const StringPiece& contents,
                   const HtmlEventListIterator& iter)
-      : HtmlLeafNode(parent, iter, contents) {
-  }
+      : HtmlLeafNode(parent, iter, contents) {}
 
   DISALLOW_COPY_AND_ASSIGN(HtmlCommentNode);
 };
@@ -214,19 +202,17 @@ class HtmlCommentNode : public HtmlLeafNode {
 // Leaf node representing an HTML IE directive
 class HtmlIEDirectiveNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlIEDirectiveNode();
+  ~HtmlIEDirectiveNode() override;
   friend class HtmlParse;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                        HtmlEventList* queue) override;
 
  private:
-  HtmlIEDirectiveNode(HtmlElement* parent,
-                      const StringPiece& contents,
+  HtmlIEDirectiveNode(HtmlElement* parent, const StringPiece& contents,
                       const HtmlEventListIterator& iter)
-      : HtmlLeafNode(parent, iter, contents) {
-  }
+      : HtmlLeafNode(parent, iter, contents) {}
 
   DISALLOW_COPY_AND_ASSIGN(HtmlIEDirectiveNode);
 };
@@ -234,19 +220,17 @@ class HtmlIEDirectiveNode : public HtmlLeafNode {
 // Leaf node representing an HTML directive
 class HtmlDirectiveNode : public HtmlLeafNode {
  public:
-  virtual ~HtmlDirectiveNode();
+  ~HtmlDirectiveNode() override;
   friend class HtmlParse;
 
  protected:
-  virtual void SynthesizeEvents(const HtmlEventListIterator& iter,
-                                HtmlEventList* queue);
+  void SynthesizeEvents(const HtmlEventListIterator& iter,
+                        HtmlEventList* queue) override;
 
  private:
-  HtmlDirectiveNode(HtmlElement* parent,
-                    const StringPiece& contents,
+  HtmlDirectiveNode(HtmlElement* parent, const StringPiece& contents,
                     const HtmlEventListIterator& iter)
-      : HtmlLeafNode(parent, iter, contents) {
-  }
+      : HtmlLeafNode(parent, iter, contents) {}
 
   DISALLOW_COPY_AND_ASSIGN(HtmlDirectiveNode);
 };

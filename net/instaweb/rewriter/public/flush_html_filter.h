@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_FLUSH_HTML_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_FLUSH_HTML_FILTER_H_
 
@@ -35,14 +34,14 @@ class RewriteDriver;
 class FlushHtmlFilter : public CommonFilter {
  public:
   explicit FlushHtmlFilter(RewriteDriver* driver);
-  virtual ~FlushHtmlFilter();
+  ~FlushHtmlFilter() override;
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void Flush();
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
+  void Flush() override;
 
-  virtual const char* Name() const { return "FlushHtmlFilter"; }
+  const char* Name() const override { return "FlushHtmlFilter"; }
 
  private:
   int score_;

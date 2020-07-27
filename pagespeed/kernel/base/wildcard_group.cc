@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // NOTE: THIS CODE IS DEAD.  IT IS ONLY LINKED BY THE SPEED_TEST PROVING IT'S
 // SLOWER THAN FastWildcardGroup, PLUS ITS OWN UNIT TEST.
 
@@ -33,9 +32,7 @@
 
 namespace net_instaweb {
 
-WildcardGroup::~WildcardGroup() {
-  Clear();
-}
+WildcardGroup::~WildcardGroup() { Clear(); }
 
 void WildcardGroup::Clear() {
   STLDeleteElements(&wildcards_);

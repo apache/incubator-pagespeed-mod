@@ -29,11 +29,9 @@ namespace net_instaweb {
 class ThreadSystem;
 
 SlowWorker::SlowWorker(StringPiece thread_name, ThreadSystem* runtime)
-    : Worker(thread_name, runtime) {
-}
+    : Worker(thread_name, runtime) {}
 
-SlowWorker::~SlowWorker() {
-}
+SlowWorker::~SlowWorker() {}
 
 void SlowWorker::RunIfNotBusy(Function* closure) {
   bool ok = QueueIfPermitted(closure);
@@ -42,8 +40,6 @@ void SlowWorker::RunIfNotBusy(Function* closure) {
   }
 }
 
-bool SlowWorker::IsPermitted(Function* closure) {
-  return NumJobs() == 0;
-}
+bool SlowWorker::IsPermitted(Function* closure) { return NumJobs() == 0; }
 
 }  // namespace net_instaweb

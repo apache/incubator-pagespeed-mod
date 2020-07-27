@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/write_through_cache.h"
 
 #include <cstddef>
@@ -30,8 +29,7 @@ namespace net_instaweb {
 
 const size_t WriteThroughCache::kUnlimited = static_cast<size_t>(-1);
 
-WriteThroughCache::~WriteThroughCache() {
-}
+WriteThroughCache::~WriteThroughCache() {}
 
 void WriteThroughCache::PutInCache1(const GoogleString& key,
                                     const SharedString& value) {
@@ -43,22 +41,20 @@ void WriteThroughCache::PutInCache1(const GoogleString& key,
 
 class WriteThroughCallback : public CacheInterface::Callback {
  public:
-  WriteThroughCallback(WriteThroughCache* wtc,
-                       const GoogleString& key,
+  WriteThroughCallback(WriteThroughCache* wtc, const GoogleString& key,
                        CacheInterface::Callback* callback)
       : write_through_cache_(wtc),
         key_(key),
         callback_(callback),
-        trying_cache2_(false) {
-  }
+        trying_cache2_(false) {}
 
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state) {
+  bool ValidateCandidate(const GoogleString& key,
+                         CacheInterface::KeyState state) override {
     callback_->set_value(value());
     return callback_->DelegatedValidateCandidate(key, state);
   }
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     if (state == CacheInterface::kAvailable) {
       if (trying_cache2_) {
         write_through_cache_->PutInCache1(key_, value());
@@ -73,7 +69,6 @@ class WriteThroughCallback : public CacheInterface::Callback {
       write_through_cache_->cache2()->Get(key_, this);
     }
   }
-
 
   WriteThroughCache* write_through_cache_;
   GoogleString key_;

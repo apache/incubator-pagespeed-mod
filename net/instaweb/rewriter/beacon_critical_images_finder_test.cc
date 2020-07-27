@@ -42,16 +42,14 @@ namespace net_instaweb {
 
 namespace {
 
-const char kRequestUrl[] = "http://www.example.com";
-
 class BeaconCriticalImagesFinderTest : public CriticalImagesFinderTestBase {
  public:
-  virtual CriticalImagesFinder* finder() { return finder_; }
+  CriticalImagesFinder* finder() override { return finder_; }
 
  protected:
-  BeaconCriticalImagesFinderTest() { }
+  BeaconCriticalImagesFinderTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     CriticalImagesFinderTestBase::SetUp();
     const PropertyCache::Cohort* beacon_cohort =
         SetupCohort(page_property_cache(), RewriteDriver::kBeaconCohort);
@@ -113,14 +111,10 @@ class BeaconCriticalImagesFinderTest : public CriticalImagesFinderTestBase {
   }
 
   // Verify that no beacon injection occurs.
-  void VerifyNoBeaconing() {
-    VerifyBeaconStatus(kDoNotBeacon);
-  }
+  void VerifyNoBeaconing() { VerifyBeaconStatus(kDoNotBeacon); }
 
   // Verify that beacon injection occurs.
-  void VerifyBeaconing() {
-    VerifyBeaconStatus(kBeaconWithNonce);
-  }
+  void VerifyBeaconing() { VerifyBeaconStatus(kBeaconWithNonce); }
 
   // Helper method used for verifying beacon injection status.
   void VerifyBeaconStatus(BeaconStatus status) {
@@ -172,23 +166,22 @@ class BeaconCriticalImagesFinderTest : public CriticalImagesFinderTestBase {
 
   bool UpdateCriticalImagesCacheEntry(
       const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set) {
+      const StringSet* css_critical_images_set) override {
     // If this fails, you should have called Beacon().
     CHECK_EQ(kBeaconWithNonce, last_beacon_metadata_.status);
-    return UpdateCriticalImagesCacheEntry(
-        html_critical_images_set, css_critical_images_set,
-        last_beacon_metadata_.nonce);
+    return UpdateCriticalImagesCacheEntry(html_critical_images_set,
+                                          css_critical_images_set,
+                                          last_beacon_metadata_.nonce);
   }
 
-  bool UpdateCriticalImagesCacheEntry(
-      const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      const GoogleString& nonce) {
+  bool UpdateCriticalImagesCacheEntry(const StringSet* html_critical_images_set,
+                                      const StringSet* css_critical_images_set,
+                                      const GoogleString& nonce) {
     EXPECT_FALSE(nonce.empty());
     return finder_->UpdateCriticalImagesCacheEntry(
-        html_critical_images_set, css_critical_images_set, NULL,
-        nonce, server_context()->beacon_cohort(),
-        rewrite_driver()->property_page(), server_context()->timer());
+        html_critical_images_set, css_critical_images_set, nullptr, nonce,
+        server_context()->beacon_cohort(), rewrite_driver()->property_page(),
+        server_context()->timer());
   }
 
   BeaconCriticalImagesFinder* finder_;
@@ -200,13 +193,12 @@ class BeaconCriticalImagesFinderTest : public CriticalImagesFinderTestBase {
 TEST_F(BeaconCriticalImagesFinderTest, StoreRestore) {
   // Before beacon insertion, nothing in pcache.
   CheckCriticalImageFinderStats(0, 0, 0);
-  CriticalImagesInfo* read_images =
-      rewrite_driver()->critical_images_info();
-  EXPECT_TRUE(read_images == NULL);
+  CriticalImagesInfo* read_images = rewrite_driver()->critical_images_info();
+  EXPECT_TRUE(read_images == nullptr);
   // Force computation of critical_images_info() via CriticalImagesString()
   EXPECT_STREQ(";", CriticalImagesString());
   read_images = rewrite_driver()->critical_images_info();
-  EXPECT_TRUE(read_images != NULL);
+  EXPECT_TRUE(read_images != nullptr);
   // Now beacon and register some critical image results.
   Beacon();
   CheckCriticalImageFinderStats(0, 0, 2);
@@ -220,7 +212,7 @@ TEST_F(BeaconCriticalImagesFinderTest, StoreRestore) {
   WriteBackAndResetDriver();
   AdvanceTimeMs(2 * options()->finder_properties_cache_expiration_time_ms());
   read_images = rewrite_driver()->critical_images_info();
-  EXPECT_TRUE(read_images == NULL);
+  EXPECT_TRUE(read_images == nullptr);
   // Force computation of critical_images_info() via CriticalImagesString()
   EXPECT_STREQ(";", CriticalImagesString());
   CheckCriticalImageFinderStats(2, 1, 2);
@@ -277,8 +269,8 @@ TEST_F(BeaconCriticalImagesFinderTest, OutOfOrder) {
   html_images_.insert("x.jpg");
   css_images_.clear();
   css_images_.insert("a.jpg");
-  EXPECT_TRUE(UpdateCriticalImagesCacheEntry(
-      &html_images_, &css_images_, initial_nonce));
+  EXPECT_TRUE(UpdateCriticalImagesCacheEntry(&html_images_, &css_images_,
+                                             initial_nonce));
   EXPECT_STREQ("x.jpg;a.jpg", CriticalImagesString());
   int supportedTwice = 2 * finder_->SupportInterval() - 1;
   CheckAXBeaconSupport(supportedTwice, supportedTwice,
@@ -290,8 +282,8 @@ TEST_F(BeaconCriticalImagesFinderTest, OutOfOrder) {
                        finder_->SupportInterval() - 1);
   // As will an entirely bogus nonce (here we use non-base64 characters).
   const char kBogusNonce[] = "*&*";
-  EXPECT_FALSE(UpdateCriticalImagesCacheEntry(
-      &html_images_, &css_images_, kBogusNonce));
+  EXPECT_FALSE(
+      UpdateCriticalImagesCacheEntry(&html_images_, &css_images_, kBogusNonce));
   EXPECT_STREQ("x.jpg;a.jpg", CriticalImagesString());
   CheckAXBeaconSupport(supportedTwice, supportedTwice,
                        finder_->SupportInterval() - 1);
@@ -314,8 +306,8 @@ TEST_F(BeaconCriticalImagesFinderTest, NonceTimeout) {
   html_images_.insert("x.jpg");
   css_images_.clear();
   css_images_.insert("a.jpg");
-  EXPECT_FALSE(UpdateCriticalImagesCacheEntry(
-      &html_images_, &css_images_, initial_nonce));
+  EXPECT_FALSE(UpdateCriticalImagesCacheEntry(&html_images_, &css_images_,
+                                              initial_nonce));
   EXPECT_STREQ("x.jpg,y.png,z.gif;a.jpg,b.png,c.gif", CriticalImagesString());
   CheckDefaultBeaconSupport(finder_->SupportInterval());
 }
@@ -419,9 +411,9 @@ TEST_F(BeaconCriticalImagesFinderTest, LowFrequencyBeaconing) {
   for (int i = 0; i <= kHighFreqBeaconCount; ++i) {
     Beacon();
     BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-        &html_critical_images_set, NULL, NULL, last_beacon_metadata_.nonce,
-        server_context()->beacon_cohort(), rewrite_driver()->property_page(),
-        factory()->mock_timer());
+        &html_critical_images_set, nullptr, nullptr,
+        last_beacon_metadata_.nonce, server_context()->beacon_cohort(),
+        rewrite_driver()->property_page(), factory()->mock_timer());
     CriticalKeys* html_critical_images =
         GetCriticalImages()->mutable_html_critical_image_support();
     EXPECT_THAT(html_critical_images->valid_beacons_received(), Eq(i + 1));

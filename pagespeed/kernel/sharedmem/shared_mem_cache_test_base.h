@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_CACHE_TEST_BASE_H_
 
@@ -48,9 +47,9 @@ class SharedMemCacheTestBase : public CacheTestBase {
 
   explicit SharedMemCacheTestBase(SharedMemTestEnv* test_env);
 
-  virtual void TearDown();
+  void TearDown() override;
 
-  virtual SharedMemCache<kBlockSize>* Cache() { return cache_.get(); }
+  SharedMemCache<kBlockSize>* Cache() override { return cache_.get(); }
   virtual void SanityCheck();
 
   void TestBasic();
@@ -68,19 +67,18 @@ class SharedMemCacheTestBase : public CacheTestBase {
  private:
   bool CreateChild(TestMethod method);
 
-  void CheckDumpsEqual(const SharedMemCacheDump& a,
-                       const SharedMemCacheDump& b,
+  void CheckDumpsEqual(const SharedMemCacheDump& a, const SharedMemCacheDump& b,
                        const char* test_label);
 
   SharedMemCache<kBlockSize>* MakeCache();
   void CheckDelete(const char* key);
   void TestReaderWriterChild();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<SharedMemCache<kBlockSize> > cache_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<SharedMemCache<kBlockSize> > cache_;
   MD5Hasher hasher_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
   MockTimer timer_;
 
@@ -94,10 +92,8 @@ class SharedMemCacheTestBase : public CacheTestBase {
 
 class FileCacheTestWrapper {
  public:
-  FileCacheTestWrapper(const GoogleString& path,
-                       ThreadSystem* thread_system,
-                       Timer* timer,
-                       MessageHandler* handler) {
+  FileCacheTestWrapper(const GoogleString& path, ThreadSystem* thread_system,
+                       Timer* timer, MessageHandler* handler) {
     filesystem_.reset(new MemFileSystem(thread_system, timer));
     worker_.reset(new SlowWorker("slow worker", thread_system));
     stats_.reset(new SimpleStats(thread_system));
@@ -106,37 +102,31 @@ class FileCacheTestWrapper {
     file_cache_.reset(new FileCache(
         path, filesystem_.get(), thread_system, worker_.get(),
         new FileCache::CachePolicy(timer, hasher_.get(),
-                                   20*60*1000,  // Clean every 20min.
-                                   10*1024*1024,  // 10Mb max size.
-                                   1024*1024),  // Allow 1M files.
+                                   20 * 60 * 1000,    // Clean every 20min.
+                                   10 * 1024 * 1024,  // 10Mb max size.
+                                   1024 * 1024),      // Allow 1M files.
         stats_.get(), handler));
   }
   ~FileCacheTestWrapper() {}
 
-  FileCache* file_cache() {
-    return file_cache_.get();
-  }
-  MemFileSystem* filesystem() {
-    return filesystem_.get();
-  }
+  FileCache* file_cache() { return file_cache_.get(); }
+  MemFileSystem* filesystem() { return filesystem_.get(); }
 
  private:
-  scoped_ptr<MemFileSystem> filesystem_;
-  scoped_ptr<SlowWorker> worker_;
-  scoped_ptr<SimpleStats> stats_;
-  scoped_ptr<MD5Hasher> hasher_;
-  scoped_ptr<FileCache> file_cache_;
+  std::unique_ptr<MemFileSystem> filesystem_;
+  std::unique_ptr<SlowWorker> worker_;
+  std::unique_ptr<SimpleStats> stats_;
+  std::unique_ptr<MD5Hasher> hasher_;
+  std::unique_ptr<FileCache> file_cache_;
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemCacheTestTemplate : public SharedMemCacheTestBase {
  public:
-  SharedMemCacheTestTemplate()
-      : SharedMemCacheTestBase(new ConcreteTestEnv) {
-  }
+  SharedMemCacheTestTemplate() : SharedMemCacheTestBase(new ConcreteTestEnv) {}
 };
 
-TYPED_TEST_CASE_P(SharedMemCacheTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemCacheTestTemplate);
 
 TYPED_TEST_P(SharedMemCacheTestTemplate, TestBasic) {
   SharedMemCacheTestBase::TestBasic();
@@ -174,11 +164,11 @@ TYPED_TEST_P(SharedMemCacheTestTemplate, TestCheckpointAndRestore) {
   SharedMemCacheTestBase::TestCheckpointAndRestore();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemCacheTestTemplate, TestBasic, TestReinsert,
-                           TestReplacement, TestReaderWriter, TestConflict,
-                           TestEvict, TestSnapshot,
-                           TestRegisterSnapshotFileCache,
-                           TestCheckpointAndRestore);
+REGISTER_TYPED_TEST_SUITE_P(SharedMemCacheTestTemplate, TestBasic, TestReinsert,
+                            TestReplacement, TestReaderWriter, TestConflict,
+                            TestEvict, TestSnapshot,
+                            TestRegisterSnapshotFileCache,
+                            TestCheckpointAndRestore);
 
 }  // namespace net_instaweb
 

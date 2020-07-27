@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/pthread_rw_lock.h"
 
 #include <pthread.h>
@@ -49,24 +48,16 @@ bool PthreadRWLock::TryLock() {
   return (pthread_rwlock_trywrlock(&rwlock_) == 0);
 }
 
-void PthreadRWLock::Lock() {
-  pthread_rwlock_wrlock(&rwlock_);
-}
+void PthreadRWLock::Lock() { pthread_rwlock_wrlock(&rwlock_); }
 
-void PthreadRWLock::Unlock() {
-  pthread_rwlock_unlock(&rwlock_);
-}
+void PthreadRWLock::Unlock() { pthread_rwlock_unlock(&rwlock_); }
 
 bool PthreadRWLock::ReaderTryLock() {
   return (pthread_rwlock_tryrdlock(&rwlock_) == 0);
 }
 
-void PthreadRWLock::ReaderLock() {
-  pthread_rwlock_rdlock(&rwlock_);
-}
+void PthreadRWLock::ReaderLock() { pthread_rwlock_rdlock(&rwlock_); }
 
-void PthreadRWLock::ReaderUnlock() {
-  pthread_rwlock_unlock(&rwlock_);
-}
+void PthreadRWLock::ReaderUnlock() { pthread_rwlock_unlock(&rwlock_); }
 
 }  // namespace net_instaweb

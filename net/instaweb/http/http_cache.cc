@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/http_cache.h"
 
 #include <algorithm>
@@ -102,9 +101,7 @@ GoogleString HTTPCache::FormatName(StringPiece cache) {
   return StrCat("HTTPCache(", cache, ")");
 }
 
-void HTTPCache::SetIgnoreFailurePuts() {
-  ignore_failure_puts_.set_value(true);
-}
+void HTTPCache::SetIgnoreFailurePuts() { ignore_failure_puts_.set_value(true); }
 
 bool HTTPCache::IsExpired(const ResponseHeaders& headers, int64 now_ms) {
   if (force_caching_) {
@@ -123,10 +120,9 @@ bool HTTPCache::IsExpired(const ResponseHeaders& headers) {
 
 class HTTPCacheCallback : public CacheInterface::Callback {
  public:
-  HTTPCacheCallback(const GoogleString& key,
-                    const GoogleString& fragment,
-                    MessageHandler* handler,
-                    HTTPCache::Callback* callback, HTTPCache* http_cache)
+  HTTPCacheCallback(const GoogleString& key, const GoogleString& fragment,
+                    MessageHandler* handler, HTTPCache::Callback* callback,
+                    HTTPCache* http_cache)
       : key_(key),
         fragment_(fragment),
         handler_(handler),
@@ -138,8 +134,8 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     start_ms_ = start_us_ / 1000;
   }
 
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState backend_state) {
+  bool ValidateCandidate(const GoogleString& key,
+                         CacheInterface::KeyState backend_state) override {
     ++cache_level_;
     int64 now_us = http_cache_->timer()->NowUs();
     int64 now_ms = now_us / 1000;
@@ -203,7 +199,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
           result_ = HTTPCache::FindResult(
               HTTPCache::kRecentFailure,
               HttpCacheFailure::DecodeFailureCachingStatus(http_status));
-          if (handler_ != NULL) {
+          if (handler_ != nullptr) {
             handler_->Message(kInfo,
                               "HTTPCache key=%s fragment=%s: remembering "
                               "recent failure for %ld seconds.",
@@ -250,7 +246,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     // TODO(gee): Perhaps all of this belongs in TimingInfo.
     int64 elapsed_us = std::max(static_cast<int64>(0), now_us - start_us_);
     http_cache_->cache_time_us()->Add(elapsed_us);
-    callback_->ReportLatencyMs(elapsed_us/1000);
+    callback_->ReportLatencyMs(elapsed_us / 1000);
     if (cache_level_ == http_cache_->cache_levels() ||
         result_.status == HTTPCache::kFound) {
       http_cache_->UpdateStats(key_, fragment_, backend_state, result_,
@@ -275,7 +271,7 @@ class HTTPCacheCallback : public CacheInterface::Callback {
     return result_.status == HTTPCache::kFound;
   }
 
-  virtual void Done(CacheInterface::KeyState backend_state) {
+  void Done(CacheInterface::KeyState backend_state) override {
     callback_->Done(result_);
     delete this;
   }
@@ -297,15 +293,16 @@ class HTTPCacheCallback : public CacheInterface::Callback {
 
 void HTTPCache::Find(const GoogleString& key, const GoogleString& fragment,
                      MessageHandler* handler, Callback* callback) {
-  HTTPCacheCallback* cb = new HTTPCacheCallback(
-      key, fragment, handler, callback, this);
+  HTTPCacheCallback* cb =
+      new HTTPCacheCallback(key, fragment, handler, callback, this);
   cache_->Get(CompositeKey(key, fragment), cb);
 }
 
-void HTTPCache::UpdateStats(
-    const GoogleString& key, const GoogleString& fragment,
-    CacheInterface::KeyState backend_state, FindResult result,
-    bool has_fallback, bool is_expired, MessageHandler* handler) {
+void HTTPCache::UpdateStats(const GoogleString& key,
+                            const GoogleString& fragment,
+                            CacheInterface::KeyState backend_state,
+                            FindResult result, bool has_fallback,
+                            bool is_expired, MessageHandler* handler) {
   if (backend_state == CacheInterface::kAvailable) {
     cache_backend_hits_->Add(1);
   } else {
@@ -334,13 +331,12 @@ void HTTPCache::set_max_cacheable_response_content_length(int64 value) {
   }
 }
 
-void HTTPCache::RememberFailure(
-    const GoogleString& key,
-    const GoogleString& fragment,
-    FetchResponseStatus failure_status,
-    MessageHandler* handler) {
-  HttpStatus::Code code = HttpCacheFailure::EncodeFailureCachingStatus(
-      failure_status);
+void HTTPCache::RememberFailure(const GoogleString& key,
+                                const GoogleString& fragment,
+                                FetchResponseStatus failure_status,
+                                MessageHandler* handler) {
+  HttpStatus::Code code =
+      HttpCacheFailure::EncodeFailureCachingStatus(failure_status);
   int64 ttl_sec = remember_failure_policy_.ttl_sec_for_status[failure_status];
   ResponseHeaders headers;
   headers.set_status_code(code);
@@ -348,18 +344,19 @@ void HTTPCache::RememberFailure(
   headers.SetDateAndCaching(now_ms, ttl_sec * 1000);
   headers.ComputeCaching();
   Put(key, fragment, RequestHeaders::Properties(),
-      ResponseHeaders::kRespectVaryOnResources,
-      &headers, "", handler);
+      ResponseHeaders::kRespectVaryOnResources, &headers, "", handler);
 }
 
-HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
-    int64 start_us, const StringPiece* content, ResponseHeaders* headers,
-    HTTPValue* value, MessageHandler* handler) {
+HTTPValue* HTTPCache::ApplyHeaderChangesForPut(int64 start_us,
+                                               const StringPiece* content,
+                                               ResponseHeaders* headers,
+                                               HTTPValue* value,
+                                               MessageHandler* handler) {
   if ((headers->status_code() != HttpStatus::kOK) &&
       ignore_failure_puts_.value()) {
-    return NULL;
+    return nullptr;
   }
-  DCHECK(value != NULL || content != NULL);
+  DCHECK(value != nullptr || content != nullptr);
 
   // Clear out Set-Cookie headers before storing the response into cache.
   bool headers_mutated = headers->Sanitize();
@@ -369,9 +366,9 @@ HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
   StringPiece new_content;
 
   // Add an Etag if the original response didn't have any.
-  if (headers->Lookup1(HttpAttributes::kEtag) == NULL) {
+  if (headers->Lookup1(HttpAttributes::kEtag) == nullptr) {
     GoogleString hash;
-    if (content == NULL) {
+    if (content == nullptr) {
       bool success = value->ExtractContents(&new_content);
       DCHECK(success);
       content = &new_content;
@@ -381,10 +378,10 @@ HTTPValue* HTTPCache::ApplyHeaderChangesForPut(
     headers_mutated = true;
   }
 
-  if (headers_mutated || value == NULL) {
+  if (headers_mutated || value == nullptr) {
     HTTPValue* new_value = new HTTPValue;  // Will be deleted by calling Put.
     new_value->SetHeaders(headers);
-    if (content == NULL) {
+    if (content == nullptr) {
       bool success = value->ExtractContents(&new_content);
       DCHECK(success);
       new_value->Write(new_content, handler);
@@ -411,7 +408,7 @@ void HTTPCache::PutInternal(bool preserve_response_headers,
   // everything.
   if (!value->Empty() && compression_level_ != 0) {
     const ContentType* type = response_headers->DetermineContentType();
-    if ((type != NULL) && type->IsCompressible() &&
+    if ((type != nullptr) && type->IsCompressible() &&
         !response_headers->IsGzipped()) {
       ResponseHeaders* headers_to_gzip = response_headers;
       ResponseHeaders headers_copy;
@@ -422,9 +419,9 @@ void HTTPCache::PutInternal(bool preserve_response_headers,
 
       // Canonicalize header order so x-original-content-length is always
       // last.  This helps tests act more consistently.
-      const char* orig_content_length = headers_to_gzip->Lookup1(
-          HttpAttributes::kXOriginalContentLength);
-      if (orig_content_length != NULL) {
+      const char* orig_content_length =
+          headers_to_gzip->Lookup1(HttpAttributes::kXOriginalContentLength);
+      if (orig_content_length != nullptr) {
         GoogleString save_content_length = orig_content_length;
         headers_to_gzip->RemoveAll(HttpAttributes::kXOriginalContentLength);
         headers_to_gzip->Add(HttpAttributes::kXOriginalContentLength,
@@ -432,9 +429,8 @@ void HTTPCache::PutInternal(bool preserve_response_headers,
       }
       headers_to_gzip->ComputeCaching();
 
-      if (InflatingFetch::GzipValue(compression_level_, *value,
-                                    &working_value, headers_to_gzip,
-                                    handler)) {
+      if (InflatingFetch::GzipValue(compression_level_, *value, &working_value,
+                                    headers_to_gzip, handler)) {
         // The resource is text (js, css, html, svg, etc.), and not previously
         // compressed, so we'll compress it and stick the new compressed version
         // in the cache.
@@ -449,15 +445,15 @@ void HTTPCache::PutInternal(bool preserve_response_headers,
       headers_to_unzip = &headers_copy;
     }
 
-    if (InflatingFetch::UnGzipValueIfCompressed(
-            *value, headers_to_unzip, &working_value, handler)) {
+    if (InflatingFetch::UnGzipValueIfCompressed(*value, headers_to_unzip,
+                                                &working_value, handler)) {
       value = &working_value;
     }
   }
   // TODO(jcrowell): prevent the unzip-rezip flow when sending compressed data
   // directly to a client through InflatingFetch.
   cache_->Put(CompositeKey(key, fragment), value->share());
-  if (cache_time_us_ != NULL) {
+  if (cache_time_us_ != nullptr) {
     int64 delta_us = timer_->NowUs() - start_us;
     cache_time_us_->Add(delta_us);
   }
@@ -468,8 +464,8 @@ void HTTPCache::PutInternal(bool preserve_response_headers,
 // config.
 void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
                     RequestHeaders::Properties req_properties,
-                    const HttpOptions& http_options,
-                    HTTPValue* value, MessageHandler* handler) {
+                    const HttpOptions& http_options, HTTPValue* value,
+                    MessageHandler* handler) {
   int64 start_us = timer_->NowUs();
   // Extract headers and contents.
   ResponseHeaders headers(http_options);
@@ -480,22 +476,22 @@ void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
   }
   if (!force_caching_ &&
       !(headers.IsProxyCacheable(
-          req_properties,
-          ResponseHeaders::GetVaryOption(http_options.respect_vary),
-          ResponseHeaders::kHasValidator) &&
+            req_properties,
+            ResponseHeaders::GetVaryOption(http_options.respect_vary),
+            ResponseHeaders::kHasValidator) &&
         IsCacheableBodySize(value->contents_size()))) {
     LOG(DFATAL) << "trying to Put uncacheable data for key=" << key
                 << " fragment=" << fragment;
     return;
   }
   // Apply header changes.
-  HTTPValue* new_value = ApplyHeaderChangesForPut(
-      start_us, NULL, &headers, value, handler);
+  HTTPValue* new_value =
+      ApplyHeaderChangesForPut(start_us, nullptr, &headers, value, handler);
   // Put into underlying cache.
-  if (new_value != NULL) {
-    PutInternal(false /* preserve_response_headers */,
-                key, fragment, start_us, new_value, &headers, handler);
-    if (cache_inserts_ != NULL) {
+  if (new_value != nullptr) {
+    PutInternal(false /* preserve_response_headers */, key, fragment, start_us,
+                new_value, &headers, handler);
+    if (cache_inserts_ != nullptr) {
       cache_inserts_->Add(1);
     }
 
@@ -509,8 +505,8 @@ void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
 void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
                     RequestHeaders::Properties req_properties,
                     ResponseHeaders::VaryOption respect_vary_on_resources,
-                    ResponseHeaders* headers,
-                    const StringPiece& content, MessageHandler* handler) {
+                    ResponseHeaders* headers, const StringPiece& content,
+                    MessageHandler* handler) {
   if (!MayCacheUrl(key, *headers)) {
     return;
   }
@@ -526,13 +522,13 @@ void HTTPCache::Put(const GoogleString& key, const GoogleString& fragment,
   // Apply header changes.
   // Takes ownership of the returned HTTPValue, which is guaranteed to have been
   // allocated by ApplyHeaderChangesForPut.
-  scoped_ptr<HTTPValue> value(
-      ApplyHeaderChangesForPut(start_us, &content, headers, NULL, handler));
+  std::unique_ptr<HTTPValue> value(
+      ApplyHeaderChangesForPut(start_us, &content, headers, nullptr, handler));
   // Put into underlying cache.
-  if (value.get() != NULL) {
-    PutInternal(true /* preserve_response_headers */,
-                key, fragment, start_us, value.get(), headers, handler);
-    if (cache_inserts_ != NULL) {
+  if (value.get() != nullptr) {
+    PutInternal(true /* preserve_response_headers */, key, fragment, start_us,
+                value.get(), headers, handler);
+    if (cache_inserts_ != nullptr) {
       cache_inserts_->Add(1);
     }
   }
@@ -599,7 +595,7 @@ void HTTPCache::Callback::ReportLatencyMs(int64 latency_ms) {
     return;
   }
 
-  if (request_context().get() == NULL) {
+  if (request_context().get() == nullptr) {
     LOG(DFATAL) << "NOTREACHED";
     return;
   }

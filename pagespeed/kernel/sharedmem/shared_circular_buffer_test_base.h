@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_CIRCULAR_BUFFER_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_CIRCULAR_BUFFER_TEST_BASE_H_
 
@@ -68,9 +67,9 @@ class SharedCircularBufferTestBase : public testing::Test {
   // Initialize SharedMemoryCircularBuffer from root process.
   SharedCircularBuffer* ParentInit();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
   NullMessageHandler null_handler_;
   // Message to write in Child process.
@@ -84,15 +83,14 @@ class SharedCircularBufferTestBase : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(SharedCircularBufferTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedCircularBufferTestTemplate : public SharedCircularBufferTestBase {
  public:
   SharedCircularBufferTestTemplate()
-      : SharedCircularBufferTestBase(new ConcreteTestEnv) {
-  }
+      : SharedCircularBufferTestBase(new ConcreteTestEnv) {}
 };
 
-TYPED_TEST_CASE_P(SharedCircularBufferTestTemplate);
+TYPED_TEST_SUITE_P(SharedCircularBufferTestTemplate);
 
 TYPED_TEST_P(SharedCircularBufferTestTemplate, TestCreate) {
   SharedCircularBufferTestBase::TestCreate();
@@ -110,8 +108,8 @@ TYPED_TEST_P(SharedCircularBufferTestTemplate, TestCircular) {
   SharedCircularBufferTestBase::TestCircular();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedCircularBufferTestTemplate, TestCreate,
-                           TestAdd, TestClear, TestCircular);
+REGISTER_TYPED_TEST_SUITE_P(SharedCircularBufferTestTemplate, TestCreate,
+                            TestAdd, TestClear, TestCircular);
 
 }  // namespace net_instaweb
 #endif  // PAGESPEED_KERNEL_SHAREDMEM_SHARED_CIRCULAR_BUFFER_TEST_BASE_H_

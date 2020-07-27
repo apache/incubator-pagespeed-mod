@@ -17,13 +17,14 @@
  * under the License.
  */
 
-
 #include <memory>
 
 #include "pagespeed/controller/grpc_server_test.h"
 #include "pagespeed/controller/grpc_test.grpc.pb.h"
 #include "pagespeed/controller/grpc_test.pb.h"
+// clang-format off
 #include "pagespeed/controller/rpc_handler.h"
+// clang-format on
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/proto_matcher.h"
@@ -33,6 +34,7 @@
 #include "pagespeed/kernel/util/grpc.h"
 
 using testing::_;
+using testing::DoAll;
 using testing::Eq;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
@@ -42,30 +44,27 @@ namespace net_instaweb {
 
 namespace {
 
-class MockRpcHandler : public RpcHandler<grpc::GrpcTestService::AsyncService,
+class MockRpcHandler : public RpcHandler<GrpcTestService::AsyncService,
                                          TestRequest, TestResponse> {
  public:
-  MockRpcHandler(grpc::GrpcTestService::AsyncService* service,
+  MockRpcHandler(GrpcTestService::AsyncService* service,
                  ::grpc::ServerCompletionQueue* cq)
-      : RpcHandler<grpc::GrpcTestService::AsyncService, TestRequest,
-                   TestResponse>(service, cq) {
+      : RpcHandler<GrpcTestService::AsyncService, TestRequest, TestResponse>(
+            service, cq) {
     // Default action for HandleRequest is to close the connection with a
     // successful status and not send a reply.
     ON_CALL(*this, HandleRequest(_))
         .WillByDefault(InvokeWithoutArgs(this, &MockRpcHandler::SendFinish));
-    ON_CALL(*this, HandleWriteDone())
-        .WillByDefault(Return());
+    ON_CALL(*this, HandleWriteDone()).WillByDefault(Return());
     EXPECT_CALL(*this, HandleError()).Times(0);
   }
-  virtual ~MockRpcHandler() { }
+  ~MockRpcHandler() override {}
 
   MOCK_METHOD1(HandleRequest, void(const TestRequest& req));
   MOCK_METHOD0(HandleWriteDone, void());
   MOCK_METHOD0(HandleError, void());
 
-  void SendResponse() {
-    ASSERT_THAT(Write(response_), Eq(true));
-  }
+  void SendResponse() { ASSERT_THAT(Write(response_), Eq(true)); }
 
   void SendResponseAndIncrement() {
     ASSERT_THAT(Write(response_), Eq(true));
@@ -76,13 +75,9 @@ class MockRpcHandler : public RpcHandler<grpc::GrpcTestService::AsyncService,
     ASSERT_THAT(Write(response_), Eq(false));
   }
 
-  void SendFinish() {
-    ASSERT_THAT(Finish(status_), Eq(true));
-  }
+  void SendFinish() { ASSERT_THAT(Finish(status_), Eq(true)); }
 
-  void SendFinishAndExpectFailure() {
-    ASSERT_THAT(Finish(status_), Eq(false));
-  }
+  void SendFinishAndExpectFailure() { ASSERT_THAT(Finish(status_), Eq(false)); }
 
   void SetResponse(const GoogleString& ascii_proto) {
     ASSERT_THAT(ParseTextFormatProtoFromString(ascii_proto, &response_),
@@ -96,13 +91,14 @@ class MockRpcHandler : public RpcHandler<grpc::GrpcTestService::AsyncService,
   // StartOnServerThread instead.
   using RpcHandler::Start;
 
-  void InitResponder(grpc::GrpcTestService::AsyncService* service,
+  void InitResponder(GrpcTestService::AsyncService* service,
                      ::grpc::ServerContext* ctx, ReaderWriterT* responder,
-                     ::grpc::ServerCompletionQueue* cq, void* callback) {
+                     ::grpc::ServerCompletionQueue* cq,
+                     void* callback) override {
     service->RequestTest(ctx, responder, cq, cq, callback);
   }
 
-  MockRpcHandler* CreateHandler(grpc::GrpcTestService::AsyncService* service,
+  MockRpcHandler* CreateHandler(GrpcTestService::AsyncService* service,
                                 ::grpc::ServerCompletionQueue* cq) override {
     return new MockRpcHandler(service, cq);
   }
@@ -116,7 +112,7 @@ class RpcHandlerTest : public GrpcServerTest {
  public:
   void SetUp() override {
     GrpcServerTest::SetUp();
-    client_.reset(new ClientConnection(ServerAddress()));
+    client_ = std::make_unique<ClientConnection>(ServerAddress());
   }
 
   void RegisterServices(::grpc::ServerBuilder* builder) override {
@@ -135,16 +131,15 @@ class RpcHandlerTest : public GrpcServerTest {
    public:
     explicit ClientConnection(const GoogleString& address)
         : BaseClientConnection(address),
-          stub_(grpc::GrpcTestService::NewStub(channel_)),
-          reader_writer_(stub_->Test(&client_ctx_)) {
-    }
+          stub_(GrpcTestService::NewStub(channel_)),
+          reader_writer_(stub_->Test(&client_ctx_)) {}
 
-    std::unique_ptr<grpc::GrpcTestService::Stub> stub_;
+    std::unique_ptr<GrpcTestService::Stub> stub_;
     std::unique_ptr<::grpc::ClientReaderWriter<TestRequest, TestResponse>>
         reader_writer_;
   };
 
-  grpc::GrpcTestService::AsyncService service_;
+  GrpcTestService::AsyncService service_;
   std::unique_ptr<ClientConnection> client_;
 };
 
@@ -171,6 +166,8 @@ TEST_F(RpcHandlerTest, WriteWithoutStatus) {
   EXPECT_CALL(*handler, HandleRequest(EqualsProto("id: 1")))
       .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendResponse))
       .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendFinish));
+  EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
+
   StartOnServerThread(handler);
 
   TestRequest req;
@@ -196,6 +193,8 @@ TEST_F(RpcHandlerTest, ReadOneWriteResultAndStatus) {
   EXPECT_CALL(*handler, HandleRequest(EqualsProto("id: 1")))
       .WillOnce(DoAll(InvokeWithoutArgs(handler, &MockRpcHandler::SendResponse),
                       InvokeWithoutArgs(handler, &MockRpcHandler::SendFinish)));
+  EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
+
   StartOnServerThread(handler);
 
   TestRequest req;
@@ -225,6 +224,8 @@ TEST_F(RpcHandlerTest, WriteTwoResultsFail) {
                             &MockRpcHandler::SendResponseAndExpectFailure),
           InvokeWithoutArgs(&sync, &WorkerTestBase::SyncPoint::Notify),
           InvokeWithoutArgs(handler, &MockRpcHandler::SendFinish)));
+  EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
+
   StartOnServerThread(handler);
 
   TestRequest req;
@@ -246,13 +247,12 @@ TEST_F(RpcHandlerTest, CallWriteFromWriteDone) {
   MockRpcHandler* handler = new MockRpcHandler(&service_, queue_.get());
   handler->SetResponse("id: 2");
   EXPECT_CALL(*handler, HandleRequest(_))
-      .WillOnce(InvokeWithoutArgs(handler,
-                                  &MockRpcHandler::SendResponseAndIncrement))
-      .WillOnce(InvokeWithoutArgs(handler,
-                                  &MockRpcHandler::SendFinish));
+      .WillOnce(
+          InvokeWithoutArgs(handler, &MockRpcHandler::SendResponseAndIncrement))
+      .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendFinish));
   EXPECT_CALL(*handler, HandleWriteDone())
-      .WillOnce(InvokeWithoutArgs(handler,
-                                  &MockRpcHandler::SendResponseAndIncrement))
+      .WillOnce(
+          InvokeWithoutArgs(handler, &MockRpcHandler::SendResponseAndIncrement))
       .WillOnce(Return());
   StartOnServerThread(handler);
 
@@ -280,8 +280,7 @@ TEST_F(RpcHandlerTest, CallFinishFromWriteDone) {
       .WillOnce(InvokeWithoutArgs(handler,
                                   &MockRpcHandler::SendResponseAndIncrement));
   EXPECT_CALL(*handler, HandleWriteDone())
-      .WillOnce(InvokeWithoutArgs(handler,
-                                  &MockRpcHandler::SendFinish));
+      .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendFinish));
   StartOnServerThread(handler);
 
   TestRequest req;
@@ -322,7 +321,6 @@ TEST_F(RpcHandlerTest, CallWriteAndFinishFromWriteDone) {
   ::grpc::Status status = client_->reader_writer_->Finish();
   EXPECT_THAT(status.ok(), Eq(true));
 }
-
 
 // Write() works when called outside of an event handler.
 TEST_F(RpcHandlerTest, WriteResultOutsideHandleRequest) {
@@ -369,8 +367,11 @@ TEST_F(RpcHandlerTest, ClientAbortAfterWrite) {
   EXPECT_CALL(*handler, HandleRequest(_))
       .Times(1)
       .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendResponse));
-  EXPECT_CALL(*handler, HandleError()).Times(1)
+  EXPECT_CALL(*handler, HandleError())
+      .Times(1)
       .WillOnce(InvokeWithoutArgs(&sync, &WorkerTestBase::SyncPoint::Notify));
+  EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
+
   StartOnServerThread(handler);
 
   TestRequest req;
@@ -438,6 +439,7 @@ TEST_F(RpcHandlerTest, FinishOutsideHandleRequest) {
   handler->SetResponse("id: 2");
   EXPECT_CALL(*handler, HandleRequest(_))
       .WillOnce(InvokeWithoutArgs(handler, &MockRpcHandler::SendResponse));
+  EXPECT_CALL(*handler, HandleWriteDone()).Times(1);
   StartOnServerThread(handler);
 
   TestRequest req;
@@ -565,9 +567,7 @@ TEST_F(RpcHandlerTest, FinishBeforeStart) {
   EXPECT_THAT(client_->reader_writer_->Write(req), Eq(true));
 
   ::grpc::Status status = client_->reader_writer_->Finish();
-  // CANCELLED is generated by the gRPC library. There's no code in RpcHandler
-  // to propagate the status set above in this case, but that doesn't seem
-  // like a big problem.
+  // CANCELLED is generated by RpcHandler::InitDone().
   EXPECT_THAT(status.error_code(), Eq(::grpc::StatusCode::CANCELLED));
 
   // Create a new client and poke the server with it just to make sure that

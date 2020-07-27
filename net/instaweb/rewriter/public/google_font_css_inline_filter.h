@@ -37,14 +37,14 @@ class GoogleFontCssInlineFilter : public CssInlineFilter {
  public:
   // Note: this also registers our resource url claimant with the driver.
   explicit GoogleFontCssInlineFilter(RewriteDriver* driver);
-  virtual ~GoogleFontCssInlineFilter();
+  ~GoogleFontCssInlineFilter() override;
 
   static void InitStats(Statistics* statistics);
 
-  virtual const char* Name() const { return "InlineGoogleFontCss"; }
+  const char* Name() const override { return "InlineGoogleFontCss"; }
 
  protected:
-  virtual ResourcePtr CreateResource(const char* url, bool* is_authorized);
+  ResourcePtr CreateResource(const char* url, bool* is_authorized) override;
 
  private:
   void ResetAndExplainReason(const char* reason, ResourcePtr* resource);

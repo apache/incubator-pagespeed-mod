@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/url_partnership.h"
 
 #include <cstddef>
@@ -39,12 +38,9 @@ namespace net_instaweb {
 
 UrlPartnership::UrlPartnership(const RewriteDriver* driver)
     : rewrite_options_(driver->options()),
-      url_namer_(driver->server_context()->url_namer()) {
-}
+      url_namer_(driver->server_context()->url_namer()) {}
 
-UrlPartnership::~UrlPartnership() {
-  STLDeleteElements(&url_vector_);
-}
+UrlPartnership::~UrlPartnership() { STLDeleteElements(&url_vector_); }
 
 // Adds a URL to a combination.  If it can be legally added, consulting
 // the DomainLawyer, then true is returned.  AddUrl cannot be called
@@ -56,34 +52,28 @@ bool UrlPartnership::AddUrl(const StringPiece& untrimmed_resource_url,
   TrimWhitespace(untrimmed_resource_url, &resource_url);
 
   if (resource_url.empty()) {
-    handler->Message(
-        kInfo, "Cannot rewrite empty URL relative to %s",
-        original_origin_and_path_.spec_c_str());
+    handler->Message(kInfo, "Cannot rewrite empty URL relative to %s",
+                     original_origin_and_path_.spec_c_str());
   } else if (!original_origin_and_path_.IsWebValid()) {
-    handler->Message(
-        kInfo, "Cannot rewrite %s relative to invalid url %s",
-        resource_url.c_str(),
-        original_origin_and_path_.spec_c_str());
+    handler->Message(kInfo, "Cannot rewrite %s relative to invalid url %s",
+                     resource_url.c_str(),
+                     original_origin_and_path_.spec_c_str());
   } else {
     // First resolve the original request to ensure that it is allowed by the
     // options.
-    scoped_ptr<GoogleUrl> resolved_request(
+    std::unique_ptr<GoogleUrl> resolved_request(
         new GoogleUrl(original_origin_and_path_, resource_url));
     if (!resolved_request->IsWebValid()) {
       handler->Message(
           kInfo, "URL %s cannot be resolved relative to base URL %s",
-          resource_url.c_str(),
-          original_origin_and_path_.spec_c_str());
+          resource_url.c_str(), original_origin_and_path_.spec_c_str());
     } else if (!rewrite_options_->IsAllowed(resolved_request->Spec())) {
       handler->Message(kInfo,
                        "Rewriting URL %s is disallowed via configuration",
                        resolved_request->spec_c_str());
-    } else if (FindResourceDomain(original_origin_and_path_,
-                                  url_namer_,
-                                  rewrite_options_,
-                                  resolved_request.get(),
-                                  &mapped_domain_name,
-                                  handler)) {
+    } else if (FindResourceDomain(original_origin_and_path_, url_namer_,
+                                  rewrite_options_, resolved_request.get(),
+                                  &mapped_domain_name, handler)) {
       if (url_vector_.empty()) {
         domain_and_path_prefix_.swap(mapped_domain_name);
         ret = true;
@@ -120,8 +110,7 @@ bool UrlPartnership::FindResourceDomain(const GoogleUrl& base_url,
     resource->Origin().CopyToString(domain);
   } else {
     ret = rewrite_options->domain_lawyer()->MapRequestToDomain(
-        base_url, resource->Spec(), domain,
-        resource, handler);
+        base_url, resource->Spec(), domain, resource, handler);
   }
   return ret;
 }

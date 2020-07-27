@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_REWRITE_FILTER_H_
 
@@ -65,6 +64,7 @@ enum InlineResult {
 //     rewritten urls, when in general those urls will be in a different domain.
 class ImageRewriteFilter : public RewriteFilter {
   class Context;
+
  public:
   typedef std::map<GoogleString, AssociatedImageInfo> AssociatedImageInfoMap;
 
@@ -112,20 +112,22 @@ class ImageRewriteFilter : public RewriteFilter {
   static const int kRelatedFiltersSize;
 
   explicit ImageRewriteFilter(RewriteDriver* driver);
-  virtual ~ImageRewriteFilter();
+  ~ImageRewriteFilter() override;
   static void InitStats(Statistics* statistics);
   static void Initialize();
   static void Terminate();
   static void AddRelatedOptions(StringPieceVector* target);
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void RenderDone();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element) {}
-  virtual const char* Name() const { return "ImageRewrite"; }
-  virtual const char* id() const { return RewriteOptions::kImageCompressionId; }
-  virtual void EncodeUserAgentIntoResourceContext(
-      ResourceContext* context) const;
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void RenderDone() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override {}
+  const char* Name() const override { return "ImageRewrite"; }
+  const char* id() const override {
+    return RewriteOptions::kImageCompressionId;
+  }
+  void EncodeUserAgentIntoResourceContext(
+      ResourceContext* context) const override;
 
   // Registers image information associated with a URL, for use by
   // experiment_collect_mob_image_info. Should be called from DOM-safe
@@ -144,8 +146,9 @@ class ImageRewriteFilter : public RewriteFilter {
   // Can we inline resource?  If so, encode its contents into the data_url,
   // otherwise leave data_url alone.
   InlineResult TryInline(bool is_html, bool is_critical,
-      int64 image_inline_max_bytes, const CachedResult* cached_result,
-      ResourceSlot* slot, GoogleString* data_url);
+                         int64 image_inline_max_bytes,
+                         const CachedResult* cached_result, ResourceSlot* slot,
+                         GoogleString* data_url);
 
   // The valid contents of a dimension attribute on an image element have one of
   // the following forms: "45%" "45%px" "+45.0%" [45% of browser width; we can't
@@ -172,14 +175,13 @@ class ImageRewriteFilter : public RewriteFilter {
   // parent and slot, and returns it. The result is not registered with the
   // parent.
   RewriteContext* MakeNestedRewriteContextForCss(
-      int64 css_image_inline_max_bytes,
-      RewriteContext* parent,
+      int64 css_image_inline_max_bytes, RewriteContext* parent,
       const ResourceSlotPtr& slot);
 
   // Creates a nested rewrite for the given parent and slot and returns it. The
   // result is not registered with the parent.
-  virtual RewriteContext* MakeNestedRewriteContext(RewriteContext* parent,
-                                                   const ResourceSlotPtr& slot);
+  RewriteContext* MakeNestedRewriteContext(
+      RewriteContext* parent, const ResourceSlotPtr& slot) override;
 
   // Update desired image dimensions if necessary. Returns true if it is
   // updated.
@@ -190,24 +192,22 @@ class ImageRewriteFilter : public RewriteFilter {
   // Determines whether an image should be resized based on the current options.
   //
   // Returns the dimensions to resize to in *desired_dimensions.
-  bool ShouldResize(const ResourceContext& context,
-                    const GoogleString& url,
-                    Image* image,
-                    ImageDim* desired_dimensions);
+  bool ShouldResize(const ResourceContext& context, const GoogleString& url,
+                    Image* image, ImageDim* desired_dimensions);
 
   // Resize image if necessary, returning true if this resizing succeeds and
   // false if it's unnecessary or fails.
-  bool ResizeImageIfNecessary(
-      const Context* rewrite_context, const GoogleString& url,
-      ResourceContext* context, Image* image, CachedResult* cached);
+  bool ResizeImageIfNecessary(const Context* rewrite_context,
+                              const GoogleString& url, ResourceContext* context,
+                              Image* image, CachedResult* cached);
 
   // Allocate and initialize CompressionOptions object based on RewriteOptions
   // and ResourceContext.
   Image::CompressionOptions* ImageOptionsForLoadedResource(
       const ResourceContext& context, const ResourcePtr& input_resource);
 
-  virtual const RewriteOptions::Filter* RelatedFilters(int* num_filters) const;
-  virtual const StringPieceVector* RelatedOptions() const {
+  const RewriteOptions::Filter* RelatedFilters(int* num_filters) const override;
+  const StringPieceVector* RelatedOptions() const override {
     return related_options_;
   }
 
@@ -218,9 +218,9 @@ class ImageRewriteFilter : public RewriteFilter {
   void ReportDroppedRewrite();
 
  protected:
-  virtual const UrlSegmentEncoder* encoder() const;
+  const UrlSegmentEncoder* encoder() const override;
 
-  virtual RewriteContext* MakeRewriteContext();
+  RewriteContext* MakeRewriteContext() override;
 
  private:
   friend class Context;
@@ -240,20 +240,19 @@ class ImageRewriteFilter : public RewriteFilter {
                                           const OutputResourcePtr& result);
 
   // Returns true if it rewrote (ie inlined) the URL.
-  bool FinishRewriteCssImageUrl(
-      int64 css_image_inline_max_bytes,
-      const CachedResult* cached, ResourceSlot* slot,
-      InlineResult* inline_result);
+  bool FinishRewriteCssImageUrl(int64 css_image_inline_max_bytes,
+                                const CachedResult* cached, ResourceSlot* slot,
+                                InlineResult* inline_result);
 
   // Returns true if it rewrote the URL.
-  bool FinishRewriteImageUrl(
-      const CachedResult* cached, const ResourceContext* resource_context,
-      HtmlElement* element, HtmlElement::Attribute* src, int image_index,
-      HtmlResourceSlot* slot, InlineResult* inline_result);
+  bool FinishRewriteImageUrl(const CachedResult* cached,
+                             const ResourceContext* resource_context,
+                             HtmlElement* element, HtmlElement::Attribute* src,
+                             int image_index, HtmlResourceSlot* slot,
+                             InlineResult* inline_result);
 
   // Save image contents in cached if the image is inlinable.
-  void SaveIfInlinable(const StringPiece& contents,
-                       const ImageType image_type,
+  void SaveIfInlinable(const StringPiece& contents, const ImageType image_type,
                        CachedResult* cached);
 
   // Populates width and height from either the attributes specified in the
@@ -270,9 +269,9 @@ class ImageRewriteFilter : public RewriteFilter {
 
   // Resizes low quality image. It further reduces the size of inlined low
   // quality image for mobile.
-  void ResizeLowQualityImage(
-      Image* low_image, const ResourcePtr& input_resource,
-      CachedResult* cached);
+  void ResizeLowQualityImage(Image* low_image,
+                             const ResourcePtr& input_resource,
+                             CachedResult* cached);
 
   // Checks if image is critical to generate low res image for the given image.
   // An image is considered critical if it is in the critical list as determined

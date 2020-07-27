@@ -17,18 +17,17 @@
  * under the License.
  */
 
-
 // Unit-test a custom implementation of deque.
 
 #include "pagespeed/kernel/base/vector_deque.h"
+
 #include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 
 namespace {
 
-class VectorDequeTest : public testing::Test {
-};
+class VectorDequeTest : public testing::Test {};
 
 TEST_F(VectorDequeTest, Queue) {
   VectorDeque<int> dv;

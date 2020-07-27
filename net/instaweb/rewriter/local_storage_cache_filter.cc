@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/local_storage_cache_filter.h"
 
 #include <set>
@@ -63,21 +62,16 @@ LocalStorageCacheFilter::LocalStorageCacheFilter(RewriteDriver* rewrite_driver)
   Statistics* stats = server_context()->statistics();
   num_local_storage_cache_candidates_found_ =
       stats->GetVariable(kCandidatesFound);
-  num_local_storage_cache_stored_total_ =
-      stats->GetVariable(kStoredTotal);
-  num_local_storage_cache_stored_images_ =
-      stats->GetVariable(kStoredImages);
-  num_local_storage_cache_stored_css_ =
-      stats->GetVariable(kStoredCss);
+  num_local_storage_cache_stored_total_ = stats->GetVariable(kStoredTotal);
+  num_local_storage_cache_stored_images_ = stats->GetVariable(kStoredImages);
+  num_local_storage_cache_stored_css_ = stats->GetVariable(kStoredCss);
   num_local_storage_cache_candidates_added_ =
       stats->GetVariable(kCandidatesAdded);
   num_local_storage_cache_candidates_removed_ =
       stats->GetVariable(kCandidatesRemoved);
 }
 
-LocalStorageCacheFilter::~LocalStorageCacheFilter() {
-  cookie_hashes_.clear();
-}
+LocalStorageCacheFilter::~LocalStorageCacheFilter() { cookie_hashes_.clear(); }
 
 void LocalStorageCacheFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(LocalStorageCacheFilter::kCandidatesFound);
@@ -93,16 +87,14 @@ void LocalStorageCacheFilter::StartDocumentImpl() {
   script_needs_inserting_ = false;
 }
 
-void LocalStorageCacheFilter::EndDocument() {
-  cookie_hashes_.clear();
-}
+void LocalStorageCacheFilter::EndDocument() { cookie_hashes_.clear(); }
 
 void LocalStorageCacheFilter::StartElementImpl(HtmlElement* element) {
   // The css_inline_filter and image_rewrite_filter can add the LSC URL to
   // the inlined resource, indicating that we have to insert our JS for them.
   if (element->keyword() == HtmlName::kImg ||
       element->keyword() == HtmlName::kLink) {
-    if (element->AttributeValue(HtmlName::kDataPagespeedLscUrl) != NULL) {
+    if (element->AttributeValue(HtmlName::kDataPagespeedLscUrl) != nullptr) {
       // Note that we might end up not needing the inserted script because
       // the img/link might not be able to be inlined. So be it.
       script_needs_inserting_ = true;
@@ -110,7 +102,7 @@ void LocalStorageCacheFilter::StartElementImpl(HtmlElement* element) {
   }
 
   // We need to insert our javascript before the first element that uses it.
-  if (script_needs_inserting_  && !script_inserted_) {
+  if (script_needs_inserting_ && !script_inserted_) {
     InsertOurScriptElement(element);
   }
 }
@@ -127,7 +119,7 @@ void LocalStorageCacheFilter::EndElementImpl(HtmlElement* element) {
   }
   if (is_img || is_link) {
     const char* url = element->AttributeValue(HtmlName::kDataPagespeedLscUrl);
-    if (url != NULL) {
+    if (url != nullptr) {
       num_local_storage_cache_candidates_found_->Add(1);
       GoogleString hash = GenerateHashFromUrlAndElement(driver(), url, element);
       if (IsHashInCookie(driver(), kLscCookieName, hash, &cookie_hashes_)) {
@@ -160,13 +152,12 @@ void LocalStorageCacheFilter::EndElementImpl(HtmlElement* element) {
 void LocalStorageCacheFilter::InsertOurScriptElement(HtmlElement* before) {
   StaticAssetManager* static_asset_manager =
       driver()->server_context()->static_asset_manager();
-  StringPiece local_storage_cache_js =
-      static_asset_manager->GetAsset(
-          StaticAssetEnum::LOCAL_STORAGE_CACHE_JS, driver()->options());
-  const GoogleString& initialized_js = StrCat(local_storage_cache_js,
-                                              kLscInitializer);
-  HtmlElement* script_element = driver()->NewElement(before->parent(),
-                                                     HtmlName::kScript);
+  StringPiece local_storage_cache_js = static_asset_manager->GetAsset(
+      StaticAssetEnum::LOCAL_STORAGE_CACHE_JS, driver()->options());
+  const GoogleString& initialized_js =
+      StrCat(local_storage_cache_js, kLscInitializer);
+  HtmlElement* script_element =
+      driver()->NewElement(before->parent(), HtmlName::kScript);
   driver()->InsertNodeBeforeNode(before, script_element);
   AddJsToElement(initialized_js, script_element);
   driver()->AddAttribute(script_element, HtmlName::kDataPagespeedNoDefer,
@@ -205,11 +196,11 @@ bool LocalStorageCacheFilter::AddStorableResource(const StringPiece& url,
   if (!skip_cookie_check) {
     RewriteFilter* filter =
         driver->FindFilter(RewriteOptions::kLocalStorageCacheId);
-    if (filter != NULL) {
+    if (filter != nullptr) {
       LocalStorageCacheFilter* lsc =
           static_cast<LocalStorageCacheFilter*>(filter);
-      GoogleString hash = GenerateHashFromUrlAndElement(driver, state->url_,
-                                                        element);
+      GoogleString hash =
+          GenerateHashFromUrlAndElement(driver, state->url_, element);
       add_the_attr = IsHashInCookie(driver, kLscCookieName, hash,
                                     lsc->mutable_cookie_hashes());
     }
@@ -233,14 +224,14 @@ bool LocalStorageCacheFilter::AddLscAttributes(const StringPiece url,
   }
 
   // Don't add the other attributes if we don't have a data-pagespeed-lsc-url.
-  if (element->AttributeValue(HtmlName::kDataPagespeedLscUrl) == NULL) {
+  if (element->AttributeValue(HtmlName::kDataPagespeedLscUrl) == nullptr) {
     return false;
   }
 
   // TODO(matterbury): Determine how expensive this is and drop it if too high.
   RewriteFilter* filter =
       driver->FindFilter(RewriteOptions::kLocalStorageCacheId);
-  if (filter != NULL) {
+  if (filter != nullptr) {
     LocalStorageCacheFilter* lsc =
         static_cast<LocalStorageCacheFilter*>(filter);
     lsc->num_local_storage_cache_candidates_added_->Add(1);
@@ -255,8 +246,8 @@ bool LocalStorageCacheFilter::AddLscAttributes(const StringPiece url,
     if (input_info.has_expiration_time_ms()) {
       GoogleString expiry;
       if (ConvertTimeToString(input_info.expiration_time_ms(), &expiry)) {
-        driver->AddAttribute(
-            element, HtmlName::kDataPagespeedLscExpiry, expiry);
+        driver->AddAttribute(element, HtmlName::kDataPagespeedLscExpiry,
+                             expiry);
       }
     }
   }
@@ -275,7 +266,7 @@ void LocalStorageCacheFilter::RemoveLscAttributes(HtmlElement* element,
 
   RewriteFilter* filter =
       driver->FindFilter(RewriteOptions::kLocalStorageCacheId);
-  if (filter != NULL) {
+  if (filter != nullptr) {
     LocalStorageCacheFilter* lsc =
         static_cast<LocalStorageCacheFilter*>(filter);
     lsc->num_local_storage_cache_candidates_removed_->Add(1);
@@ -286,7 +277,7 @@ bool LocalStorageCacheFilter::IsHashInCookie(const RewriteDriver* driver,
                                              const StringPiece cookie_name,
                                              const StringPiece hash,
                                              std::set<StringPiece>* hash_set) {
-  if (driver->request_headers() == NULL) {
+  if (driver->request_headers() == nullptr) {
     LOG(WARNING) << "LocalStorageCacheFilter::IsHashInCookie: NO HEADERS!";
     return false;
   }
@@ -331,19 +322,18 @@ GoogleString LocalStorageCacheFilter::ExtractOtherImgAttributes(
   // data-pagespeed-no-defer, pagespeed_no_defer, and src.
   GoogleString result;
   const HtmlElement::AttributeList& attrs = element->attributes();
-  for (HtmlElement::AttributeConstIterator i(attrs.begin());
-       i != attrs.end(); ++i) {
+  for (HtmlElement::AttributeConstIterator i(attrs.begin()); i != attrs.end();
+       ++i) {
     const HtmlElement::Attribute& attr = *i;
     HtmlName::Keyword keyword = attr.keyword();
     if (keyword != HtmlName::kDataPagespeedLscUrl &&
         keyword != HtmlName::kDataPagespeedLscHash &&
         keyword != HtmlName::kDataPagespeedLscExpiry &&
         keyword != HtmlName::kDataPagespeedNoDefer &&
-        keyword != HtmlName::kPagespeedNoDefer &&
-        keyword != HtmlName::kSrc) {
+        keyword != HtmlName::kPagespeedNoDefer && keyword != HtmlName::kSrc) {
       GoogleString escaped_js;
       // Escape problematic characters but don't quote it as we do that.
-      if (attr.DecodedValueOrNull() != NULL) {
+      if (attr.DecodedValueOrNull() != nullptr) {
         EscapeToJsStringLiteral(attr.DecodedValueOrNull(), false, &escaped_js);
       }
       StrAppend(&result, ", \"", attr.name_str(), "=", escaped_js, "\"");
@@ -353,8 +343,7 @@ GoogleString LocalStorageCacheFilter::ExtractOtherImgAttributes(
 }
 
 GoogleString LocalStorageCacheFilter::GenerateHashFromUrlAndElement(
-    const RewriteDriver* driver,
-    const StringPiece& url,
+    const RewriteDriver* driver, const StringPiece& url,
     const HtmlElement* element) {
   GoogleString backing_string;
   StringPiece url_to_hash;
@@ -369,16 +358,16 @@ GoogleString LocalStorageCacheFilter::GenerateHashFromUrlAndElement(
   // added that the cached image depended on; we'd need to add that here).
   // TODO(matterbury): Keep an eye on the attributes that make up the cache key
   // for images in RewriteContext.
-  const char* width  = element->AttributeValue(HtmlName::kWidth);
+  const char* width = element->AttributeValue(HtmlName::kWidth);
   const char* height = element->AttributeValue(HtmlName::kHeight);
-  if (width == NULL && height == NULL) {
+  if (width == nullptr && height == nullptr) {
     url_to_hash.set(url.data(), url.size());
   } else {
     url.CopyToString(&backing_string);
-    if (width != NULL) {
+    if (width != nullptr) {
       StrAppend(&backing_string, "!w=", width);
     }
-    if (height != NULL) {
+    if (height != nullptr) {
       StrAppend(&backing_string, "!h=", height);
     }
     url_to_hash.set(backing_string.data(), backing_string.size());

@@ -19,7 +19,7 @@
 
 #include "pagespeed/opt/ads/show_ads_snippet_parser.h"
 
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/js/js_keywords.h"
 #include "pagespeed/kernel/js/js_tokenizer.h"
@@ -68,8 +68,7 @@ StringPiece StripAnyEnclosingQuotes(StringPiece input) {
 // Advances to the next token, skipping whitespaces and comments. The state of
 // token and type is updated when moving to the next token.
 void AdvanceToNextNoneWhiteSpaceCommentToken(
-    pagespeed::js::JsTokenizer* tokenizer,
-    StringPiece* token,
+    pagespeed::js::JsTokenizer* tokenizer, StringPiece* token,
     pagespeed::JsKeywords::Type* type) {
   do {
     (*type) = tokenizer->NextToken(token);

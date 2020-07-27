@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/apache_fetch.h"
+
+#include <memory>
 
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -39,11 +40,11 @@
 
 namespace {
 
-const char kJsData[]        = "alert ( 'hello, world!' ) ";
-const char kJsUrl[]         = "http://example.com/foo.js";
-const char kExampleUrl[]    = "http://www.example.com";
+const char kJsData[] = "alert ( 'hello, world!' ) ";
+const char kJsUrl[] = "http://example.com/foo.js";
+const char kExampleUrl[] = "http://www.example.com";
 const char kCacheFragment[] = "";
-const char kDebugInfo[]     = "ignored";
+const char kDebugInfo[] = "ignored";
 const char kExpectedHeaders[] =
     "Content-Type: text/plain\n"
     "Set-Cookie: test=cookie\n"
@@ -64,18 +65,17 @@ class ApacheFetchTest : public RewriteTestBase {
             new ApacheWriter(&request_, server_context_->thread_system())),
         request_headers_(new RequestHeaders()),
         request_ctx_(RequestContext::NewTestRequestContextWithTimer(
-            server_context_->thread_system(), timer())) {
-  }
+            server_context_->thread_system(), timer())) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
 
     MockApache::Initialize();
     MockApache::PrepareRequest(&request_);
   }
 
-  virtual void TearDown() {
-    apache_fetch_.reset(NULL);
+  void TearDown() override {
+    apache_fetch_.reset(nullptr);
     RewriteTestBase::TearDown();
   }
 
@@ -91,9 +91,9 @@ class ApacheFetchTest : public RewriteTestBase {
     // Takes ownership of apache_writer and request_headers but nothing else.
     // Keeping a copy them violates ApacheFetch's mutex guarantees, and should
     // only be done by tests.
-    apache_fetch_.reset(new ApacheFetch(
+    apache_fetch_ = std::make_unique<ApacheFetch>(
         url.as_string(), kDebugInfo, rewrite_driver_, apache_writer_,
-        request_headers_, request_ctx_, options(), message_handler()));
+        request_headers_, request_ctx_, options(), message_handler());
     apache_fetch_->set_buffered(buffered);
     apache_fetch_->response_headers()->SetStatusAndReason(code);
 
@@ -113,7 +113,7 @@ class ApacheFetchTest : public RewriteTestBase {
     EXPECT_STREQ("", MockApache::ActionsSinceLastCall());
   }
 
-  virtual ~ApacheFetchTest() {
+  ~ApacheFetchTest() override {
     MockApache::CleanupRequest(&request_);
     MockApache::Terminate();
   }
@@ -143,26 +143,22 @@ class ApacheFetchTest : public RewriteTestBase {
                      "ap_remove_output_filter(MOD_EXPIRES) "
                      "ap_remove_output_filter(FIXUP_HEADERS_OUT) "
                      "ap_set_content_type(application/javascript) "
-                     "ap_rwrite(", kJsData, ")"),
+                     "ap_rwrite(",
+                     kJsData, ")"),
               MockApache::ActionsSinceLastCall());
-    apache_fetch_.reset(NULL);
+    apache_fetch_.reset(nullptr);
   }
 
-  void ReleaseKey(GoogleString key) {
-    delay_cache()->ReleaseKey(key);
-  }
+  void ReleaseKey(GoogleString key) { delay_cache()->ReleaseKey(key); }
 
  protected:
-  void FetchDone() {
-    apache_fetch_->Done(true);
-  }
+  void FetchDone() { apache_fetch_->Done(true); }
 
   // After a request is all set up, run through a successful completion and
   // verify that no issues were sent to the message handler.
   void WaitExpectSuccess() {
     rewrite_driver_->scheduler()->AddAlarmAtUs(
-        timer()->NowUs() + 1,
-        MakeFunction(this, &ApacheFetchTest::FetchDone));
+        timer()->NowUs() + 1, MakeFunction(this, &ApacheFetchTest::FetchDone));
     apache_fetch_->Wait();
     EXPECT_EQ(0, message_handler_.TotalMessages());
   }
@@ -175,12 +171,10 @@ class ApacheFetchTest : public RewriteTestBase {
   ApacheWriter* apache_writer_;
   RequestHeaders* request_headers_;
   RequestContextPtr request_ctx_;
-  scoped_ptr<ApacheFetch> apache_fetch_;
+  std::unique_ptr<ApacheFetch> apache_fetch_;
 };
 
-TEST_F(ApacheFetchTest, WaitIproUnbuffered) {
-  WaitIproTest(false);
-}
+TEST_F(ApacheFetchTest, WaitIproUnbuffered) { WaitIproTest(false); }
 
 TEST_F(ApacheFetchTest, WaitIproUnbufferedWithTest) {
   GoogleString key = http_cache()->CompositeKey(kJsUrl, kCacheFragment);
@@ -196,9 +190,7 @@ TEST_F(ApacheFetchTest, WaitIproUnbufferedWithTest) {
   WaitIproTest(false);
 }
 
-TEST_F(ApacheFetchTest, WaitIproBuffered) {
-  WaitIproTest(true);
-}
+TEST_F(ApacheFetchTest, WaitIproBuffered) { WaitIproTest(true); }
 
 TEST_F(ApacheFetchTest, SuccessBuffered) {
   InitFetchBuffered(kExampleUrl, HttpStatus::kOK);
@@ -298,14 +290,15 @@ TEST_F(ApacheFetchTest, NoContentType200Buffered) {
   WaitExpectSuccess();
 
   EXPECT_EQ(403, request_.status);
-  EXPECT_STREQ("Set-Cookie: test=cookie\n"
-               "Set-Cookie: tasty=cookie\n"
-               "Set-Cookie2: obselete\n"
-               "Content-Type: text/html\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
-               "X-Content-Type-Options: nosniff\n"
-               "Cache-Control: max-age=0, no-cache\n",
-               HeadersOutToString(&request_));
+  EXPECT_STREQ(
+      "Set-Cookie: test=cookie\n"
+      "Set-Cookie: tasty=cookie\n"
+      "Set-Cookie2: obselete\n"
+      "Content-Type: text/html\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
+      "X-Content-Type-Options: nosniff\n"
+      "Cache-Control: max-age=0, no-cache\n",
+      HeadersOutToString(&request_));
   EXPECT_EQ(
       "ap_set_content_type(text/html) "
       "ap_remove_output_filter(MOD_EXPIRES) "
@@ -321,14 +314,15 @@ TEST_F(ApacheFetchTest, NoContentType200Unbuffered) {
       HttpAttributes::kContentType));
   EXPECT_TRUE(apache_fetch_->Write("Example response.", message_handler()));
   EXPECT_EQ(403, request_.status);
-  EXPECT_STREQ("Set-Cookie: test=cookie\n"
-               "Set-Cookie: tasty=cookie\n"
-               "Set-Cookie2: obselete\n"
-               "Content-Type: text/html\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
-               "X-Content-Type-Options: nosniff\n"
-               "Cache-Control: max-age=0, no-cache\n",
-               HeadersOutToString(&request_));
+  EXPECT_STREQ(
+      "Set-Cookie: test=cookie\n"
+      "Set-Cookie: tasty=cookie\n"
+      "Set-Cookie2: obselete\n"
+      "Content-Type: text/html\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
+      "X-Content-Type-Options: nosniff\n"
+      "Cache-Control: max-age=0, no-cache\n",
+      HeadersOutToString(&request_));
   EXPECT_EQ(
       "ap_set_content_type(text/html) "
       "ap_remove_output_filter(MOD_EXPIRES) "
@@ -351,15 +345,16 @@ TEST_F(ApacheFetchTest, NoContentType301Buffered) {
   WaitExpectSuccess();
 
   EXPECT_EQ(403, request_.status);
-  EXPECT_STREQ("Set-Cookie: test=cookie\n"
-               "Set-Cookie: tasty=cookie\n"
-               "Set-Cookie2: obselete\n"
-               "Location: elsewhere\n"
-               "Content-Type: text/html\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
-               "X-Content-Type-Options: nosniff\n"
-               "Cache-Control: max-age=0, no-cache\n",
-               HeadersOutToString(&request_));
+  EXPECT_STREQ(
+      "Set-Cookie: test=cookie\n"
+      "Set-Cookie: tasty=cookie\n"
+      "Set-Cookie2: obselete\n"
+      "Location: elsewhere\n"
+      "Content-Type: text/html\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
+      "X-Content-Type-Options: nosniff\n"
+      "Cache-Control: max-age=0, no-cache\n",
+      HeadersOutToString(&request_));
   EXPECT_EQ(
       "ap_set_content_type(text/html) "
       "ap_remove_output_filter(MOD_EXPIRES) "
@@ -375,15 +370,16 @@ TEST_F(ApacheFetchTest, NoContentType301Unbuffered) {
   apache_fetch_->response_headers()->Add("Location", "elsewhere");
   EXPECT_TRUE(apache_fetch_->Write("moved elsewhere", message_handler()));
   EXPECT_EQ(403, request_.status);
-  EXPECT_STREQ("Set-Cookie: test=cookie\n"
-               "Set-Cookie: tasty=cookie\n"
-               "Set-Cookie2: obselete\n"
-               "Location: elsewhere\n"
-               "Content-Type: text/html\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
-               "X-Content-Type-Options: nosniff\n"
-               "Cache-Control: max-age=0, no-cache\n",
-               HeadersOutToString(&request_));
+  EXPECT_STREQ(
+      "Set-Cookie: test=cookie\n"
+      "Set-Cookie: tasty=cookie\n"
+      "Set-Cookie2: obselete\n"
+      "Location: elsewhere\n"
+      "Content-Type: text/html\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
+      "X-Content-Type-Options: nosniff\n"
+      "Cache-Control: max-age=0, no-cache\n",
+      HeadersOutToString(&request_));
   EXPECT_EQ(
       "ap_set_content_type(text/html) "
       "ap_remove_output_filter(MOD_EXPIRES) "
@@ -405,13 +401,14 @@ TEST_F(ApacheFetchTest, NoContentType304Buffered) {
   WaitExpectSuccess();
 
   EXPECT_EQ(304, request_.status);
-  EXPECT_STREQ("Set-Cookie: test=cookie\n"
-               "Set-Cookie: tasty=cookie\n"
-               "Set-Cookie2: obselete\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
-               "X-Content-Type-Options: nosniff\n"
-               "Cache-Control: max-age=0, no-cache\n",
-               HeadersOutToString(&request_));
+  EXPECT_STREQ(
+      "Set-Cookie: test=cookie\n"
+      "Set-Cookie: tasty=cookie\n"
+      "Set-Cookie2: obselete\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
+      "X-Content-Type-Options: nosniff\n"
+      "Cache-Control: max-age=0, no-cache\n",
+      HeadersOutToString(&request_));
   EXPECT_EQ(
       "ap_remove_output_filter(MOD_EXPIRES) "
       "ap_remove_output_filter(FIXUP_HEADERS_OUT) "
@@ -425,13 +422,14 @@ TEST_F(ApacheFetchTest, NoContentType304Unbuffered) {
   EXPECT_TRUE(apache_fetch_->response_headers()->RemoveAll("Content-Type"));
   EXPECT_TRUE(apache_fetch_->Write("not modified", message_handler()));
   EXPECT_EQ(304, request_.status);
-  EXPECT_STREQ("Set-Cookie: test=cookie\n"
-               "Set-Cookie: tasty=cookie\n"
-               "Set-Cookie2: obselete\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
-               "X-Content-Type-Options: nosniff\n"
-               "Cache-Control: max-age=0, no-cache\n",
-               HeadersOutToString(&request_));
+  EXPECT_STREQ(
+      "Set-Cookie: test=cookie\n"
+      "Set-Cookie: tasty=cookie\n"
+      "Set-Cookie2: obselete\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
+      "X-Content-Type-Options: nosniff\n"
+      "Cache-Control: max-age=0, no-cache\n",
+      HeadersOutToString(&request_));
   EXPECT_EQ(
       "ap_remove_output_filter(MOD_EXPIRES) "
       "ap_remove_output_filter(FIXUP_HEADERS_OUT) "
@@ -449,16 +447,18 @@ TEST_F(ApacheFetchTest, NoContentType204Buffered) {
 
   WaitExpectSuccess();
   EXPECT_EQ(204, request_.status);
-  EXPECT_STREQ("Set-Cookie: test=cookie\n"
-               "Set-Cookie: tasty=cookie\n"
-               "Set-Cookie2: obselete\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
-               "X-Content-Type-Options: nosniff\n"
-               "Cache-Control: max-age=0, no-cache\n",
-               HeadersOutToString(&request_));
-  EXPECT_STREQ("ap_remove_output_filter(MOD_EXPIRES) "
-               "ap_remove_output_filter(FIXUP_HEADERS_OUT)",
-               MockApache::ActionsSinceLastCall());
+  EXPECT_STREQ(
+      "Set-Cookie: test=cookie\n"
+      "Set-Cookie: tasty=cookie\n"
+      "Set-Cookie2: obselete\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
+      "X-Content-Type-Options: nosniff\n"
+      "Cache-Control: max-age=0, no-cache\n",
+      HeadersOutToString(&request_));
+  EXPECT_STREQ(
+      "ap_remove_output_filter(MOD_EXPIRES) "
+      "ap_remove_output_filter(FIXUP_HEADERS_OUT)",
+      MockApache::ActionsSinceLastCall());
 }
 
 TEST_F(ApacheFetchTest, NoContentType204Unbuffered) {
@@ -467,16 +467,18 @@ TEST_F(ApacheFetchTest, NoContentType204Unbuffered) {
   EXPECT_TRUE(apache_fetch_->response_headers()->RemoveAll("Content-Type"));
   apache_fetch_->HeadersComplete();
   EXPECT_EQ(204, request_.status);
-  EXPECT_STREQ("Set-Cookie: test=cookie\n"
-               "Set-Cookie: tasty=cookie\n"
-               "Set-Cookie2: obselete\n"
-               "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
-               "X-Content-Type-Options: nosniff\n"
-               "Cache-Control: max-age=0, no-cache\n",
-               HeadersOutToString(&request_));
-  EXPECT_STREQ("ap_remove_output_filter(MOD_EXPIRES) "
-               "ap_remove_output_filter(FIXUP_HEADERS_OUT)",
-               MockApache::ActionsSinceLastCall());
+  EXPECT_STREQ(
+      "Set-Cookie: test=cookie\n"
+      "Set-Cookie: tasty=cookie\n"
+      "Set-Cookie2: obselete\n"
+      "Date: Tue, 02 Feb 2010 18:51:26 GMT\n"
+      "X-Content-Type-Options: nosniff\n"
+      "Cache-Control: max-age=0, no-cache\n",
+      HeadersOutToString(&request_));
+  EXPECT_STREQ(
+      "ap_remove_output_filter(MOD_EXPIRES) "
+      "ap_remove_output_filter(FIXUP_HEADERS_OUT)",
+      MockApache::ActionsSinceLastCall());
   apache_fetch_->Done(true);
 }
 

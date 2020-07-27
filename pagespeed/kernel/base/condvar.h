@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_CONDVAR_H_
 #define PAGESPEED_KERNEL_BASE_CONDVAR_H_
 
@@ -30,7 +29,7 @@ namespace net_instaweb {
 // given mutex type, which ought to extend CondvarCapableMutex.
 class ThreadSystem::Condvar {
  public:
-  Condvar() { }
+  Condvar() {}
   virtual ~Condvar();
 
   // Return the mutex associated with this condition variable.

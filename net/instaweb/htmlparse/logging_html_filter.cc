@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
 #include "net/instaweb/htmlparse/public/logging_html_filter.h"
+
 #include "net/instaweb/htmlparse/public/statistics_log.h"
 #include "pagespeed/kernel/html/html_element.h"
 
@@ -29,21 +29,17 @@ namespace {
 // Must match up with enum Statistic in logging_html_filter.h;
 // is this bad for maintenance?
 const char* kStatisticNames[] = {
-  "explicit_close", "implicit_close", "brief_close", "closed", "unclosed",
-  "spurious_close", "tags", "cdata", "comments", "directives", "documents",
-  "IE_directives",
+    "explicit_close", "implicit_close", "brief_close", "closed",
+    "unclosed",       "spurious_close", "tags",        "cdata",
+    "comments",       "directives",     "documents",   "IE_directives",
 };
-}
+}  // namespace
 
 namespace net_instaweb {
 
-LoggingFilter::LoggingFilter() {
-  Reset();
-}
+LoggingFilter::LoggingFilter() { Reset(); }
 
-void LoggingFilter::StartDocument() {
-  ++stats_[NUM_DOCUMENTS];
-}
+void LoggingFilter::StartDocument() { ++stats_[NUM_DOCUMENTS]; }
 
 void LoggingFilter::StartElement(HtmlElement* element) {
   // Does EndElement get called for singleton elements?
@@ -86,9 +82,7 @@ void LoggingFilter::EndElement(HtmlElement* element) {
   }
 }
 
-void LoggingFilter::Cdata(HtmlCdataNode* cdata) {
-  ++stats_[NUM_CDATA];
-}
+void LoggingFilter::Cdata(HtmlCdataNode* cdata) { ++stats_[NUM_CDATA]; }
 
 void LoggingFilter::Comment(HtmlCommentNode* comment) {
   ++stats_[NUM_COMMENTS];
@@ -103,7 +97,7 @@ void LoggingFilter::Directive(HtmlDirectiveNode* directive) {
 }
 
 // Logging, diffing, and aggregation
-void LoggingFilter::LogStatistics(StatisticsLog *statistics_log) const {
+void LoggingFilter::LogStatistics(StatisticsLog* statistics_log) const {
   for (int statistic = MIN_STAT; statistic < MAX_STAT; ++statistic) {
     statistics_log->LogStat(kStatisticNames[statistic], stats_[statistic]);
   }

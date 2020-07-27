@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/inline_attribute_slot.h"
 
 namespace net_instaweb {
@@ -29,16 +28,14 @@ InlineAttributeSlot::InlineAttributeSlot(const ResourcePtr& resource,
     : ResourceSlot(resource),
       element_(element),
       attribute_(attribute),
-      location_(location.data(), location.size()) {
-}
+      location_(location.data(), location.size()) {}
 
-InlineAttributeSlot::~InlineAttributeSlot() {
-}
+InlineAttributeSlot::~InlineAttributeSlot() {}
 
 void InlineAttributeSlot::Render() {
   if (!disable_rendering()) {
-    DCHECK(attribute_ != NULL);
-    if (attribute_ != NULL) {
+    DCHECK(attribute_ != nullptr);
+    if (attribute_ != nullptr) {
       attribute_->SetValue(resource()->ExtractUncompressedContents());
     }
   }

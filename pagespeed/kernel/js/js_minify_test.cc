@@ -17,9 +17,7 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/js/js_minify.h"
-
 
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -29,8 +27,6 @@
 #include "pagespeed/kernel/js/js_keywords.h"
 
 namespace {
-
-using net_instaweb::StrAppend;
 
 // This sample code comes from Douglas Crockford's jsmin example.
 const char* kBeforeCompilation =
@@ -139,17 +135,17 @@ class JsMinifyTest : public testing::Test {
     net_instaweb::GoogleMessageHandler message_handler;
     GoogleString original;
     {
-      const GoogleString filepath = net_instaweb::StrCat(
-          net_instaweb::GTestSrcDir(), kTestRootDir, before_filename);
-      ASSERT_TRUE(file_system.ReadFile(
-          filepath.c_str(), &original, &message_handler));
+      const GoogleString filepath =
+          StrCat(net_instaweb::GTestSrcDir(), kTestRootDir, before_filename);
+      ASSERT_TRUE(
+          file_system.ReadFile(filepath.c_str(), &original, &message_handler));
     }
     GoogleString expected;
     {
-      const GoogleString filepath = net_instaweb::StrCat(
-          net_instaweb::GTestSrcDir(), kTestRootDir, after_filename);
-      ASSERT_TRUE(file_system.ReadFile(
-          filepath.c_str(), &expected, &message_handler));
+      const GoogleString filepath =
+          StrCat(net_instaweb::GTestSrcDir(), kTestRootDir, after_filename);
+      ASSERT_TRUE(
+          file_system.ReadFile(filepath.c_str(), &expected, &message_handler));
     }
     GoogleString actual;
     EXPECT_TRUE(pagespeed::js::MinifyUtf8Js(&patterns_, original, &actual));
@@ -192,7 +188,7 @@ TEST_F(JsMinifyTest, ErrorRegexNewline) {
 }
 
 TEST_F(JsMinifyTest, SignedCharDoesntSignExtend) {
-  const unsigned char input[] = { 0xe0, 0xb2, 0xa0, 0x00 };
+  const unsigned char input[] = {0xe0, 0xb2, 0xa0, 0x00};
   const char* input_nosign = reinterpret_cast<const char*>(input);
   CheckMinification(input_nosign, input_nosign);
 }
@@ -209,9 +205,7 @@ TEST_F(JsMinifyTest, EscapedCrlfInStringLiteral) {
   CheckMinification("var x = 'foo\\\r\nbar';", "var x='foo\\\r\nbar';");
 }
 
-TEST_F(JsMinifyTest, EmptyInput) {
-  CheckMinification("", "");
-}
+TEST_F(JsMinifyTest, EmptyInput) { CheckMinification("", ""); }
 
 TEST_F(JsMinifyTest, TreatCarriageReturnAsLinebreak) {
   CheckMinification("x = 1\ry = 2", "x=1\ny=2");
@@ -377,8 +371,7 @@ TEST_F(JsMinifyTest, RegexLiteralWithBrackets2) {
   // The first ] is escaped and doesn't close the [, so the following / doesn't
   // close the regex, so the following space is still in the regex and must be
   // preserved.
-  CheckMinification("var x = /z[\\]/ ]/, y = 3;",
-                    "var x=/z[\\]/ ]/,y=3;");
+  CheckMinification("var x = /z[\\]/ ]/, y = 3;", "var x=/z[\\]/ ]/,y=3;");
 }
 
 TEST_F(JsMinifyTest, ReturnRegex1) {
@@ -391,8 +384,7 @@ TEST_F(JsMinifyTest, ReturnRegex2) {
   // This test comes from the real world.  If "return" is incorrectly treated
   // as an identifier, the second slash will be treated as opening a regex
   // rather than closing it, and we'll error due to an unclosed regex.
-  CheckMinification("return/#.+/.test(\n'#24' );",
-                    "return/#.+/.test('#24');");
+  CheckMinification("return/#.+/.test(\n'#24' );", "return/#.+/.test('#24');");
 }
 
 TEST_F(JsMinifyTest, ThrowRegex) {
@@ -412,9 +404,8 @@ TEST_F(JsMinifyTest, KeywordPrecedesRegex) {
   // Example, "typeof /./    /* hi there */;" ->  "typeof/./;"
   for (pagespeed::JsKeywords::Iterator iter; !iter.AtEnd(); iter.Next()) {
     if (pagespeed::JsKeywords::CanKeywordPrecedeRegEx(iter.name())) {
-      GoogleString input =
-          net_instaweb::StrCat(iter.name(), " /./   /* hi there */;");
-      GoogleString expected = net_instaweb::StrCat(iter.name(), "/./;");
+      GoogleString input = StrCat(iter.name(), " /./   /* hi there */;");
+      GoogleString expected = StrCat(iter.name(), "/./;");
       CheckMinification(input, expected);
     }
   }
@@ -424,8 +415,7 @@ TEST_F(JsMinifyTest, LoopRegex) {
   // Make sure we understand that a slash after "while (...)" or "for (...)" is
   // a regex, not division.  Our old minifier gets this wrong, but the new
   // minifier should handle it correctly.
-  CheckNewMinification("while (0) /\\//.exec('');",
-                       "while(0)/\\//.exec('');");
+  CheckNewMinification("while (0) /\\//.exec('');", "while(0)/\\//.exec('');");
   CheckNewMinification("for (x in y) / z /.exec(x);",
                        "for(x in y)/ z /.exec(x);");
 }
@@ -538,9 +528,10 @@ TEST_F(JsMinifyTest, Latin1Input) {
   // Try to minify input that is Latin-1 encoded.  This is not valid UTF-8, but
   // we should be able to proceed gracefully (in most cases) if the non-ascii
   // characters only ever appear in string literals and comments.
-  CheckMinification("str='Qu\xE9 pasa';// 'qu\xE9' means 'what'\n"
-                    "cents=/* 73\xA2 is $0.73 */73;",
-                    "str='Qu\xE9 pasa';cents=73;");
+  CheckMinification(
+      "str='Qu\xE9 pasa';// 'qu\xE9' means 'what'\n"
+      "cents=/* 73\xA2 is $0.73 */73;",
+      "str='Qu\xE9 pasa';cents=73;");
 }
 
 const char kCollapsingStringTestString[] =
@@ -553,18 +544,17 @@ const char kCollapsedTestString[] =
     "var y=/re'gex/\n"
     "var z=\"\"+x";
 
-
 TEST_F(JsMinifyTest, CollapsingStringTest) {
-    int size = 0;
-    GoogleString output;
-    ASSERT_TRUE(pagespeed::js::MinifyJsAndCollapseStrings(
-        kCollapsingStringTestString, &output));
-    ASSERT_EQ(strlen(kCollapsedTestString), output.size());
-    ASSERT_EQ(kCollapsedTestString, output);
+  int size = 0;
+  GoogleString output;
+  ASSERT_TRUE(pagespeed::js::MinifyJsAndCollapseStrings(
+      kCollapsingStringTestString, &output));
+  ASSERT_EQ(strlen(kCollapsedTestString), output.size());
+  ASSERT_EQ(kCollapsedTestString, output);
 
-    ASSERT_TRUE(pagespeed::js::GetMinifiedStringCollapsedJsSize(
-        kCollapsingStringTestString, &size));
-    ASSERT_EQ(static_cast<int>(strlen(kCollapsedTestString)), size);
+  ASSERT_TRUE(pagespeed::js::GetMinifiedStringCollapsedJsSize(
+      kCollapsingStringTestString, &size));
+  ASSERT_EQ(static_cast<int>(strlen(kCollapsedTestString)), size);
 }
 
 TEST_F(JsMinifyTest, MinifyAngular) {
@@ -585,13 +575,11 @@ GoogleString MappingsToString(
     const net_instaweb::source_map::MappingVector& mappings) {
   GoogleString result("{");
   for (int i = 0, n = mappings.size(); i < n; ++i) {
-    StrAppend(&result, "(",
-              net_instaweb::IntegerToString(mappings[i].gen_line), ", ",
-              net_instaweb::IntegerToString(mappings[i].gen_col),  ", ");
-    StrAppend(&result,
-              net_instaweb::IntegerToString(mappings[i].src_file), ", ",
-              net_instaweb::IntegerToString(mappings[i].src_line), ", ",
-              net_instaweb::IntegerToString(mappings[i].src_col),  "), ");
+    StrAppend(&result, "(", net_instaweb::IntegerToString(mappings[i].gen_line),
+              ", ", net_instaweb::IntegerToString(mappings[i].gen_col), ", ");
+    StrAppend(&result, net_instaweb::IntegerToString(mappings[i].src_file),
+              ", ", net_instaweb::IntegerToString(mappings[i].src_line), ", ",
+              net_instaweb::IntegerToString(mappings[i].src_col), "), ");
   }
   result += "}";
   return result;
@@ -601,8 +589,7 @@ TEST_F(JsMinifyTest, SourceMapsSimple) {
   const char js_before[] =
       "/* Simple hello world program. */\n"
       "alert( 'Hello, World!' );\n";
-  const char expected_js_after[] =
-      "alert('Hello, World!');";
+  const char expected_js_after[] = "alert('Hello, World!');";
   const char expected_map[] =
       "{"
       "(0, 0, 0, 1, 0), "    // alert(
@@ -612,8 +599,8 @@ TEST_F(JsMinifyTest, SourceMapsSimple) {
 
   GoogleString output;
   net_instaweb::source_map::MappingVector mappings;
-  EXPECT_TRUE(pagespeed::js::MinifyUtf8JsWithSourceMap(
-      &patterns_, js_before, &output, &mappings));
+  EXPECT_TRUE(pagespeed::js::MinifyUtf8JsWithSourceMap(&patterns_, js_before,
+                                                       &output, &mappings));
 
   EXPECT_EQ(expected_js_after, output);
 
@@ -630,17 +617,17 @@ TEST_F(JsMinifyTest, SourceMapsComplex) {
 
   const char expected_map[] =
       "{"
-      "(0, 0, 0, 14, 0), "     // var is
-      "(0, 6, 0, 14, 7), "     // =
-      "(0, 7, 0, 14, 9), "     // {
+      "(0, 0, 0, 14, 0), "  // var is
+      "(0, 6, 0, 14, 7), "  // =
+      "(0, 7, 0, 14, 9), "  // {
 
-      "(0, 8, 0, 15, 4), "     // ie:
-      "(0, 11, 0, 15, 13), "   // navigator.appName
-      "(0, 28, 0, 15, 31), "   // ==
-      "(0, 30, 0, 15, 34), "   // 'Microsoft Internet Explorer',
+      "(0, 8, 0, 15, 4), "    // ie:
+      "(0, 11, 0, 15, 13), "  // navigator.appName
+      "(0, 28, 0, 15, 31), "  // ==
+      "(0, 30, 0, 15, 34), "  // 'Microsoft Internet Explorer',
 
-      "(0, 60, 0, 16, 4), "    // java:
-      "(0, 65, 0, 16, 13), "   // navigator.javaEnabled(),
+      "(0, 60, 0, 16, 4), "   // java:
+      "(0, 65, 0, 16, 13), "  // navigator.javaEnabled(),
 
       "(0, 89, 0, 17, 4), "    // ns:
       "(0, 92, 0, 17, 13), "   // navigator.appName
@@ -661,28 +648,28 @@ TEST_F(JsMinifyTest, SourceMapsComplex) {
       "(0, 269, 0, 21, 35), "  // 'Win32'
       "(0, 276, 0, 22, 0), "   // }
 
-      "(1, 0, 0, 23, 0), "     // is.mac
-      "(1, 6, 0, 23, 7), "     // =
-      "(1, 7, 0, 23, 9), "     // is.ua.indexOf('mac')
-      "(1, 27, 0, 23, 30), "   // >=
-      "(1, 29, 0, 23, 33), "   // 0;
+      "(1, 0, 0, 23, 0), "    // is.mac
+      "(1, 6, 0, 23, 7), "    // =
+      "(1, 7, 0, 23, 9), "    // is.ua.indexOf('mac')
+      "(1, 27, 0, 23, 30), "  // >=
+      "(1, 29, 0, 23, 33), "  // 0;
 
-      "(1, 31, 0, 24, 0), "    // if
-      "(1, 33, 0, 24, 3), "    // (is.ua.indexOf('opera')
-      "(1, 56, 0, 24, 27), "   // >=
-      "(1, 58, 0, 24, 30), "   // 0)
-      "(1, 60, 0, 24, 33), "   // {
+      "(1, 31, 0, 24, 0), "   // if
+      "(1, 33, 0, 24, 3), "   // (is.ua.indexOf('opera')
+      "(1, 56, 0, 24, 27), "  // >=
+      "(1, 58, 0, 24, 30), "  // 0)
+      "(1, 60, 0, 24, 33), "  // {
 
-      "(1, 61, 0, 25, 4), "    // is.ie
-      "(1, 66, 0, 25, 10), "   // =
-      "(1, 67, 0, 25, 12), "   // is.ns
-      "(1, 72, 0, 25, 18), "   // =
-      "(1, 73, 0, 25, 20), "   // false;
+      "(1, 61, 0, 25, 4), "   // is.ie
+      "(1, 66, 0, 25, 10), "  // =
+      "(1, 67, 0, 25, 12), "  // is.ns
+      "(1, 72, 0, 25, 18), "  // =
+      "(1, 73, 0, 25, 20), "  // false;
 
-      "(1, 79, 0, 26, 4), "    // is.opera
-      "(1, 87, 0, 26, 13), "   // =
-      "(1, 88, 0, 26, 15), "   // true;
-      "(1, 93, 0, 27, 0), "    // }
+      "(1, 79, 0, 26, 4), "   // is.opera
+      "(1, 87, 0, 26, 13), "  // =
+      "(1, 88, 0, 26, 15), "  // true;
+      "(1, 93, 0, 27, 0), "   // }
 
       "(1, 94, 0, 28, 0), "    // if
       "(1, 96, 0, 28, 3), "    // (is.ua.indexOf('gecko')

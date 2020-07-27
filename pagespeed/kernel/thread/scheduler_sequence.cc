@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/scheduler_sequence.h"
 
 #include "base/logging.h"
@@ -30,9 +29,7 @@
 namespace net_instaweb {
 
 Scheduler::Sequence::Sequence(Scheduler* scheduler)
-    : scheduler_(scheduler),
-      forwarding_sequence_(nullptr) {
-}
+    : scheduler_(scheduler), forwarding_sequence_(nullptr) {}
 
 Scheduler::Sequence::~Sequence() {
   while (!work_queue_.empty()) {

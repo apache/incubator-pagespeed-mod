@@ -78,7 +78,7 @@ class ThreadSystem::Thread {
   //
   // The other code is ThreadImpl which is subclassed by the actual
   // implementation of threading and which does the actual threading work.
-  scoped_ptr<ThreadImpl> impl_;
+  std::unique_ptr<ThreadImpl> impl_;
 
   GoogleString name_;
 

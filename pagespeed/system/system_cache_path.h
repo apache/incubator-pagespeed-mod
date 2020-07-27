@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_SYSTEM_CACHE_PATH_H_
 #define PAGESPEED_SYSTEM_SYSTEM_CACHE_PATH_H_
 
@@ -56,8 +55,7 @@ class SystemCachePath {
   static const char kFileCache[];
   static const char kLruCache[];
 
-  SystemCachePath(const StringPiece& path,
-                  const SystemRewriteOptions* config,
+  SystemCachePath(const StringPiece& path, const SystemRewriteOptions* config,
                   RewriteDriverFactory* factory,
                   AbstractSharedMem* shm_runtime);
   ~SystemCachePath();
@@ -123,11 +121,9 @@ class SystemCachePath {
   //
   // 'name' is used in a warning message printed whenever resolution was
   // required.
-  void MergeEntries(int64 config_value, bool config_was_set,
-                    bool take_larger,
-                    const char* name,
-                    int64* policy_value, bool* has_explicit_policy);
-
+  void MergeEntries(int64 config_value, bool config_was_set, bool take_larger,
+                    const char* name, int64* policy_value,
+                    bool* has_explicit_policy);
 
   // Transmits cache-purge-set updates to all live server contexts.
   void UpdateCachePurgeSet(const CopyOnWrite<PurgeSet>& purge_set);
@@ -136,8 +132,8 @@ class SystemCachePath {
 
   RewriteDriverFactory* factory_;
   AbstractSharedMem* shm_runtime_;
-  scoped_ptr<SharedMemLockManager> shared_mem_lock_manager_;
-  scoped_ptr<FileSystemLockManager> file_system_lock_manager_;
+  std::unique_ptr<SharedMemLockManager> shared_mem_lock_manager_;
+  std::unique_ptr<FileSystemLockManager> file_system_lock_manager_;
   NamedLockManager* lock_manager_;
   FileCache* file_cache_backend_;  // owned by file_cache_
   CacheInterface* lru_cache_;
@@ -149,9 +145,9 @@ class SystemCachePath {
   bool clean_size_explicitly_set_;
   bool clean_inode_limit_explicitly_set_;
 
-  scoped_ptr<PurgeContext> purge_context_;
+  std::unique_ptr<PurgeContext> purge_context_;
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   ServerContextSet server_context_set_ GUARDED_BY(mutex_);
 };
 

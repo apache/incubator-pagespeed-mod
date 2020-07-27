@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Base class for tests which want a ServerContext.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_TEST_BASE_H_
@@ -65,8 +64,6 @@
 #include "pagespeed/kernel/util/url_segment_encoder.h"
 #include "pagespeed/opt/logging/request_timing_info.h"
 
-
-
 namespace net_instaweb {
 
 class AbstractLogRecord;
@@ -81,17 +78,13 @@ class WaitUrlAsyncFetcher;
 
 class RewriteOptionsTestBase : public HtmlParseTestBaseNoAlloc {
  protected:
-  RewriteOptionsTestBase() {
-    RewriteOptions::Initialize();
-  }
-  ~RewriteOptionsTestBase() {
-    RewriteOptions::Terminate();
-  }
+  RewriteOptionsTestBase() { RewriteOptions::Initialize(); }
+  ~RewriteOptionsTestBase() override { RewriteOptions::Terminate(); }
 };
 
 class RewriteTestBase : public RewriteOptionsTestBase {
  public:
-  static const char kTestData[];    // Testdata directory.
+  static const char kTestData[];  // Testdata directory.
 
   // Beaconing key values used when downstream caching is enabled.
   static const char kConfiguredBeaconingKey[];
@@ -115,17 +108,18 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // your own subclass of TestRewriteDriverFactory using this
   // constructor.  If you do, you probably also want to override
   // MakeTestFactory.
-  explicit RewriteTestBase(std::pair<TestRewriteDriverFactory*,
-                                     TestRewriteDriverFactory*> factories);
-  virtual ~RewriteTestBase();
+  explicit RewriteTestBase(
+      std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*>
+          factories);
+  ~RewriteTestBase() override;
 
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
 
   // In this set of tests, we will provide explicit body tags, so
   // the test harness should not add them in for our convenience.
   // It can go ahead and add the <html> and </html>, however.
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
   // Makes a TestRewriteDriverFactory.  This can be overridden in
   // subclasses if you need a factory with special properties.
@@ -172,9 +166,9 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // Enable downstream caching feature and set up the downstream cache
   // rebeaconing key.
   void SetDownstreamCacheDirectives(
-    StringPiece downstream_cache_purge_method,
-    StringPiece downstream_cache_purge_location_prefix,
-    StringPiece rebeaconing_key);
+      StringPiece downstream_cache_purge_method,
+      StringPiece downstream_cache_purge_location_prefix,
+      StringPiece rebeaconing_key);
 
   // Set ShouldBeacon request header to the specified value.
   void SetShouldBeaconHeader(StringPiece rebeaconing_key);
@@ -199,21 +193,19 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   void ServeResourceFromManyContexts(const GoogleString& resource_url,
                                      const StringPiece& expected_content);
 
-  void ServeResourceFromManyContextsWithUA(
-      const GoogleString& resource_url,
-      const StringPiece& expected_content,
-      const StringPiece& user_agent);
+  void ServeResourceFromManyContextsWithUA(const GoogleString& resource_url,
+                                           const StringPiece& expected_content,
+                                           const StringPiece& user_agent);
 
   // Test that a resource can be served from an new server that has not already
   // constructed it.
-  void ServeResourceFromNewContext(
-      const GoogleString& resource_url,
-      const StringPiece& expected_content);
+  void ServeResourceFromNewContext(const GoogleString& resource_url,
+                                   const StringPiece& expected_content);
 
   // This definition is required by HtmlParseTestBase which defines this as
   // pure abstract, so that the test subclass can define how it instantiates
   // HtmlParse.
-  virtual RewriteDriver* html_parse() { return rewrite_driver_; }
+  RewriteDriver* html_parse() override { return rewrite_driver_; }
 
   // Set default headers for a resource with content_type and Cache ttl_sec.
   void DefaultResponseHeaders(const ContentType& content_type, int64 ttl_sec,
@@ -231,8 +223,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   bool FetchResourceUrl(const StringPiece& url, GoogleString* content,
                         ResponseHeaders* response);
-  bool FetchResourceUrl(const StringPiece& url,
-                        RequestHeaders* request_headers,
+  bool FetchResourceUrl(const StringPiece& url, RequestHeaders* request_headers,
                         GoogleString* content,
                         ResponseHeaders* response_headers);
   bool FetchResourceUrl(const StringPiece& url, GoogleString* content);
@@ -286,11 +277,9 @@ class RewriteTestBase : public RewriteOptionsTestBase {
                        CssLink::Vector* css_links);
 
   // Encode the given name (path + leaf) using the given pagespeed attributes.
-  void EncodePathAndLeaf(const StringPiece& filter_id,
-                         const StringPiece& hash,
+  void EncodePathAndLeaf(const StringPiece& filter_id, const StringPiece& hash,
                          const StringVector& name_vector,
-                         const StringPiece& ext,
-                         ResourceNamer* namer);
+                         const StringPiece& ext, ResourceNamer* namer);
 
   StringVector MultiUrl(const StringPiece& url1) {
     StringVector v;
@@ -326,24 +315,19 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Helper function to encode a resource name from its pieces using whatever
   // encoding we are testing, either UrlNamer or TestUrlNamer.
-  GoogleString Encode(const StringPiece& path,
-                      const StringPiece& filter_id,
-                      const StringPiece& hash,
-                      const StringPiece& name,
+  GoogleString Encode(const StringPiece& path, const StringPiece& filter_id,
+                      const StringPiece& hash, const StringPiece& name,
                       const StringPiece& ext) {
     return Encode(path, filter_id, hash, MultiUrl(name), ext);
   }
-  GoogleString Encode(const StringPiece& path,
-                      const StringPiece& filter_id,
-                      const StringPiece& hash,
-                      const StringVector& name_vector,
+  GoogleString Encode(const StringPiece& path, const StringPiece& filter_id,
+                      const StringPiece& hash, const StringVector& name_vector,
                       const StringPiece& ext);
 
   // Same as Encode but specifically using UrlNamer not TestUrlNamer.
   GoogleString EncodeNormal(const StringPiece& path,
                             const StringPiece& filter_id,
-                            const StringPiece& hash,
-                            const StringPiece& name,
+                            const StringPiece& hash, const StringPiece& name,
                             const StringPiece& ext) {
     return EncodeNormal(path, filter_id, hash, MultiUrl(name), ext);
   }
@@ -355,16 +339,13 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Same as Encode but specifying the base URL (which is used by TestUrlNamer
   // but is unused by UrlNamer so for it results in exactly the same as Encode).
-  GoogleString EncodeWithBase(const StringPiece& base,
-                              const StringPiece& path,
+  GoogleString EncodeWithBase(const StringPiece& base, const StringPiece& path,
                               const StringPiece& filter_id,
-                              const StringPiece& hash,
-                              const StringPiece& name,
+                              const StringPiece& hash, const StringPiece& name,
                               const StringPiece& ext) {
     return EncodeWithBase(base, path, filter_id, hash, MultiUrl(name), ext);
   }
-  GoogleString EncodeWithBase(const StringPiece& base,
-                              const StringPiece& path,
+  GoogleString EncodeWithBase(const StringPiece& base, const StringPiece& path,
                               const StringPiece& filter_id,
                               const StringPiece& hash,
                               const StringVector& name_vector,
@@ -372,9 +353,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Encode image with width and height. Use -1 for either width or height to
   // omit it from the encoding.
-  GoogleString EncodeImage(int width, int height,
-                           StringPiece filename, StringPiece hash,
-                           StringPiece rewritten_ext);
+  GoogleString EncodeImage(int width, int height, StringPiece filename,
+                           StringPiece hash, StringPiece rewritten_ext);
 
   // Takes an already-encoded URL and adds options to to it.
   GoogleString AddOptionsToEncodedUrl(const StringPiece& url,
@@ -384,9 +364,9 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // If append_new_suffix is false, replaces old_suffix at the end of old_url
   // with new_suffix.
   // Either way, precondition: old_url ends with old_suffix
-  static GoogleString ChangeSuffix(
-      StringPiece old_url, bool append_new_suffix,
-      StringPiece old_suffix, StringPiece new_suffix);
+  static GoogleString ChangeSuffix(StringPiece old_url, bool append_new_suffix,
+                                   StringPiece old_suffix,
+                                   StringPiece new_suffix);
 
   // Overrides the async fetcher on the primary context to be a
   // wait fetcher which permits delaying callback invocation.
@@ -440,11 +420,10 @@ class RewriteTestBase : public RewriteOptionsTestBase {
     other_server_context_->http_cache()->set_hasher(&md5_hasher_);
   }
 
-
   void SetDefaultLongCacheHeaders(const ContentType* content_type,
                                   ResponseHeaders* header) {
-    server_context_->SetDefaultLongCacheHeaders(
-        content_type, StringPiece(), StringPiece(), header);
+    server_context_->SetDefaultLongCacheHeaders(content_type, StringPiece(),
+                                                StringPiece(), header);
   }
 
   void SetFetchResponse(const StringPiece& url,
@@ -456,20 +435,17 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // Add content to mock fetcher (with default headers).
   void SetResponseWithDefaultHeaders(const StringPiece& relative_url,
                                      const ContentType& content_type,
-                                     const StringPiece& content,
-                                     int64 ttl_sec);
+                                     const StringPiece& content, int64 ttl_sec);
 
   // Load a test file (from testdata/) into 'contents', returning false on
   // failure.
   bool LoadFile(const StringPiece& filename, GoogleString* contents);
 
   // Add the contents of a file to mock fetcher (with default headers).
-  void AddFileToMockFetcher(const StringPiece& url,
-                            const StringPiece& filename,
+  void AddFileToMockFetcher(const StringPiece& url, const StringPiece& filename,
                             const ContentType& content_type, int64 ttl_sec);
 
-  void AddToResponse(const StringPiece& url,
-                     const StringPiece& name,
+  void AddToResponse(const StringPiece& url, const StringPiece& name,
                      const StringPiece& value) {
     mock_url_fetcher()->AddToResponse(url, name, value);
   }
@@ -493,9 +469,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // Removes pending request-header attributes added via AddRequestAttribute.
   void ClearRewriteDriver();
 
-  MockUrlFetcher* mock_url_fetcher() {
-    return &mock_url_fetcher_;
-  }
+  MockUrlFetcher* mock_url_fetcher() { return &mock_url_fetcher_; }
   Hasher* hasher() { return server_context_->hasher(); }
   DelayCache* delay_cache() { return factory_->delay_cache(); }
   LRUCache* lru_cache() { return factory_->lru_cache(); }
@@ -572,8 +546,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Helper function which instantiates an encoder, collects the
   // required arguments and calls the virtual Encode().
-  GoogleString EncodeCssName(const StringPiece& name,
-                             bool supports_webp,
+  GoogleString EncodeCssName(const StringPiece& name, bool supports_webp,
                              bool can_inline);
 
   // Helper function for legacy tests that used this now-extinct interface.
@@ -590,20 +563,20 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // While our production cache model is non-blocking, we use an in-memory LRU
   // for tests that calls its callback directly from Get.  Thus we can make
   // a convenient blocking cache wrapper to make it easier to write tests.
-  HTTPCache::FindResult HttpBlockingFind(
-      const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
-      ResponseHeaders* headers);
+  HTTPCache::FindResult HttpBlockingFind(const GoogleString& key,
+                                         HTTPCache* http_cache,
+                                         HTTPValue* value_out,
+                                         ResponseHeaders* headers);
 
   // The same as the above function, but doesn't need an HTTPValue or
   // ResponseHeaders.
-  HTTPCache::FindResult HttpBlockingFindStatus(
-      const GoogleString& key, HTTPCache* http_cache);
+  HTTPCache::FindResult HttpBlockingFindStatus(const GoogleString& key,
+                                               HTTPCache* http_cache);
 
   // Same as above, but with options (for invalidation checks)
   HTTPCache::FindResult HttpBlockingFindWithOptions(
-      const RewriteOptions* options,
-      const GoogleString& key, HTTPCache* http_cache, HTTPValue* value_out,
-      ResponseHeaders* headers);
+      const RewriteOptions* options, const GoogleString& key,
+      HTTPCache* http_cache, HTTPValue* value_out, ResponseHeaders* headers);
 
   // Sets the response-headers Content-Type to "application/xhtml+xml".
   void SetXhtmlMimetype() { SetMimetype("application/xhtml+xml"); }
@@ -616,14 +589,12 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Verifies that the specified URL can be fetched from HTTP cache, and that
   // its cache TTL and contents are as specified.
-  void CheckFetchFromHttpCache(
-      StringPiece url,
-      StringPiece expected_contents,
-      int64 expected_expiration_ms);
+  void CheckFetchFromHttpCache(StringPiece url, StringPiece expected_contents,
+                               int64 expected_expiration_ms);
 
   // Setup statistics for the given cohort and add it to the give PropertyCache.
-  const PropertyCache::Cohort*  SetupCohort(
-      PropertyCache* cache, const GoogleString& cohort) {
+  const PropertyCache::Cohort* SetupCohort(PropertyCache* cache,
+                                           const GoogleString& cohort) {
     return factory()->SetupCohort(cache, cohort);
   }
 
@@ -637,9 +608,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
                                 UserAgentMatcher::DeviceType device_type) {
     return new MockPropertyPage(
         server_context_->thread_system(),
-        server_context_->page_property_cache(),
-        url,
-        options_signature_hash,
+        server_context_->page_property_cache(), url, options_signature_hash,
         UserAgentMatcher::DeviceTypeSuffix(device_type));
   }
 
@@ -666,8 +635,8 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Sets the invalidation timestamp for a URL pattern.  Time is advanced by
   // in the same manner as for SetCacheInvalidationTimestamp above.
-  void SetCacheInvalidationTimestampForUrl(
-      StringPiece url, bool ignores_metadata_and_pcache);
+  void SetCacheInvalidationTimestampForUrl(StringPiece url,
+                                           bool ignores_metadata_and_pcache);
 
   // Changes the way cache-purges are implemented for non-wildcards to
   // avoid flushing the entire metadata cache and instead match each
@@ -768,12 +737,9 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // Convenience method for verifying that the rewriter info entries have
   // expected values.
   void VerifyRewriterInfoEntry(AbstractLogRecord* log_record,
-                               const GoogleString& id,
-                               int url_index,
-                               int rewriter_info_index,
-                               int rewriter_info_size,
-                               int url_list_size,
-                               const GoogleString& url);
+                               const GoogleString& id, int url_index,
+                               int rewriter_info_index, int rewriter_info_size,
+                               int url_list_size, const GoogleString& url);
 
   // Sets current_user_agent_
   void SetCurrentUserAgent(const StringPiece& user_agent) {
@@ -806,7 +772,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   // Override HtmlParseTestBaseNoAlloc::ParseUrl to populate the
   // request-headers into rewrite_driver_ before running filters.
-  virtual void ParseUrl(StringPiece url, StringPiece html_input);
+  void ParseUrl(StringPiece url, StringPiece html_input) override;
 
   GoogleString ExpectedNonce();
 
@@ -822,20 +788,20 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   // The mock fetchers & stats are global across all Factories used in the
   // tests.
   MockUrlFetcher mock_url_fetcher_;
-  scoped_ptr<Statistics> statistics_;
+  std::unique_ptr<Statistics> statistics_;
 
   // We have two independent RewriteDrivers representing two completely
   // separate servers for the same domain (say behind a load-balancer).
   //
   // Server A runs rewrite_driver_ and will be used to rewrite pages and
   // serves the rewritten resources.
-  scoped_ptr<TestRewriteDriverFactory> factory_;
-  scoped_ptr<TestRewriteDriverFactory> other_factory_;
+  std::unique_ptr<TestRewriteDriverFactory> factory_;
+  std::unique_ptr<TestRewriteDriverFactory> other_factory_;
   ServerContext* server_context_;
   RewriteDriver* rewrite_driver_;
   ServerContext* other_server_context_;
   RewriteDriver* other_rewrite_driver_;
-  scoped_ptr<HtmlWriterFilter> other_html_writer_filter_;
+  std::unique_ptr<HtmlWriterFilter> other_html_writer_filter_;
   ActiveServerFlag active_server_;
   bool use_managed_rewrite_drivers_;
   StringPiece current_user_agent_;
@@ -844,7 +810,7 @@ class RewriteTestBase : public RewriteOptionsTestBase {
 
   MD5Hasher md5_hasher_;
 
-  RewriteOptions* options_;  // owned by rewrite_driver_.
+  RewriteOptions* options_;        // owned by rewrite_driver_.
   RewriteOptions* other_options_;  // owned by other_rewrite_driver_.
   UrlSegmentEncoder default_encoder_;
   ResponseHeaders response_headers_;
@@ -854,8 +820,9 @@ class RewriteTestBase : public RewriteOptionsTestBase {
   GoogleString debug_message_;  // Message used by DebugMessage
 
  private:
-  void ValidateFallbackHeaderSanitizationHelper(
-      StringPiece filter_id, StringPiece origin_content_type, bool expect_load);
+  void ValidateFallbackHeaderSanitizationHelper(StringPiece filter_id,
+                                                StringPiece origin_content_type,
+                                                bool expect_load);
 };
 
 }  // namespace net_instaweb

@@ -17,43 +17,43 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/scanline_status.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/image/scanline_status.h"
 
 namespace pagespeed {
 
 namespace image_compression {
 TEST(ScanlineStatusTest, ComesFromReader) {
   const ScanlineStatusSource kAllSources[] = {
-    SCANLINE_UNKNOWN,
-    SCANLINE_PNGREADER,
-    SCANLINE_PNGREADERRAW,
-    SCANLINE_GIFREADER,
-    SCANLINE_GIFREADERRAW,
-    SCANLINE_JPEGREADER,
-    SCANLINE_WEBPREADER,
-    SCANLINE_RESIZER,
-    SCANLINE_PNGWRITER,
-    SCANLINE_JPEGWRITER,
-    SCANLINE_WEBPWRITER,
-    SCANLINE_UTIL,
-    SCANLINE_PIXEL_FORMAT_OPTIMIZER,
-    FRAME_TO_SCANLINE_READER_ADAPTER,
-    FRAME_TO_SCANLINE_WRITER_ADAPTER,
-    SCANLINE_TO_FRAME_READER_ADAPTER,
-    SCANLINE_TO_FRAME_WRITER_ADAPTER,
-    FRAME_GIFREADER,
-    FRAME_WEBPWRITER,
-    FRAME_PADDING_READER,
+      SCANLINE_UNKNOWN,
+      SCANLINE_PNGREADER,
+      SCANLINE_PNGREADERRAW,
+      SCANLINE_GIFREADER,
+      SCANLINE_GIFREADERRAW,
+      SCANLINE_JPEGREADER,
+      SCANLINE_WEBPREADER,
+      SCANLINE_RESIZER,
+      SCANLINE_PNGWRITER,
+      SCANLINE_JPEGWRITER,
+      SCANLINE_WEBPWRITER,
+      SCANLINE_UTIL,
+      SCANLINE_PIXEL_FORMAT_OPTIMIZER,
+      FRAME_TO_SCANLINE_READER_ADAPTER,
+      FRAME_TO_SCANLINE_WRITER_ADAPTER,
+      SCANLINE_TO_FRAME_READER_ADAPTER,
+      SCANLINE_TO_FRAME_WRITER_ADAPTER,
+      FRAME_GIFREADER,
+      FRAME_WEBPWRITER,
+      FRAME_PADDING_READER,
   };
 
   EXPECT_EQ(NUM_SCANLINE_SOURCE, arraysize(kAllSources));
 
   for (int i = 0; i < NUM_SCANLINE_SOURCE; ++i) {
     ScanlineStatus status(SCANLINE_STATUS_SUCCESS, kAllSources[i], "");
-    bool is_reader = (strstr(status.SourceStr(), "READER") != NULL);
+    bool is_reader = (strstr(status.SourceStr(), "READER") != nullptr);
     EXPECT_EQ(is_reader, status.ComesFromReader());
   }
 }

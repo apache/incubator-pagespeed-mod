@@ -17,18 +17,16 @@
  * under the License.
  */
 
-
-
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "pagespeed/kernel/base/string_util.h"        // for StringPiece
+#include "pagespeed/kernel/base/string_util.h"  // for StringPiece
 #include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
@@ -45,8 +43,7 @@ TestUrlNamer::TestUrlNamer() {
   proxy_mode_ = UrlNamer::ProxyExtent::kNone;
 }
 
-TestUrlNamer::~TestUrlNamer() {
-}
+TestUrlNamer::~TestUrlNamer() {}
 
 GoogleString TestUrlNamer::Encode(const RewriteOptions* rewrite_options,
                                   const OutputResource& output_resource,
@@ -56,7 +53,7 @@ GoogleString TestUrlNamer::Encode(const RewriteOptions* rewrite_options,
     return UrlNamer::Encode(rewrite_options, output_resource, encode_option);
   }
 
-  DCHECK(rewrite_options != NULL);
+  DCHECK(rewrite_options != nullptr);
   GoogleUrl base_gurl(output_resource.resolved_base());
 
   // If there is any sharding or rewriting enabled then various tests don't
@@ -74,13 +71,11 @@ GoogleString TestUrlNamer::Encode(const RewriteOptions* rewrite_options,
   // created from a cached output by RewriteContext, and we must not encode
   // an already encoded URL.
   if (IsPathEncoded(base_gurl) && IsOriginEncoded(base_gurl)) {
-    return StrCat(kTopDomain,
-                  base_gurl.PathSansLeaf(),
+    return StrCat(kTopDomain, base_gurl.PathSansLeaf(),
                   output_resource.full_name().Encode());
   } else {
     return EncodeUrl(output_resource.original_base(),
-                     output_resource.unmapped_base(),
-                     base_gurl.PathAndLeaf(),
+                     output_resource.unmapped_base(), base_gurl.PathAndLeaf(),
                      output_resource.full_name());
   }
 }
@@ -108,20 +103,17 @@ GoogleString TestUrlNamer::EncodeUrl(const StringPiece& original_base,
                                      const StringPiece& unmapped_base,
                                      const StringPiece& resolved_path,
                                      const ResourceNamer& leaf_details) {
-  GoogleUrl   original_base_gurl(original_base);
+  GoogleUrl original_base_gurl(original_base);
   StringPiece original_base_scheme(original_base_gurl.Scheme());
   StringPiece original_base_host(original_base_gurl.HostAndPort());
-  GoogleUrl   unmapped_base_gurl(unmapped_base);
+  GoogleUrl unmapped_base_gurl(unmapped_base);
   StringPiece unmapped_base_scheme(unmapped_base_gurl.Scheme());
   StringPiece unmapped_base_host(unmapped_base_gurl.HostAndPort());
 
   return StrCat(kTopDomain,
-                StrCat("/", original_base_scheme,
-                       "/", original_base_host,
-                       "/", unmapped_base_scheme,
-                       "/", unmapped_base_host),
-                resolved_path,
-                leaf_details.Encode());
+                StrCat("/", original_base_scheme, "/", original_base_host, "/",
+                       unmapped_base_scheme, "/", unmapped_base_host),
+                resolved_path, leaf_details.Encode());
 }
 
 bool TestUrlNamer::IsProxyEncoded(const GoogleUrl& url) const {

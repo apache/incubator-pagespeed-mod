@@ -21,14 +21,13 @@
 // This contains tests for a basic fake filter that rewrites a single resource,
 // making sure the various caching and invalidation mechanisms work.
 
-#include "net/instaweb/rewriter/public/rewrite_filter.h"
-
 #include "base/logging.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/resource_slot.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
+#include "net/instaweb/rewriter/public/rewrite_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_result.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -60,7 +59,6 @@ namespace {
 const char kTestFilterPrefix[] = "tf";
 const char kTestEncoderUrlExtra[] = "UrlExtraStuff";
 
-
 // These are functions rather than static constants because on MacOS
 // we cannot seem to rely on correctly ordered initiazation of static
 // constants.
@@ -71,9 +69,7 @@ int TtlSec() {
   return RewriteOptions::kDefaultImplicitCacheTtlMs / Timer::kSecondMs;
 }
 
-int TtlMs() {
-  return TtlSec() * Timer::kSecondMs;
-}
+int TtlMs() { return TtlSec() * Timer::kSecondMs; }
 
 // A simple RewriteFilter subclass that rewrites
 // <tag src=...> and keeps some statistics.
@@ -87,24 +83,22 @@ class TestRewriter : public RewriteFilter {
   TestRewriter(RewriteDriver* driver, bool create_custom_encoder)
       : RewriteFilter(driver),
         num_rewrites_called_(0),
-        create_custom_encoder_(create_custom_encoder) {
-  }
+        create_custom_encoder_(create_custom_encoder) {}
 
-  virtual ~TestRewriter() {
-  }
+  ~TestRewriter() override {}
 
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
 
-  virtual void EndElementImpl(HtmlElement* element) {
+  void EndElementImpl(HtmlElement* element) override {
     if (element->keyword() == HtmlName::kTag) {
       HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-      if (src != NULL) {
+      if (src != nullptr) {
         bool unused;
-        ResourcePtr resource = CreateInputResource(
-            src->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
-            &unused);
-        if (resource.get() != NULL) {
+        ResourcePtr resource =
+            CreateInputResource(src->DecodedValueOrNull(),
+                                RewriteDriver::InputRole::kUnknown, &unused);
+        if (resource.get() != nullptr) {
           ResourceSlotPtr slot(driver()->GetSlot(resource, element, src));
           Context* context = new Context(driver(), this);
           context->AddSlot(slot);
@@ -114,8 +108,8 @@ class TestRewriter : public RewriteFilter {
     }
   }
 
-  virtual const char* Name() const { return "TestRewriter"; }
-  virtual const char* id() const { return kTestFilterPrefix; }
+  const char* Name() const override { return "TestRewriter"; }
+  const char* id() const override { return kTestFilterPrefix; }
 
   // Number of times RewriteLoadedResource got called
   int num_rewrites_called() const { return num_rewrites_called_; }
@@ -127,8 +121,8 @@ class TestRewriter : public RewriteFilter {
       const ResourcePtr& input_resource,
       const OutputResourcePtr& output_resource) {
     ++num_rewrites_called_;
-    EXPECT_TRUE(input_resource.get() != NULL);
-    EXPECT_TRUE(output_resource.get() != NULL);
+    EXPECT_TRUE(input_resource.get() != nullptr);
+    EXPECT_TRUE(output_resource.get() != nullptr);
     EXPECT_TRUE(input_resource->HttpStatusOk());
 
     StringPiece contents = input_resource->ExtractUncompressedContents();
@@ -140,16 +134,14 @@ class TestRewriter : public RewriteFilter {
       return kTooBusy;
     }
 
-    bool ok = driver()->Write(
-        ResourceVector(1, input_resource),
-        StrCat(contents, contents),
-        &kContentTypeText,
-        StringPiece(),  // no explicit charset
-        output_resource.get());
+    bool ok = driver()->Write(ResourceVector(1, input_resource),
+                              StrCat(contents, contents), &kContentTypeText,
+                              StringPiece(),  // no explicit charset
+                              output_resource.get());
     return ok ? kRewriteOk : kRewriteFailed;
   }
 
-  virtual const UrlSegmentEncoder* encoder() const {
+  const UrlSegmentEncoder* encoder() const override {
     if (create_custom_encoder_) {
       return &test_url_encoder_;
     } else {
@@ -160,20 +152,18 @@ class TestRewriter : public RewriteFilter {
   class Context : public SingleRewriteContext {
    public:
     Context(RewriteDriver* driver, TestRewriter* rewriter)
-        : SingleRewriteContext(driver, NULL, NULL),
-          filter_(rewriter) {
-    }
-    virtual ~Context() {
-    }
-    virtual void RewriteSingle(
-        const ResourcePtr& input, const OutputResourcePtr& output) {
+        : SingleRewriteContext(driver, nullptr, nullptr), filter_(rewriter) {}
+    ~Context() override {}
+
+    void RewriteSingle(const ResourcePtr& input,
+                       const OutputResourcePtr& output) override {
       RewriteDone(filter_->RewriteLoadedResource(input, output), 0);
     }
 
     bool PolicyPermitsRendering() const override { return true; }
-    virtual OutputResourceKind kind() const { return kRewrittenResource; }
-    virtual const char* id() const { return filter_->id(); }
-    virtual const UrlSegmentEncoder* encoder() const {
+    OutputResourceKind kind() const override { return kRewrittenResource; }
+    const char* id() const override { return filter_->id(); }
+    const UrlSegmentEncoder* encoder() const override {
       return filter_->encoder();
     }
 
@@ -181,7 +171,7 @@ class TestRewriter : public RewriteFilter {
     TestRewriter* filter_;
   };
 
-  virtual RewriteContext* MakeRewriteContext() {
+  RewriteContext* MakeRewriteContext() override {
     return new Context(driver(), this);
   }
 
@@ -190,22 +180,19 @@ class TestRewriter : public RewriteFilter {
 
   // This encoder simply adds/remove kTestEncoderUrlExtra in front of
   // name encoding, which is enough to see if it got invoked right.
-  class TestUrlEncoder: public UrlSegmentEncoder {
+  class TestUrlEncoder : public UrlSegmentEncoder {
    public:
-    virtual ~TestUrlEncoder() {
-    }
+    ~TestUrlEncoder() override {}
 
-    virtual void Encode(const StringVector& urls, const ResourceContext* data,
-                        GoogleString* rewritten_url) const {
+    void Encode(const StringVector& urls, const ResourceContext* data,
+                GoogleString* rewritten_url) const override {
       CHECK_EQ(1, urls.size());
       *rewritten_url = kTestEncoderUrlExtra;
       UrlEscaper::EncodeToUrlSegment(urls[0], rewritten_url);
     }
 
-    virtual bool Decode(const StringPiece& rewritten_url,
-                        StringVector* urls,
-                        ResourceContext* data,
-                        MessageHandler* handler) const {
+    bool Decode(const StringPiece& rewritten_url, StringVector* urls,
+                ResourceContext* data, MessageHandler* handler) const override {
       const int magic_len = STATIC_STRLEN(kTestEncoderUrlExtra);
       urls->clear();
       urls->push_back(GoogleString());
@@ -230,7 +217,7 @@ class RewriteSingleResourceFilterTest
     : public RewriteTestBase,
       public ::testing::WithParamInterface<bool> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
 
     filter_ = new TestRewriter(rewrite_driver(), GetParam());
@@ -258,16 +245,16 @@ class RewriteSingleResourceFilterTest
     ResponseHeaders response_headers;
     SetDefaultLongCacheHeaders(&kContentTypeText, &response_headers);
     response_headers.SetStatusAndReason(HttpStatus::kNotFound);
-    SetFetchResponse(
-        StrCat(kTestDomain, rel_path), response_headers, StringPiece());
+    SetFetchResponse(StrCat(kTestDomain, rel_path), response_headers,
+                     StringPiece());
   }
 
   // Returns the filename our test filter will produces for the given
   // input filename
   GoogleString OutputName(const StringPiece& in_domain,
                           const StringPiece& in_name) {
-    return Encode(in_domain, kTestFilterPrefix, hasher()->Hash(""),
-                  in_name, "txt");
+    return Encode(in_domain, kTestFilterPrefix, hasher()->Hash(""), in_name,
+                  "txt");
   }
 
   // Serves from relative URL
@@ -524,24 +511,23 @@ TEST_P(RewriteSingleResourceFilterTest, FetchBadStatus) {
   ResponseHeaders response_headers;
   SetDefaultLongCacheHeaders(&kContentTypeText, &response_headers);
   response_headers.SetStatusAndReason(HttpStatus::kFound);
-  SetFetchResponse(
-      StrCat(kTestDomain, "redirect"), response_headers, StringPiece());
+  SetFetchResponse(StrCat(kTestDomain, "redirect"), response_headers,
+                   StringPiece());
   SetFetchFailOnUnexpected(false);
   ValidateNoChanges("redirected_resource", "<tag src=\"/redirect\"></tag>");
 
   ResponseHeaders response_headers2;
   SetDefaultLongCacheHeaders(&kContentTypeText, &response_headers2);
   response_headers2.SetStatusAndReason(HttpStatus::kImATeapot);
-  SetFetchResponse(
-      StrCat(kTestDomain, "pot-1"), response_headers2, StringPiece());
+  SetFetchResponse(StrCat(kTestDomain, "pot-1"), response_headers2,
+                   StringPiece());
   ValidateNoChanges("teapot_resource", "<tag src=\"/pot-1\"></tag>");
   // The second time, this resource will be cached with its bad status code.
   ValidateNoChanges("teapot_resource", "<tag src=\"/pot-1\"></tag>");
 }
 
 // We test with create_custom_encoder == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(RewriteSingleResourceFilterTestInstance,
-                        RewriteSingleResourceFilterTest,
-                        ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(RewriteSingleResourceFilterTestInstance,
+                         RewriteSingleResourceFilterTest, ::testing::Bool());
 
 }  // namespace net_instaweb

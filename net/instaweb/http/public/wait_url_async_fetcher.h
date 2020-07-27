@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_WAIT_URL_ASYNC_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_WAIT_URL_ASYNC_FETCHER_H_
 
@@ -38,18 +37,13 @@ namespace net_instaweb {
 // you explicitly call CallCallbacks().
 class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
-  WaitUrlAsyncFetcher(UrlAsyncFetcher* url_fetcher,
-                      AbstractMutex* mutex)
-      : url_fetcher_(url_fetcher),
-        pass_through_mode_(false),
-        mutex_(mutex) {
-  }
-  virtual ~WaitUrlAsyncFetcher();
+  WaitUrlAsyncFetcher(UrlAsyncFetcher* url_fetcher, AbstractMutex* mutex)
+      : url_fetcher_(url_fetcher), pass_through_mode_(false), mutex_(mutex) {}
+  ~WaitUrlAsyncFetcher() override;
 
   // Initiate fetches that will finish when CallCallbacks is called.
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* handler,
+             AsyncFetch* fetch) override;
 
   // Call all callbacks from previously initiated fetches.
   void CallCallbacks();
@@ -71,7 +65,7 @@ class WaitUrlAsyncFetcher : public UrlAsyncFetcher {
   std::set<GoogleString> do_not_delay_urls_;
   std::vector<DelayedFetch*> delayed_fetches_;
   bool pass_through_mode_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(WaitUrlAsyncFetcher);
 };

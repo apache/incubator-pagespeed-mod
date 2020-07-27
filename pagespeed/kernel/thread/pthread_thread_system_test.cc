@@ -17,17 +17,17 @@
  * under the License.
  */
 
-
-#include "pagespeed/kernel/thread/thread_system_test_base.h"
 #include "pagespeed/kernel/thread/pthread_thread_system.h"
+
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/thread/thread_system_test_base.h"
 
 namespace net_instaweb {
 
 namespace {
 
-INSTANTIATE_TYPED_TEST_CASE_P(PthreadThread, ThreadSystemTestTemplate,
-                              PthreadThreadSystem);
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, ThreadSystemTestTemplate,
+                               PthreadThreadSystem);
 
 }  // namespace
 

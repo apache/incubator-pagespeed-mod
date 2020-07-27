@@ -18,6 +18,7 @@
  */
 
 #include "net/instaweb/spriter/image_library_interface.h"
+
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
@@ -27,7 +28,7 @@ ImageLibraryInterface* ImageLibraryInterface::ImageLibraryInterfaceFactory(
     const GoogleString& library_name) {
   // TODO(skerner):  Implement some interfaces.  Will do OpenCV first.
 
-  return NULL;
+  return nullptr;
 }
 
 ImageLibraryInterface::ImageLibraryInterface(const FilePath& base_input_path,
@@ -35,8 +36,7 @@ ImageLibraryInterface::ImageLibraryInterface(const FilePath& base_input_path,
                                              Delegate* delegate)
     : base_input_path_(base_input_path),
       base_output_path_(base_output_path),
-      delegate_(delegate) {
-}
+      delegate_(delegate) {}
 
 }  // namespace spriter
 }  // namespace net_instaweb

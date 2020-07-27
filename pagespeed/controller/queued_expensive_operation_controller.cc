@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/queued_expensive_operation_controller.h"
 
 #include "base/logging.h"
@@ -42,8 +41,7 @@ QueuedExpensiveOperationController::QueuedExpensiveOperationController(
       queued_operations_counter_(
           stats->GetUpDownCounter(kQueuedExpensiveOperations)),
       permitted_operations_counter_(
-          stats->GetTimedVariable(kPermittedExpensiveOperations)) {
-}
+          stats->GetTimedVariable(kPermittedExpensiveOperations)) {}
 
 QueuedExpensiveOperationController::~QueuedExpensiveOperationController() {
   // queue_ is *supposed* to be empty at this point. In case it's not, we
@@ -70,7 +68,7 @@ void QueuedExpensiveOperationController::InitStats(Statistics* statistics) {
 void QueuedExpensiveOperationController::ScheduleExpensiveOperation(
     Function* callback) {
   ScopedMutex lock(mutex_.get());
-  CHECK(callback != NULL);
+  CHECK(callback != nullptr);
 
   // If we are configured to disallow all expensive operations, immediately deny
   // the request and don't queue it.
@@ -102,7 +100,7 @@ void QueuedExpensiveOperationController::NotifyExpensiveOperationComplete() {
     CHECK_LT(num_in_progress_, max_in_progress_);
   }
   Function* callback = Dequeue();
-  if (callback != NULL) {
+  if (callback != nullptr) {
     IncrementInProgress();
     lock.Release();
     callback->CallRun();
@@ -116,7 +114,7 @@ void QueuedExpensiveOperationController::Enqueue(Function* callback) {
 }
 
 Function* QueuedExpensiveOperationController::Dequeue() {
-  Function* result = NULL;
+  Function* result = nullptr;
   if (!queue_.empty()) {
     result = queue_.front();
     queue_.pop();

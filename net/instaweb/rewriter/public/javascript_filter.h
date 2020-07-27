@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JAVASCRIPT_FILTER_H_
 
@@ -84,15 +83,11 @@ class JavascriptFilter : public RewriteFilter {
  private:
   class Context;
 
-  typedef enum {
-    kNoScript,
-    kExternalScript,
-    kInlineScript
-  } ScriptType;
+  typedef enum { kNoScript, kExternalScript, kInlineScript } ScriptType;
 
   inline void RewriteInlineScript(HtmlCharactersNode* body_node);
-  inline void RewriteExternalScript(
-      HtmlElement* script_in_progress, HtmlElement::Attribute* script_src);
+  inline void RewriteExternalScript(HtmlElement* script_in_progress,
+                                    HtmlElement::Attribute* script_src);
 
   // Set up config_ if it has not already been initialized.  We must do this
   // lazily because at filter creation time many of the options have not yet
@@ -107,7 +102,7 @@ class JavascriptFilter : public RewriteFilter {
   // some_missing_scripts indicates that we stopped processing a script and
   // therefore can't assume we know all of the Javascript on a page.
   bool some_missing_scripts_;
-  scoped_ptr<JavascriptRewriteConfig> config_;
+  std::unique_ptr<JavascriptRewriteConfig> config_;
   ScriptTagScanner script_tag_scanner_;
 
   DISALLOW_COPY_AND_ASSIGN(JavascriptFilter);

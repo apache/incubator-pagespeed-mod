@@ -17,23 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/expensive_operation_callback.h"
 
 namespace net_instaweb {
 
-ExpensiveOperationContext::ExpensiveOperationContext() {
-}
+ExpensiveOperationContext::ExpensiveOperationContext() {}
 
-ExpensiveOperationContext::~ExpensiveOperationContext() {
-}
+ExpensiveOperationContext::~ExpensiveOperationContext() {}
 
-ExpensiveOperationCallback::ExpensiveOperationCallback(
-    Sequence* sequence)
-    : CentralControllerCallback<ExpensiveOperationContext>(sequence) {
-}
+ExpensiveOperationCallback::ExpensiveOperationCallback(Sequence* sequence)
+    : CentralControllerCallback<ExpensiveOperationContext>(sequence) {}
 
-ExpensiveOperationCallback::~ExpensiveOperationCallback() {
-}
+ExpensiveOperationCallback::~ExpensiveOperationCallback() {}
 
 }  // namespace net_instaweb

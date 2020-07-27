@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/http/content_type.h"
 
 #include <vector>
@@ -31,79 +30,80 @@ namespace net_instaweb {
 namespace {
 
 const ContentType kTypes[] = {
-  // Canonical types:
-  {"text/html",                     ".html",  ContentType::kHtml},  // RFC 2854
-  {"application/xhtml+xml",         ".xhtml", ContentType::kXhtml},  // RFC 3236
-  {"application/ce-html+xml",       ".xhtml", ContentType::kCeHtml},
+    // Canonical types:
+    {"text/html", ".html", ContentType::kHtml},                // RFC 2854
+    {"application/xhtml+xml", ".xhtml", ContentType::kXhtml},  // RFC 3236
+    {"application/ce-html+xml", ".xhtml", ContentType::kCeHtml},
 
-  // RFC 4329 defines application/javascript as canonical for JavaScript.
-  // text/javascript can break firewall gzipping.
-  {"application/javascript",        ".js",   ContentType::kJavascript},
-  {"text/css",                      ".css",  ContentType::kCss},
-  {"text/plain",                    ".txt",  ContentType::kText},
-  {"text/xml",                      ".xml",  ContentType::kXml},  // RFC 3023
-  {"image/png",                     ".png",  ContentType::kPng},
-  {"image/gif",                     ".gif",  ContentType::kGif},
-  {"image/jpeg",                    ".jpg",  ContentType::kJpeg},
-  {"application/x-shockwave-flash", ".swf",  ContentType::kSwf},
-  {"image/webp",                    ".webp", ContentType::kWebp},
-  // While the official MIME type is image/vnd.microsoft.icon, old IE browsers
-  // will not accept that type, so we use portable image/x-icon as canonical.
-  {"image/x-icon",                  ".ico",  ContentType::kIco},
-  // Always return the data with Content-Type: application/javascript;
-  // charset=utf-8 in the HTTP header (application/x-javascript is
-  // also fine; application/json, less so). Using the right MIME type
-  // and charset is critical; never use text/plain or text/html, and
-  // do not mistype utf-8 as utf8.
-  {"application/javascript",        ".json", ContentType::kJson},
-  {"application/javascript",        ".map",  ContentType::kSourceMap},
-  {"application/pdf",               ".pdf",  ContentType::kPdf},  // RFC 3778
-  {"application/octet-stream",      ".bin",  ContentType::kOctetStream },
-  // SVG is XML.  If at some point we start optimizing svg as images, we need to
-  // be very careful not to just lump them in with images for all purposes, to
-  // avoid creating security vulnerabilities.
-  {"image/svg+xml",                 ".svg",  ContentType::kXml},
+    // RFC 4329 defines application/javascript as canonical for JavaScript.
+    // text/javascript can break firewall gzipping.
+    {"application/javascript", ".js", ContentType::kJavascript},
+    {"text/css", ".css", ContentType::kCss},
+    {"text/plain", ".txt", ContentType::kText},
+    {"text/xml", ".xml", ContentType::kXml},  // RFC 3023
+    {"image/png", ".png", ContentType::kPng},
+    {"image/gif", ".gif", ContentType::kGif},
+    {"image/jpeg", ".jpg", ContentType::kJpeg},
+    {"application/x-shockwave-flash", ".swf", ContentType::kSwf},
+    {"image/webp", ".webp", ContentType::kWebp},
+    // While the official MIME type is image/vnd.microsoft.icon, old IE browsers
+    // will not accept that type, so we use portable image/x-icon as canonical.
+    {"image/x-icon", ".ico", ContentType::kIco},
+    // Always return the data with Content-Type: application/javascript;
+    // charset=utf-8 in the HTTP header (application/x-javascript is
+    // also fine; application/json, less so). Using the right MIME type
+    // and charset is critical; never use text/plain or text/html, and
+    // do not mistype utf-8 as utf8.
+    {"application/javascript", ".json", ContentType::kJson},
+    {"application/javascript", ".map", ContentType::kSourceMap},
+    {"application/pdf", ".pdf", ContentType::kPdf},  // RFC 3778
+    {"application/octet-stream", ".bin", ContentType::kOctetStream},
+    // SVG is XML.  If at some point we start optimizing svg as images, we need
+    // to
+    // be very careful not to just lump them in with images for all purposes, to
+    // avoid creating security vulnerabilities.
+    {"image/svg+xml", ".svg", ContentType::kXml},
 
-  // Synonyms; Note that the canonical types above are referenced by index
-  // in the named references declared below.  The synonyms below are not
-  // index-sensitive.
-  {"application/x-javascript", ".js",   ContentType::kJavascript},
-  {"text/javascript",          ".js",   ContentType::kJavascript},
-  {"text/x-javascript",        ".js",   ContentType::kJavascript},
-  {"text/ecmascript",          ".js",   ContentType::kJavascript},
-  {"text/js",                  ".js",   ContentType::kJavascript},
-  {"text/jscript",             ".js",   ContentType::kJavascript},
-  {"text/x-js",                ".js",   ContentType::kJavascript},
-  {"application/ecmascript",   ".js",   ContentType::kJavascript},
-  {"application/json",         ".json", ContentType::kJson},
-  {"application/x-json",       ".json", ContentType::kJson},
-  {"image/jpeg",               ".jpeg", ContentType::kJpeg},
-  {"image/jpg",                ".jpg",  ContentType::kJpeg},
-  {"image/vnd.microsoft.icon", ".ico",  ContentType::kIco},
-  {"text/html",                ".htm",  ContentType::kHtml},
-  {"application/xml",          ".xml",  ContentType::kXml},  // RFC 3023
+    // Synonyms; Note that the canonical types above are referenced by index
+    // in the named references declared below.  The synonyms below are not
+    // index-sensitive.
+    {"application/x-javascript", ".js", ContentType::kJavascript},
+    {"text/javascript", ".js", ContentType::kJavascript},
+    {"text/x-javascript", ".js", ContentType::kJavascript},
+    {"text/ecmascript", ".js", ContentType::kJavascript},
+    {"text/js", ".js", ContentType::kJavascript},
+    {"text/jscript", ".js", ContentType::kJavascript},
+    {"text/x-js", ".js", ContentType::kJavascript},
+    {"application/ecmascript", ".js", ContentType::kJavascript},
+    {"application/json", ".json", ContentType::kJson},
+    {"application/x-json", ".json", ContentType::kJson},
+    {"image/jpeg", ".jpeg", ContentType::kJpeg},
+    {"image/jpg", ".jpg", ContentType::kJpeg},
+    {"image/vnd.microsoft.icon", ".ico", ContentType::kIco},
+    {"text/html", ".htm", ContentType::kHtml},
+    {"application/xml", ".xml", ContentType::kXml},  // RFC 3023
 
-  {"video/mpeg",                ".mpg",  ContentType::kVideo},  // RFC 2045
-  {"video/mp4",                 ".mp4",  ContentType::kVideo},  // RFC 4337
-  {"video/3gp",                 ".3gp",  ContentType::kVideo},
-  {"video/x-flv",               ".flv",  ContentType::kVideo},
-  {"video/ogg",                 ".ogg",  ContentType::kVideo},  // RFC 5334
-  {"video/webm",                ".webm", ContentType::kVideo},
-  {"video/x-ms-asf",            ".asf",  ContentType::kVideo},
-  {"video/x-ms-wmv",            ".wmv",  ContentType::kVideo},
-  {"video/quicktime",           ".mov",  ContentType::kVideo},
-  {"video/mpeg4",               ".mp4",  ContentType::kVideo},
+    {"video/mpeg", ".mpg", ContentType::kVideo},  // RFC 2045
+    {"video/mp4", ".mp4", ContentType::kVideo},   // RFC 4337
+    {"video/3gp", ".3gp", ContentType::kVideo},
+    {"video/x-flv", ".flv", ContentType::kVideo},
+    {"video/ogg", ".ogg", ContentType::kVideo},  // RFC 5334
+    {"video/webm", ".webm", ContentType::kVideo},
+    {"video/x-ms-asf", ".asf", ContentType::kVideo},
+    {"video/x-ms-wmv", ".wmv", ContentType::kVideo},
+    {"video/quicktime", ".mov", ContentType::kVideo},
+    {"video/mpeg4", ".mp4", ContentType::kVideo},
 
-  {"audio/mpeg",               ".mp3",  ContentType::kAudio},
-  {"audio/ogg",                ".ogg",  ContentType::kAudio},
-  {"audio/webm",               ".webm", ContentType::kAudio},
-  {"audio/mp4",                ".mp4",  ContentType::kAudio},
-  {"audio/x-mpeg",             ".mp3",  ContentType::kAudio},
-  {"audio/x-wav",              ".wav",  ContentType::kAudio},
-  {"audio/mp3",                ".mp3",  ContentType::kAudio},
-  {"audio/wav",                ".wav",  ContentType::kAudio},
+    {"audio/mpeg", ".mp3", ContentType::kAudio},
+    {"audio/ogg", ".ogg", ContentType::kAudio},
+    {"audio/webm", ".webm", ContentType::kAudio},
+    {"audio/mp4", ".mp4", ContentType::kAudio},
+    {"audio/x-mpeg", ".mp3", ContentType::kAudio},
+    {"audio/x-wav", ".wav", ContentType::kAudio},
+    {"audio/mp3", ".mp3", ContentType::kAudio},
+    {"audio/wav", ".wav", ContentType::kAudio},
 
-  {"binary/octet-stream",       ".bin", ContentType::kOctetStream },
+    {"binary/octet-stream", ".bin", ContentType::kOctetStream},
 };
 const int kNumTypes = arraysize(kTypes);
 
@@ -136,9 +136,7 @@ int ContentType::MaxProducedExtensionLength() {
   return 4;  // .jpeg or .webp
 }
 
-bool ContentType::IsCss() const {
-  return type_ == kCss;
-}
+bool ContentType::IsCss() const { return type_ == kCss; }
 
 bool ContentType::IsJsLike() const {
   switch (type_) {
@@ -192,13 +190,9 @@ bool ContentType::IsImage() const {
   }
 }
 
-bool ContentType::IsVideo() const {
-  return type_ == kVideo;
-}
+bool ContentType::IsVideo() const { return type_ == kVideo; }
 
-bool ContentType::IsAudio() const {
-  return type_ == kAudio;
-}
+bool ContentType::IsAudio() const { return type_ == kAudio; }
 
 const ContentType* NameExtensionToContentType(const StringPiece& name) {
   // Get the name from the extension.
@@ -212,7 +206,7 @@ const ContentType* NameExtensionToContentType(const StringPiece& name) {
       }
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 const ContentType* MimeTypeToContentType(const StringPiece& mime_type) {
@@ -237,14 +231,13 @@ const ContentType* MimeTypeToContentType(const StringPiece& mime_type) {
       return &kTypes[i];
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 // TODO(nforman): Have some further indication of whether
 // content_type_str was just empty or invalid.
 bool ParseContentType(const StringPiece& content_type_str,
-                      GoogleString* mime_type,
-                      GoogleString* charset) {
+                      GoogleString* mime_type, GoogleString* charset) {
   StringPiece content_type = content_type_str;
   // Set default values
   mime_type->clear();
@@ -277,10 +270,9 @@ bool ParseContentType(const StringPiece& content_type_str,
   return !mime_type->empty() || !charset->empty();
 }
 
-void MimeTypeListToContentTypeSet(
-    const GoogleString& in,
-    std::set<const ContentType*>* out) {
-  CHECK(out != NULL) << "'out' is a required parameter.";
+void MimeTypeListToContentTypeSet(const GoogleString& in,
+                                  std::set<const ContentType*>* out) {
+  CHECK(out != nullptr) << "'out' is a required parameter.";
   out->clear();
   if (in.empty()) {
     return;
@@ -288,9 +280,9 @@ void MimeTypeListToContentTypeSet(
   StringPieceVector strings;
   SplitStringPieceToVector(in, ",", &strings, true /* omit_empty */);
   for (StringPieceVector::const_iterator i = strings.begin(), e = strings.end();
-           i != e; ++i) {
+       i != e; ++i) {
     const ContentType* ct = MimeTypeToContentType(*i);
-    if (ct == NULL) {
+    if (ct == nullptr) {
       LOG(WARNING) << "'" << *i << "' is not a recognized mime-type.";
     } else {
       VLOG(1) << "Adding '" << *i << "' to the content-type set.";

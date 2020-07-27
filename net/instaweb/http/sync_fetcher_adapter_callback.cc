@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 //         lsong@google.com (Libo Song)
 
 #include "net/instaweb/http/public/sync_fetcher_adapter_callback.h"
@@ -69,11 +68,9 @@ SyncFetcherAdapterCallback::SyncFetcherAdapterCallback(
       done_(false),
       success_(false),
       released_(false),
-      writer_(new ProtectedWriter(this, writer)) {
-}
+      writer_(new ProtectedWriter(this, writer)) {}
 
-SyncFetcherAdapterCallback::~SyncFetcherAdapterCallback() {
-}
+SyncFetcherAdapterCallback::~SyncFetcherAdapterCallback() {}
 
 void SyncFetcherAdapterCallback::HandleDone(bool success) {
   mutex_->Lock();
@@ -130,9 +127,7 @@ bool SyncFetcherAdapterCallback::LockIfNotReleased() {
   }
 }
 
-void SyncFetcherAdapterCallback::Unlock() {
-  mutex_->Unlock();
-}
+void SyncFetcherAdapterCallback::Unlock() { mutex_->Unlock(); }
 
 void SyncFetcherAdapterCallback::TimedWait(int64 timeout_ms) {
   mutex_->DCheckLocked();

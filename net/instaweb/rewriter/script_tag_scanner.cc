@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/script_tag_scanner.h"
 
 #include <algorithm>
@@ -34,24 +33,22 @@ namespace net_instaweb {
 // The list is from HTML5, "4.3.1.1 Scripting languages"
 class HtmlParse;
 
-static const char* const javascript_mimetypes[] = {
-  "application/ecmascript",
-  "application/javascript",
-  "application/x-ecmascript",
-  "application/x-javascript",
-  "text/ecmascript",
-  "text/javascript",
-  "text/javascript1.0",
-  "text/javascript1.1",
-  "text/javascript1.2",
-  "text/javascript1.3",
-  "text/javascript1.4",
-  "text/javascript1.5",
-  "text/jscript",
-  "text/livescript",
-  "text/x-ecmascript",
-  "text/x-javascript"
-};
+static const char* const javascript_mimetypes[] = {"application/ecmascript",
+                                                   "application/javascript",
+                                                   "application/x-ecmascript",
+                                                   "application/x-javascript",
+                                                   "text/ecmascript",
+                                                   "text/javascript",
+                                                   "text/javascript1.0",
+                                                   "text/javascript1.1",
+                                                   "text/javascript1.2",
+                                                   "text/javascript1.3",
+                                                   "text/javascript1.4",
+                                                   "text/javascript1.5",
+                                                   "text/jscript",
+                                                   "text/livescript",
+                                                   "text/x-ecmascript",
+                                                   "text/x-javascript"};
 
 ScriptTagScanner::ScriptTagScanner(HtmlParse* html_parse) {
 #ifndef NDEBUG
@@ -78,13 +75,13 @@ ScriptTagScanner::ScriptClassification ScriptTagScanner::ParseScriptElement(
   ScriptClassification lang;
   HtmlElement::Attribute* type_attr = element->FindAttribute(HtmlName::kType);
   bool check_lang_attr = false;
-  if (type_attr == NULL) {
+  if (type_attr == nullptr) {
     check_lang_attr = true;
   } else {
     StringPiece type_str = type_attr->DecodedValueOrNull();
     if (type_attr->decoding_error()) {
-      lang = kUnknownScript;                 // e.g. <script type=&#257;>
-    } else if (type_str.data() == NULL) {    // e.g. <script type>
+      lang = kUnknownScript;                  // e.g. <script type=&#257;>
+    } else if (type_str.data() == nullptr) {  // e.g. <script type>
       // If the type attribute is empty (no =) then fall back to the lang attr.
       check_lang_attr = true;
     } else if (type_str.empty() || IsJsMime(Normalized(type_str))) {
@@ -103,15 +100,15 @@ ScriptTagScanner::ScriptClassification ScriptTagScanner::ParseScriptElement(
   // (Note: null check on ->DecodedValueOrNull() above as it's passed
   // to GoogleString)
   if (check_lang_attr) {
-    HtmlElement::Attribute* lang_attr = element->FindAttribute(
-        HtmlName::kLanguage);
+    HtmlElement::Attribute* lang_attr =
+        element->FindAttribute(HtmlName::kLanguage);
 
-    if (lang_attr != NULL) {
+    if (lang_attr != nullptr) {
       StringPiece lang_piece = lang_attr->DecodedValueOrNull();
       if (lang_attr->decoding_error()) {
-        lang = kUnknownScript;                 // e.g. <script language=&#257;>
-      } else if (lang_piece.data() == NULL) {
-        lang = kJavaScript;                    // e.g. <script language>
+        lang = kUnknownScript;  // e.g. <script language=&#257;>
+      } else if (lang_piece.data() == nullptr) {
+        lang = kJavaScript;  // e.g. <script language>
       } else {
         GoogleString lang_str;
         lang_piece.CopyToString(&lang_str);
@@ -131,15 +128,14 @@ ScriptTagScanner::ScriptClassification ScriptTagScanner::ParseScriptElement(
   return lang;
 }
 
-
 int ScriptTagScanner::ExecutionMode(const HtmlElement* element) const {
   int flags = 0;
 
-  if (element->FindAttribute(HtmlName::kAsync) != NULL) {
+  if (element->FindAttribute(HtmlName::kAsync) != nullptr) {
     flags |= kExecuteAsync;
   }
 
-  if (element->FindAttribute(HtmlName::kDefer) != NULL) {
+  if (element->FindAttribute(HtmlName::kDefer) != nullptr) {
     flags |= kExecuteDefer;
   }
 
@@ -149,11 +145,11 @@ int ScriptTagScanner::ExecutionMode(const HtmlElement* element) const {
   // Note: there is a disagreement between Chrome and Firefox on how
   // empty ones are handled. We set kExecuteForEvent as it is the conservative
   // value, requiring careful treatment by filters
-  const HtmlElement::Attribute* for_attr = element->FindAttribute(
-      HtmlName::kFor);
-  const HtmlElement::Attribute* event_attr = element->FindAttribute(
-      HtmlName::kEvent);
-  if (for_attr != NULL && event_attr != NULL) {
+  const HtmlElement::Attribute* for_attr =
+      element->FindAttribute(HtmlName::kFor);
+  const HtmlElement::Attribute* event_attr =
+      element->FindAttribute(HtmlName::kEvent);
+  if (for_attr != nullptr && event_attr != nullptr) {
     if (Normalized(for_attr->DecodedValueOrNull()) != "window") {
       flags |= kExecuteForEvent;
     }
@@ -177,8 +173,7 @@ bool ScriptTagScanner::IsJsMime(const GoogleString& type_str) {
   CharStarCompareSensitive less_than;  // case-folding done by caller.
   return std::binary_search(
       javascript_mimetypes,
-      javascript_mimetypes + arraysize(javascript_mimetypes),
-      type_str.c_str(),
+      javascript_mimetypes + arraysize(javascript_mimetypes), type_str.c_str(),
       less_than);
 }
 

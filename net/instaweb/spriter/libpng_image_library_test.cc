@@ -18,6 +18,9 @@
  */
 
 #include "net/instaweb/spriter/libpng_image_library.h"
+
+#include <memory>
+
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -36,17 +39,19 @@ namespace spriter {
 class LibpngImageLibraryTest : public testing::Test {
  protected:
   class LogDelegate : public ImageLibraryInterface::Delegate {
-    virtual void OnError(const GoogleString& error) const {
+    void OnError(const GoogleString& error) const override {
       ASSERT_TRUE(false) << "Unexpected error: " << error;
     }
   };
-  virtual void SetUp() {
-    delegate_.reset(new LogDelegate());
+  void SetUp() override {
+    delegate_ = std::make_unique<LogDelegate>();
     mkdir(GTestTempDir().c_str(), 0777);
-    src_library_.reset(new LibpngImageLibrary(StrCat(GTestSrcDir(), kTestData),
-        StrCat(GTestTempDir(), "/"), delegate_.get()));
-    tmp_library_.reset(new LibpngImageLibrary(StrCat(GTestTempDir(), "/"),
-        StrCat(GTestTempDir(), "/"), delegate_.get()));
+    src_library_ = std::make_unique<LibpngImageLibrary>(
+        StrCat(GTestSrcDir(), kTestData), StrCat(GTestTempDir(), "/"),
+        delegate_.get());
+    tmp_library_ = std::make_unique<LibpngImageLibrary>(
+        StrCat(GTestTempDir(), "/"), StrCat(GTestTempDir(), "/"),
+        delegate_.get());
   }
   ImageLibraryInterface::Image* ReadFromFile(const StringPiece& filename) {
     return src_library_->ReadFromFile(filename.as_string());
@@ -56,31 +61,32 @@ class LibpngImageLibraryTest : public testing::Test {
   }
   ImageLibraryInterface::Image* WriteAndRead(ImageLibraryInterface::Canvas* c) {
     bool success = c->WriteToFile("out.png", PNG);
-    return success ? tmp_library_->ReadFromFile("out.png") : NULL;
+    return success ? tmp_library_->ReadFromFile("out.png") : nullptr;
   }
 
   // A library that reads in our test source data and writes in our temp dir.
-  scoped_ptr<LibpngImageLibrary> src_library_;
+  std::unique_ptr<LibpngImageLibrary> src_library_;
   // A library that reads and writes in our temp dir.
-  scoped_ptr<LibpngImageLibrary> tmp_library_;
-  scoped_ptr<LogDelegate> delegate_;
+  std::unique_ptr<LibpngImageLibrary> tmp_library_;
+  std::unique_ptr<LogDelegate> delegate_;
 };
-
 
 TEST_F(LibpngImageLibraryTest, TestCompose) {
   //  65x70
-  scoped_ptr<ImageLibraryInterface::Image> image1(ReadFromFile(kCuppa));
+  std::unique_ptr<ImageLibraryInterface::Image> image1(ReadFromFile(kCuppa));
   // 100x100
-  scoped_ptr<ImageLibraryInterface::Image> image2(ReadFromFile(kBikeCrash));
-  ASSERT_TRUE(image1.get() != NULL);
-  ASSERT_TRUE(image2.get() != NULL);
-  scoped_ptr<ImageLibraryInterface::Canvas> canvas(CreateCanvas(100, 170));
-  ASSERT_TRUE(canvas != NULL);
+  std::unique_ptr<ImageLibraryInterface::Image> image2(
+      ReadFromFile(kBikeCrash));
+  ASSERT_TRUE(image1.get() != nullptr);
+  ASSERT_TRUE(image2.get() != nullptr);
+  std::unique_ptr<ImageLibraryInterface::Canvas> canvas(CreateCanvas(100, 170));
+  ASSERT_TRUE(canvas != nullptr);
   ASSERT_TRUE(canvas->DrawImage(image1.get(), 0, 0));
   ASSERT_TRUE(canvas->DrawImage(image2.get(), 0, 70));
   ASSERT_TRUE(canvas->WriteToFile("out.png", PNG));
-  scoped_ptr<ImageLibraryInterface::Image> image3(WriteAndRead(canvas.get()));
-  ASSERT_TRUE(image3.get() != NULL);
+  std::unique_ptr<ImageLibraryInterface::Image> image3(
+      WriteAndRead(canvas.get()));
+  ASSERT_TRUE(image3.get() != nullptr);
   int width, height;
   ASSERT_TRUE(image3->GetDimensions(&width, &height));
   EXPECT_EQ(100, width);

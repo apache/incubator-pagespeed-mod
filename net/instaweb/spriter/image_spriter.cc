@@ -17,11 +17,12 @@
  * under the License.
  */
 
+#include "net/instaweb/spriter/public/image_spriter.h"
+
 #include <vector>
 
 #include "base/logging.h"
 #include "net/instaweb/spriter/image_library_interface.h"
-#include "net/instaweb/spriter/public/image_spriter.h"
 #include "net/instaweb/spriter/public/image_spriter.pb.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/stl_util.h"
@@ -32,9 +33,8 @@ namespace spriter {
 ImageSpriter::ImageSpriter(ImageLibraryInterface* image_lib)
     : image_lib_(image_lib) {}
 
-SpriterResult* ImageSpriter::Sprite(
-    const SpriterInput& spriter_input) {
-  scoped_ptr<SpriterResult> spriter_result(new SpriterResult);
+SpriterResult* ImageSpriter::Sprite(const SpriterInput& spriter_input) {
+  std::unique_ptr<SpriterResult> spriter_result(new SpriterResult);
 
   spriter_result->set_id(spriter_input.id());
   spriter_result->set_output_base_path(
@@ -44,21 +44,31 @@ SpriterResult* ImageSpriter::Sprite(
   switch (spriter_input.options().placement_method()) {
     case VERTICAL_STRIP: {
       if (!DrawImagesInVerticalStrip(spriter_input, spriter_result.get()))
-        return NULL;
+        return nullptr;
     } break;
 
     default: {
       LOG(DFATAL) << "Unhandled case.";
-      return NULL;  // TODO(skerner): Error call to delegate.
+      return nullptr;  // TODO(skerner): Error call to delegate.
     }
   }
 
   return spriter_result.release();
 }
 
-bool ImageSpriter::DrawImagesInVerticalStrip(
-    const SpriterInput& spriter_input,
-    SpriterResult* spriter_result) {
+// XXX(oschaaf):
+template <class T>
+class STLElementDeleter {
+ public:
+  STLElementDeleter<T>(T* container) : container_(container) {}
+  ~STLElementDeleter<T>() { STLDeleteElements(container_); }
+
+ private:
+  T* container_;
+};
+
+bool ImageSpriter::DrawImagesInVerticalStrip(const SpriterInput& spriter_input,
+                                             SpriterResult* spriter_result) {
   typedef std::vector<ImageLibraryInterface::Image*> ImagePointerVector;
   ImagePointerVector images;
   STLElementDeleter<ImagePointerVector> images_deleter(&images);
@@ -71,11 +81,11 @@ bool ImageSpriter::DrawImagesInVerticalStrip(
     ImageLibraryInterface::FilePath image_path(
         spriter_input.input_image_set(i).path());
 
-    scoped_ptr<ImageLibraryInterface::Image> image(
+    std::unique_ptr<ImageLibraryInterface::Image> image(
         image_lib_->ReadFromFile(image_path));
 
     int width, height;
-    if (image.get() == NULL || !image->GetDimensions(&width, &height))
+    if (image.get() == nullptr || !image->GetDimensions(&width, &height))
       return false;  // ReadFromFile() or GetDimensions() has called OnError.
 
     images.push_back(image.release());  // |images| takes ownership of |image|.
@@ -89,15 +99,13 @@ bool ImageSpriter::DrawImagesInVerticalStrip(
     rect->set_y_pos(total_y_offset);
 
     total_y_offset += height;
-    if (max_image_width < width)
-      max_image_width = width;
+    if (max_image_width < width) max_image_width = width;
   }
 
   // Write all images into a canvas, and write the canvas to a file.
-  scoped_ptr<ImageLibraryInterface::Canvas> canvas(
+  std::unique_ptr<ImageLibraryInterface::Canvas> canvas(
       image_lib_->CreateCanvas(max_image_width, total_y_offset));
-  if (!canvas.get())
-    return false;
+  if (!canvas.get()) return false;
 
   for (int i = 0, ie = images.size(); i < ie; ++i) {
     const Rect& image_pos = spriter_result->image_position(i).clip_rect();

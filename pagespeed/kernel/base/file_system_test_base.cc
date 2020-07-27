@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/file_system_test_base.h"
 
 #include <algorithm>
@@ -87,8 +86,8 @@ void FileSystemTest::CheckInputFileRead(const GoogleString& filename,
 // swallow them, if they become annoying.
 void FileSystemTest::CheckDoesNotExist(const GoogleString& filename) {
   GoogleString read_buffer;
-  EXPECT_FALSE(file_system()->ReadFile(filename.c_str(), &read_buffer,
-                                       &handler_));
+  EXPECT_FALSE(
+      file_system()->ReadFile(filename.c_str(), &read_buffer, &handler_));
   EXPECT_TRUE(file_system()->Exists(filename.c_str(), &handler_).is_false());
 }
 
@@ -98,8 +97,8 @@ void FileSystemTest::TestWriteRead() {
   GoogleString msg("Hello, world!");
 
   DeleteRecursively(filename);
-  FileSystem::OutputFile* ofile = file_system()->OpenOutputFile(
-      filename.c_str(), &handler_);
+  FileSystem::OutputFile* ofile =
+      file_system()->OpenOutputFile(filename.c_str(), &handler_);
   ASSERT_TRUE(ofile != nullptr);
   EXPECT_TRUE(ofile->Write(msg, &handler_));
   EXPECT_TRUE(file_system()->Close(ofile, &handler_));
@@ -123,8 +122,8 @@ void FileSystemTest::TestWriteRead() {
 // Write a temp file, then read it.
 void FileSystemTest::TestTemp() {
   GoogleString prefix = StrCat(test_tmpdir(), "/temp_prefix");
-  FileSystem::OutputFile* ofile = file_system()->OpenTempFile(
-      prefix, &handler_);
+  FileSystem::OutputFile* ofile =
+      file_system()->OpenTempFile(prefix, &handler_);
   ASSERT_TRUE(ofile != nullptr);
   GoogleString filename(ofile->filename());
   GoogleString msg("Hello, world!");
@@ -137,8 +136,8 @@ void FileSystemTest::TestTemp() {
 // Write a temp file, close it, append to it, then read it.
 void FileSystemTest::TestAppend() {
   GoogleString prefix = StrCat(test_tmpdir(), "/temp_prefix");
-  FileSystem::OutputFile* ofile = file_system()->OpenTempFile(
-      prefix, &handler_);
+  FileSystem::OutputFile* ofile =
+      file_system()->OpenTempFile(prefix, &handler_);
   ASSERT_TRUE(ofile != nullptr);
   const GoogleString filename(ofile->filename());
   EXPECT_TRUE(ofile->Write("Hello", &handler_));
@@ -157,8 +156,8 @@ void FileSystemTest::TestRename() {
   DeleteRecursively(to_file);
 
   GoogleString from_file = WriteNewFile("/from.txt", from_text);
-  ASSERT_TRUE(file_system()->RenameFile(from_file.c_str(), to_file.c_str(),
-                                        &handler_));
+  ASSERT_TRUE(
+      file_system()->RenameFile(from_file.c_str(), to_file.c_str(), &handler_));
 
   CheckDoesNotExist(from_file);
   CheckRead(to_file, from_text);
@@ -188,7 +187,6 @@ void FileSystemTest::TestCreateFileInDir() {
   ASSERT_TRUE(file != nullptr);
   file_system()->Close(file, &handler_);
 }
-
 
 // Make a directory and check that files may be placed in it.
 void FileSystemTest::TestMakeDir() {
@@ -301,10 +299,10 @@ void FileSystemTest::TestListContents() {
   EXPECT_TRUE(file_system()->ListContents(dir_name, &mylist, &handler_));
   EXPECT_EQ(size_t(2), mylist.size());
   // Make sure our filenames are in there
-  EXPECT_FALSE(filename1.compare(mylist.at(0))
-               && filename1.compare(mylist.at(1)));
-  EXPECT_FALSE(filename2.compare(mylist.at(0))
-               && filename2.compare(mylist.at(1)));
+  EXPECT_FALSE(filename1.compare(mylist.at(0)) &&
+               filename1.compare(mylist.at(1)));
+  EXPECT_FALSE(filename2.compare(mylist.at(0)) &&
+               filename2.compare(mylist.at(1)));
 }
 
 void FileSystemTest::TestAtime() {
@@ -405,10 +403,10 @@ void FileSystemTest::TestDirInfo() {
   ASSERT_TRUE(file_system()->MakeDir(dir_name.c_str(), &handler_));
   ASSERT_TRUE(file_system()->MakeDir(dir_name2.c_str(), &handler_));
   ASSERT_TRUE(file_system()->MakeDir(dir_name3.c_str(), &handler_));
-  ASSERT_TRUE(file_system()->WriteFile(full_path1.c_str(),
-                                       content1, &handler_));
-  ASSERT_TRUE(file_system()->WriteFile(full_path2.c_str(),
-                                       content2, &handler_));
+  ASSERT_TRUE(
+      file_system()->WriteFile(full_path1.c_str(), content1, &handler_));
+  ASSERT_TRUE(
+      file_system()->WriteFile(full_path2.c_str(), content2, &handler_));
 
   int64 size;
   EXPECT_TRUE(file_system()->Size(full_path1, &size, &handler_));
@@ -419,8 +417,8 @@ void FileSystemTest::TestDirInfo() {
   FileSystem::DirInfo dir_info;
   FileSystem::DirInfo dir_info2;
   CountingProgressNotifier notifier1;
-  file_system()->GetDirInfoWithProgress(
-      dir_name2, &dir_info2, &notifier1, &handler_);
+  file_system()->GetDirInfoWithProgress(dir_name2, &dir_info2, &notifier1,
+                                        &handler_);
   EXPECT_EQ(FileSize(content1) + FileSize(content2), dir_info2.size_bytes);
   EXPECT_EQ(2, dir_info2.inode_count);
   EXPECT_EQ(static_cast<size_t>(2), dir_info2.files.size());
@@ -436,8 +434,8 @@ void FileSystemTest::TestDirInfo() {
   EXPECT_EQ(static_cast<size_t>(0), dir_info2.empty_dirs.size());
 
   CountingProgressNotifier notifier2;
-  file_system()->GetDirInfoWithProgress(
-      dir_name, &dir_info, &notifier2, &handler_);
+  file_system()->GetDirInfoWithProgress(dir_name, &dir_info, &notifier2,
+                                        &handler_);
   int dir_size = DefaultDirSize();
   EXPECT_EQ(dir_size * 2 + FileSize(content1) + FileSize(content2),
             dir_info.size_bytes);
@@ -476,17 +474,23 @@ void FileSystemTest::TestLockTimeout() {
   ASSERT_TRUE(file_system()->MakeDir(dir_name.c_str(), &handler_));
   GoogleString lock_name = dir_name + "/lock";
   // Acquire the lock
-  EXPECT_TRUE(file_system()->TryLockWithTimeout(lock_name, Timer::kSecondMs,
-                                                timer(), &handler_).is_true());
+  EXPECT_TRUE(
+      file_system()
+          ->TryLockWithTimeout(lock_name, Timer::kSecondMs, timer(), &handler_)
+          .is_true());
   // Immediate re-acquire should fail.  Steal time deliberately long so we don't
   // steal by mistake (since we're running in non-mock time).
-  EXPECT_TRUE(file_system()->TryLockWithTimeout(lock_name, Timer::kMinuteMs,
-                                                timer(), &handler_).is_false());
+  EXPECT_TRUE(
+      file_system()
+          ->TryLockWithTimeout(lock_name, Timer::kMinuteMs, timer(), &handler_)
+          .is_false());
   // Wait just over 1 second so that we're past the timout.
   // Now we should seize lock.
   timer()->SleepMs(Timer::kSecondMs + 1);
-  EXPECT_TRUE(file_system()->TryLockWithTimeout(lock_name, Timer::kSecondMs,
-                                                timer(), &handler_).is_true());
+  EXPECT_TRUE(
+      file_system()
+          ->TryLockWithTimeout(lock_name, Timer::kSecondMs, timer(), &handler_)
+          .is_true());
   // Lock should still be held.
   EXPECT_TRUE(file_system()->TryLock(lock_name, &handler_).is_false());
   EXPECT_TRUE(file_system()->Unlock(lock_name, &handler_));
@@ -506,8 +510,10 @@ void FileSystemTest::TestLockBumping() {
   EXPECT_FALSE(file_system()->BumpLockTimeout(lock_name, &handler_));
 
   // Take the lock.
-  EXPECT_TRUE(file_system()->TryLockWithTimeout(lock_name, Timer::kSecondMs * 3,
-                                                timer(), &handler_).is_true());
+  EXPECT_TRUE(file_system()
+                  ->TryLockWithTimeout(lock_name, Timer::kSecondMs * 3, timer(),
+                                       &handler_)
+                  .is_true());
 
   // Sleep 2s.  We still hold the lock.
   timer()->SleepMs(Timer::kSecondMs * 2);
@@ -517,8 +523,10 @@ void FileSystemTest::TestLockBumping() {
 
   // Try to take the lock again.  This should fail even if bumping didn't work
   // because the original lock was only 2s old anyway.
-  EXPECT_FALSE(file_system()->TryLockWithTimeout(
-      lock_name, Timer::kSecondMs * 3, timer(), &handler_).is_true());
+  EXPECT_FALSE(file_system()
+                   ->TryLockWithTimeout(lock_name, Timer::kSecondMs * 3,
+                                        timer(), &handler_)
+                   .is_true());
 
   // Bump the lock again to deflake this test on the CI vm.
   EXPECT_TRUE(file_system()->BumpLockTimeout(lock_name, &handler_));
@@ -528,15 +536,19 @@ void FileSystemTest::TestLockBumping() {
 
   // Try to take the lock again.  If bumping didn't work, then the lock would
   // have expired 1s ago and we could have taken it here.
-  EXPECT_FALSE(file_system()->TryLockWithTimeout(
-      lock_name, Timer::kSecondMs * 3, timer(), &handler_).is_true());
+  EXPECT_FALSE(file_system()
+                   ->TryLockWithTimeout(lock_name, Timer::kSecondMs * 3,
+                                        timer(), &handler_)
+                   .is_true());
 
   // Sleep 2s.  The lock is now fully timed out.
   timer()->SleepMs(Timer::kSecondMs * 2);
 
   // With the lock timed out it's available for the taking.
-  EXPECT_TRUE(file_system()->TryLockWithTimeout(lock_name, Timer::kSecondMs * 3,
-                                                timer(), &handler_).is_true());
+  EXPECT_TRUE(file_system()
+                  ->TryLockWithTimeout(lock_name, Timer::kSecondMs * 3, timer(),
+                                       &handler_)
+                  .is_true());
 }
 
 }  // namespace net_instaweb

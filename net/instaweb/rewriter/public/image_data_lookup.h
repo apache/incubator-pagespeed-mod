@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_DATA_LOOKUP_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_DATA_LOOKUP_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -38,45 +38,39 @@ inline int CharToInt(char c) {
 }
 
 inline int JpegIntAtPosition(const StringPiece& buf, size_t pos) {
-  return (CharToInt(buf[pos]) << 8) |
-         (CharToInt(buf[pos + 1]));
+  return (CharToInt(buf[pos]) << 8) | (CharToInt(buf[pos + 1]));
 }
 
 inline int GifIntAtPosition(const StringPiece& buf, size_t pos) {
-  return (CharToInt(buf[pos + 1]) << 8) |
-         (CharToInt(buf[pos]));
+  return (CharToInt(buf[pos + 1]) << 8) | (CharToInt(buf[pos]));
 }
 
 inline int PngIntAtPosition(const StringPiece& buf, size_t pos) {
-  return (CharToInt(buf[pos    ]) << 24) |
-         (CharToInt(buf[pos + 1]) << 16) |
-         (CharToInt(buf[pos + 2]) << 8) |
-         (CharToInt(buf[pos + 3]));
+  return (CharToInt(buf[pos]) << 24) | (CharToInt(buf[pos + 1]) << 16) |
+         (CharToInt(buf[pos + 2]) << 8) | (CharToInt(buf[pos + 3]));
 }
 
-inline bool PngSectionIdIs(const char* hdr,
-                           const StringPiece& buf, size_t pos) {
-  return ((buf[pos + 4] == hdr[0]) &&
-          (buf[pos + 5] == hdr[1]) &&
-          (buf[pos + 6] == hdr[2]) &&
-          (buf[pos + 7] == hdr[3]));
+inline bool PngSectionIdIs(const char* hdr, const StringPiece& buf,
+                           size_t pos) {
+  return ((buf[pos + 4] == hdr[0]) && (buf[pos + 5] == hdr[1]) &&
+          (buf[pos + 6] == hdr[2]) && (buf[pos + 7] == hdr[3]));
 }
 
 namespace ImageHeaders {
-  // Constants that are shared by Image and its tests.
-  extern const char kPngHeader[];
-  extern const size_t kPngHeaderLength;
-  extern const char kPngIHDR[];
-  extern const size_t kPngIHDRLength;
-  extern const size_t kIHDRDataStart;
-  extern const size_t kPngIntSize;
+// Constants that are shared by Image and its tests.
+extern const char kPngHeader[];
+extern const size_t kPngHeaderLength;
+extern const char kPngIHDR[];
+extern const size_t kPngIHDRLength;
+extern const size_t kIHDRDataStart;
+extern const size_t kPngIntSize;
 
-  extern const char kGifHeader[];
-  extern const size_t kGifHeaderLength;
-  extern const size_t kGifDimStart;
-  extern const size_t kGifIntSize;
+extern const char kGifHeader[];
+extern const size_t kGifHeaderLength;
+extern const size_t kGifDimStart;
+extern const size_t kGifIntSize;
 
-  extern const size_t kJpegIntSize;
+extern const size_t kJpegIntSize;
 }  // namespace ImageHeaders
 
 }  // namespace net_instaweb

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_IMAGE_TESTING_PEER_H_
 #define NET_INSTAWEB_REWRITER_IMAGE_TESTING_PEER_H_
 
@@ -30,7 +29,7 @@ class ImageDim;
 
 class ImageTestingPeer {
  public:
-  ImageTestingPeer() { }
+  ImageTestingPeer() {}
 
   static void SetResizedDimensions(const ImageDim& dim, Image* image) {
     image->SetResizedDimensions(dim);

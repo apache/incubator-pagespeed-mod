@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/downstream_cache_purger.h"
 
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
@@ -134,8 +133,8 @@ TEST_F(DownstreamCachePurgerTest, TestPercentageRewrittenBelowThreshold) {
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
   EXPECT_STREQ("http://localhost:1234/purge/",
                counting_url_async_fetcher()->most_recent_fetched_url());
-  EXPECT_EQ(1, factory()->rewrite_stats()->
-                   downstream_cache_purge_attempts()->Get());
+  EXPECT_EQ(
+      1, factory()->rewrite_stats()->downstream_cache_purge_attempts()->Get());
 
   // A second purge attempt will fail because made_downstream_purge_attempt_
   // will be true already.
@@ -155,8 +154,8 @@ TEST_F(DownstreamCachePurgerTest, TestWithPurgeMethod) {
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
   EXPECT_STREQ("http://localhost:1234/purge/",
                counting_url_async_fetcher()->most_recent_fetched_url());
-  EXPECT_EQ(1, factory()->rewrite_stats()->
-                   downstream_cache_purge_attempts()->Get());
+  EXPECT_EQ(
+      1, factory()->rewrite_stats()->downstream_cache_purge_attempts()->Get());
 
   // A second purge attempt will fail because made_downstream_purge_attempt_
   // will be true already.
@@ -175,8 +174,8 @@ TEST_F(DownstreamCachePurgerTest, TestWithPostOnOriginalRequest) {
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
   EXPECT_FALSE(dcache.MaybeIssuePurge(google_url));
   EXPECT_EQ(0, counting_url_async_fetcher()->fetch_count());
-  EXPECT_EQ(0, factory()->rewrite_stats()->
-                   downstream_cache_purge_attempts()->Get());
+  EXPECT_EQ(
+      0, factory()->rewrite_stats()->downstream_cache_purge_attempts()->Get());
 }
 
 // Issue #921. Verify that trailing slashes from purge URLs are removed so that

@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/apr_thread_compatible_pool.h"
 
 #include <cstddef>
 
 #include "apr_pools.h"
 #include "apr_thread_mutex.h"
-
 #include "base/logging.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 
@@ -42,16 +40,16 @@ apr_pool_t* AprCreateThreadCompatiblePool(apr_pool_t* parent_pool) {
   //
   // Note: the above is all about the release version of the pool code, the
   // checking one has some additional locking!
-  apr_pool_t* pool = NULL;
-  apr_allocator_t* allocator = NULL;
+  apr_pool_t* pool = nullptr;
+  apr_allocator_t* allocator = nullptr;
   CHECK(apr_allocator_create(&allocator) == APR_SUCCESS);
   apr_status_t status =
-      apr_pool_create_ex(&pool, parent_pool, NULL /*abortfn*/, allocator);
-  if ((status != APR_SUCCESS) || (pool == NULL)) {
+      apr_pool_create_ex(&pool, parent_pool, nullptr /*abortfn*/, allocator);
+  if ((status != APR_SUCCESS) || (pool == nullptr)) {
     char buf[kStackBufferSize];
     apr_strerror(status, buf, sizeof(buf));
     CHECK_EQ(APR_SUCCESS, status) << "apr_pool_create_ex failed: " << buf;
-    CHECK(pool != NULL) << "apr_pool_create_ex failed: " << buf;
+    CHECK(pool != nullptr) << "apr_pool_create_ex failed: " << buf;
   }
   apr_allocator_owner_set(allocator, pool);
   apr_thread_mutex_t* mutex;

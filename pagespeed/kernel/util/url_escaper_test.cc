@@ -17,10 +17,11 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/util/url_escaper.h"
 
 #include <cctype>
 #include <cstddef>
-#include "pagespeed/kernel/util/url_escaper.h"
+
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -30,8 +31,8 @@ namespace {
 // We pass through a few special characters unchanged, and we
 // accept those characters, plus ',', as acceptable in the encoded
 // URLs.
-static const char kAcceptableSpecialChars[] = ",._+-=";
-static const char kPassThruChars[]          =  "._+-=";
+const char kAcceptableSpecialChars[] = ",._+-=";
+const char kPassThruChars[] = "._+-=";
 
 }  // namespace
 
@@ -39,14 +40,17 @@ namespace net_instaweb {
 
 class UrlEscaperTest : public testing::Test {
  protected:
-  void CheckEncoding(const StringPiece& url) {
-    GoogleString encoded, decoded;
+  static void CheckEncoding(const StringPiece& url) {
+    GoogleString encoded;
+
+    GoogleString decoded;
     UrlEscaper::EncodeToUrlSegment(url, &encoded);
 
     // Make sure there are only alphanumerics and _+-=%
     for (size_t i = 0; i < encoded.size(); ++i) {
       char c = encoded[i];
-      EXPECT_TRUE(isalnum(c) || (strchr(kAcceptableSpecialChars, c) != NULL));
+      EXPECT_TRUE(isalnum(c) ||
+                  (strchr(kAcceptableSpecialChars, c) != nullptr));
     }
 
     EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoded, &decoded));
@@ -54,21 +58,23 @@ class UrlEscaperTest : public testing::Test {
   }
 
   // Some basic text should be completely unchanged upon encode/decode.
-  void CheckUnchanged(const StringPiece& url) {
-    GoogleString encoded, decoded;
+  static void CheckUnchanged(const StringPiece& url) {
+    GoogleString encoded;
+
+    GoogleString decoded;
     UrlEscaper::EncodeToUrlSegment(url, &encoded);
     EXPECT_EQ(url, encoded);
     EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoded, &decoded));
     EXPECT_EQ(url, decoded);
   }
 
-  GoogleString Decode(const StringPiece& encoding) {
+  static GoogleString Decode(const StringPiece& encoding) {
     GoogleString decoded;
     EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoding, &decoded));
     return decoded;
   }
 
-  GoogleString Encode(const StringPiece& url) {
+  static GoogleString Encode(const StringPiece& url) {
     GoogleString encoded;
     UrlEscaper::EncodeToUrlSegment(url, &encoded);
     return encoded;
@@ -110,7 +116,7 @@ TEST_F(UrlEscaperTest, PercentDecoding) {
   // Test the corner case where browser percent-encoded parts of our url.
   EXPECT_EQ("a.css", Decode("%61%2E%63%73%73"));  // Just %-encode whole url
   EXPECT_EQ("a.js+b.js", Decode("a.js%20b.js"));  // '+' re-encoded as %20 (' ')
-  EXPECT_EQ("a%20b", Decode("a%2CP20b"));  // %-encoding of ,
+  EXPECT_EQ("a%20b", Decode("a%2CP20b"));         // %-encoding of ,
   // TODO(jmaessen): The following never seems to happen in practice
   //  (encoding of character following , in comma encoding)
   // EXPECT_EQ("a/b", Decode("a,%2Fb"));  // %-encoding of character after ,

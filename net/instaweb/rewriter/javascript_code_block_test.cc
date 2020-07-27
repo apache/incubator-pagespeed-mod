@@ -19,6 +19,8 @@
 
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 
+#include <memory>
+
 #include "net/instaweb/rewriter/public/javascript_library_identification.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -135,8 +137,7 @@ const char kJsWithJQueryScriptElementSelection[] =
 
 const char kBogusLibraryMD5[] = "ltVVzzYxo0";
 
-const char kBogusLibraryUrl[] =
-    "//www.example.com/js/bogus_library.js";
+const char kBogusLibraryUrl[] = "//www.example.com/js/bogus_library.js";
 
 // Sample JSON code from http://json.org/example with tons of whitespace.
 // Modified to include even more whitespace between special characters and
@@ -181,13 +182,12 @@ class JsCodeBlockTest : public ::testing::Test,
       : thread_system_(Platform::CreateThreadSystem()),
         stats_(thread_system_.get()),
         use_experimental_minifier_(GetParam()),
-        after_compilation_(use_experimental_minifier_
-                           ? kAfterCompilationNew
-                           : kAfterCompilationOld) {
+        after_compilation_(use_experimental_minifier_ ? kAfterCompilationNew
+                                                      : kAfterCompilationOld) {
     JavascriptRewriteConfig::InitStats(&stats_);
-    config_.reset(new JavascriptRewriteConfig(
+    config_ = std::make_unique<JavascriptRewriteConfig>(
         &stats_, true, use_experimental_minifier_, &libraries_,
-        &js_tokenizer_patterns_));
+        &js_tokenizer_patterns_);
     // Register a bogus library with a made-up md5 and plausible canonical url
     // that doesn't occur in our tests, but has the same size as our canonical
     // test case.
@@ -208,30 +208,27 @@ class JsCodeBlockTest : public ::testing::Test,
   }
 
   void DisableMinification() {
-    config_.reset(new JavascriptRewriteConfig(
+    config_ = std::make_unique<JavascriptRewriteConfig>(
         &stats_, false, use_experimental_minifier_, &libraries_,
-        &js_tokenizer_patterns_));
+        &js_tokenizer_patterns_);
   }
 
   // Must be called after DisableMinification if we call both.
   void DisableLibraryIdentification() {
-    config_.reset(new JavascriptRewriteConfig(
-        &stats_, config_->minify(), use_experimental_minifier_, NULL,
-        &js_tokenizer_patterns_));
+    config_ = std::make_unique<JavascriptRewriteConfig>(
+        &stats_, config_->minify(), use_experimental_minifier_, nullptr,
+        &js_tokenizer_patterns_);
   }
 
   void RegisterLibrariesIn(JavascriptLibraryIdentification* libs) {
     MD5Hasher md5(JavascriptLibraryIdentification::kNumHashChars);
     GoogleString after_md5 = md5.Hash(after_compilation_);
-    EXPECT_TRUE(libs->RegisterLibrary(strlen(after_compilation_),
-                                      after_md5, kLibraryUrl));
-    EXPECT_EQ(JavascriptLibraryIdentification::kNumHashChars,
-              after_md5.size());
+    EXPECT_TRUE(libs->RegisterLibrary(strlen(after_compilation_), after_md5,
+                                      kLibraryUrl));
+    EXPECT_EQ(JavascriptLibraryIdentification::kNumHashChars, after_md5.size());
   }
 
-  void RegisterLibraries() {
-    RegisterLibrariesIn(&libraries_);
-  }
+  void RegisterLibraries() { RegisterLibrariesIn(&libraries_); }
 
   JavascriptCodeBlock* TestBlock(StringPiece code) {
     return new JavascriptCodeBlock(code, config_.get(), "Test", &handler_);
@@ -239,21 +236,20 @@ class JsCodeBlockTest : public ::testing::Test,
 
   void SingleBlockRewriteTest(const char* before_compilation,
                               const char* after_compilation) {
-    scoped_ptr<JavascriptCodeBlock> block(TestBlock(before_compilation));
+    std::unique_ptr<JavascriptCodeBlock> block(TestBlock(before_compilation));
     EXPECT_TRUE(block->Rewrite());
     EXPECT_TRUE(block->successfully_rewritten());
     EXPECT_EQ(after_compilation, block->rewritten_code());
-    ExpectStats(1, 0,
-                strlen(before_compilation) - strlen(after_compilation),
+    ExpectStats(1, 0, strlen(before_compilation) - strlen(after_compilation),
                 strlen(before_compilation), 1);
   }
 
   GoogleMessageHandler handler_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
   JavascriptLibraryIdentification libraries_;
   const pagespeed::js::JsTokenizerPatterns js_tokenizer_patterns_;
-  scoped_ptr<JavascriptRewriteConfig> config_;
+  std::unique_ptr<JavascriptRewriteConfig> config_;
 
   const bool use_experimental_minifier_;
   const char* after_compilation_;
@@ -278,16 +274,15 @@ TEST_P(JsCodeBlockTest, RewriteNoIdentification) {
 }
 
 TEST_P(JsCodeBlockTest, UnsafeToRename) {
-  EXPECT_TRUE(JavascriptCodeBlock::UnsafeToRename(
-      kJsWithGetElementsByTagNameScript));
-  EXPECT_TRUE(JavascriptCodeBlock::UnsafeToRename(
-      kJsWithJQueryScriptElementSelection));
-  EXPECT_FALSE(JavascriptCodeBlock::UnsafeToRename(
-      kBeforeCompilation));
+  EXPECT_TRUE(
+      JavascriptCodeBlock::UnsafeToRename(kJsWithGetElementsByTagNameScript));
+  EXPECT_TRUE(
+      JavascriptCodeBlock::UnsafeToRename(kJsWithJQueryScriptElementSelection));
+  EXPECT_FALSE(JavascriptCodeBlock::UnsafeToRename(kBeforeCompilation));
 }
 
 TEST_P(JsCodeBlockTest, NoRewrite) {
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(after_compilation_));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(after_compilation_));
   EXPECT_FALSE(block->Rewrite());
   // Note: Minifier succeeded, but no minification was applied and thus
   // no bytes saved (nor original bytes marked).
@@ -295,13 +290,13 @@ TEST_P(JsCodeBlockTest, NoRewrite) {
 }
 
 TEST_P(JsCodeBlockTest, TruncatedComment) {
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedComment));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedComment));
   EXPECT_FALSE(block->Rewrite());
   ExpectStats(0, 1, 0, 0, 0);
 }
 
 TEST_P(JsCodeBlockTest, TruncatedString) {
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedString));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kTruncatedString));
   EXPECT_FALSE(block->Rewrite());
   ExpectStats(0, 1, 0, 0, 0);
 }
@@ -310,7 +305,7 @@ TEST_P(JsCodeBlockTest, NoMinification) {
   DisableMinification();
   DisableLibraryIdentification();
   EXPECT_FALSE(config_->minify());
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   EXPECT_FALSE(block->Rewrite());
   ExpectStats(0, 0, 0, 0, 0);
 }
@@ -320,17 +315,16 @@ TEST_P(JsCodeBlockTest, DealWithSgmlComment) {
   // all (due to xhtml in the source document)!
   static const char kOriginal[] = "  <!--  \nvar x = 1;\n  //-->  ";
   static const char kExpected[] = "var x=1;";
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kOriginal));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kOriginal));
   EXPECT_TRUE(block->Rewrite());
   EXPECT_EQ(kExpected, block->rewritten_code());
-  ExpectStats(1, 0,
-              STATIC_STRLEN(kOriginal) - STATIC_STRLEN(kExpected),
+  ExpectStats(1, 0, STATIC_STRLEN(kOriginal) - STATIC_STRLEN(kExpected),
               STATIC_STRLEN(kOriginal), 1);
 }
 
 TEST_P(JsCodeBlockTest, IdentifyUnminified) {
   RegisterLibraries();
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
 }
@@ -339,7 +333,7 @@ TEST_P(JsCodeBlockTest, IdentifyMerged) {
   JavascriptLibraryIdentification other_libraries;
   RegisterLibrariesIn(&other_libraries);
   libraries_.Merge(other_libraries);
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
 }
@@ -349,14 +343,14 @@ TEST_P(JsCodeBlockTest, IdentifyMergedDuplicate) {
   JavascriptLibraryIdentification other_libraries;
   RegisterLibrariesIn(&other_libraries);
   libraries_.Merge(other_libraries);
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
 }
 
 TEST_P(JsCodeBlockTest, IdentifyMinified) {
   RegisterLibraries();
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(after_compilation_));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(after_compilation_));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
 }
@@ -364,7 +358,7 @@ TEST_P(JsCodeBlockTest, IdentifyMinified) {
 TEST_P(JsCodeBlockTest, IdentifyNoMinification) {
   DisableMinification();
   RegisterLibraries();
-  scoped_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
+  std::unique_ptr<JavascriptCodeBlock> block(TestBlock(kBeforeCompilation));
   block->Rewrite();
   EXPECT_EQ(kLibraryUrl, block->ComputeJavascriptLibrary());
   EXPECT_FALSE(block->successfully_rewritten());
@@ -373,7 +367,7 @@ TEST_P(JsCodeBlockTest, IdentifyNoMinification) {
 
 TEST_P(JsCodeBlockTest, IdentifyNoMatch) {
   RegisterLibraries();
-  scoped_ptr<JavascriptCodeBlock> block(
+  std::unique_ptr<JavascriptCodeBlock> block(
       TestBlock(kJsWithGetElementsByTagNameScript));
   block->Rewrite();
   EXPECT_EQ("", block->ComputeJavascriptLibrary());
@@ -399,9 +393,7 @@ TEST_P(JsCodeBlockTest, RewriteJson) {
 TEST_P(JsCodeBlockTest, InvalidJsonValidJs) {
   // The JS minifier cannot detect invalid JSON which is also valid JS, so we
   // expect this to work.
-  SingleBlockRewriteTest(
-      "{'foo': bar, baz :}",
-      "{'foo':bar,baz:}");
+  SingleBlockRewriteTest("{'foo': bar, baz :}", "{'foo':bar,baz:}");
 }
 
 TEST_P(JsCodeBlockTest, BogusLibraryRegistration) {
@@ -420,15 +412,15 @@ TEST_P(JsCodeBlockTest, BogusLibraryRegistration) {
                                           "mailto:johndoe@example.com"));
   EXPECT_FALSE(libraries_.RegisterLibrary(150, kBogusLibraryMD5,
                                           "ftp://www.example.com/test.js"));
-  EXPECT_FALSE(libraries_.RegisterLibrary(222, kBogusLibraryMD5,
-                                          "file:///etc/passwd"));
+  EXPECT_FALSE(
+      libraries_.RegisterLibrary(222, kBogusLibraryMD5, "file:///etc/passwd"));
   EXPECT_FALSE(libraries_.RegisterLibrary(234, kBogusLibraryMD5,
                                           "data:text/plain,Hello-world"));
 }
 
 // We test with use_experimental_minifier == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(JsCodeBlockTestInstance, JsCodeBlockTest,
-                        ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(JsCodeBlockTestInstance, JsCodeBlockTest,
+                         ::testing::Bool());
 
 }  // namespace
 

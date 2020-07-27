@@ -36,13 +36,11 @@ GoogleFontCssInlineFilter::GoogleFontCssInlineFilter(RewriteDriver* driver)
   set_id(RewriteOptions::kGoogleFontCssInlineId);
   set_size_threshold_bytes(
       driver->options()->google_font_css_inline_max_bytes());
-  driver->AddResourceUrlClaimant(
-      NewPermanentCallback(
-          this, &GoogleFontCssInlineFilter::CheckIfFontServiceUrl));
+  driver->AddResourceUrlClaimant(NewPermanentCallback(
+      this, &GoogleFontCssInlineFilter::CheckIfFontServiceUrl));
 }
 
-GoogleFontCssInlineFilter::~GoogleFontCssInlineFilter() {
-}
+GoogleFontCssInlineFilter::~GoogleFontCssInlineFilter() {}
 
 void GoogleFontCssInlineFilter::InitStats(Statistics* statistics) {
   GoogleFontServiceInputResource::InitStats(statistics);
@@ -54,7 +52,7 @@ ResourcePtr GoogleFontCssInlineFilter::CreateResource(const char* url,
   GoogleUrl abs_url;
   ResolveUrl(url, &abs_url);
   ResourcePtr resource(GoogleFontServiceInputResource::Make(abs_url, driver()));
-  if (resource.get() != NULL) {
+  if (resource.get() != nullptr) {
     // Unfortunately some options prevent us from doing anything, since they
     // can make the HTML cached in a way unaware of font UA dependencies.
     const RewriteOptions* options = driver()->options();
@@ -73,9 +71,9 @@ ResourcePtr GoogleFontCssInlineFilter::CreateResource(const char* url,
   return resource;
 }
 
-void GoogleFontCssInlineFilter::ResetAndExplainReason(
-    const char* reason, ResourcePtr* resource) {
-  resource->reset(NULL);
+void GoogleFontCssInlineFilter::ResetAndExplainReason(const char* reason,
+                                                      ResourcePtr* resource) {
+  resource->reset(nullptr);
   if (DebugMode()) {
     // Note that since we only call this after a success of
     // GoogleFontServiceInputResource::Make, this will only be adding comments
@@ -84,8 +82,8 @@ void GoogleFontCssInlineFilter::ResetAndExplainReason(
   }
 }
 
-void GoogleFontCssInlineFilter::CheckIfFontServiceUrl(
-    const GoogleUrl& url, bool* result) {
+void GoogleFontCssInlineFilter::CheckIfFontServiceUrl(const GoogleUrl& url,
+                                                      bool* result) {
   *result = GoogleFontServiceInputResource::IsFontServiceUrl(url);
 }
 

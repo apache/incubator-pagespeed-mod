@@ -17,12 +17,11 @@
  * under the License.
  */
 
-
 //         morlovich@google.com (Maksim Orlovich)
 
 #include "net/instaweb/rewriter/public/measurement_proxy_url_namer.h"
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -30,7 +29,6 @@
 #include "pagespeed/kernel/http/google_url.h"
 
 namespace net_instaweb {
-
 
 MeasurementProxyUrlNamer::MeasurementProxyUrlNamer(
     const GoogleString& top_origin, const GoogleString& password)
@@ -40,15 +38,14 @@ MeasurementProxyUrlNamer::MeasurementProxyUrlNamer(
   }
 }
 
-MeasurementProxyUrlNamer::~MeasurementProxyUrlNamer() {
-}
+MeasurementProxyUrlNamer::~MeasurementProxyUrlNamer() {}
 
-bool MeasurementProxyUrlNamer::Decode(
-    const GoogleUrl& request_url, const RewriteOptions*,
-    GoogleString* decoded) const {
+bool MeasurementProxyUrlNamer::Decode(const GoogleUrl& request_url,
+                                      const RewriteOptions*,
+                                      GoogleString* decoded) const {
   StringPiece config, config_domain, password;
-  return DecodePathDetails(request_url, &config, &config_domain,
-                           &password, decoded);
+  return DecodePathDetails(request_url, &config, &config_domain, &password,
+                           decoded);
 }
 
 // Naming scheme:
@@ -62,12 +59,11 @@ bool MeasurementProxyUrlNamer::Decode(
 //   x: cross-domain https
 //   s: same-domain https
 //   t: cross-domain https
-bool MeasurementProxyUrlNamer::DecodePathDetails(
-    const GoogleUrl& request_url,
-    StringPiece* config,
-    StringPiece* config_domain,
-    StringPiece* password,
-    GoogleString* res_url) {
+bool MeasurementProxyUrlNamer::DecodePathDetails(const GoogleUrl& request_url,
+                                                 StringPiece* config,
+                                                 StringPiece* config_domain,
+                                                 StringPiece* password,
+                                                 GoogleString* res_url) {
   StringPiece request_path = request_url.PathSansLeaf();
   StringPieceVector path_vector;
   SplitStringPieceToVector(request_path, "/", &path_vector, false);

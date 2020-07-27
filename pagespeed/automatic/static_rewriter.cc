@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/automatic/static_rewriter.h"
 
 #include <cstdio>
@@ -66,11 +65,9 @@ namespace {
 class FileServerContext : public ServerContext {
  public:
   explicit FileServerContext(RewriteDriverFactory* factory)
-      : ServerContext(factory) {
-  }
+      : ServerContext(factory) {}
 
-  virtual ~FileServerContext() {
-  }
+  virtual ~FileServerContext() {}
 
   virtual bool ProxiesHtml() const { return false; }
 };
@@ -89,16 +86,13 @@ FileRewriter::FileRewriter(const ProcessContext& process_context,
   SetStatistics(&simple_stats_);
 }
 
-FileRewriter::~FileRewriter() {
-}
+FileRewriter::~FileRewriter() {}
 
 NamedLockManager* FileRewriter::DefaultLockManager() {
   return new ThreadSafeLockManager(scheduler());
 }
 
-Hasher* FileRewriter::NewHasher() {
-  return new MD5Hasher;
-}
+Hasher* FileRewriter::NewHasher() { return new MD5Hasher; }
 
 UrlAsyncFetcher* FileRewriter::DefaultAsyncUrlFetcher() {
   return new WgetUrlFetcher;
@@ -115,9 +109,7 @@ MessageHandler* FileRewriter::DefaultMessageHandler() {
   return DefaultHtmlParseMessageHandler();
 }
 
-FileSystem* FileRewriter::DefaultFileSystem() {
-  return new StdioFileSystem;
-}
+FileSystem* FileRewriter::DefaultFileSystem() { return new StdioFileSystem; }
 
 RewriteOptions* FileRewriter::NewRewriteOptions() {
   return new SystemRewriteOptions(thread_system());
@@ -125,8 +117,8 @@ RewriteOptions* FileRewriter::NewRewriteOptions() {
 
 void FileRewriter::SetupCaches(ServerContext* server_context) {
   LRUCache* lru_cache = new LRUCache(gflags_->lru_cache_size_bytes());
-  CacheInterface* cache = new ThreadsafeCache(lru_cache,
-                                              thread_system()->NewMutex());
+  CacheInterface* cache =
+      new ThreadsafeCache(lru_cache, thread_system()->NewMutex());
   Statistics* stats = server_context->statistics();
   HTTPCache* http_cache = new HTTPCache(cache, timer(), hasher(), stats);
   http_cache->SetCompressionLevel(
@@ -150,9 +142,7 @@ void FileRewriter::SetupCaches(ServerContext* server_context) {
   server_context->set_critical_selector_finder(finder);
 }
 
-Statistics* FileRewriter::statistics() {
-  return &simple_stats_;
-}
+Statistics* FileRewriter::statistics() { return &simple_stats_; }
 
 ServerContext* FileRewriter::NewServerContext() {
   return new FileServerContext(this);
@@ -169,8 +159,8 @@ StaticRewriter::StaticRewriter(const ProcessContext& process_context, int* argc,
     : gflags_((*argv)[0], argc, argv),
       file_rewriter_(process_context, &gflags_, true),
       server_context_(NULL) {
-  SystemRewriteOptions* options = SystemRewriteOptions::DynamicCast(
-      file_rewriter_.default_options());
+  SystemRewriteOptions* options =
+      SystemRewriteOptions::DynamicCast(file_rewriter_.default_options());
   CHECK(options != NULL);
   if (!gflags_.SetOptions(&file_rewriter_, options)) {
     exit(1);
@@ -183,20 +173,16 @@ StaticRewriter::StaticRewriter(const ProcessContext& process_context, int* argc,
 StaticRewriter::StaticRewriter(const ProcessContext& process_context)
     : file_rewriter_(process_context, &gflags_, false),
       server_context_(file_rewriter_.CreateServerContext()) {
-  if (!gflags_.SetOptions(&file_rewriter_,
-                          server_context_->global_options())) {
+  if (!gflags_.SetOptions(&file_rewriter_, server_context_->global_options())) {
     exit(1);
   }
 }
 
-StaticRewriter::~StaticRewriter() {
-}
+StaticRewriter::~StaticRewriter() {}
 
-bool StaticRewriter::ParseText(const StringPiece& url,
-                               const StringPiece& id,
+bool StaticRewriter::ParseText(const StringPiece& url, const StringPiece& id,
                                const StringPiece& text,
-                               const StringPiece& output_dir,
-                               Writer* writer) {
+                               const StringPiece& output_dir, Writer* writer) {
   RewriteDriver* driver = server_context_->NewRewriteDriver(
       RequestContext::NewTestRequestContext(server_context_->thread_system()));
 

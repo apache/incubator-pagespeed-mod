@@ -57,10 +57,9 @@ namespace {
 // asynchronous interface, until we're changed to be fully asynchronous.
 class SyncCallback : public CacheInterface::Callback {
  public:
-  SyncCallback() : called_(false), state_(CacheInterface::kNotFound) {
-  }
+  SyncCallback() : called_(false), state_(CacheInterface::kNotFound) {}
 
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     called_ = true;
     state_ = state;
   }
@@ -77,19 +76,19 @@ OutputResource::OutputResource(const RewriteDriver* driver,
                                StringPiece original_base,
                                const ResourceNamer& full_name,
                                OutputResourceKind kind)
-    : Resource(driver, NULL /* no type yet*/),
+    : Resource(driver, nullptr /* no type yet*/),
       writing_complete_(false),
       cached_result_owned_(false),
-      cached_result_(NULL),
+      cached_result_(nullptr),
       resolved_base_(resolved_base.data(), resolved_base.size()),
       unmapped_base_(unmapped_base.data(), unmapped_base.size()),
       original_base_(original_base.data(), original_base.size()),
       rewrite_options_(driver->options()),
       kind_(kind) {
-  DCHECK(rewrite_options_ != NULL);
+  DCHECK(rewrite_options_ != nullptr);
   full_name_.CopyFrom(full_name);
-  CHECK(EndsInSlash(resolved_base)) <<
-      "resolved_base must end in a slash, was: " << resolved_base;
+  CHECK(EndsInSlash(resolved_base))
+      << "resolved_base must end in a slash, was: " << resolved_base;
   set_enable_cache_purge(rewrite_options_->enable_cache_purge());
   set_respect_vary(
       ResponseHeaders::GetVaryOption(rewrite_options_->respect_vary()));
@@ -97,16 +96,14 @@ OutputResource::OutputResource(const RewriteDriver* driver,
       rewrite_options_->proactive_resource_freshening());
 }
 
-OutputResource::~OutputResource() {
-  clear_cached_result();
-}
+OutputResource::~OutputResource() { clear_cached_result(); }
 
 void OutputResource::DumpToDisk(MessageHandler* handler) {
   GoogleString file_name = DumpFileName();
   FileSystem* file_system = server_context_->file_system();
   FileSystem::OutputFile* output_file =
       file_system->OpenOutputFile(file_name.c_str(), handler);
-  if (output_file == NULL) {
+  if (output_file == nullptr) {
     handler->Message(kWarning, "Unable to open dump file: %s",
                      file_name.c_str());
     return;
@@ -122,8 +119,8 @@ void OutputResource::DumpToDisk(MessageHandler* handler) {
   bool ok_body = output_file->Write(ExtractUncompressedContents(), handler);
 
   if (!ok_headers || !ok_body) {
-    handler->Message(kWarning,
-                     "Error writing dump file: %s", file_name.c_str());
+    handler->Message(kWarning, "Error writing dump file: %s",
+                     file_name.c_str());
   }
 
   file_system->Close(output_file, handler);
@@ -148,14 +145,14 @@ void OutputResource::EndWrite(MessageHandler* handler) {
 }
 
 StringPiece OutputResource::suffix() const {
-  CHECK(type_ != NULL);
+  CHECK(type_ != nullptr);
   return type_->file_extension();
 }
 
 GoogleString OutputResource::DumpFileName() const {
   GoogleString filename;
-  UrlToFilenameEncoder::EncodeSegment(
-      server_context_->filename_prefix(), url(), '/', &filename);
+  UrlToFilenameEncoder::EncodeSegment(server_context_->filename_prefix(), url(),
+                                      '/', &filename);
   return filename;
 }
 
@@ -181,9 +178,8 @@ GoogleString OutputResource::url() const {
 }
 
 GoogleString OutputResource::HttpCacheKey() const {
-  GoogleString canonical_url =
-      server_context()->url_namer()->Encode(rewrite_options_, *this,
-                                            UrlNamer::kUnsharded);
+  GoogleString canonical_url = server_context()->url_namer()->Encode(
+      rewrite_options_, *this, UrlNamer::kUnsharded);
   GoogleString mapped_domain_name;
   GoogleUrl resolved_request;
   const DomainLawyer* lawyer = rewrite_options()->domain_lawyer();
@@ -192,9 +188,9 @@ GoogleString OutputResource::HttpCacheKey() const {
   // as we're already absolute.
   GoogleUrl base(canonical_url);
   if (base.IsWebValid() &&
-      lawyer->MapRequestToDomain(
-          base, canonical_url, &mapped_domain_name, &resolved_request,
-          server_context()->message_handler())) {
+      lawyer->MapRequestToDomain(base, canonical_url, &mapped_domain_name,
+                                 &resolved_request,
+                                 server_context()->message_handler())) {
     resolved_request.Spec().CopyToString(&canonical_url);
   }
   return canonical_url;
@@ -204,8 +200,8 @@ GoogleString OutputResource::UrlEvenIfHashNotSet() {
   GoogleString result;
   if (!has_hash()) {
     full_name_.set_hash("0");
-    result = server_context()->url_namer()->Encode(
-        rewrite_options_, *this, UrlNamer::kSharded);
+    result = server_context()->url_namer()->Encode(rewrite_options_, *this,
+                                                   UrlNamer::kSharded);
     full_name_.ClearHash();
   } else {
     result = url();
@@ -224,9 +220,10 @@ void OutputResource::LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
                                      const RequestContextPtr& request_context,
                                      AsyncCallback* callback) {
   // TODO(oschaaf): Output resources shouldn't be loaded via LoadAsync, but
-  // rather through FetchResource. Yet 
+  // rather through FetchResource. Yet
   // ProxyInterfaceTest.TestNoDebugAbortAfterMoreThenOneYear does manage to hit
-  // this code. See https://github.com/apache/incubator-pagespeed-mod/issues/1553
+  // this code. See
+  // https://github.com/apache/incubator-pagespeed-mod/issues/1553
   callback->Done(false /* lock_failure */, writing_complete_);
 }
 
@@ -242,7 +239,7 @@ GoogleString OutputResource::decoded_base() const {
 
 void OutputResource::SetType(const ContentType* content_type) {
   Resource::SetType(content_type);
-  if (content_type != NULL) {
+  if (content_type != nullptr) {
     // TODO(jmaessen): The addition of 1 below avoids the leading ".";
     // make this convention consistent and fix all code.
     full_name_.set_ext(content_type->file_extension() + 1);
@@ -255,7 +252,7 @@ void OutputResource::SetType(const ContentType* content_type) {
 }
 
 CachedResult* OutputResource::EnsureCachedResultCreated() {
-  if (cached_result_ == NULL) {
+  if (cached_result_ == nullptr) {
     clear_cached_result();
     cached_result_ = new CachedResult();
     cached_result_owned_ = true;
@@ -279,7 +276,7 @@ void OutputResource::clear_cached_result() {
     delete cached_result_;
     cached_result_owned_ = false;
   }
-  cached_result_ = NULL;
+  cached_result_ = nullptr;
 }
 
 GoogleString OutputResource::ComputeSignature() {

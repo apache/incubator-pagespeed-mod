@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_WILDCARD_H_
 #define PAGESPEED_KERNEL_BASE_WILDCARD_H_
 
@@ -52,8 +51,8 @@ class Wildcard {
   Wildcard* Duplicate() const;
 
  private:
-  Wildcard(const GoogleString& storage, int num_blocks,
-           int last_block_offset, bool is_simple);
+  Wildcard(const GoogleString& storage, int num_blocks, int last_block_offset,
+           bool is_simple);
 
   void InitFromSpec(const StringPiece& wildcard_spec);
 

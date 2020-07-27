@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_NAMED_LOCK_TESTER_H_
 #define PAGESPEED_KERNEL_BASE_NAMED_LOCK_TESTER_H_
 
@@ -39,27 +38,22 @@ namespace net_instaweb {
 class NamedLockTester {
  public:
   explicit NamedLockTester(ThreadSystem* thread_system)
-      : acquired_(false),
-        failed_(false),
-        mutex_(thread_system->NewMutex()) {
-  }
+      : acquired_(false), failed_(false), mutex_(thread_system->NewMutex()) {}
 
   bool TryLock(NamedLock* lock) {
     Clear();
-    lock->LockTimedWait(0, MakeFunction(
-        this,
-        &NamedLockTester::LockAcquired,
-        &NamedLockTester::LockFailed));
+    lock->LockTimedWait(0, MakeFunction(this, &NamedLockTester::LockAcquired,
+                                        &NamedLockTester::LockFailed));
     Quiesce();
     CHECK(WasCalled()) << "LockTimedWait returned lock operation completed";
     return Acquired();
   }
   bool LockTimedWaitStealOld(int64 wait_ms, int64 steal_ms, NamedLock* lock) {
     Clear();
-    lock->LockTimedWaitStealOld(wait_ms, steal_ms, MakeFunction(
-        this,
-        &NamedLockTester::LockAcquired,
-        &NamedLockTester::LockFailed));
+    lock->LockTimedWaitStealOld(
+        wait_ms, steal_ms,
+        MakeFunction(this, &NamedLockTester::LockAcquired,
+                     &NamedLockTester::LockFailed));
     Quiesce();
     CHECK(WasCalled())
         << "LockTimedWaitStealOld returned lock operation completed";
@@ -67,10 +61,9 @@ class NamedLockTester {
   }
   bool LockTimedWait(int64 wait_ms, NamedLock* lock) {
     Clear();
-    lock->LockTimedWait(wait_ms, MakeFunction(
-        this,
-        &NamedLockTester::LockAcquired,
-        &NamedLockTester::LockFailed));
+    lock->LockTimedWait(wait_ms,
+                        MakeFunction(this, &NamedLockTester::LockAcquired,
+                                     &NamedLockTester::LockFailed));
     Quiesce();
     CHECK(WasCalled()) << "LockTimedWait returned lock operation completed";
     return Acquired();
@@ -80,17 +73,15 @@ class NamedLockTester {
   // The likely failure case is a SEGV, though you must verify a true return
   // code or the test didn't run. Frees both locks.
   bool UnlockWithDelete(NamedLock* old_lock, NamedLock* new_lock) {
-    scoped_ptr<NamedLock> new_lock_deleter(new_lock);
+    std::unique_ptr<NamedLock> new_lock_deleter(new_lock);
     lock_for_deletion_.reset(old_lock);
     CHECK(old_lock->Held()) << "UnlockWithDelete old_lock must be held";
     CHECK(!new_lock->Held()) << "UnlockWithDelete new_lock must not be held";
     Clear();
     new_lock->LockTimedWait(
         60000 /* wait_ms */,  // Long enough to ensure it doesn't timeout.
-        MakeFunction(
-            this,
-            &NamedLockTester::DeleteLock,
-            &NamedLockTester::LockFailed));
+        MakeFunction(this, &NamedLockTester::DeleteLock,
+                     &NamedLockTester::LockFailed));
     old_lock->Unlock();
     Quiesce();
     CHECK(WasCalled()) << "UnlockWithDelete lock operation did not complete";
@@ -100,17 +91,15 @@ class NamedLockTester {
   // As for UnlockWithDelete, but for a steal. Frees both locks.
   bool StealWithDelete(int64 steal_ms, NamedLock* old_lock,
                        NamedLock* new_lock) {
-    scoped_ptr<NamedLock> new_lock_deleter(new_lock);
+    std::unique_ptr<NamedLock> new_lock_deleter(new_lock);
     lock_for_deletion_.reset(old_lock);
     CHECK(old_lock->Held()) << "StealWithDelete old_lock must be held";
     CHECK(!new_lock->Held()) << "StealWithDelete new_lock must not be held";
     Clear();
     new_lock->LockTimedWaitStealOld(
         0 /* wait_ms */, steal_ms,
-        MakeFunction(
-            this,
-            &NamedLockTester::DeleteLock,
-            &NamedLockTester::LockFailed));
+        MakeFunction(this, &NamedLockTester::DeleteLock,
+                     &NamedLockTester::LockFailed));
     Quiesce();
     CHECK(WasCalled()) << "StealWithDelete lock operation did not complete";
     return Acquired();
@@ -163,9 +152,9 @@ class NamedLockTester {
 
   bool acquired_;
   bool failed_;
-  scoped_ptr<AbstractMutex> mutex_;
-  scoped_ptr<Function> quiesce_;
-  scoped_ptr<NamedLock> lock_for_deletion_;
+  std::unique_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<Function> quiesce_;
+  std::unique_ptr<NamedLock> lock_for_deletion_;
 
   DISALLOW_COPY_AND_ASSIGN(NamedLockTester);
 };

@@ -17,11 +17,12 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_IMAGE_CONVERTER_H_
 #define PAGESPEED_KERNEL_IMAGE_IMAGE_CONVERTER_H_
 
 #include <cstddef>
+
+#include "external/optipng/src/opngreduc/opngreduc.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_frame_interface.h"
@@ -29,7 +30,6 @@
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
 #include "pagespeed/kernel/image/webp_optimizer.h"
-#include "third_party/optipng/src/opngreduc/opngreduc.h"
 
 namespace net_instaweb {
 class MessageHandler;
@@ -45,18 +45,12 @@ class PngReaderInterface;
 
 class ImageConverter {
  public:
-  enum ImageType {
-    IMAGE_NONE = 0,
-    IMAGE_PNG,
-    IMAGE_JPEG,
-    IMAGE_WEBP
-  };
+  enum ImageType { IMAGE_NONE = 0, IMAGE_PNG, IMAGE_JPEG, IMAGE_WEBP };
 
   // Converts image one line at a time, between different image
   // formats. Both 'reader' and 'writer' must be non-NULL.
-  static ScanlineStatus ConvertImageWithStatus(
-      ScanlineReaderInterface* reader,
-      ScanlineWriterInterface* writer);
+  static ScanlineStatus ConvertImageWithStatus(ScanlineReaderInterface* reader,
+                                               ScanlineWriterInterface* writer);
 
   inline static bool ConvertImage(ScanlineReaderInterface* reader,
                                   ScanlineWriterInterface* writer) {
@@ -69,12 +63,10 @@ class ImageConverter {
   static ScanlineStatus ConvertMultipleFrameImage(MultipleFrameReader* reader,
                                                   MultipleFrameWriter* writer);
 
-  static bool ConvertPngToJpeg(
-      const PngReaderInterface& png_struct_reader,
-      const GoogleString& in,
-      const JpegCompressionOptions& options,
-      GoogleString* out,
-      MessageHandler* handler);
+  static bool ConvertPngToJpeg(const PngReaderInterface& png_struct_reader,
+                               const GoogleString& in,
+                               const JpegCompressionOptions& options,
+                               GoogleString* out, MessageHandler* handler);
 
   // Reads the PNG encoded in 'in' with 'png_struct_reader', encodes
   // it in WebP format using the options in 'config', and writes the
@@ -82,13 +74,11 @@ class ImageConverter {
   // this function will fail when attempting to convert an image with
   // transparent pixels. Returns is_opaque set to true iff the 'in'
   // image was opaque.
-  static bool ConvertPngToWebp(
-      const PngReaderInterface& png_struct_reader,
-      const GoogleString& in,
-      const WebpConfiguration& config,
-      GoogleString* out,
-      bool* is_opaque,
-      MessageHandler* handler);
+  static bool ConvertPngToWebp(const PngReaderInterface& png_struct_reader,
+                               const GoogleString& in,
+                               const WebpConfiguration& config,
+                               GoogleString* out, bool* is_opaque,
+                               MessageHandler* handler);
 
   // Reads the PNG encoded in 'in' with 'png_struct_reader', encodes
   // it in WebP format using the options in 'config', and writes the
@@ -99,25 +89,20 @@ class ImageConverter {
   // it contains the webp writer that was used to write the WebP, and
   // the caller is responsible for deleting it. Most clients will
   // prefer to use the other form ConvertPngToWebp.
-  static bool ConvertPngToWebp(
-      const PngReaderInterface& png_struct_reader,
-      const GoogleString& in,
-      const WebpConfiguration& config,
-      GoogleString* out,
-      bool* is_opaque,
-      ScanlineWriterInterface** webp_writer,
-      MessageHandler* handler);
+  static bool ConvertPngToWebp(const PngReaderInterface& png_struct_reader,
+                               const GoogleString& in,
+                               const WebpConfiguration& config,
+                               GoogleString* out, bool* is_opaque,
+                               ScanlineWriterInterface** webp_writer,
+                               MessageHandler* handler);
 
   // Optimizes the given png image, also converts to jpeg and take the
   // the one that has smaller size and set the output. Returns false
   // if both of them fails.
   static bool OptimizePngOrConvertToJpeg(
-      const PngReaderInterface& png_struct_reader,
-      const GoogleString& in,
-      const JpegCompressionOptions& options,
-      GoogleString* out,
-      bool* is_out_png,
-      MessageHandler* handler);
+      const PngReaderInterface& png_struct_reader, const GoogleString& in,
+      const JpegCompressionOptions& options, GoogleString* out,
+      bool* is_out_png, MessageHandler* handler);
 
   // Populates 'out' with a version of the input image 'in' resulting
   // in the smallest size, and returns the corresponding
@@ -133,11 +118,9 @@ class ImageConverter {
   // IMAGE_NONE.
   static ImageType GetSmallestOfPngJpegWebp(
       // TODO(bmcquade): should be a ScanlineReaderInterface.
-      const PngReaderInterface& png_struct_reader,
-      const GoogleString& in,
+      const PngReaderInterface& png_struct_reader, const GoogleString& in,
       const JpegCompressionOptions* jpeg_options,
-      const WebpConfiguration* webp_config,
-      GoogleString* out,
+      const WebpConfiguration* webp_config, GoogleString* out,
       MessageHandler* handler);
 
  private:
@@ -152,9 +135,8 @@ bool GenerateBlankImage(size_t width, size_t height, bool has_transparency,
                         GoogleString* output, MessageHandler* handler);
 
 // Returns whether progressive format will result in a smaller JPEG image.
-bool ShouldConvertToProgressive(int64 quality, int threshold,
-                                int num_bytes, int desired_width,
-                                int desired_height);
+bool ShouldConvertToProgressive(int64 quality, int threshold, int num_bytes,
+                                int desired_width, int desired_height);
 
 }  // namespace image_compression
 

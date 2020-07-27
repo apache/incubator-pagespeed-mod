@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTTP_BOT_CHECKER_H_
 #define PAGESPEED_KERNEL_HTTP_BOT_CHECKER_H_
 

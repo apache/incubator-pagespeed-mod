@@ -17,12 +17,11 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/waveform.h"
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
-#include "pagespeed/kernel/base/basictypes.h"        // for int64
+#include "pagespeed/kernel/base/basictypes.h"  // for int64
 #include "pagespeed/kernel/base/md5_hasher.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
@@ -106,7 +105,7 @@ void Waveform::AddDelta(double delta) {
   // TODO(jmarantz): use writer-lock.
   ScopedMutex lock(mutex_.get());
   AddHelper(previous_value_ + delta);
-  if (metric_ != NULL) {
+  if (metric_ != nullptr) {
     metric_->Add(static_cast<int64>(delta));
   }
 }
@@ -115,7 +114,7 @@ void Waveform::Add(double value) {
   // TODO(jmarantz): use writer-lock.
   ScopedMutex lock(mutex_.get());
   AddHelper(value);
-  if (metric_ != NULL) {
+  if (metric_ != nullptr) {
     metric_->Set(static_cast<int64>(value));
   }
 }
@@ -205,8 +204,7 @@ const char kChartWaveformPrefixFormat[] =
     "<script type='text/javascript'>\n"
     "  addWaveform('%s', '%s', '%s', [\n";  // title, id, legend
 
-const char kSampleFormat[] =
-    "    [%f, %f],\n";
+const char kSampleFormat[] = "    [%f, %f],\n";
 
 const char kWaveformSuffixFormat[] =
     "]);\n"
@@ -231,21 +229,20 @@ void Waveform::Render(const StringPiece& title, const StringPiece& label,
     MD5Hasher hasher;
     GoogleString div_id = hasher.Hash(title);
 
-    writer->Write(StringPrintf(kChartWaveformPrefixFormat,
-                               title.as_string().c_str(),
-                               div_id.c_str(),
-                               label.as_string().c_str()),
-                  handler);
+    writer->Write(
+        absl::StrFormat(kChartWaveformPrefixFormat, title.as_string().c_str(),
+                        div_id.c_str(), label.as_string().c_str()),
+        handler);
 
     for (int i = 0; i < size_; ++i) {
       tv = GetSample(i);
       int64 delta_us = tv->first - start_time_us;
-      writer->Write(StringPrintf(kSampleFormat, delta_us / 1000.0,
-                                 static_cast<double>(tv->second)),
+      writer->Write(absl::StrFormat(kSampleFormat, delta_us / 1000.0,
+                                    static_cast<double>(tv->second)),
                     handler);
     }
 
-    writer->Write(StringPrintf(kWaveformSuffixFormat, div_id.c_str()),
+    writer->Write(absl::StrFormat(kWaveformSuffixFormat, div_id.c_str()),
                   handler);
   }
 }

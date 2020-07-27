@@ -39,47 +39,42 @@ class Timer;
 class BeaconCriticalImagesFinder : public CriticalImagesFinder {
  public:
   // All constructor args are owned by the caller.
-  BeaconCriticalImagesFinder(
-      const PropertyCache::Cohort* cohort,
-      NonceGenerator* nonce_generator,
-      Statistics* stats);
-  virtual ~BeaconCriticalImagesFinder();
+  BeaconCriticalImagesFinder(const PropertyCache::Cohort* cohort,
+                             NonceGenerator* nonce_generator,
+                             Statistics* stats);
+  ~BeaconCriticalImagesFinder() override;
 
-  virtual Availability Available(RewriteDriver* driver);
+  Availability Available(RewriteDriver* driver) override;
 
-  virtual int PercentSeenForCritical() const {
+  int PercentSeenForCritical() const override {
     return kBeaconPercentSeenForCritical;
   }
 
-  virtual int SupportInterval() const {
-    return kBeaconImageSupportInterval;
-  }
+  int SupportInterval() const override { return kBeaconImageSupportInterval; }
 
-  virtual void ComputeCriticalImages(RewriteDriver* driver) {}
+  void ComputeCriticalImages(RewriteDriver* driver) override {}
 
   // Update the critical image entry in the property cache. This is meant to be
   // called in the beacon handler, where there is no RewriteDriver available.
   static bool UpdateCriticalImagesCacheEntry(
       const StringSet* html_critical_images_set,
       const StringSet* css_critical_images_set,
-      const RenderedImages* rendered_images_set,
-      const StringPiece& nonce,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page,
+      const RenderedImages* rendered_images_set, const StringPiece& nonce,
+      const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
       Timer* timer);
 
-  virtual bool ShouldBeacon(RewriteDriver* driver);
+  bool ShouldBeacon(RewriteDriver* driver) override;
   // Check beacon interval and nonce state, and return appropriate
   // BeaconMetadata; result.status indicates whether beaconing should occur, and
   // result.nonce contains the nonce (if required).
-  virtual BeaconMetadata PrepareForBeaconInsertion(RewriteDriver* driver);
+  BeaconMetadata PrepareForBeaconInsertion(RewriteDriver* driver) override;
 
-  virtual void UpdateCandidateImagesForBeaconing(const StringSet& images,
-                                                 RewriteDriver* driver,
-                                                 bool beaconing);
+  void UpdateCandidateImagesForBeaconing(const StringSet& images,
+                                         RewriteDriver* driver,
+                                         bool beaconing) override;
 
  private:
-  virtual GoogleString GetKeyForUrl(StringPiece url);
+  GoogleString GetKeyForUrl(StringPiece url) override;
 
   // 80% is a guess at a reasonable value for this param.
   static const int kBeaconPercentSeenForCritical = 80;

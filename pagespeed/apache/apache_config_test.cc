@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/apache_config.h"
 
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
@@ -28,8 +27,7 @@ namespace net_instaweb {
 
 class ApacheConfigTest : public RewriteOptionsTestBase<ApacheConfig> {
  protected:
-  ApacheConfigTest() : config_("test", &thread_system_) {
-  }
+  ApacheConfigTest() : config_("test", &thread_system_) {}
 
   NullThreadSystem thread_system_;
   ApacheConfig config_;

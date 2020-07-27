@@ -54,8 +54,7 @@ class JsReplacer {
   //
   // Note that this may not work right if the pattern uses a reserved keyword
   // (e.g. things like 'class').
-  void AddPattern(const GoogleString& object,
-                  const GoogleString& field,
+  void AddPattern(const GoogleString& object, const GoogleString& field,
                   StringRewriter* rewriter);
 
   // Transforms the JS by applying any patterns added by calls to

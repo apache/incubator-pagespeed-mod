@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/common_filter.h"
+
+#include <memory>
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -39,18 +40,21 @@ namespace {
 
 class CountingFilter : public CommonFilter {
  public:
-  explicit CountingFilter(RewriteDriver* driver) : CommonFilter(driver),
-                                                   start_doc_calls_(0),
-                                                   start_element_calls_(0),
-                                                   end_element_calls_(0) {}
+  explicit CountingFilter(RewriteDriver* driver)
+      : CommonFilter(driver),
+        start_doc_calls_(0),
+        start_element_calls_(0),
+        end_element_calls_(0) {}
 
-  virtual void StartDocumentImpl() { ++start_doc_calls_; }
-  virtual void StartElementImpl(HtmlElement* element) {
+  void StartDocumentImpl() override { ++start_doc_calls_; }
+  void StartElementImpl(HtmlElement* element) override {
     ++start_element_calls_;
   }
-  virtual void EndElementImpl(HtmlElement* element) { ++end_element_calls_; }
+  void EndElementImpl(HtmlElement* element) override { ++end_element_calls_; }
 
-  virtual const char* Name() const { return "CommonFilterTest.CountingFilter"; }
+  const char* Name() const override {
+    return "CommonFilterTest.CountingFilter";
+  }
 
   int start_doc_calls_;
   int start_element_calls_;
@@ -59,9 +63,9 @@ class CountingFilter : public CommonFilter {
 
 class CommonFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
-    filter_.reset(new CountingFilter(rewrite_driver()));
+    filter_ = std::make_unique<CountingFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(filter_.get());
   }
 
@@ -74,12 +78,11 @@ class CommonFilterTest : public RewriteTestBase {
     bool unused;
     ResourcePtr resource(filter->CreateInputResource(
         url, RewriteDriver::InputRole::kUnknown, &unused));
-    return (resource.get() != NULL);
+    return (resource.get() != nullptr);
   }
 
   CommonFilter* MakeFilter(const StringPiece& base_url,
-                           const StringPiece& domain,
-                           RewriteOptions* options,
+                           const StringPiece& domain, RewriteOptions* options,
                            RewriteDriver* driver) {
     options->WriteableDomainLawyer()->AddDomain(domain, message_handler());
     CountingFilter* filter = new CountingFilter(driver);
@@ -90,7 +93,7 @@ class CommonFilterTest : public RewriteTestBase {
     return filter;
   }
 
-  scoped_ptr<CountingFilter> filter_;
+  std::unique_ptr<CountingFilter> filter_;
 };
 
 TEST_F(CommonFilterTest, DoesCallImpls) {
@@ -99,7 +102,7 @@ TEST_F(CommonFilterTest, DoesCallImpls) {
   EXPECT_EQ(1, filter_->start_doc_calls_);
 
   RewriteDriver* driver = rewrite_driver();
-  HtmlElement* element = driver->NewElement(NULL, "foo");
+  HtmlElement* element = driver->NewElement(nullptr, "foo");
   EXPECT_EQ(0, filter_->start_element_calls_);
   filter_->StartElement(element);
   EXPECT_EQ(1, filter_->start_element_calls_);
@@ -119,8 +122,7 @@ TEST_F(CommonFilterTest, StoresCorrectBaseUrl) {
   ExpectUrl(doc_url, driver->google_url());
   ExpectUrl(doc_url, filter_->base_url());
 
-  driver->ParseText(
-      "<html><head><link rel='stylesheet' href='foo.css'>");
+  driver->ParseText("<html><head><link rel='stylesheet' href='foo.css'>");
   driver->Flush();
   ExpectUrl(doc_url, filter_->base_url());
 
@@ -195,45 +197,45 @@ TEST_F(CommonFilterTest, DetectsNoScriptCorrectly) {
   driver->AddFilters();
   driver->StartParse(doc_url);
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() == NULL);
+  EXPECT_TRUE(filter_->noscript_element() == nullptr);
 
   driver->ParseText("<html><head><title>Example Site");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() == NULL);
+  EXPECT_TRUE(filter_->noscript_element() == nullptr);
 
   driver->ParseText("</title><noscript>");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() != NULL);
+  EXPECT_TRUE(filter_->noscript_element() != nullptr);
 
   // Nested <noscript> elements
   driver->ParseText("Blah blah blah <noscript><noscript> do-de-do-do ");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() != NULL);
+  EXPECT_TRUE(filter_->noscript_element() != nullptr);
 
   driver->ParseText("<link href='style.css'>");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() != NULL);
+  EXPECT_TRUE(filter_->noscript_element() != nullptr);
 
   // Close inner <noscript>s
   driver->ParseText("</noscript></noscript>");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() != NULL);
+  EXPECT_TRUE(filter_->noscript_element() != nullptr);
 
   // Close outter <noscript>
   driver->ParseText("</noscript>");
   driver->Flush();
-  EXPECT_TRUE(filter_->noscript_element() == NULL);
+  EXPECT_TRUE(filter_->noscript_element() == nullptr);
 
   driver->ParseText("</head></html>");
   driver->FinishParse();
-  EXPECT_TRUE(filter_->noscript_element() == NULL);
+  EXPECT_TRUE(filter_->noscript_element() == nullptr);
 }
 
 TEST_F(CommonFilterTest, TestTwoDomainLawyers) {
   static const char kBaseUrl[] = "http://www.base.com/";
   CommonFilter* a = MakeFilter(kBaseUrl, "a.com", options(), rewrite_driver());
-  CommonFilter* b = MakeFilter(kBaseUrl, "b.com", other_options(),
-                               other_rewrite_driver());
+  CommonFilter* b =
+      MakeFilter(kBaseUrl, "b.com", other_options(), other_rewrite_driver());
 
   // Either filter can rewrite resources from the base URL
   EXPECT_TRUE(CanRewriteResource(a, StrCat(kBaseUrl, "base.css")));
@@ -251,27 +253,26 @@ const char kEndDocumentComment[] = "<!--test comment-->";
 class EndDocumentInserterFilter : public CommonFilter {
  public:
   explicit EndDocumentInserterFilter(RewriteDriver* driver)
-      : CommonFilter(driver)
-  {}
+      : CommonFilter(driver) {}
 
-  virtual void EndDocument() {
-    InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, "test comment"));
+  void EndDocument() override {
+    InsertNodeAtBodyEnd(driver()->NewCommentNode(nullptr, "test comment"));
   }
 
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
 
-  virtual const char* Name() const {
+  const char* Name() const override {
     return "CommonFilterTest.EndDocumentInserterFilter";
   }
 };
 
 class CommonFilterInsertNodeAtBodyEndTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
-    filter_.reset(new EndDocumentInserterFilter(rewrite_driver()));
+    filter_ = std::make_unique<EndDocumentInserterFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(filter_.get());
     SetupWriter();
   }
@@ -306,7 +307,7 @@ class CommonFilterInsertNodeAtBodyEndTest : public RewriteTestBase {
     return FinishTest(full_pre_comment, post_comment);
   }
 
-  scoped_ptr<EndDocumentInserterFilter> filter_;
+  std::unique_ptr<EndDocumentInserterFilter> filter_;
 };
 
 TEST_F(CommonFilterInsertNodeAtBodyEndTest, OneBody) {

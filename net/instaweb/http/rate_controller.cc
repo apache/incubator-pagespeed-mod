@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/rate_controller.h"
 
 #include <cstddef>
@@ -45,14 +44,9 @@ namespace {
 
 // Keeps track of the objects required while deferring a fetch.
 struct DeferredFetch {
-  DeferredFetch(const GoogleString& in_url,
-                UrlAsyncFetcher* fetcher,
-                AsyncFetch* in_fetch,
-                MessageHandler* in_handler)
-      : url(in_url),
-        fetcher(fetcher),
-        fetch(in_fetch),
-        handler(in_handler) {}
+  DeferredFetch(const GoogleString& in_url, UrlAsyncFetcher* fetcher,
+                AsyncFetch* in_fetch, MessageHandler* in_handler)
+      : url(in_url), fetcher(fetcher), fetch(in_fetch), handler(in_handler) {}
 
   GoogleString url;
   UrlAsyncFetcher* fetcher;
@@ -65,10 +59,8 @@ struct DeferredFetch {
 
 }  // namespace
 
-const char RateController::kQueuedFetchCount[] =
-    "queued-fetch-count";
-const char RateController::kDroppedFetchCount[] =
-    "dropped-fetch-count";
+const char RateController::kQueuedFetchCount[] = "queued-fetch-count";
+const char RateController::kDroppedFetchCount[] = "dropped-fetch-count";
 const char RateController::kCurrentGlobalFetchQueueSize[] =
     "current-fetch-queue-size";
 
@@ -79,8 +71,7 @@ class RateController::HostFetchInfo
   // Takes ownership of the mutex passed in.
   HostFetchInfo(const GoogleString& host,
                 int per_host_outgoing_request_threshold,
-                int per_host_queued_request_threshold,
-                AbstractMutex* mutex)
+                int per_host_queued_request_threshold, AbstractMutex* mutex)
       : host_(host),
         num_outbound_fetches_(0),
         per_host_outgoing_request_threshold_(
@@ -122,8 +113,7 @@ class RateController::HostFetchInfo
   // Pushes the fetch to the back of the queue.
   bool EnqueueFetchIfWithinThreshold(const GoogleString& url,
                                      UrlAsyncFetcher* fetcher,
-                                     MessageHandler* handler,
-                                     AsyncFetch* fetch)
+                                     MessageHandler* handler, AsyncFetch* fetch)
       EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     if (fetch_queue_.size() <
         static_cast<size_t>(per_host_queued_request_threshold_)) {
@@ -139,7 +129,7 @@ class RateController::HostFetchInfo
     ScopedMutex lock(mutex_.get());
     if (fetch_queue_.empty() ||
         num_outbound_fetches_ >= per_host_outgoing_request_threshold_) {
-      return NULL;
+      return nullptr;
     }
     DeferredFetch* fetch = fetch_queue_.front();
     fetch_queue_.pop();
@@ -156,20 +146,16 @@ class RateController::HostFetchInfo
     return num_outbound_fetches_ > 0 || !fetch_queue_.empty();
   }
 
-  void Lock() EXCLUSIVE_LOCK_FUNCTION(mutex_) {
-    mutex_->Lock();
-  }
+  void Lock() EXCLUSIVE_LOCK_FUNCTION(mutex_) { mutex_->Lock(); }
 
-  void Unlock() UNLOCK_FUNCTION(mutex_) {
-    mutex_->Unlock();
-  }
+  void Unlock() UNLOCK_FUNCTION(mutex_) { mutex_->Unlock(); }
 
  private:
   GoogleString host_;
   int num_outbound_fetches_ GUARDED_BY(mutex_);
   const int per_host_outgoing_request_threshold_;
   const int per_host_queued_request_threshold_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   std::queue<DeferredFetch*> fetch_queue_ GUARDED_BY(mutex_);
 
   DISALLOW_COPY_AND_ASSIGN(HostFetchInfo);
@@ -180,26 +166,25 @@ class RateController::HostFetchInfo
 // domain.
 class RateController::CustomFetch : public SharedAsyncFetch {
  public:
-  CustomFetch(const HostFetchInfoPtr& fetch_info,
-              AsyncFetch* fetch,
+  CustomFetch(const HostFetchInfoPtr& fetch_info, AsyncFetch* fetch,
               RateController* controller)
       : SharedAsyncFetch(fetch),
         fetch_info_(fetch_info),
         controller_(controller) {}
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     SharedAsyncFetch::HandleDone(success);
     fetch_info_->decrement_num_outbound_fetches();
     // Check if there is any fetch queued up for this host and the number of
     // outstanding fetches for the host is less than the threshold.
     DeferredFetch* deferred_fetch =
         fetch_info_->PopNextFetchAndIncrementCountIfWithinThreshold();
-    if (deferred_fetch != NULL) {
+    if (deferred_fetch != nullptr) {
       DCHECK_GT(controller_->current_global_fetch_queue_size_->Get(), 0);
       controller_->current_global_fetch_queue_size_->Add(-1);
       // Trigger a fetch for the queued up request.
-      CustomFetch* wrapper_fetch = new CustomFetch(
-          fetch_info_, deferred_fetch->fetch, controller_);
+      CustomFetch* wrapper_fetch =
+          new CustomFetch(fetch_info_, deferred_fetch->fetch, controller_);
 
       if (controller_->is_shut_down()) {
         deferred_fetch->handler->Message(
@@ -208,8 +193,7 @@ class RateController::CustomFetch : public SharedAsyncFetch {
         wrapper_fetch->Done(false);
       } else {
         deferred_fetch->fetcher->Fetch(deferred_fetch->url,
-                                       deferred_fetch->handler,
-                                       wrapper_fetch);
+                                       deferred_fetch->handler, wrapper_fetch);
       }
       delete deferred_fetch;
     } else {
@@ -224,15 +208,13 @@ class RateController::CustomFetch : public SharedAsyncFetch {
   DISALLOW_COPY_AND_ASSIGN(CustomFetch);
 };
 
-RateController::RateController(
-    int max_global_queue_size,
-    int per_host_outgoing_request_threshold,
-    int per_host_queued_request_threshold,
-    ThreadSystem* thread_system,
-    Statistics* statistics)
+RateController::RateController(int max_global_queue_size,
+                               int per_host_outgoing_request_threshold,
+                               int per_host_queued_request_threshold,
+                               ThreadSystem* thread_system,
+                               Statistics* statistics)
     : max_global_queue_size_(max_global_queue_size),
-      per_host_outgoing_request_threshold_(
-          per_host_outgoing_request_threshold),
+      per_host_outgoing_request_threshold_(per_host_outgoing_request_threshold),
       per_host_queued_request_threshold_(per_host_queued_request_threshold),
       thread_system_(thread_system),
       mutex_(thread_system->NewMutex()) {
@@ -242,21 +224,17 @@ RateController::RateController(
   CHECK_GE(max_global_queue_size, per_host_queued_request_threshold);
   queued_fetch_count_ = statistics->GetTimedVariable(kQueuedFetchCount);
   dropped_fetch_count_ = statistics->GetTimedVariable(kDroppedFetchCount);
-  current_global_fetch_queue_size_ = statistics->GetUpDownCounter(
-      kCurrentGlobalFetchQueueSize);
+  current_global_fetch_queue_size_ =
+      statistics->GetUpDownCounter(kCurrentGlobalFetchQueueSize);
 }
 
-RateController::~RateController() {
-}
+RateController::~RateController() {}
 
-void RateController::Fetch(UrlAsyncFetcher* fetcher,
-                           const GoogleString& url,
-                           MessageHandler* message_handler,
-                           AsyncFetch* fetch) {
+void RateController::Fetch(UrlAsyncFetcher* fetcher, const GoogleString& url,
+                           MessageHandler* message_handler, AsyncFetch* fetch) {
   if (is_shut_down()) {
     message_handler->Message(
-        kWarning, "RateController: drop fetch of %s on shutdown",
-        url.c_str());
+        kWarning, "RateController: drop fetch of %s on shutdown", url.c_str());
     fetch->Done(false);
     return;
   }
@@ -287,10 +265,10 @@ void RateController::Fetch(UrlAsyncFetcher* fetcher,
     fetch_info_ptr = *iter->second;
   } else {
     // Insert a new entry if there wasn't one already.
-    HostFetchInfoPtr* new_fetch_info_ptr = new HostFetchInfoPtr(
-        new HostFetchInfo(host, per_host_outgoing_request_threshold_,
-                          per_host_queued_request_threshold_,
-                          thread_system_->NewMutex()));
+    HostFetchInfoPtr* new_fetch_info_ptr =
+        new HostFetchInfoPtr(new HostFetchInfo(
+            host, per_host_outgoing_request_threshold_,
+            per_host_queued_request_threshold_, thread_system_->NewMutex()));
     fetch_info_ptr = *new_fetch_info_ptr;
     fetch_info_map_[host] = new_fetch_info_ptr;
   }
@@ -338,10 +316,8 @@ void RateController::Fetch(UrlAsyncFetcher* fetcher,
 
 void RateController::InitStats(Statistics* statistics) {
   statistics->AddUpDownCounter(kCurrentGlobalFetchQueueSize);
-  statistics->AddTimedVariable(kQueuedFetchCount,
-                               Statistics::kDefaultGroup);
-  statistics->AddTimedVariable(kDroppedFetchCount,
-                               Statistics::kDefaultGroup);
+  statistics->AddTimedVariable(kQueuedFetchCount, Statistics::kDefaultGroup);
+  statistics->AddTimedVariable(kDroppedFetchCount, Statistics::kDefaultGroup);
 }
 
 void RateController::DeleteFetchInfoIfPossible(

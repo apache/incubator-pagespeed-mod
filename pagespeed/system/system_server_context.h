@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_SYSTEM_SERVER_CONTEXT_H_
 #define PAGESPEED_SYSTEM_SYSTEM_SERVER_CONTEXT_H_
 
@@ -63,9 +62,9 @@ class SystemServerContext : public ServerContext {
   // cache.  But it also affects the syntax of the links created to sub-pages
   // in the top navigation bar.
 
-  SystemServerContext(RewriteDriverFactory* factory,
-                      StringPiece hostname, int port);
-  virtual ~SystemServerContext();
+  SystemServerContext(RewriteDriverFactory* factory, StringPiece hostname,
+                      int port);
+  ~SystemServerContext() override;
 
   void SetCachePath(SystemCachePath* cache_path);
 
@@ -87,7 +86,7 @@ class SystemServerContext : public ServerContext {
   void UpdateCachePurgeSet(const CopyOnWrite<PurgeSet>& purge_set);
 
   // Initialize this SystemServerContext to set up its admin site.
-  virtual void PostInitHook();
+  void PostInitHook() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -112,8 +111,8 @@ class SystemServerContext : public ServerContext {
   //    request headers.
   // Session fetchers allow us to make these decisions.  Here we may update
   // driver->async_fetcher() to be a special fetcher just for this request.
-  virtual void ApplySessionFetchers(const RequestContextPtr& req,
-                                    RewriteDriver* driver);
+  void ApplySessionFetchers(const RequestContextPtr& req,
+                            RewriteDriver* driver) override;
 
   // Accumulate in a histogram the amount of time spent rewriting HTML.
   // TODO(sligocki): Remove in favor of RewriteStats::rewrite_latency_histogram.
@@ -135,8 +134,7 @@ class SystemServerContext : public ServerContext {
 
   // Displays recent Info/Warning/Error messages.
   void MessageHistoryHandler(const RewriteOptions& options,
-                             AdminSite::AdminSource source,
-                             AsyncFetch* fetch);
+                             AdminSite::AdminSource source, AsyncFetch* fetch);
 
   // Deprecated handler for graphs in the PSOL console.
   void StatisticsGraphsHandler(Writer* writer);
@@ -154,8 +152,7 @@ class SystemServerContext : public ServerContext {
   // have granted public access to /mod_pagespeed_statistics, but we don't
   // want that to automatically imply access to the server cache.
   void StatisticsPage(bool is_global, const QueryParams& query_params,
-                      const RewriteOptions* options,
-                      AsyncFetch* fetch);
+                      const RewriteOptions* options, AsyncFetch* fetch);
 
   AdminSite* admin_site() { return admin_site_.get(); }
 
@@ -190,12 +187,10 @@ class SystemServerContext : public ServerContext {
   void PrintCaches(bool is_global, AdminSite::AdminSource source,
                    const GoogleUrl& stripped_gurl,
                    const QueryParams& query_params,
-                   const RewriteOptions* options,
-                   AsyncFetch* fetch);
+                   const RewriteOptions* options, AsyncFetch* fetch);
 
   // Print histograms showing the dynamics of server activity.
-  void PrintHistograms(bool is_global_request,
-                       AdminSite::AdminSource source,
+  void PrintHistograms(bool is_global_request, AdminSite::AdminSource source,
                        AsyncFetch* fetch);
 
   Variable* statistics_404_count();
@@ -212,7 +207,7 @@ class SystemServerContext : public ServerContext {
   // present.
   void CheckLegacyGlobalCacheFlushFile();
 
-  scoped_ptr<AdminSite> admin_site_;
+  std::unique_ptr<AdminSite> admin_site_;
 
   bool initialized_;
   bool use_per_vhost_statistics_;
@@ -220,7 +215,7 @@ class SystemServerContext : public ServerContext {
   // State used to implement periodic polling of $FILE_PREFIX/cache.flush.
   // last_cache_flush_check_sec_ is ctor-initialized to 0 so the first
   // time we Poll we will read the file.
-  scoped_ptr<AbstractMutex> cache_flush_mutex_;
+  std::unique_ptr<AbstractMutex> cache_flush_mutex_;
   int64 last_cache_flush_check_sec_;  // seconds since 1970
 
   Variable* cache_flush_count_;
@@ -229,14 +224,14 @@ class SystemServerContext : public ServerContext {
   Histogram* html_rewrite_time_us_histogram_;
 
   // Non-NULL if we have per-vhost stats.
-  scoped_ptr<Statistics> split_statistics_;
+  std::unique_ptr<Statistics> split_statistics_;
 
   // May be NULL. Owned by *split_statistics_.
   SharedMemStatistics* local_statistics_;
 
   // These are non-NULL if we have per-vhost stats.
-  scoped_ptr<RewriteStats> local_rewrite_stats_;
-  scoped_ptr<UrlAsyncFetcherStats> stats_fetcher_;
+  std::unique_ptr<RewriteStats> local_rewrite_stats_;
+  std::unique_ptr<UrlAsyncFetcherStats> stats_fetcher_;
 
   // hostname_identifier_ equals to "server_hostname:port" of the server.  It's
   // used to distinguish the name of shared memory so that each vhost has its

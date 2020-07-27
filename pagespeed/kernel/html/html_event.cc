@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_event.h"
 
 #include <cstdio>
@@ -26,11 +25,8 @@
 
 namespace net_instaweb {
 
-HtmlEvent::~HtmlEvent() {
-}
+HtmlEvent::~HtmlEvent() {}
 
-void HtmlEvent::DebugPrint() {
-  puts(ToString().c_str());
-}
+void HtmlEvent::DebugPrint() { puts(ToString().c_str()); }
 
 }  // namespace net_instaweb

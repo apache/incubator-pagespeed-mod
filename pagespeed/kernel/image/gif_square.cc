@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/gif_square.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <vector>
 
@@ -44,35 +42,34 @@ const GifColorType GifSquare::kGifGreen = {0x00, 0xFF, 0x00};
 const GifColorType GifSquare::kGifBlue = {0x00, 0x00, 0xFF};
 const GifColorType GifSquare::kGifYellow = {0xFF, 0xFF, 0x00};
 
-#define LOBYTE(x)       ((x) & 0xff)
-#define HIBYTE(x)       (((x) >> 8) & 0xff)
+#define LOBYTE(x) ((x)&0xff)
+#define HIBYTE(x) (((x) >> 8) & 0xff)
 
 #if GIFLIB_MAJOR < 5
 namespace {
 // Later versions of gif_lib use a Gif prefix for these functions.
 
-ColorMapObject* (*GifMakeMapObject)(int, const GifColorType*) =
-    MakeMapObject;
+ColorMapObject* (*GifMakeMapObject)(int, const GifColorType*) = MakeMapObject;
 void (*GifFreeMapObject)(ColorMapObject*) = FreeMapObject;
 
 // Borrowed from later versions of giflib.
 typedef struct GraphicsControlBlock {
   int DisposalMode;
-#define DISPOSAL_UNSPECIFIED      0       /* No disposal specified. */
-#define DISPOSE_DO_NOT            1       /* Leave image in place */
-#define DISPOSE_BACKGROUND        2       /* Set area too background color */
-#define DISPOSE_PREVIOUS          3       /* Restore to previous content */
-  bool UserInputFlag;      /* User confirmation required before disposal */
-  int DelayTime;           /* pre-display delay in 0.01sec units */
-  int TransparentColor;    /* Palette index for transparency, -1 if none */
-#define NO_TRANSPARENT_COLOR    -1
+#define DISPOSAL_UNSPECIFIED 0 /* No disposal specified. */
+#define DISPOSE_DO_NOT 1       /* Leave image in place */
+#define DISPOSE_BACKGROUND 2   /* Set area too background color */
+#define DISPOSE_PREVIOUS 3     /* Restore to previous content */
+  bool UserInputFlag;          /* User confirmation required before disposal */
+  int DelayTime;               /* pre-display delay in 0.01sec units */
+  int TransparentColor;        /* Palette index for transparency, -1 if none */
+#define NO_TRANSPARENT_COLOR -1
 } GraphicsControlBlock;
 
-size_t EGifGCBToExtension(const GraphicsControlBlock *GCB,
-                          GifByteType *GifExtension) {
+size_t EGifGCBToExtension(const GraphicsControlBlock* GCB,
+                          GifByteType* GifExtension) {
   GifExtension[0] = 0;
-  GifExtension[0] |= (GCB->TransparentColor == NO_TRANSPARENT_COLOR) ?
-      0x00 : 0x01;
+  GifExtension[0] |=
+      (GCB->TransparentColor == NO_TRANSPARENT_COLOR) ? 0x00 : 0x01;
   GifExtension[0] |= GCB->UserInputFlag ? 0x02 : 0x00;
   GifExtension[0] |= ((GCB->DisposalMode & 0x07) << 2);
   GifExtension[1] = LOBYTE(GCB->DelayTime);
@@ -83,13 +80,13 @@ size_t EGifGCBToExtension(const GraphicsControlBlock *GCB,
 }  // namespace
 #endif
 
-GifSquare::GifSquare(bool manual_gcb,
-                     MessageHandler* handler) :
-    manual_gcb_(manual_gcb),
-    handler_(handler),
-    success_(true), gif_file_(NULL),
-    num_images_(0), closed_(false) {
-}
+GifSquare::GifSquare(bool manual_gcb, MessageHandler* handler)
+    : manual_gcb_(manual_gcb),
+      handler_(handler),
+      success_(true),
+      gif_file_(nullptr),
+      num_images_(0),
+      closed_(false) {}
 
 GifSquare::~GifSquare() {
   Close();
@@ -100,8 +97,7 @@ GifSquare::~GifSquare() {
 bool GifSquare::Open(const GoogleString& filename) {
 #if GIFLIB_MAJOR >= 5
   int status = 0;
-  gif_file_ = EGifOpenFileName(filename.c_str(), false,
-                               &status);
+  gif_file_ = EGifOpenFileName(filename.c_str(), false, &status);
   if (status != 0) {
     return Fail("EGifOpenFileName", GifErrorString(status));
   }
@@ -119,7 +115,7 @@ bool GifSquare::PrepareScreen(bool gif89, size_px width, size_px height,
     return false;
   }
 
-  if (num_colors & (num_colors-1)) {
+  if (num_colors & (num_colors - 1)) {
     return Fail("num_colors", "not a power of 2");
   }
   int color_resolution = static_cast<int>(round(log2(num_colors))) - 1;
@@ -134,8 +130,8 @@ bool GifSquare::PrepareScreen(bool gif89, size_px width, size_px height,
   EGifSetGifVersion("89a");
 #endif
 
-  if (!Log(EGifPutScreenDesc(gif_file_, width, height,
-                             color_resolution, bg_color_idx, colormaps_[0]),
+  if (!Log(EGifPutScreenDesc(gif_file_, width, height, color_resolution,
+                             bg_color_idx, colormaps_[0]),
            "EGifPutScreenDesc")) {
     return false;
   }
@@ -145,25 +141,19 @@ bool GifSquare::PrepareScreen(bool gif89, size_px width, size_px height,
     // '\x01' and then the count in lo-hi order. Cf. http://shortn/_19L2jvGJc9
     static const int kLen = 3;
     const uint8_t app_block_content[kLen] = {
-      0x01,
-      static_cast<uint8_t>(LOBYTE(loop_count)),
-      static_cast<uint8_t>(HIBYTE(loop_count))
-    };
+        0x01, static_cast<uint8_t>(LOBYTE(loop_count)),
+        static_cast<uint8_t>(HIBYTE(loop_count))};
 #if GIFLIB_MAJOR >= 5
-    return (
-        Log(EGifPutExtensionLeader(gif_file_,
-                                   APPLICATION_EXT_FUNC_CODE) &&
-            EGifPutExtensionBlock(gif_file_, 11, "NETSCAPE2.0") &&
-            EGifPutExtensionBlock(gif_file_, kLen,
-                                  app_block_content) &&
-            EGifPutExtensionTrailer(gif_file_),
-            "EGifPutExtension*: loop count"));
+    return (Log(EGifPutExtensionLeader(gif_file_, APPLICATION_EXT_FUNC_CODE) &&
+                    EGifPutExtensionBlock(gif_file_, 11, "NETSCAPE2.0") &&
+                    EGifPutExtensionBlock(gif_file_, kLen, app_block_content) &&
+                    EGifPutExtensionTrailer(gif_file_),
+                "EGifPutExtension*: loop count"));
 #else
-    return Log(EGifPutExtensionFirst(gif_file_,
-                                     APPLICATION_EXT_FUNC_CODE,
-                                     11, "NETSCAPE2.0") &&
-               EGifPutExtensionLast(gif_file_, 0 /* not used */,
-                                    kLen, app_block_content),
+    return Log(EGifPutExtensionFirst(gif_file_, APPLICATION_EXT_FUNC_CODE, 11,
+                                     "NETSCAPE2.0") &&
+                   EGifPutExtensionLast(gif_file_, 0 /* not used */, kLen,
+                                        app_block_content),
                "EGifPutExtension*: loop count");
 #endif
   }
@@ -171,10 +161,9 @@ bool GifSquare::PrepareScreen(bool gif89, size_px width, size_px height,
   return true;
 }
 
-bool GifSquare::PutImage(size_px left, size_px top,
-                         size_px width, size_px height,
-                         const GifColorType* colormap, int num_colors,
-                         int color_index, int transparent_idx,
+bool GifSquare::PutImage(size_px left, size_px top, size_px width,
+                         size_px height, const GifColorType* colormap,
+                         int num_colors, int color_index, int transparent_idx,
                          bool interlace, int delay_cs, int disposal_method) {
   if (!CanProceed()) {
     return false;
@@ -205,16 +194,16 @@ bool GifSquare::PutImage(size_px left, size_px top,
   // EGifPutImageDesc) in EGifCloseFile. If we are dealing with
   // animated GIFs, we thus need to clear it manually to prevent a
   // memory leak.
-  if (gif_file_->Image.ColorMap != NULL) {
+  if (gif_file_->Image.ColorMap != nullptr) {
     GifFreeMapObject(gif_file_->Image.ColorMap);
-    gif_file_->Image.ColorMap = NULL;
+    gif_file_->Image.ColorMap = nullptr;
   }
 
-  ColorMapObject* cmap = ((colormap != NULL && num_colors > 0) ?
-                          GifMakeMapObject(num_colors, colormap) : NULL);
-  if (!Log(EGifPutImageDesc(gif_file_, left, top,
-                            width, height,
-                            interlace, cmap),
+  ColorMapObject* cmap = ((colormap != nullptr && num_colors > 0)
+                              ? GifMakeMapObject(num_colors, colormap)
+                              : nullptr);
+  if (!Log(EGifPutImageDesc(gif_file_, left, top, width, height, interlace,
+                            cmap),
            "EGifPutImageDesc")) {
     return false;
   }
@@ -263,12 +252,11 @@ bool GifSquare::Close() {
   if (!CanProceed()) {
     return false;
   }
-  if (!closed_ &&
-      (gif_file_ != NULL) &&
+  if (!closed_ && (gif_file_ != nullptr) &&
 #if GIFLIB_MAJOR < 5 || (GIFLIB_MAJOR == 5 && GIFLIB_MINOR == 0)
       !Log(EGifCloseFile(gif_file_), "EGifCloseFile")) {
 #else
-      !Log(EGifCloseFile(gif_file_, NULL), "EGifCloseFile")) {
+      !Log(EGifCloseFile(gif_file_, nullptr), "EGifCloseFile")) {
 #endif
     return false;
   }
@@ -278,9 +266,10 @@ bool GifSquare::Close() {
 
 bool GifSquare::Log(bool success, const char* prefix) {
 #if GIFLIB_MAJOR >= 5
-  return success ? success : Fail(prefix, ((gif_file_ != NULL) ?
-                                           GifErrorString(gif_file_->Error) :
-                                           "(?)"));
+  return success ? success
+                 : Fail(prefix, ((gif_file_ != nullptr)
+                                     ? GifErrorString(gif_file_->Error)
+                                     : "(?)"));
 #else
   return success ? success : Fail(prefix, "");
 #endif

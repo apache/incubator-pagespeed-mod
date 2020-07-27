@@ -22,6 +22,7 @@
 #ifndef PAGESPEED_APACHE_INSTAWEB_HANDLER_H_
 #define PAGESPEED_APACHE_INSTAWEB_HANDLER_H_
 
+#include "apr_pools.h"  // for apr_status_t
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -36,8 +37,6 @@
 #include "pagespeed/kernel/http/query_params.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
-
-#include "apr_pools.h"  // for apr_status_t
 // The httpd header must be after the instaweb_context.h. Otherwise,
 // the compiler will complain
 // "strtoul_is_not_a_portable_function_use_strtol_instead".
@@ -98,8 +97,8 @@ class InstawebHandler {
   // If any uses will be from other threads you must set buffered=true to keep
   // your other thread from getting blocked if our output is being read by a
   // slow reader.
-  ApacheFetch* MakeFetch(
-      const GoogleString& url, bool buffered, StringPiece debug_info);
+  ApacheFetch* MakeFetch(const GoogleString& url, bool buffered,
+                         StringPiece debug_info);
 
   // Allocates a Fetch object associated with the current request and its URL.
   // Please read the comment above before setting buffered=false.
@@ -160,11 +159,11 @@ class InstawebHandler {
   // Save the original URL as a request "note" before mod_rewrite has
   // a chance to corrupt mod_pagespeed's generated URLs, which would
   // prevent instaweb_handler from being able to decode the resource.
-  static apr_status_t save_url_hook(request_rec *request);
+  static apr_status_t save_url_hook(request_rec* request);
 
   // Implementation of the Apache 'translate_name' hook. Used by the actual hook
   // 'save_url_hook' and directly when we already have the server context.
-  static apr_status_t save_url_in_note(request_rec *request,
+  static apr_status_t save_url_in_note(request_rec* request,
                                        ApacheServerContext* server_context);
 
   // By default, apache imposes limitations on URL segments of around
@@ -186,17 +185,15 @@ class InstawebHandler {
 
   static bool IsCompressibleContentType(const char* content_type);
 
-  static void send_out_headers_and_body(
-      request_rec* request,
-      const ResponseHeaders& response_headers,
-      const GoogleString& output);
+  static void send_out_headers_and_body(request_rec* request,
+                                        const ResponseHeaders& response_headers,
+                                        const GoogleString& output);
 
   // Determines whether the url can be handled as a mod_pagespeed or in-place
   // optimized resource, and handles it, returning true.  Success status is
   // written to the status code in the response headers.
   static bool handle_as_resource(ApacheServerContext* server_context,
-                                 request_rec* request,
-                                 GoogleUrl* gurl);
+                                 request_rec* request, GoogleUrl* gurl);
 
   // Write response headers and send out headers and output, including
   // the option for a custom Content-Type.
@@ -252,11 +249,11 @@ class InstawebHandler {
   RequestContextPtr request_context_;
   ApacheRequestContext* apache_request_context_;  // owned by request_context_.
   ApacheServerContext* server_context_;
-  scoped_ptr<RequestHeaders> request_headers_;
-  scoped_ptr<ResponseHeaders> response_headers_;
+  std::unique_ptr<RequestHeaders> request_headers_;
+  std::unique_ptr<ResponseHeaders> response_headers_;
   GoogleString original_url_;
   GoogleUrl stripped_gurl_;  // Any PageSpeed query params are removed.
-  scoped_ptr<ApacheConfig> custom_options_;
+  std::unique_ptr<ApacheConfig> custom_options_;
 
   // These options_ can be in one of three states:
   //   - they can point to the config's global_options

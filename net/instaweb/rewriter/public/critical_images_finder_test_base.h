@@ -37,16 +37,12 @@ class TestCriticalImagesFinder : public CriticalImagesFinder {
  public:
   TestCriticalImagesFinder(const PropertyCache::Cohort* cohort,
                            Statistics* stats)
-      : CriticalImagesFinder(cohort, stats),
-        available_(kAvailable) {}
-  virtual ~TestCriticalImagesFinder();
-  virtual Availability Available(RewriteDriver* driver) {
-    return available_;
-  }
-  void set_available(Availability available) {
-    available_ = available;
-  }
-  virtual void ComputeCriticalImages(RewriteDriver* driver) {}
+      : CriticalImagesFinder(cohort, stats), available_(kAvailable) {}
+  ~TestCriticalImagesFinder() override;
+  Availability Available(RewriteDriver* driver) override { return available_; }
+  void set_available(Availability available) { available_ = available; }
+  void ComputeCriticalImages(RewriteDriver* driver) override {}
+
  private:
   Availability available_;
 };

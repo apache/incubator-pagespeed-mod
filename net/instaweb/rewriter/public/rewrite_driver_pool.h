@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_DRIVER_POOL_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_DRIVER_POOL_H_
 
@@ -33,7 +32,7 @@ class RewriteOptions;
 // A class for managing recycling of RewriteDrivers with standard options.
 // Note that this class by itself is not threadsafe, as ServerContext
 // takes care of that.
-class RewriteDriverPool  {
+class RewriteDriverPool {
  public:
   RewriteDriverPool();
 

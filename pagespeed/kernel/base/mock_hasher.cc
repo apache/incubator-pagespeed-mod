@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/mock_hasher.h"
 
 namespace net_instaweb {
 
-MockHasher::~MockHasher() {
-}
+MockHasher::~MockHasher() {}
 
 }  // namespace net_instaweb

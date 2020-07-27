@@ -17,14 +17,11 @@
  * under the License.
  */
 
-
-
-#include "util/gtl/stl_util.h"
-
 #include "webutil/css/value.h"
 
 #include "base/logging.h"
 #include "strings/memutil.h"
+#include "util/gtl/stl_util.h"
 #include "webutil/css/fallthrough_intended.h"
 #include "webutil/html/htmlcolor.h"
 
@@ -35,87 +32,69 @@ namespace Css {
 //
 
 const char* const Value::kDimensionUnitText[] = {
-  "em", "ex", "px", "cm", "mm", "in", "pt", "pc",
-  "deg", "rad", "grad", "ms", "s", "hz", "khz", "%", "vh", "vm", "vw",
-  "OTHER", "" };
+    "em", "ex", "px", "cm",  "mm", "in", "pt", "pc", "deg",   "rad", "grad",
+    "ms", "s",  "hz", "khz", "%",  "vh", "vm", "vw", "OTHER", ""};
 
 //
 // Constructors.
 //
 
-Value::Value(ValueType ty)
-    : type_(ty),
-      color_(0, 0, 0) {
+Value::Value(ValueType ty) : type_(ty), unit_(Unit::EM), color_(0, 0, 0) {
   DCHECK(ty == COMMA || ty == DEFAULT || ty == UNKNOWN);
 }
 
 Value::Value(double num, const UnicodeText& unit)
-    : type_(NUMBER),
-      num_(num),
-      color_(0, 0, 0) {
+    : type_(NUMBER), num_(num), unit_(Unit::EM), color_(0, 0, 0) {
   unit_ = UnitFromText(unit.utf8_data(), unit.utf8_length());
-  if (unit_ == OTHER)
-    str_ = unit;
+  if (unit_ == OTHER) str_ = unit;
 }
 
 Value::Value(double num, Unit unit)
-    : type_(NUMBER),
-      num_(num),
-      unit_(unit),
-      color_(0, 0, 0)  {
+    : type_(NUMBER), num_(num), unit_(unit), color_(0, 0, 0) {
   DCHECK_NE(unit, OTHER);
 }
 
 Value::Value(ValueType ty, const UnicodeText& str)
-    : type_(ty),
-      str_(str),
-      color_(0, 0, 0) {
+    : type_(ty), unit_(Unit::EM), color_(0, 0, 0), str_(str) {
   DCHECK(ty == STRING || ty == URI);
 }
 
 Value::Value(const Identifier& identifier)
-    : type_(IDENT),
-      identifier_(identifier),
-      color_(0, 0, 0) {
-}
+    : type_(IDENT), unit_(Unit::EM), color_(0, 0, 0), identifier_(identifier) {}
 
 Value::Value(const Identifier::Ident ident)
     : type_(IDENT),
-      identifier_(Identifier(ident)),
-      color_(0, 0, 0) {
-}
+      unit_(Unit::EM),
+      color_(0, 0, 0),
+      identifier_(Identifier(ident)) {}
 
 Value::Value(ValueType ty, FunctionParameters* params)
-    : type_(ty),
-      params_(params),
-      color_(0, 0, 0) {
-  DCHECK(params != NULL);
+    : type_(ty), params_(params), unit_(Unit::EM), color_(0, 0, 0) {
+  DCHECK(params != nullptr);
   DCHECK(ty == RECT);
 }
 
 Value::Value(const UnicodeText& func, FunctionParameters* params)
     : type_(FUNCTION),
-      str_(func),
       params_(params),
-      color_(0, 0, 0) {
-  DCHECK(params != NULL);
+      unit_(Unit::EM),
+      color_(0, 0, 0),
+      str_(func) {
+  DCHECK(params != nullptr);
 }
 
-Value::Value(HtmlColor c)
-    : type_(COLOR),
-      color_(c) {
-}
+Value::Value(HtmlColor c) : type_(COLOR), unit_(Unit::EM), color_(c) {}
 
 Value::Value(const Value& other)
-  : type_(other.type_),
-    num_(other.num_),
-    unit_(other.unit_),
-    identifier_(other.identifier_),
-    str_(other.str_),
-    params_(new FunctionParameters),
-    color_(other.color_),
-    bytes_in_original_buffer_(other.bytes_in_original_buffer_) {
-  if (other.params_.get() != NULL) {
+    : type_(other.type_),
+      num_(other.num_),
+      params_(new FunctionParameters),
+      unit_(other.unit_),
+      color_(other.color_),
+      identifier_(other.identifier_),
+      str_(other.str_),
+      bytes_in_original_buffer_(other.bytes_in_original_buffer_) {
+  if (other.params_.get() != nullptr) {
     params_->Copy(*other.params_);
   }
 }
@@ -129,7 +108,7 @@ Value& Value::operator=(const Value& other) {
   str_ = other.str_;
   color_ = other.color_;
   bytes_in_original_buffer_ = other.bytes_in_original_buffer_;
-  if (other.params_.get() != NULL) {
+  if (other.params_.get() != nullptr) {
     params_->Copy(*other.params_);
   } else {
     params_.reset();
@@ -149,20 +128,17 @@ bool Value::Equals(const Value& other) const {
     case STRING:
       return str_ == other.str_;
     case IDENT:
-      if (identifier_.ident() != other.identifier_.ident())
-        return false;
+      if (identifier_.ident() != other.identifier_.ident()) return false;
       if (identifier_.ident() == Identifier::OTHER)
         return identifier_.ident_text() == other.identifier_.ident_text();
       return true;
     case COLOR:
       return color_.Equals(other.color_);
     case FUNCTION:
-      if (str_ != other.str_)
-        return false;
+      if (str_ != other.str_) return false;
       FALLTHROUGH_INTENDED;
     case RECT:
-      if (params_.get() == NULL)
-        return other.params_.get() == NULL;
+      if (params_.get() == nullptr) return other.params_.get() == nullptr;
       return params_->Equals(*other.params_);
     default:
       LOG(FATAL) << "Unknown type:" << type_;
@@ -179,52 +155,96 @@ Value::Unit Value::UnitFromText(const char* str, int len) {
       return NO_UNIT;
     case 1:
       switch (str[0]) {
-        case '%': return PERCENT;
-        case 's': case 'S': return S;
-        default: return OTHER;
+        case '%':
+          return PERCENT;
+        case 's':
+        case 'S':
+          return S;
+        default:
+          return OTHER;
       }
     case 2:
       switch (str[0]) {
-        case 'v': case 'V':
+        case 'v':
+        case 'V':
           switch (str[1]) {
-            case 'h': case 'H': return VH;
-            case 'm': case 'M': return VM;
-            case 'w': case 'W': return VW;
-            default: return OTHER;
+            case 'h':
+            case 'H':
+              return VH;
+            case 'm':
+            case 'M':
+              return VM;
+            case 'w':
+            case 'W':
+              return VW;
+            default:
+              return OTHER;
           }
-        case 'e': case 'E':
+        case 'e':
+        case 'E':
           switch (str[1]) {
-            case 'm': case 'M': return EM;
-            case 'x': case 'X': return EX;
-            default: return OTHER;
+            case 'm':
+            case 'M':
+              return EM;
+            case 'x':
+            case 'X':
+              return EX;
+            default:
+              return OTHER;
           }
-        case 'p': case 'P':
+        case 'p':
+        case 'P':
           switch (str[1]) {
-            case 'x': case 'X':  return PX;
-            case 't': case 'T': return PT;
-            case 'c': case 'C': return PC;
-            default: return OTHER;
+            case 'x':
+            case 'X':
+              return PX;
+            case 't':
+            case 'T':
+              return PT;
+            case 'c':
+            case 'C':
+              return PC;
+            default:
+              return OTHER;
           }
-        case 'c': case 'C':
+        case 'c':
+        case 'C':
           switch (str[1]) {
-            case 'm': case 'M': return CM;
-            default: return OTHER;
+            case 'm':
+            case 'M':
+              return CM;
+            default:
+              return OTHER;
           }
-        case 'm': case 'M':
+        case 'm':
+        case 'M':
           switch (str[1]) {
-            case 'm': case 'M': return MM;
-            case 's': case 'S': return MS;
-            default: return OTHER;
+            case 'm':
+            case 'M':
+              return MM;
+            case 's':
+            case 'S':
+              return MS;
+            default:
+              return OTHER;
           }
-        case 'i': case 'I':
+        case 'i':
+        case 'I':
           switch (str[1]) {
-            case 'n': case 'N': return IN;
-            default: return OTHER;
+            case 'n':
+            case 'N':
+              return IN;
+            default:
+              return OTHER;
           }
-        case 'h': case 'H':
+        case 'h':
+        case 'H':
           switch (str[1]) {
-            case 'z': case 'Z': return HZ;
-            default: return OTHER;
+            case 'z':
+            case 'Z':
+              return HZ;
+            default:
+              return OTHER;
           }
         default:
           return OTHER;
@@ -242,6 +262,10 @@ Value::Unit Value::UnitFromText(const char* str, int len) {
   }
 }
 
+#define arraysize(a)            \
+  ((sizeof(a) / sizeof(*(a))) / \
+   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
+
 const char* Value::TextFromUnit(Unit u) {
   DCHECK_LT(u, NUM_UNITS);
   COMPILE_ASSERT(arraysize(kDimensionUnitText) == NUM_UNITS, dimensionunitsize);
@@ -253,9 +277,7 @@ const char* Value::TextFromUnit(Unit u) {
 // Accessors.
 //
 
-Value::ValueType Value::GetLexicalUnitType() const {
-  return type_;
-}
+Value::ValueType Value::GetLexicalUnitType() const { return type_; }
 
 string Value::GetDimensionUnitText() const {
   DCHECK_EQ(type_, NUMBER);
@@ -353,4 +375,4 @@ void FunctionParameters::Copy(const FunctionParameters& other) {
   DCHECK(this->Equals(other));
 }
 
-}  // namespace
+}  // namespace Css

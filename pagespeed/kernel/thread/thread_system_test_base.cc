@@ -36,9 +36,7 @@ class SuccessThread : public ThreadSystem::Thread {
       : Thread(owner->thread_system(), "success", ThreadSystem::kJoinable),
         owner_(owner) {}
 
-  virtual void Run() {
-    owner_->set_ok_flag(true);
-  }
+  void Run() override { owner_->set_ok_flag(true); }
 
  private:
   ThreadSystemTestBase* owner_;
@@ -47,8 +45,7 @@ class SuccessThread : public ThreadSystem::Thread {
 // See TestSync below for what this does
 class ToggleThread : public ThreadSystem::Thread {
  public:
-  ToggleThread(ThreadSystemTestBase* owner,
-               AbstractMutex* lock,
+  ToggleThread(ThreadSystemTestBase* owner, AbstractMutex* lock,
                ThreadSystem::Condvar* notify_true,
                ThreadSystem::Condvar* notify_false)
       : Thread(owner->thread_system(), "toggle", ThreadSystem::kDetached),
@@ -56,13 +53,12 @@ class ToggleThread : public ThreadSystem::Thread {
         lock_(lock),
         notify_true_(notify_true),
         notify_false_(notify_false),
-        parent_id_(owner->thread_system()->GetThreadId()) {
-  }
+        parent_id_(owner->thread_system()->GetThreadId()) {}
 
-  virtual void Run() {
+  void Run() override {
     // Check whether our ID is not the same as our parent, and
     // vice versa.
-    scoped_ptr<ThreadSystem::ThreadId> id(
+    std::unique_ptr<ThreadSystem::ThreadId> id(
         owner_->thread_system()->GetThreadId());
     EXPECT_FALSE(parent_id_->IsEqual(*id.get()));
     EXPECT_FALSE(id->IsEqual(*parent_id_.get()));
@@ -71,7 +67,7 @@ class ToggleThread : public ThreadSystem::Thread {
     EXPECT_TRUE(id->IsCurrentThread());
 
     // Check that if we strobe our ID a second time it matches.
-    scoped_ptr<ThreadSystem::ThreadId> id_check(
+    std::unique_ptr<ThreadSystem::ThreadId> id_check(
         owner_->thread_system()->GetThreadId());
     EXPECT_TRUE(id_check->IsEqual(*id.get()));
 
@@ -101,7 +97,7 @@ class ToggleThread : public ThreadSystem::Thread {
   AbstractMutex* lock_;
   ThreadSystem::Condvar* notify_true_;
   ThreadSystem::Condvar* notify_false_;
-  scoped_ptr<ThreadSystem::ThreadId> parent_id_;
+  std::unique_ptr<ThreadSystem::ThreadId> parent_id_;
 };
 
 }  // namespace
@@ -109,8 +105,7 @@ class ToggleThread : public ThreadSystem::Thread {
 ThreadSystemTestBase::ThreadSystemTestBase(ThreadSystem* thread_system)
     : ok_flag_(false),
       thread_system_(thread_system),
-      handler_(thread_system_->NewMutex()) {
-}
+      handler_(thread_system_->NewMutex()) {}
 
 void ThreadSystemTestBase::TestStartJoin() {
   SuccessThread test_thread(this);
@@ -120,10 +115,10 @@ void ThreadSystemTestBase::TestStartJoin() {
 }
 
 void ThreadSystemTestBase::TestSync() {
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> lock(
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> lock(
       thread_system_->NewMutex());
-  scoped_ptr<ThreadSystem::Condvar> notify_true(lock->NewCondvar());
-  scoped_ptr<ThreadSystem::Condvar> notify_false(lock->NewCondvar());
+  std::unique_ptr<ThreadSystem::Condvar> notify_true(lock->NewCondvar());
+  std::unique_ptr<ThreadSystem::Condvar> notify_false(lock->NewCondvar());
 
   ToggleThread* thread =
       new ToggleThread(this, lock.get(), notify_true.get(), notify_false.get());

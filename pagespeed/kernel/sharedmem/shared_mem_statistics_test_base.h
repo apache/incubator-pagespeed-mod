@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_TEST_BASE_H_
 
@@ -47,8 +46,8 @@ class SharedMemStatisticsTestBase : public testing::Test {
   SharedMemStatisticsTestBase();
   explicit SharedMemStatisticsTestBase(SharedMemTestEnv* test_env);
 
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
   bool CreateChild(TestMethod method);
 
   void TestCreate();
@@ -67,10 +66,10 @@ class SharedMemStatisticsTestBase : public testing::Test {
     return stats_->console_logger_.get();
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
-  scoped_ptr<MemFileSystem> file_system_;
-  scoped_ptr<SharedMemStatistics> stats_;  // (the parent process version)
+  std::unique_ptr<MemFileSystem> file_system_;
+  std::unique_ptr<SharedMemStatistics> stats_;  // (the parent process version)
 
  private:
   void TestCreateChild();
@@ -89,22 +88,21 @@ class SharedMemStatisticsTestBase : public testing::Test {
   SharedMemStatistics* ChildInit();
   void ParentInit();
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<MockTimer> timer_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<MockTimer> timer_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedMemStatisticsTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemStatisticsTestTemplate : public SharedMemStatisticsTestBase {
  public:
   SharedMemStatisticsTestTemplate()
-      : SharedMemStatisticsTestBase(new ConcreteTestEnv) {
-  }
+      : SharedMemStatisticsTestBase(new ConcreteTestEnv) {}
 };
 
-TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate);
+TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate);
 
 TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestCreate) {
   SharedMemStatisticsTestBase::TestCreate();
@@ -146,13 +144,12 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestTimedVariableEmulation) {
   SharedMemStatisticsTestBase::TestTimedVariableEmulation();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedMemStatisticsTestTemplate, TestCreate,
-                           TestSet, TestClear, TestAdd,
-                           TestSetReturningPrevious,
-                           TestHistogram, TestHistogramRender,
-                           TestHistogramNoExtraClear,
-                           TestHistogramExtremeBuckets,
-                           TestTimedVariableEmulation);
+REGISTER_TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate, TestCreate,
+                            TestSet, TestClear, TestAdd,
+                            TestSetReturningPrevious, TestHistogram,
+                            TestHistogramRender, TestHistogramNoExtraClear,
+                            TestHistogramExtremeBuckets,
+                            TestTimedVariableEmulation);
 
 }  // namespace net_instaweb
 

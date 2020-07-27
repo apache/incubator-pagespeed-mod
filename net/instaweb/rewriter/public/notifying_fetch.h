@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_NOTIFYING_FETCH_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_NOTIFYING_FETCH_H_
 
@@ -39,11 +38,10 @@ class RewriteOptions;
 class NotifyingFetch : public AsyncFetch {
  public:
   NotifyingFetch(const RequestContextPtr& request_context,
-                 RewriteOptions* options,
-                 const GoogleString& url,
+                 RewriteOptions* options, const GoogleString& url,
                  WorkerTestBase::SyncPoint* sync,
                  ResponseHeaders* response_headers);
-  virtual ~NotifyingFetch();
+  ~NotifyingFetch() override;
 
   StringPiece content() { return content_; }
   bool done() { return done_; }
@@ -51,8 +49,8 @@ class NotifyingFetch : public AsyncFetch {
 
  protected:
   void HandleHeadersComplete() override {}
-  bool HandleWrite(const StringPiece& content, MessageHandler* handler)
-      override;
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
   bool HandleFlush(MessageHandler* handler) override;
   void HandleDone(bool success) override;
   bool IsCachedResultValid(const ResponseHeaders& headers) override;

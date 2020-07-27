@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/system_message_handler.h"
 
 #include <unistd.h>
@@ -32,14 +31,11 @@
 namespace net_instaweb {
 
 SystemMessageHandler::SystemMessageHandler(Timer* timer, AbstractMutex* mutex)
-    : timer_(timer),
-      mutex_(mutex),
-      buffer_(NULL) {
+    : timer_(timer), mutex_(mutex), buffer_(nullptr) {
   SetPidString(static_cast<int64>(getpid()));
 }
 
-SystemMessageHandler::~SystemMessageHandler() {
-}
+SystemMessageHandler::~SystemMessageHandler() {}
 
 void SystemMessageHandler::set_buffer(Writer* buff) {
   ScopedMutex lock(mutex_.get());
@@ -78,7 +74,7 @@ void SystemMessageHandler::AddMessageToBuffer(MessageType type,
   {
     ScopedMutex lock(mutex_.get());
     // Cannot write to SharedCircularBuffer before it's set up.
-    if (buffer_ != NULL) {
+    if (buffer_ != nullptr) {
       NullMessageHandler null_handler;
       buffer_->Write(message, &null_handler);
     }
@@ -101,7 +97,7 @@ void SystemMessageHandler::FileMessageVImpl(MessageType type, const char* file,
 }
 
 bool SystemMessageHandler::Dump(Writer* writer) {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return false;
   }
   return buffer_->Dump(writer, &internal_handler_);

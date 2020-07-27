@@ -17,15 +17,13 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_REMOVE_COMMENTS_FILTER_H_
 #define PAGESPEED_KERNEL_HTML_REMOVE_COMMENTS_FILTER_H_
-
-#include "pagespeed/kernel/html/empty_html_filter.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/html/empty_html_filter.h"
 
 namespace net_instaweb {
 class HtmlCommentNode;
@@ -61,20 +59,17 @@ class RemoveCommentsFilter : public EmptyHtmlFilter {
   // RemoveCommentsFilter takes ownership of the passed in
   // OptionsInterface instance. It is ok for OptionsInterface to be
   // NULL.
-  RemoveCommentsFilter(HtmlParse* html_parse,
-                       const OptionsInterface* options)
-      : html_parse_(html_parse),
-        options_(options) {
-  }
+  RemoveCommentsFilter(HtmlParse* html_parse, const OptionsInterface* options)
+      : html_parse_(html_parse), options_(options) {}
 
-  virtual ~RemoveCommentsFilter();
+  ~RemoveCommentsFilter() override;
 
-  virtual void Comment(HtmlCommentNode* comment);
-  virtual const char* Name() const { return "RemoveComments"; }
+  void Comment(HtmlCommentNode* comment) override;
+  const char* Name() const override { return "RemoveComments"; }
 
  private:
   HtmlParse* html_parse_;
-  scoped_ptr<const OptionsInterface> options_;
+  std::unique_ptr<const OptionsInterface> options_;
 
   DISALLOW_COPY_AND_ASSIGN(RemoveCommentsFilter);
 };

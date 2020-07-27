@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
+
+#include <memory>
 
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -56,22 +57,21 @@ SharedMemStatisticsTestBase::SharedMemStatisticsTestBase(
     : thread_system_(Platform::CreateThreadSystem()),
       handler_(thread_system_->NewMutex()),
       test_env_(test_env),
-      shmem_runtime_(test_env->CreateSharedMemRuntime()) {
-}
+      shmem_runtime_(test_env->CreateSharedMemRuntime()) {}
 
 SharedMemStatisticsTestBase::SharedMemStatisticsTestBase()
     : thread_system_(Platform::CreateThreadSystem()),
-      handler_(thread_system_->NewMutex()) {
-}
+      handler_(thread_system_->NewMutex()) {}
 
 void SharedMemStatisticsTestBase::SetUp() {
-  timer_.reset(
-      new MockTimer(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms));
-  file_system_.reset(new MemFileSystem(thread_system_.get(), timer_.get()));
-  stats_.reset(new SharedMemStatistics(
+  timer_ = std::make_unique<MockTimer>(thread_system_->NewMutex(),
+                                       MockTimer::kApr_5_2010_ms);
+  file_system_ =
+      std::make_unique<MemFileSystem>(thread_system_.get(), timer_.get());
+  stats_ = std::make_unique<SharedMemStatistics>(
       kLogIntervalMs, kMaxLogfileSizeKb, kStatsLogFile, false /* no logging */,
       kPrefix, shmem_runtime_.get(), &handler_, file_system_.get(),
-      timer_.get()));
+      timer_.get());
 }
 
 void SharedMemStatisticsTestBase::TearDown() {
@@ -88,23 +88,23 @@ bool SharedMemStatisticsTestBase::CreateChild(TestMethod method) {
 bool SharedMemStatisticsTestBase::AddVars(SharedMemStatistics* stats) {
   UpDownCounter* v1 = stats->AddUpDownCounter(kVar1);
   UpDownCounter* v2 = stats->AddUpDownCounter(kVar2);
-  return ((v1 != NULL) && (v2 != NULL));
+  return ((v1 != nullptr) && (v2 != nullptr));
 }
 
 bool SharedMemStatisticsTestBase::AddHistograms(SharedMemStatistics* stats) {
   Histogram* hist1 = stats->AddHistogram(kHist1);
   Histogram* hist2 = stats->AddHistogram(kHist2);
-  return ((hist1 != NULL) && (hist2 != NULL));
+  return ((hist1 != nullptr) && (hist2 != nullptr));
 }
 
 SharedMemStatistics* SharedMemStatisticsTestBase::ChildInit() {
-  scoped_ptr<SharedMemStatistics> stats(new SharedMemStatistics(
+  std::unique_ptr<SharedMemStatistics> stats(new SharedMemStatistics(
       kLogIntervalMs, kMaxLogfileSizeKb, kStatsLogFile, false /* no logging */,
       kPrefix, shmem_runtime_.get(), &handler_, file_system_.get(),
       timer_.get()));
   if (!AddVars(stats.get()) || !AddHistograms(stats.get())) {
     test_env_->ChildFailed();
-    return NULL;
+    return nullptr;
   }
 
   stats->Init(false, &handler_);
@@ -135,7 +135,7 @@ void SharedMemStatisticsTestBase::TestCreate() {
 }
 
 void SharedMemStatisticsTestBase::TestCreateChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
 
   UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
   Histogram* hist1 = stats->GetHistogram(kHist1);
@@ -168,12 +168,12 @@ void SharedMemStatisticsTestBase::TestSet() {
 
   ASSERT_TRUE(CreateChild(&SharedMemStatisticsTestBase::TestSetChild));
   test_env_->WaitForChildren();
-  EXPECT_EQ(3*3, v1->Get());
-  EXPECT_EQ(17*17, v2->Get());
+  EXPECT_EQ(3 * 3, v1->Get());
+  EXPECT_EQ(17 * 17, v2->Get());
 }
 
 void SharedMemStatisticsTestBase::TestSetChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
 
   UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
   stats->Init(false, &handler_);
@@ -219,7 +219,7 @@ void SharedMemStatisticsTestBase::TestClear() {
 }
 
 void SharedMemStatisticsTestBase::TestClearChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
   // Double check the child process gets the data in Histogram before clears it.
   Histogram* hist1 = stats->GetHistogram(kHist1);
   Histogram* hist2 = stats->GetHistogram(kHist2);
@@ -276,7 +276,7 @@ void SharedMemStatisticsTestBase::TestSetReturningPrevious() {
 }
 
 void SharedMemStatisticsTestBase::TestAddChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
   stats->Init(false, &handler_);
   UpDownCounter* v1 = stats->GetUpDownCounter(kVar1);
   UpDownCounter* v2 = stats->GetUpDownCounter(kVar2);
@@ -437,7 +437,7 @@ void SharedMemStatisticsTestBase::TestHistogramNoExtraClear() {
 }
 
 void SharedMemStatisticsTestBase::TestHistogramNoExtraClearChild() {
-  scoped_ptr<SharedMemStatistics> stats(ChildInit());
+  std::unique_ptr<SharedMemStatistics> stats(ChildInit());
   Histogram* h1 = stats->GetHistogram(kHist1);
   // This would previously lose the data.
   h1->EnableNegativeBuckets();

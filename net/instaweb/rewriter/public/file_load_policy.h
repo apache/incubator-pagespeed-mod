@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_FILE_LOAD_POLICY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_FILE_LOAD_POLICY_H_
 
 #include <list>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest_prod.h"
 #include "pagespeed/kernel/base/string.h"
@@ -129,4 +129,3 @@ class FileLoadPolicy {
 }  // namespace net_instaweb
 
 #endif  // NET_INSTAWEB_REWRITER_PUBLIC_FILE_LOAD_POLICY_H_
-

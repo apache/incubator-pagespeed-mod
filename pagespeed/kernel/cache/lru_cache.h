@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_LRU_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_LRU_CACHE_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/shared_string.h"
@@ -46,9 +46,9 @@ namespace net_instaweb {
 class LRUCache : public CacheInterface {
  public:
   explicit LRUCache(size_t max_size);
-  virtual ~LRUCache();
+  ~LRUCache() override;
 
-  virtual void Get(const GoogleString& key, Callback* callback);
+  void Get(const GoogleString& key, Callback* callback) override;
 
   // Puts an object into the cache, sharing the bytes.
   //
@@ -56,8 +56,8 @@ class LRUCache : public CacheInterface {
   // SharedString after having called Put, it will actually
   // modify the value in the cache.  We should change
   // SharedString to Copy-On-Write semantics.
-  virtual void Put(const GoogleString& key, const SharedString& new_value);
-  virtual void Delete(const GoogleString& key);
+  void Put(const GoogleString& key, const SharedString& new_value) override;
+  void Delete(const GoogleString& key) override;
 
   // Deletes all objects whose key starts with prefix.
   // Not part of cache interface. Exported for testing only.
@@ -92,18 +92,16 @@ class LRUCache : public CacheInterface {
   void ClearStats() { base_.ClearStats(); }
 
   static GoogleString FormatName() { return "LRUCache"; }
-  virtual GoogleString Name() const { return FormatName(); }
-  virtual bool IsBlocking() const { return true; }
-  virtual bool IsHealthy() const { return is_healthy_; }
-  virtual void ShutDown() { set_is_healthy(false); }
+  GoogleString Name() const override { return FormatName(); }
+  bool IsBlocking() const override { return true; }
+  bool IsHealthy() const override { return is_healthy_; }
+  void ShutDown() override { set_is_healthy(false); }
 
   void set_is_healthy(bool x) { is_healthy_ = x; }
 
  private:
   struct SharedStringHelper {
-    size_t size(const SharedString& ss) const {
-      return ss.size();
-    }
+    size_t size(const SharedString& ss) const { return ss.size(); }
     bool Equal(const SharedString& a, const SharedString& b) const {
       return a.Value() == b.Value();
     }

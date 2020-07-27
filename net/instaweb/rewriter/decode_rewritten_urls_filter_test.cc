@@ -32,7 +32,7 @@ namespace net_instaweb {
 
 class DecodeRewrittenUrlsFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kDecodeRewrittenUrls);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();
@@ -75,8 +75,9 @@ TEST_F(DecodeRewrittenUrlsFilterTest, TestAll) {
       "<script src=\"http://test.com/d.js\"></script>"
       "</body></html>";
   ValidateExpected("different_urls", input_html, output_html);
-  EXPECT_EQ(4, rewrite_driver()->log_record()->logging_info()->
-            rewriter_info().size());
+  EXPECT_EQ(
+      4,
+      rewrite_driver()->log_record()->logging_info()->rewriter_info().size());
   ExpectLogRecord(0, RewriterApplication::APPLIED_OK);
   ExpectLogRecord(1, RewriterApplication::NOT_APPLIED);
   ExpectLogRecord(2, RewriterApplication::APPLIED_OK);

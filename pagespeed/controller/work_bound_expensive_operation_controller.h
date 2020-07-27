@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_WORK_BOUND_EXPENSIVE_OPERATION_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_WORK_BOUND_EXPENSIVE_OPERATION_CONTROLLER_H_
 
@@ -42,11 +41,11 @@ class WorkBoundExpensiveOperationController
 
   WorkBoundExpensiveOperationController(int max_expensive_operations,
                                         Statistics* stats);
-  virtual ~WorkBoundExpensiveOperationController();
+  ~WorkBoundExpensiveOperationController() override;
 
   // ExpensiveOperationController interface.
-  virtual void ScheduleExpensiveOperation(Function* callback);
-  virtual void NotifyExpensiveOperationComplete();
+  void ScheduleExpensiveOperation(Function* callback) override;
+  void NotifyExpensiveOperationComplete() override;
 
   static void InitStats(Statistics* stats);
 

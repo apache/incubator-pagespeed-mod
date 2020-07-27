@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/file_writer.h"
 
 #include "pagespeed/kernel/base/file_system.h"
@@ -27,8 +26,7 @@ namespace net_instaweb {
 
 class MessageHandler;
 
-FileWriter::~FileWriter() {
-}
+FileWriter::~FileWriter() {}
 
 bool FileWriter::Write(const StringPiece& str, MessageHandler* handler) {
   return file_->Write(str, handler);

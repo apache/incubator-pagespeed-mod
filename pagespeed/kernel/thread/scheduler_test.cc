@@ -17,17 +17,16 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/scheduler.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/thread/worker_test_base.h"
+#include "pagespeed/kernel/util/platform.h"
 
 namespace net_instaweb {
 
@@ -39,7 +38,7 @@ class SchedulerTest : public WorkerTestBase {
   SchedulerTest()
       : thread_system_(Platform::CreateThreadSystem()),
         timer_(thread_system_->NewTimer()),
-        scheduler_(thread_system_.get(), timer_.get()) { }
+        scheduler_(thread_system_.get(), timer_.get()) {}
 
   int Compare(const Scheduler::Alarm* a, const Scheduler::Alarm* b) const {
     Scheduler::CompareAlarms comparator;
@@ -61,8 +60,8 @@ class SchedulerTest : public WorkerTestBase {
     }
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
-  scoped_ptr<Timer> timer_;
+  std::unique_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<Timer> timer_;
   Scheduler scheduler_;
 
  private:
@@ -80,15 +79,12 @@ TEST_F(SchedulerTest, AlarmsGetRun) {
   // Note that we give this test extra time (50ms) to start up so that
   // we don't attempt to compare already-run (and thus deleted) alarms
   // when running under valgrind.
-  Scheduler::Alarm* alarm1 =
-      scheduler_.AddAlarmAtUs(start_us + 52 * Timer::kMsUs,
-                              new CountFunction(&counter));
-  Scheduler::Alarm* alarm2 =
-      scheduler_.AddAlarmAtUs(start_us + 54 * Timer::kMsUs,
-                              new CountFunction(&counter));
-  Scheduler::Alarm* alarm3 =
-      scheduler_.AddAlarmAtUs(start_us + 53 * Timer::kMsUs,
-                              new CountFunction(&counter));
+  Scheduler::Alarm* alarm1 = scheduler_.AddAlarmAtUs(
+      start_us + 52 * Timer::kMsUs, new CountFunction(&counter));
+  Scheduler::Alarm* alarm2 = scheduler_.AddAlarmAtUs(
+      start_us + 54 * Timer::kMsUs, new CountFunction(&counter));
+  Scheduler::Alarm* alarm3 = scheduler_.AddAlarmAtUs(
+      start_us + 53 * Timer::kMsUs, new CountFunction(&counter));
   if (counter == 0) {
     // In rare cases under Valgrind, we run over the 50ms limit and the
     // callbacks get run and freed.  We skip these checks in that case.
@@ -146,9 +142,8 @@ TEST_F(SchedulerTest, AlarmInPastRuns) {
   int counter = 0;
   scheduler_.AddAlarmAtUs(start_us - 2 * Timer::kMsUs,
                           new CountFunction(&counter));
-  Scheduler::Alarm* alarm2 =
-      scheduler_.AddAlarmAtUs(start_us + Timer::kMinuteUs,
-                              new CountFunction(&counter));
+  Scheduler::Alarm* alarm2 = scheduler_.AddAlarmAtUs(
+      start_us + Timer::kMinuteUs, new CountFunction(&counter));
   LockAndProcessAlarms();  // Don't block!
   EXPECT_EQ(1, counter);
   {
@@ -167,9 +162,8 @@ TEST_F(SchedulerTest, MidpointCancellation) {
                           new CountFunction(&counter));
   scheduler_.AddAlarmAtUs(start_us + 2 * Timer::kMsUs,
                           new CountFunction(&counter));
-  Scheduler::Alarm* alarm3 =
-      scheduler_.AddAlarmAtUs(start_us + Timer::kMinuteUs,
-                              new CountFunction(&counter));
+  Scheduler::Alarm* alarm3 = scheduler_.AddAlarmAtUs(
+      start_us + Timer::kMinuteUs, new CountFunction(&counter));
   {
     ScopedMutex lock(scheduler_.mutex());
     scheduler_.BlockingTimedWaitMs(4);  // Never signaled, should time out.
@@ -268,13 +262,14 @@ class RetryWaitFunction : public Function {
  public:
   RetryWaitFunction(Timer* timer, int64 start_ms, Scheduler* scheduler,
                     int* counter)
-      : timer_(timer), start_ms_(start_ms),
-        scheduler_(scheduler), counter_(counter) {
-  }
+      : timer_(timer),
+        start_ms_(start_ms),
+        scheduler_(scheduler),
+        counter_(counter) {}
 
-  virtual ~RetryWaitFunction() {}
+  ~RetryWaitFunction() override {}
 
-  virtual void Run() EXCLUSIVE_LOCKS_REQUIRED(scheduler_->mutex()) {
+  void Run() override EXCLUSIVE_LOCKS_REQUIRED(scheduler_->mutex()) {
     ++*counter_;
     if ((timer_->NowMs() - start_ms_) < 10) {
       // Note that we want the retry delay here to place us later than
@@ -300,9 +295,8 @@ TEST_F(SchedulerTest, TimedWaitFromSignalWakeup) {
   int64 start_ms = timer_->NowMs();
   {
     ScopedMutex lock(scheduler_.mutex());
-    scheduler_.TimedWaitMs(
-        5, new RetryWaitFunction(timer_.get(), start_ms, &scheduler_,
-                                 &counter));
+    scheduler_.TimedWaitMs(5, new RetryWaitFunction(timer_.get(), start_ms,
+                                                    &scheduler_, &counter));
     scheduler_.Signal();
   }
   QuiesceAlarms(20 * Timer::kMsUs);

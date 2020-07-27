@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_CONTEXT_REGISTRY_H_
 #define PAGESPEED_CONTROLLER_CONTEXT_REGISTRY_H_
 
 #include <unistd.h>
+
 #include <memory>
 #include <unordered_set>
 
@@ -91,12 +91,11 @@ template <typename ContextT>
 ContextRegistry<ContextT>::ContextRegistry(ThreadSystem* thread_system)
     : mutex_(thread_system->NewMutex()),
       condvar_(mutex_->NewCondvar()),
-      shutdown_(false) {
-}
+      shutdown_(false) {}
 
 template <typename ContextT>
 ContextRegistry<ContextT>::~ContextRegistry() {
-  DCHECK_EQ(contexts_.size(), 0);
+  DCHECK_EQ(contexts_.size(), 0u);
 }
 
 template <typename ContextT>

@@ -17,16 +17,15 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/http/http_options.h"
+
 #include "pagespeed/kernel/base/timer.h"
 
 namespace net_instaweb {
 
 const HttpOptions kDefaultHttpOptionsForTests = {
-  false,  // respect_vary
-  5 * Timer::kMinuteMs,  // implicit_cache_ttl_ms
+    false,                 // respect_vary
+    5 * Timer::kMinuteMs,  // implicit_cache_ttl_ms
 };
 const HttpOptions kDeprecatedDefaultHttpOptions = kDefaultHttpOptionsForTests;
 

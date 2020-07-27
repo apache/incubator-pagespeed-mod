@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_DRIVER_FACTORY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_DRIVER_FACTORY_H_
 
+#include <memory>
 #include <set>
 #include <vector>
-#include <memory>
 
 #include "pagespeed/controller/central_controller.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -37,7 +36,11 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
+namespace pagespeed {
+namespace js {
+struct JsTokenizerPatterns;
+}
+}  // namespace pagespeed
 
 namespace net_instaweb {
 
@@ -72,7 +75,8 @@ class UserAgentNormalizer;
 class RewriteDriverFactory {
  public:
   // Helper for users of defer_cleanup; see below.
-  template<class T> class Deleter;
+  template <class T>
+  class Deleter;
 
   enum WorkerPoolCategory {
     kHtmlWorkers,
@@ -229,9 +233,7 @@ class RewriteDriverFactory {
 
   // Returns the set of directories that we (our our subclasses) have created
   // thus far.
-  const StringSet& created_directories() const {
-    return created_directories_;
-  }
+  const StringSet& created_directories() const { return created_directories_; }
 
   bool async_rewrites() { return true; }
 
@@ -291,14 +293,13 @@ class RewriteDriverFactory {
 
   // Queues an object for deletion at the last phase of RewriteDriverFactory
   // destruction.
-  template<class T> void TakeOwnership(T* obj) {
+  template <class T>
+  void TakeOwnership(T* obj) {
     defer_cleanup(new RewriteDriverFactory::Deleter<T>(obj));
   }
 
   // Base method that returns true if the given ip is a debug ip.
-  virtual bool IsDebugClient(const GoogleString& ip) const {
-    return false;
-  }
+  virtual bool IsDebugClient(const GoogleString& ip) const { return false; }
 
   // Creates an ExperimentMatcher, which is used to match clients or sessions to
   // a specific experiment.
@@ -424,25 +425,25 @@ class RewriteDriverFactory {
 
   void InitDecodingDriver(ServerContext* server_context);
 
-  scoped_ptr<MessageHandler> html_parse_message_handler_;
-  scoped_ptr<MessageHandler> message_handler_;
-  scoped_ptr<FileSystem> file_system_;
+  std::unique_ptr<MessageHandler> html_parse_message_handler_;
+  std::unique_ptr<MessageHandler> message_handler_;
+  std::unique_ptr<FileSystem> file_system_;
   UrlAsyncFetcher* url_async_fetcher_;
-  scoped_ptr<UrlAsyncFetcher> base_url_async_fetcher_;
-  scoped_ptr<Hasher> hasher_;
-  scoped_ptr<NonceGenerator> nonce_generator_;
-  scoped_ptr<SHA1Signature> signature_;
-  scoped_ptr<UrlNamer> url_namer_;
-  scoped_ptr<UserAgentMatcher> user_agent_matcher_;
+  std::unique_ptr<UrlAsyncFetcher> base_url_async_fetcher_;
+  std::unique_ptr<Hasher> hasher_;
+  std::unique_ptr<NonceGenerator> nonce_generator_;
+  std::unique_ptr<SHA1Signature> signature_;
+  std::unique_ptr<UrlNamer> url_namer_;
+  std::unique_ptr<UserAgentMatcher> user_agent_matcher_;
 
   // Lazily filled-in list of UA normalizers, including the default ones
   // this class adds, and any additional ones added by user_agent_normalizers()
   // calling subclass' AddPlatformSpecificUserAgentNormalizers on this.
   std::vector<const UserAgentNormalizer*> user_agent_normalizers_;
-  scoped_ptr<StaticAssetManager> static_asset_manager_;
-  scoped_ptr<Timer> timer_;
-  scoped_ptr<Scheduler> scheduler_;
-  scoped_ptr<UsageDataReporter> usage_data_reporter_;
+  std::unique_ptr<StaticAssetManager> static_asset_manager_;
+  std::unique_ptr<Timer> timer_;
+  std::unique_ptr<Scheduler> scheduler_;
+  std::unique_ptr<UsageDataReporter> usage_data_reporter_;
   // RE2 patterns needed for JsTokenizer.
   const pagespeed::js::JsTokenizerPatterns* js_tokenizer_patterns_;
 
@@ -452,16 +453,16 @@ class RewriteDriverFactory {
   bool slurp_read_only_;
   bool slurp_print_urls_;
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
 
   // protected by server_context_mutex_;
   typedef std::set<ServerContext*> ServerContextSet;
   ServerContextSet server_contexts_;
-  scoped_ptr<AbstractMutex> server_context_mutex_;
+  std::unique_ptr<AbstractMutex> server_context_mutex_;
 
   // Stores options with hard-coded defaults and adjustments from
   // the core system, subclasses, and command-line.
-  scoped_ptr<RewriteOptions> default_options_;
+  std::unique_ptr<RewriteOptions> default_options_;
 
   // Keep around a RewriteDriver just for decoding resource URLs, using
   // the default options.  This is possible because the id->RewriteFilter
@@ -470,11 +471,11 @@ class RewriteDriverFactory {
   // need to honor things like forbids. We also have a special
   // ServerContext just for it, to avoid connecting it to any particular
   // pre-existing one.
-  scoped_ptr<ServerContext> decoding_server_context_;
-  scoped_ptr<RewriteDriver> decoding_driver_;
+  std::unique_ptr<ServerContext> decoding_server_context_;
+  std::unique_ptr<RewriteDriver> decoding_driver_;
 
   // Manage locks for output resources.
-  scoped_ptr<NamedLockManager> lock_manager_;
+  std::unique_ptr<NamedLockManager> lock_manager_;
 
   // Default statistics implementation which can be overridden by children
   // by calling SetStatistics().
@@ -487,7 +488,7 @@ class RewriteDriverFactory {
 
   // These must be initialized after the RewriteDriverFactory subclass has been
   // constructed so it can use a the statistics() override.
-  scoped_ptr<RewriteStats> rewrite_stats_;
+  std::unique_ptr<RewriteStats> rewrite_stats_;
 
   // To assist with subclass destruction-order, subclasses can register
   // functions to run late in the destructor.
@@ -505,10 +506,12 @@ class RewriteDriverFactory {
 
 // Helper for users of RewriterDriverFactory::defer_cleanup --- instantiates
 // into objects that call the appropriate delete operator when Run.
-template<class T> class RewriteDriverFactory::Deleter : public Function {
+template <class T>
+class RewriteDriverFactory::Deleter : public Function {
  public:
   explicit Deleter(T* obj) : obj_(obj) {}
-  virtual void Run() { delete obj_; }
+  void Run() override { delete obj_; }
+
  private:
   T* obj_;
   DISALLOW_COPY_AND_ASSIGN(Deleter);

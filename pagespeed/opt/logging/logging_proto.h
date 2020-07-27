@@ -17,11 +17,8 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_OPT_LOGGING_LOGGING_PROTO_H_
 #define PAGESPEED_OPT_LOGGING_LOGGING_PROTO_H_
-
 
 namespace net_instaweb {
 
@@ -43,6 +40,5 @@ class RewriteResourceInfo;
 class TimingInfo;
 
 }  // namespace net_instaweb
-
 
 #endif  // PAGESPEED_OPT_LOGGING_LOGGING_PROTO_H_

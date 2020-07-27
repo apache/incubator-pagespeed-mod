@@ -17,17 +17,14 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/process_context.h"
 
 #include "base/logging.h"
+#include "google/protobuf/stubs/common.h"
 #include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/http/domain_registry.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/js/js_tokenizer.h"
-
-#include "base/at_exit.h"
-#include "google/protobuf/stubs/common.h"
 using namespace google;  // NOLINT
 
 namespace {
@@ -42,10 +39,6 @@ int construction_count = 0;
 
 namespace net_instaweb {
 
-namespace {
-base::AtExitManager* at_exit_manager = NULL;
-}
-
 ProcessContext::ProcessContext()
     : js_tokenizer_patterns_(new pagespeed::js::JsTokenizerPatterns) {
   ++construction_count;
@@ -54,15 +47,6 @@ ProcessContext::ProcessContext()
 
   domain_registry::Init();
   HtmlKeywords::Init();
-
-  // url/url_util.cc lazily initializes its "standard_schemes" table in a
-  // thread-unsafe way and so it must be explicitly initialized prior to thread
-  // creation, and explicitly terminated after thread quiescence.
-  url::Initialize();
-
-  if (at_exit_manager == NULL) {
-    at_exit_manager = new base::AtExitManager;
-  }
 }
 
 ProcessContext::~ProcessContext() {
@@ -73,12 +57,7 @@ ProcessContext::~ProcessContext() {
   // function InitShutdownFunctionsOnce.
   google::protobuf::ShutdownProtobufLibrary();
 
-  url::Shutdown();
   HtmlKeywords::ShutDown();
-  if (at_exit_manager != NULL) {
-    delete at_exit_manager;
-    at_exit_manager = NULL;
-  }
 }
 
 }  // namespace net_instaweb

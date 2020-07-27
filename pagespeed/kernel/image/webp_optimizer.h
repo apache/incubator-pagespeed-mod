@@ -17,11 +17,13 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_WEBP_OPTIMIZER_H_
 #define PAGESPEED_KERNEL_IMAGE_WEBP_OPTIMIZER_H_
 
 #include <cstddef>
+
+#include "external/libwebp/src/webp/encode.h"
+#include "external/libwebp/src/webp/mux.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -29,8 +31,6 @@
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_status.h"
-#include "third_party/libwebp/src/webp/encode.h"
-#include "third_party/libwebp/src/webp/mux.h"
 
 namespace net_instaweb {
 class MessageHandler;
@@ -49,17 +49,25 @@ struct WebpConfiguration : public ScanlineWriterConfig {
   typedef bool (*WebpProgressHook)(int percent, void* user_data);
 
   WebpConfiguration()
-      : lossless(true), quality(75), method(3), target_size(0),
-        alpha_compression(1), alpha_filtering(1), alpha_quality(100),
-        kmin(0), kmax(0), progress_hook(NULL), user_data(NULL) {}
+      : lossless(true),
+        quality(75),
+        method(3),
+        target_size(0),
+        alpha_compression(1),
+        alpha_filtering(1),
+        alpha_quality(100),
+        kmin(0),
+        kmax(0),
+        progress_hook(NULL),
+        user_data(NULL) {}
 
   ~WebpConfiguration() override;
 
   void CopyTo(WebPConfig* webp_config) const;
 
-  int lossless;           // Lossless encoding (0=lossy(default), 1=lossless).
-  float quality;          // between 0 (smallest file) and 100 (biggest)
-  int method;             // quality/speed trade-off (0=fast, 6=slower-better)
+  int lossless;   // Lossless encoding (0=lossy(default), 1=lossless).
+  float quality;  // between 0 (smallest file) and 100 (biggest)
+  int method;     // quality/speed trade-off (0=fast, 6=slower-better)
 
   // Parameters related to lossy compression only:
   int target_size;        // if non-zero, set the desired target size in bytes.
@@ -72,21 +80,21 @@ struct WebpConfiguration : public ScanlineWriterConfig {
                           // Default is 100.
 
   // Parameters related to animated WebP:
-  size_px kmin;           // Minimum keyframe interval, i.e., number of
-                          // non-keyframes between consecutive keyframes. If
-                          // kmin == 0, keyframes are not used. Libwebp
-                          // requires kmax > kmin >= (kmax / 2) + 1. Reasonable
-                          // choices are (3,5) for lossy encoding and (9,17)
-                          // for lossless encoding.
-  size_px kmax;           // Maximum keyframe interval.
+  size_px kmin;  // Minimum keyframe interval, i.e., number of
+                 // non-keyframes between consecutive keyframes. If
+                 // kmin == 0, keyframes are not used. Libwebp
+                 // requires kmax > kmin >= (kmax / 2) + 1. Reasonable
+                 // choices are (3,5) for lossy encoding and (9,17)
+                 // for lossless encoding.
+  size_px kmax;  // Maximum keyframe interval.
 
-  WebpProgressHook progress_hook;   // If non-NULL, called during encoding.
+  WebpProgressHook progress_hook;  // If non-NULL, called during encoding.
 
-  void* user_data;        // Can be used by progress_hook. This
-                          // pointer remains owned by the client and
-                          // must remain valid until
-                          // WebpScanlineWriter::FinalizeWrite()
-                          // completes.
+  void* user_data;  // Can be used by progress_hook. This
+                    // pointer remains owned by the client and
+                    // must remain valid until
+                    // WebpScanlineWriter::FinalizeWrite()
+                    // completes.
 
   // NOTE: If you add more fields to this struct that feed into
   // WebPConfig, please update the CopyTo() method.
@@ -95,25 +103,25 @@ struct WebpConfiguration : public ScanlineWriterConfig {
 class WebpFrameWriter : public MultipleFrameWriter {
  public:
   explicit WebpFrameWriter(MessageHandler* handler);
-  virtual ~WebpFrameWriter();
+  ~WebpFrameWriter() override;
 
   // Sets the WebP configuration to be 'config', which should be a
   // WebpConfiguration* and should not be NULL.
-  virtual ScanlineStatus Initialize(const void* config, GoogleString* out);
+  ScanlineStatus Initialize(const void* config, GoogleString* out) override;
 
   // image_spec must remain valid for the lifetime of
   // WebpFrameWriter.
-  virtual ScanlineStatus PrepareImage(const ImageSpec* image_spec);
+  ScanlineStatus PrepareImage(const ImageSpec* image_spec) override;
 
   // frame_spec must remain valid while the frame is being written.
-  virtual ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec);
+  ScanlineStatus PrepareNextFrame(const FrameSpec* frame_spec) override;
 
-  virtual ScanlineStatus WriteNextScanline(const void *scanline_bytes);
+  ScanlineStatus WriteNextScanline(const void* scanline_bytes) override;
 
   // Note that even after WriteNextScanline() has been called,
   // Initialize() and FinalizeWrite() may be called repeatedly to
   // write the image with, say, different configs.
-  virtual ScanlineStatus FinalizeWrite();
+  ScanlineStatus FinalizeWrite() override;
 
  private:
   // The function to be called by libwebp's progress hook (with 'this'
@@ -213,30 +221,30 @@ class WebpFrameWriter : public MultipleFrameWriter {
 class WebpScanlineReader : public ScanlineReaderInterface {
  public:
   explicit WebpScanlineReader(MessageHandler* handler);
-  virtual ~WebpScanlineReader();
+  ~WebpScanlineReader() override;
 
   // Reset the scanline reader to its initial state.
-  virtual bool Reset();
+  bool Reset() override;
 
   // Initialize the reader with the given image stream. Note that image_buffer
   // must remain unchanged until the *first* call to ReadNextScanline().
-  virtual ScanlineStatus InitializeWithStatus(const void* image_buffer,
-                                              size_t buffer_length);
+  ScanlineStatus InitializeWithStatus(const void* image_buffer,
+                                      size_t buffer_length) override;
 
   // Return the next row of pixels. The entire image is decoded the first
   // time ReadNextScanline() is called, but only one scanline is returned
   // for each call.
-  virtual ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes);
+  ScanlineStatus ReadNextScanlineWithStatus(void** out_scanline_bytes) override;
 
   // Return the number of bytes in a row (without padding).
-  virtual size_t GetBytesPerScanline() { return bytes_per_row_; }
+  size_t GetBytesPerScanline() override { return bytes_per_row_; }
 
-  virtual bool HasMoreScanLines() { return (row_ < height_); }
-  virtual PixelFormat GetPixelFormat() { return pixel_format_; }
-  virtual size_t GetImageHeight() { return height_; }
-  virtual size_t GetImageWidth() {  return width_; }
+  bool HasMoreScanLines() override { return (row_ < height_); }
+  PixelFormat GetPixelFormat() override { return pixel_format_; }
+  size_t GetImageHeight() override { return height_; }
+  size_t GetImageWidth() override { return width_; }
   // WebP does not have progressive mode.
-  virtual bool IsProgressive() { return false; }
+  bool IsProgressive() override { return false; }
 
  private:
   // Buffer and length of the input (compressed) image.

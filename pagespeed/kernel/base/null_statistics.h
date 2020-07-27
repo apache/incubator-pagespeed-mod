@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_NULL_STATISTICS_H_
 #define PAGESPEED_KERNEL_BASE_NULL_STATISTICS_H_
 
@@ -33,7 +32,7 @@ class NullStatisticsVariable {
  public:
   NullStatisticsVariable(StringPiece name, Statistics* statistics) {}
   ~NullStatisticsVariable() {}
-  void Set(int64 value) { }
+  void Set(int64 value) {}
   int64 Get() const { return 0; }
   int64 AddHelper(int64 delta) const { return 0; }
   StringPiece GetName() const { return StringPiece(); }
@@ -46,9 +45,9 @@ class NullStatisticsVariable {
 class NullStatistics : public ScalarStatisticsTemplate<NullStatisticsVariable> {
  public:
   NullStatistics();
-  virtual ~NullStatistics();
+  ~NullStatistics() override;
 
-  virtual CountHistogram* NewHistogram(StringPiece name);
+  CountHistogram* NewHistogram(StringPiece name) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullStatistics);

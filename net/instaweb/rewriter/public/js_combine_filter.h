@@ -40,7 +40,11 @@
 #include "pagespeed/kernel/util/url_multipart_encoder.h"
 #include "pagespeed/kernel/util/url_segment_encoder.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } }
+namespace pagespeed {
+namespace js {
+struct JsTokenizerPatterns;
+}
+}  // namespace pagespeed
 
 namespace net_instaweb {
 
@@ -72,11 +76,11 @@ class JsCombineFilter : public RewriteFilter {
   // rewrite_driver is the context owning us, and filter_id is the ID we
   // are registered under.
   explicit JsCombineFilter(RewriteDriver* rewrite_driver);
-  virtual ~JsCombineFilter();
+  ~JsCombineFilter() override;
 
   // Registers the provided statistics variable names with 'statistics'.
   static void InitStats(Statistics* statistics);
-  virtual const char* id() const {
+  const char* id() const override {
     return RewriteOptions::kJavascriptCombinerId;
   }
 
@@ -90,17 +94,15 @@ class JsCombineFilter : public RewriteFilter {
 
  protected:
   // RewriteFilter overrides --- HTML parsing event handlers.
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void Flush();
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual const char* Name() const { return "JsCombine"; }
-  virtual RewriteContext* MakeRewriteContext();
-  virtual const UrlSegmentEncoder* encoder() const {
-    return &encoder_;
-  }
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  void Flush() override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  const char* Name() const override { return "JsCombine"; }
+  RewriteContext* MakeRewriteContext() override;
+  const UrlSegmentEncoder* encoder() const override { return &encoder_; }
 
  private:
   class JsCombiner;
@@ -125,7 +127,7 @@ class JsCombineFilter : public RewriteFilter {
   int script_depth_;  // how many script elements we are inside
   // current outermost <script> not with JavaScript we are inside, or NULL
   HtmlElement* current_js_script_;  // owned by the html parser.
-  scoped_ptr<Context> context_;
+  std::unique_ptr<Context> context_;
   UrlMultipartEncoder encoder_;
 
   DISALLOW_COPY_AND_ASSIGN(JsCombineFilter);

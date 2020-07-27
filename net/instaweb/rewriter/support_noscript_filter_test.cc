@@ -34,15 +34,15 @@ const char kUnsupportedUserAgent[] = "Unsupported";
 
 class SupportNoscriptFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kDelayImages);
-    SetResponseWithDefaultHeaders(
-        "http://test.com/1.jpeg", kContentTypeJpeg,
-        "bogusimage but it is not parsed", 100 /* sec */);
-    SetResponseWithDefaultHeaders(
-        "http://test.com/2.jpeg", kContentTypeJpeg,
-        "bogusimage but it is not parsed", 100 /* sec */);
+    SetResponseWithDefaultHeaders("http://test.com/1.jpeg", kContentTypeJpeg,
+                                  "bogusimage but it is not parsed",
+                                  100 /* sec */);
+    SetResponseWithDefaultHeaders("http://test.com/2.jpeg", kContentTypeJpeg,
+                                  "bogusimage but it is not parsed",
+                                  100 /* sec */);
   }
 };
 
@@ -83,8 +83,7 @@ TEST_F(SupportNoscriptFilterTest, TestNoscriptMultipleBodies) {
 }
 
 TEST_F(SupportNoscriptFilterTest, TestNoBody) {
-  GoogleString input_html =
-      "<head></head>";
+  GoogleString input_html = "<head></head>";
   SetCurrentUserAgent(kChromeUserAgent);
   ValidateExpected("support_noscript", input_html, input_html);
 }

@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_OPT_LOGGING_LOG_RECORD_H_
 #define PAGESPEED_OPT_LOGGING_LOG_RECORD_H_
 
 #include <map>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest_prod.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -58,7 +58,7 @@ class RequestTimingInfo;
 
 // Subclasses may wrap some other type of protobuf; they must still provide
 // access to a LoggingInfo instance, however.
-class AbstractLogRecord  {
+class AbstractLogRecord {
  public:
   // Construct a AbstractLogRecord with a new LoggingInfo proto and caller-
   // supplied mutex. This class takes ownership of the mutex.
@@ -79,14 +79,14 @@ class AbstractLogRecord  {
 
   // Creates a new rewriter logging submessage for |rewriter_id|,
   // and sets status it.
-  void SetRewriterLoggingStatus(
-      const char* rewriter_id, RewriterApplication::Status status);
+  void SetRewriterLoggingStatus(const char* rewriter_id,
+                                RewriterApplication::Status status);
 
   // Creates a new rewriter logging submessage for |rewriter_id|,
   // sets status and the url index.
-  void SetRewriterLoggingStatus(
-      const char* rewriter_id, const GoogleString& url,
-      RewriterApplication::Status status) {
+  void SetRewriterLoggingStatus(const char* rewriter_id,
+                                const GoogleString& url,
+                                RewriterApplication::Status status) {
     SetRewriterLoggingStatusHelper(rewriter_id, url, status);
   }
 
@@ -98,8 +98,8 @@ class AbstractLogRecord  {
 
   // Log the status of a rewriter application on a resource.
   // TODO(gee): I'd really prefer rewriter_id was an enum.
-  void LogRewriterApplicationStatus(
-      const char* rewriter_id, RewriterApplication::Status status);
+  void LogRewriterApplicationStatus(const char* rewriter_id,
+                                    RewriterApplication::Status status);
 
   // TODO(gee): Deprecate raw access to proto.
   // Return the LoggingInfo proto wrapped by this class. Calling code must
@@ -113,29 +113,21 @@ class AbstractLogRecord  {
   // processing is done. The outcome is a new log record with request type
   // set to "BACKGROUND_REWRITE".
   void LogImageBackgroundRewriteActivity(
-      RewriterApplication::Status status,
-      const GoogleString& url,
-      const char* id,
-      int original_size,
-      int optimized_size,
-      bool is_recompressed,
-      ImageType original_image_type,
-      ImageType optimized_image_type,
-      bool is_resized,
-      int original_width,
-      int original_height,
-      bool is_resized_using_rendered_dimensions,
-      int resized_width,
-      int resized_height);
+      RewriterApplication::Status status, const GoogleString& url,
+      const char* id, int original_size, int optimized_size,
+      bool is_recompressed, ImageType original_image_type,
+      ImageType optimized_image_type, bool is_resized, int original_width,
+      int original_height, bool is_resized_using_rendered_dimensions,
+      int resized_width, int resized_height);
 
   // Atomically sets is_html_response in the logging proto.
   void SetIsHtml(bool is_html);
 
   // Updated the cohort info to set the found to true for the given
   // property.
-  virtual void AddFoundPropertyToCohortInfo(
-      int page_type, const GoogleString& cohort,
-      const GoogleString& property) = 0;
+  virtual void AddFoundPropertyToCohortInfo(int page_type,
+                                            const GoogleString& cohort,
+                                            const GoogleString& property) = 0;
 
   // Updated the cohort info to set the retrieved to true for the given
   // property.
@@ -144,9 +136,9 @@ class AbstractLogRecord  {
       const GoogleString& property) = 0;
 
   // Updates the cohort info to update the cache key state.
-  virtual void SetCacheStatusForCohortInfo(
-      int page_type, const GoogleString& cohort,
-      bool found, int key_state) = 0;
+  virtual void SetCacheStatusForCohortInfo(int page_type,
+                                           const GoogleString& cohort,
+                                           bool found, int key_state) = 0;
 
   // Mutex-guarded log mutation convenience methods. The rule of thumb is that
   // if a single-field update to a logging proto occurs multiple times, it
@@ -155,23 +147,16 @@ class AbstractLogRecord  {
 
   // Log a RewriterInfo for the image rewrite filter.
   virtual void LogImageRewriteActivity(
-      const char* id,
-      const GoogleString& url,
-      RewriterApplication::Status status,
-      bool is_image_inlined,
-      bool is_critical_image,
-      bool is_url_rewritten,
-      int size,
-      bool try_low_res_src_insertion,
-      bool low_res_src_inserted,
-      ImageType low_res_image_type,
-      int low_res_data_size) = 0;
+      const char* id, const GoogleString& url,
+      RewriterApplication::Status status, bool is_image_inlined,
+      bool is_critical_image, bool is_url_rewritten, int size,
+      bool try_low_res_src_insertion, bool low_res_src_inserted,
+      ImageType low_res_image_type, int low_res_data_size) = 0;
 
   // TODO(gee): Change the callsites.
   void LogJsDisableFilter(const char* id, bool has_pagespeed_no_defer);
 
-  void LogLazyloadFilter(const char* id,
-                         RewriterApplication::Status status,
+  void LogLazyloadFilter(const char* id, RewriterApplication::Status status,
                          bool is_blacklisted, bool is_critical);
 
   // Mutex-guarded log-writing operations. Derived classes should override
@@ -209,29 +194,22 @@ class AbstractLogRecord  {
 
   // Sets critical CSS related byte counts (all uncompressed).
   void SetCriticalCssInfo(int critical_inlined_bytes,
-                          int original_external_bytes,
-                          int overhead_bytes);
+                          int original_external_bytes, int overhead_bytes);
 
   // Log information related to the user agent and device making the request.
-  virtual void LogDeviceInfo(
-      int device_type,
-      bool supports_image_inlining,
-      bool supports_lazyload_images,
-      bool supports_critical_images_beacon,
-      bool supports_deferjs,
-      bool supports_webp_in_place,
-      bool supports_webp_rewritten_urls,
-      bool supports_webplossless_alpha,
-      bool is_bot) = 0;
+  virtual void LogDeviceInfo(int device_type, bool supports_image_inlining,
+                             bool supports_lazyload_images,
+                             bool supports_critical_images_beacon,
+                             bool supports_deferjs, bool supports_webp_in_place,
+                             bool supports_webp_rewritten_urls,
+                             bool supports_webplossless_alpha, bool is_bot) = 0;
 
   // Log whether the request is an XmlHttpRequest.
   void LogIsXhr(bool is_xhr);
 
   // Sets initial information for background rewrite log.
-  virtual void SetBackgroundRewriteInfo(
-    bool log_urls,
-    bool log_url_indices,
-    int max_rewrite_info_log_size);
+  virtual void SetBackgroundRewriteInfo(bool log_urls, bool log_url_indices,
+                                        int max_rewrite_info_log_size);
 
   // Set timing information in the logging implementation.
   virtual void SetTimingInfo(const RequestTimingInfo& timing_info) {}
@@ -252,8 +230,8 @@ class AbstractLogRecord  {
   // Called on construction.
   void InitLogging();
 
-  void PopulateUrl(
-      const GoogleString& url, RewriteResourceInfo* rewrite_resource_info);
+  void PopulateUrl(const GoogleString& url,
+                   RewriteResourceInfo* rewrite_resource_info);
 
   // Fill LoggingInfo proto with information collected from LogRewriterStatus
   // and LogRewrite.
@@ -261,7 +239,7 @@ class AbstractLogRecord  {
 
   // Thus must be set. Implementation constructors must minimally default this
   // to a NullMutex.
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
 
   // The maximum number of rewrite info logs stored for a single request.
   int rewriter_info_max_size_;
@@ -297,54 +275,46 @@ class LogRecord : public AbstractLogRecord {
  public:
   explicit LogRecord(AbstractMutex* mutex);
 
-  virtual ~LogRecord();
+  ~LogRecord() override;
 
-  LoggingInfo* logging_info() { return logging_info_.get(); }
+  LoggingInfo* logging_info() override { return logging_info_.get(); }
 
-  virtual void SetImageStats(int num_img_tags, int num_inlined_img_tags,
-                             int num_critical_images_used) {}
+  void SetImageStats(int num_img_tags, int num_inlined_img_tags,
+                     int num_critical_images_used) override {}
 
-  virtual void SetResourceCounts(int num_external_css, int num_scripts) {}
+  void SetResourceCounts(int num_external_css, int num_scripts) override {}
 
-  virtual void AddFoundPropertyToCohortInfo(
-      int page_type, const GoogleString& cohort,
-      const GoogleString& property) {}
+  void AddFoundPropertyToCohortInfo(int page_type, const GoogleString& cohort,
+                                    const GoogleString& property) override {}
 
-  virtual void AddRetrievedPropertyToCohortInfo(
-      int page_type, const GoogleString& cohort,
-      const GoogleString& property) {}
+  void AddRetrievedPropertyToCohortInfo(int page_type,
+                                        const GoogleString& cohort,
+                                        const GoogleString& property) override {
+  }
 
-  void SetCacheStatusForCohortInfo(
-      int page_type, const GoogleString& cohort, bool found, int key_state) {}
+  void SetCacheStatusForCohortInfo(int page_type, const GoogleString& cohort,
+                                   bool found, int key_state) override {}
 
-  virtual void LogImageRewriteActivity(
-      const char* id,
-      const GoogleString& url,
-      RewriterApplication::Status status,
-      bool is_image_inlined,
-      bool is_critical_image,
-      bool is_url_rewritten,
-      int size,
-      bool try_low_res_src_insertion,
-      bool low_res_src_inserted,
-      ImageType low_res_image_type,
-      int low_res_data_size) {}
+  void LogImageRewriteActivity(const char* id, const GoogleString& url,
+                               RewriterApplication::Status status,
+                               bool is_image_inlined, bool is_critical_image,
+                               bool is_url_rewritten, int size,
+                               bool try_low_res_src_insertion,
+                               bool low_res_src_inserted,
+                               ImageType low_res_image_type,
+                               int low_res_data_size) override {}
 
-  void LogDeviceInfo(
-      int device_type,
-      bool supports_image_inlining,
-      bool supports_lazyload_images,
-      bool supports_critical_images_beacon,
-      bool supports_deferjs,
-      bool supports_webp_in_place,
-      bool supports_webp_rewritten_urls,
-      bool supports_webplossless_alpha,
-      bool is_bot) override {}
+  void LogDeviceInfo(int device_type, bool supports_image_inlining,
+                     bool supports_lazyload_images,
+                     bool supports_critical_images_beacon,
+                     bool supports_deferjs, bool supports_webp_in_place,
+                     bool supports_webp_rewritten_urls,
+                     bool supports_webplossless_alpha, bool is_bot) override {}
 
   bool WriteLogImpl() override { return true; }
 
  private:
-  scoped_ptr<LoggingInfo> logging_info_;
+  std::unique_ptr<LoggingInfo> logging_info_;
 };
 
 // TODO(gee): I'm pretty sure the functionality can be provided by the previous
@@ -359,7 +329,7 @@ class CopyOnWriteLogRecord : public LogRecord {
       : LogRecord(logging_mutex), logging_info_copy_(logging_info) {}
 
  protected:
-  virtual bool WriteLogImpl() {
+  bool WriteLogImpl() override {
     logging_info_copy_->CopyFrom(*logging_info());
     return true;
   }

@@ -51,16 +51,13 @@ class ResourceContext;
 class CssUrlEncoder : public UrlSegmentEncoder {
  public:
   CssUrlEncoder() {}
-  virtual ~CssUrlEncoder();
+  ~CssUrlEncoder() override;
 
-  virtual void Encode(const StringVector& urls,
-                      const ResourceContext* encoding,
-                      GoogleString* rewritten_url) const;
+  void Encode(const StringVector& urls, const ResourceContext* encoding,
+              GoogleString* rewritten_url) const override;
 
-  virtual bool Decode(const StringPiece& url_segment,
-                      StringVector* urls,
-                      ResourceContext* dim,
-                      MessageHandler* handler) const;
+  bool Decode(const StringPiece& url_segment, StringVector* urls,
+              ResourceContext* dim, MessageHandler* handler) const override;
 
   // Sets Inlining of image according to the user agent.
   static void SetInliningImages(const RequestProperties& request_properties,

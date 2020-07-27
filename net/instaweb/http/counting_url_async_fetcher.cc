@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 
 #include "net/instaweb/http/public/async_fetch.h"
@@ -37,8 +36,8 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
     ++counter_->fetch_start_count_;
   }
 
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override {
     {
       ScopedMutex lock(counter_->mutex_.get());
       counter_->byte_count_ += content.size();
@@ -46,7 +45,7 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
     return SharedAsyncFetch::HandleWrite(content, handler);
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     {
       ScopedMutex lock(counter_->mutex_.get());
       ++counter_->fetch_count_;
@@ -64,8 +63,7 @@ class CountingUrlAsyncFetcher::CountingFetch : public SharedAsyncFetch {
   DISALLOW_COPY_AND_ASSIGN(CountingFetch);
 };
 
-CountingUrlAsyncFetcher::~CountingUrlAsyncFetcher() {
-}
+CountingUrlAsyncFetcher::~CountingUrlAsyncFetcher() {}
 
 void CountingUrlAsyncFetcher::Fetch(const GoogleString& url,
                                     MessageHandler* message_handler,

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/string_util.h"
 
 #include <algorithm>
@@ -25,8 +24,68 @@
 #include <cstdlib>
 #include <vector>
 
-#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/string.h"
+
+// TODO(XXX): Can we do better?
+template <class CharT>
+static void StringAppendVT(std::basic_string<CharT>* dst, const CharT* format,
+                           va_list ap) {
+  // First try with a small fixed size buffer.
+  // This buffer size should be kept in sync with StringUtilTest.GrowBoundary
+  // and StringUtilTest.StringPrintfBounds.
+  CharT stack_buf[1024];
+  va_list ap_copy;
+  va_copy(ap_copy, ap);
+  // base::ScopedClearLastError last_error;
+  int result = vsnprintf(stack_buf, sizeof(stack_buf), format, ap_copy);
+  va_end(ap_copy);
+  if (result >= 0 && result < static_cast<int>(sizeof(stack_buf))) {
+    // It fit.
+    dst->append(stack_buf, result);
+    return;
+  }
+  // Repeatedly increase buffer size until it fits.
+  int mem_length = sizeof(stack_buf);
+  while (true) {
+    if (result < 0) {
+#if defined(OS_WIN)
+      // On Windows, vsnprintfT always returns the number of characters in a
+      // fully-formatted string, so if we reach this point, something else is
+      // wrong and no amount of buffer-doubling is going to fix it.
+      return;
+#else
+      if (errno != 0 && errno != EOVERFLOW) return;
+      // Try doubling the buffer size.
+      mem_length *= 2;
+#endif
+    } else {
+      // We need exactly "result + 1" characters.
+      mem_length = result + 1;
+    }
+    if (mem_length > 32 * 1024 * 1024) {
+      // That should be plenty, don't try anything larger.  This protects
+      // against huge allocations when using vsnprintfT implementations that
+      // return -1 for reasons other than overflow without setting errno.
+      DLOG(WARNING) << "Unable to printf the requested string due to size.";
+      return;
+    }
+    std::vector<CharT> mem_buf(mem_length);
+    // NOTE: You can only use a va_list once.  Since we're in a while loop, we
+    // need to make a new copy each time so we don't use up the original.
+    va_copy(ap_copy, ap);
+    result = vsnprintf(&mem_buf[0], mem_length, format, ap_copy);
+    va_end(ap_copy);
+    if ((result >= 0) && (result < mem_length)) {
+      // It fit.
+      dst->append(&mem_buf[0], result);
+      return;
+    }
+  }
+}
+
+void StringAppendV(std::string* dst, const char* format, va_list ap) {
+  StringAppendVT(dst, format, ap);
+}
 
 namespace net_instaweb {
 
@@ -40,85 +99,6 @@ bool StringToDouble(const char* in, double* out) {
   // returns on underflow and overflow are the right
   // fallback in a robust setting.
   return *in != '\0' && *endptr == '\0';
-}
-
-GoogleString StrCat(StringPiece a, StringPiece b) {
-  GoogleString res;
-  res.reserve(a.size() + b.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c,
-                    StringPiece d) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c, StringPiece d,
-                    StringPiece e) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c, StringPiece d,
-                    StringPiece e, StringPiece f) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c, StringPiece d,
-                    StringPiece e, StringPiece f, StringPiece g) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size() +
-              g.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  g.AppendToString(&res);
-  return res;
-}
-GoogleString StrCat(StringPiece a, StringPiece b, StringPiece c, StringPiece d,
-                    StringPiece e, StringPiece f, StringPiece g,
-                    StringPiece h) {
-  GoogleString res;
-  res.reserve(a.size() + b.size() + c.size() + d.size() + e.size() + f.size() +
-              g.size() + h.size());
-  a.AppendToString(&res);
-  b.AppendToString(&res);
-  c.AppendToString(&res);
-  d.AppendToString(&res);
-  e.AppendToString(&res);
-  f.AppendToString(&res);
-  g.AppendToString(&res);
-  h.AppendToString(&res);
-  return res;
 }
 
 namespace internal {
@@ -144,97 +124,6 @@ GoogleString StrCatNineOrMore(const StringPiece* a, ...) {
 }
 
 }  // namespace internal
-
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b) {
-  target->reserve(target->size() +
-                  a.size() + b.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size() + g.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-  g.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g, StringPiece h) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size() + g.size() + h.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-  g.AppendToString(target);
-  h.AppendToString(target);
-}
-void StrAppend(GoogleString* target, StringPiece a, StringPiece b,
-               StringPiece c, StringPiece d, StringPiece e, StringPiece f,
-               StringPiece g, StringPiece h, StringPiece i) {
-  target->reserve(target->size() +
-                  a.size() + b.size() + c.size() + d.size() + e.size() +
-                  f.size() + g.size() + h.size() + i.size());
-  a.AppendToString(target);
-  b.AppendToString(target);
-  c.AppendToString(target);
-  d.AppendToString(target);
-  e.AppendToString(target);
-  f.AppendToString(target);
-  g.AppendToString(target);
-  h.AppendToString(target);
-  i.AppendToString(target);
-}
 
 void SplitStringPieceToVector(StringPiece sp, StringPiece separators,
                               StringPieceVector* components,
@@ -274,8 +163,8 @@ void SplitStringUsingSubstr(StringPiece full, StringPiece substr,
 void BackslashEscape(StringPiece src, StringPiece to_escape,
                      GoogleString* dest) {
   dest->reserve(dest->size() + src.size());
-  for (const char *p = src.data(), *end = src.data() + src.size();
-       p != end; ++p) {
+  for (const char *p = src.data(), *end = src.data() + src.size(); p != end;
+       ++p) {
     if (to_escape.find(*p) != StringPiece::npos) {
       dest->push_back('\\');
     }
@@ -292,15 +181,33 @@ GoogleString CEscape(StringPiece src) {
   for (; read != end; ++read) {
     unsigned char ch = static_cast<unsigned char>(*read);
     switch (ch) {
-      case '\n': dest[used++] = '\\'; dest[used++] = 'n'; break;
-      case '\r': dest[used++] = '\\'; dest[used++] = 'r'; break;
-      case '\t': dest[used++] = '\\'; dest[used++] = 't'; break;
-      case '\"': dest[used++] = '\\'; dest[used++] = '\"'; break;
-      case '\'': dest[used++] = '\\'; dest[used++] = '\''; break;
-      case '\\': dest[used++] = '\\'; dest[used++] = '\\'; break;
+      case '\n':
+        dest[used++] = '\\';
+        dest[used++] = 'n';
+        break;
+      case '\r':
+        dest[used++] = '\\';
+        dest[used++] = 'r';
+        break;
+      case '\t':
+        dest[used++] = '\\';
+        dest[used++] = 't';
+        break;
+      case '\"':
+        dest[used++] = '\\';
+        dest[used++] = '\"';
+        break;
+      case '\'':
+        dest[used++] = '\\';
+        dest[used++] = '\'';
+        break;
+      case '\\':
+        dest[used++] = '\\';
+        dest[used++] = '\\';
+        break;
       default:
         if (ch < 32 || ch >= 127) {
-          base::snprintf(dest + used, 5, "\\%03o", ch);  // NOLINT
+          snprintf(dest + used, 5, "\\%03o", ch);  // NOLINT
           used += 4;
         } else {
           dest[used++] = ch;
@@ -346,16 +253,14 @@ void LowerString(GoogleString* s) {
 // ----------------------------------------------------------------------
 int GlobalReplaceSubstring(StringPiece substring, StringPiece replacement,
                            GoogleString* s) {
-  CHECK(s != NULL);
-  if (s->empty())
-    return 0;
+  CHECK(s != nullptr);
+  if (s->empty()) return 0;
   GoogleString tmp;
   int num_replacements = 0;
   size_t pos = 0;
   for (size_t match_pos = s->find(substring.data(), pos, substring.length());
-       match_pos != GoogleString::npos;
-       pos = match_pos + substring.length(),
-           match_pos = s->find(substring.data(), pos, substring.length())) {
+       match_pos != GoogleString::npos; pos = match_pos + substring.length(),
+              match_pos = s->find(substring.data(), pos, substring.length())) {
     ++num_replacements;
     // Append the original content before the match.
     tmp.append(*s, pos, match_pos - pos);
@@ -433,9 +338,9 @@ bool StringCaseStartsWith(StringPiece str, StringPiece prefix) {
 }
 
 bool StringCaseEndsWith(StringPiece str, StringPiece suffix) {
-  return ((str.size() >= suffix.size()) &&
-          (0 == StringCaseCompare(suffix,
-                                  str.substr(str.size() - suffix.size()))));
+  return (
+      (str.size() >= suffix.size()) &&
+      (0 == StringCaseCompare(suffix, str.substr(str.size() - suffix.size()))));
 }
 
 bool StringEqualConcat(StringPiece str, StringPiece first, StringPiece second) {
@@ -512,8 +417,8 @@ int CountSubstring(StringPiece text, StringPiece substring) {
   return number_of_occurrences;
 }
 
-stringpiece_ssize_type FindIgnoreCase(
-    StringPiece haystack, StringPiece needle) {
+stringpiece_ssize_type FindIgnoreCase(StringPiece haystack,
+                                      StringPiece needle) {
   stringpiece_ssize_type pos = 0;
   while (haystack.size() >= needle.size()) {
     if (StringCaseStartsWith(haystack, needle)) {
@@ -524,7 +429,6 @@ stringpiece_ssize_type FindIgnoreCase(
   }
   return StringPiece::npos;
 }
-
 
 // In-place StringPiece whitespace trimming.  This mutates the StringPiece.
 bool TrimLeadingWhitespace(StringPiece* str) {
@@ -594,12 +498,11 @@ void TrimUrlQuotes(StringPiece* str) {
   // quotes.  We do this one layer at a time, always removing backslashed
   // quotes before removing un-backslashed quotes.
   while (cont) {
-    cont = (TrimCasePattern("%5C%27", str) ||    // \"
-            TrimCasePattern("%5C%22", str) ||    // \'
-            TrimCasePattern("%27", str) ||       // "
-            TrimCasePattern("%22", str) ||       // '
-            TrimCasePattern("\"", str) ||
-            TrimCasePattern("'", str));
+    cont = (TrimCasePattern("%5C%27", str) ||  // \"
+            TrimCasePattern("%5C%22", str) ||  // \'
+            TrimCasePattern("%27", str) ||     // "
+            TrimCasePattern("%22", str) ||     // '
+            TrimCasePattern("\"", str) || TrimCasePattern("'", str));
   }
   TrimWhitespace(str);
 }
@@ -640,8 +543,8 @@ bool MemCaseEqual(const char* s1, size_t size1, const char* s2, size_t size2) {
 bool SplitStringPieceToIntegerVector(StringPiece src, StringPiece separators,
                                      std::vector<int>* ints) {
   StringPieceVector values;
-  SplitStringPieceToVector(
-      src, separators, &values, true /* omit_empty_strings */);
+  SplitStringPieceToVector(src, separators, &values,
+                           true /* omit_empty_strings */);
   ints->clear();
   int v;
   for (int i = 0, n = values.size(); i < n; ++i) {

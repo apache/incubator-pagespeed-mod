@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the javascript filter
 
 #include "net/instaweb/rewriter/public/javascript_filter.h"
@@ -61,13 +60,11 @@ const char kInlineScriptFormat[] =
     "<script type='text/javascript'>"
     "%s"
     "</script>";
-const char kEndInlineScript[] = "<script type='text/javascript'>";
 
 const char kCdataWrapper[] = "//<![CDATA[\n%s\n//]]>";
 const char kCdataAltWrapper[] = "//<![CDATA[\r%s\r//]]>";
 
-const char kInlineJs[] =
-    "<script type='text/javascript'>%s</script>\n";
+const char kInlineJs[] = "<script type='text/javascript'>%s</script>\n";
 
 const char kJsData[] =
     "alert     (    'hello, world!'    ) "
@@ -89,7 +86,7 @@ const char kOrigJsonName[] = "hello.json";
 const char kRewrittenJsonName[] = "hello.json";
 
 GoogleString ScriptSrc(const StringPiece& url) {
-  return net_instaweb::StrCat("<script src=\"", url, "\"></script>");
+  return StrCat("<script src=\"", url, "\"></script>");
 }
 
 }  // namespace
@@ -99,26 +96,25 @@ namespace net_instaweb {
 class JavascriptFilterTest : public RewriteTestBase,
                              public ::testing::WithParamInterface<bool> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_use_experimental_js_minifier(GetParam());
-    expected_rewritten_path_ = Encode("", kFilterId, "0",
-                                      kRewrittenJsName, "js");
+    expected_rewritten_path_ =
+        Encode("", kFilterId, "0", kRewrittenJsName, "js");
 
-    blocks_minified_ = statistics()->GetVariable(
-        JavascriptRewriteConfig::kBlocksMinified);
+    blocks_minified_ =
+        statistics()->GetVariable(JavascriptRewriteConfig::kBlocksMinified);
     libraries_identified_ = statistics()->GetVariable(
         JavascriptRewriteConfig::kLibrariesIdentified);
     minification_failures_ = statistics()->GetVariable(
         JavascriptRewriteConfig::kMinificationFailures);
-    total_bytes_saved_ = statistics()->GetVariable(
-        JavascriptRewriteConfig::kTotalBytesSaved);
-    total_original_bytes_ = statistics()->GetVariable(
-        JavascriptRewriteConfig::kTotalOriginalBytes);
-    num_uses_ = statistics()->GetVariable(
-        JavascriptRewriteConfig::kMinifyUses);
-    did_not_shrink_ = statistics()->GetVariable(
-        JavascriptRewriteConfig::kJSDidNotShrink);
+    total_bytes_saved_ =
+        statistics()->GetVariable(JavascriptRewriteConfig::kTotalBytesSaved);
+    total_original_bytes_ =
+        statistics()->GetVariable(JavascriptRewriteConfig::kTotalOriginalBytes);
+    num_uses_ = statistics()->GetVariable(JavascriptRewriteConfig::kMinifyUses);
+    did_not_shrink_ =
+        statistics()->GetVariable(JavascriptRewriteConfig::kJSDidNotShrink);
   }
 
   void InitFilters() {
@@ -129,10 +125,10 @@ class JavascriptFilterTest : public RewriteTestBase,
   }
 
   void InitTest(int64 ttl) {
-    SetResponseWithDefaultHeaders(
-        kOrigJsName, kContentTypeJavascript, kJsData, ttl);
-    SetResponseWithDefaultHeaders(
-        kUnauthorizedJs, kContentTypeJavascript, kJsData, ttl);
+    SetResponseWithDefaultHeaders(kOrigJsName, kContentTypeJavascript, kJsData,
+                                  ttl);
+    SetResponseWithDefaultHeaders(kUnauthorizedJs, kContentTypeJavascript,
+                                  kJsData, ttl);
   }
 
   void InitFiltersAndTest(int64 ttl) {
@@ -143,15 +139,14 @@ class JavascriptFilterTest : public RewriteTestBase,
   void RegisterLibrary() {
     MD5Hasher hasher(JavascriptLibraryIdentification::kNumHashChars);
     GoogleString hash = hasher.Hash(kJsMinData);
-    EXPECT_TRUE(
-        options()->RegisterLibrary(
-            STATIC_STRLEN(kJsMinData), hash, kLibraryUrl));
+    EXPECT_TRUE(options()->RegisterLibrary(STATIC_STRLEN(kJsMinData), hash,
+                                           kLibraryUrl));
     EXPECT_EQ(JavascriptLibraryIdentification::kNumHashChars, hash.size());
   }
 
   // Generate HTML loading a single script with the specified URL.
   GoogleString GenerateHtml(const char* a) {
-    return StringPrintf(kHtmlFormat, a);
+    return absl::StrFormat(kHtmlFormat, a);
   }
 
   // Generate HTML loading a single script twice from the specified URL.
@@ -163,23 +158,20 @@ class JavascriptFilterTest : public RewriteTestBase,
   void TestCorruptUrl(const char* new_suffix) {
     // Do a normal rewrite test
     InitFiltersAndTest(100);
-    ValidateExpected("no_ext_corruption",
-                    GenerateHtml(kOrigJsName),
-                    GenerateHtml(expected_rewritten_path_.c_str()));
+    ValidateExpected("no_ext_corruption", GenerateHtml(kOrigJsName),
+                     GenerateHtml(expected_rewritten_path_.c_str()));
 
     // Fetch messed up URL.
     ASSERT_TRUE(StringCaseEndsWith(expected_rewritten_path_, ".js"));
-    GoogleString munged_url =
-        ChangeSuffix(expected_rewritten_path_, false /* replace */,
-                     ".js", new_suffix);
+    GoogleString munged_url = ChangeSuffix(
+        expected_rewritten_path_, false /* replace */, ".js", new_suffix);
 
     GoogleString out;
     EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, munged_url), &out));
 
     // Rewrite again; should still get normal URL
-    ValidateExpected("no_ext_corruption",
-                    GenerateHtml(kOrigJsName),
-                    GenerateHtml(expected_rewritten_path_.c_str()));
+    ValidateExpected("no_ext_corruption", GenerateHtml(kOrigJsName),
+                     GenerateHtml(expected_rewritten_path_.c_str()));
   }
 
   void SourceMapTest(StringPiece input_js, StringPiece expected_output_js,
@@ -202,8 +194,7 @@ TEST_P(JavascriptFilterTest, DoRewrite) {
   AbstractLogRecord* log_record =
       rewrite_driver_->request_context()->log_record();
   log_record->SetAllowLoggingUrls(true);
-  ValidateExpected("do_rewrite",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("do_rewrite", GenerateHtml(kOrigJsName),
                    GenerateHtml(expected_rewritten_path_.c_str()));
 
   EXPECT_EQ(1, blocks_minified_->Get());
@@ -214,7 +205,7 @@ TEST_P(JavascriptFilterTest, DoRewrite) {
   EXPECT_EQ(1, num_uses_->Get());
   EXPECT_STREQ(kFilterId, AppliedRewriterStringFromLog());
   VerifyRewriterInfoEntry(log_record, kFilterId, 0, 0, 1, 1,
-                        "http://test.com/hello.js");
+                          "http://test.com/hello.js");
 }
 
 TEST_P(JavascriptFilterTest, DontRewriteUnauthorizedDomain) {
@@ -231,8 +222,7 @@ TEST_P(JavascriptFilterTest, DebugForUnauthorizedDomain) {
   // Remove the trailing newline as it's in the way :-(
   GoogleString html_output = html_input.substr(0, html_input.length() - 1);
   GoogleUrl gurl(kUnauthorizedJs);
-  StrAppend(&html_output,
-            "<!--",
+  StrAppend(&html_output, "<!--",
             rewrite_driver()->GenerateUnauthorizedDomainDebugComment(
                 gurl, RewriteDriver::InputRole::kScript),
             "-->"
@@ -257,34 +247,33 @@ TEST_P(JavascriptFilterTest, DontRewriteUnauthorizedDomainWithUnauthOptionSet) {
 }
 
 TEST_P(JavascriptFilterTest, DontRewriteDisallowedScripts) {
-  SetResponseWithDefaultHeaders(
-      "a.js", kContentTypeJavascript, "document.write('a');", 100);
+  SetResponseWithDefaultHeaders("a.js", kContentTypeJavascript,
+                                "document.write('a');", 100);
   options()->Disallow("*a.js*");
   options()->EnableFilter(RewriteOptions::kInlineJavascript);
   SetHtmlMimetype();
   InitFiltersAndTest(100);
   ValidateExpected("inline javascript disallowed",
-                   StringPrintf(kHtmlFormat, "a.js"),
-                   StringPrintf(kHtmlFormat, "a.js"));
+                   absl::StrFormat(kHtmlFormat, "a.js"),
+                   absl::StrFormat(kHtmlFormat, "a.js"));
 }
 
 TEST_P(JavascriptFilterTest, DoInlineAllowedForInliningScripts) {
-  SetResponseWithDefaultHeaders(
-      "a.js", kContentTypeJavascript, "document.write('a');", 100);
+  SetResponseWithDefaultHeaders("a.js", kContentTypeJavascript,
+                                "document.write('a');", 100);
   options()->AllowOnlyWhenInlining("*a.js*");
   options()->EnableFilter(RewriteOptions::kInlineJavascript);
   SetHtmlMimetype();
   InitFiltersAndTest(100);
   ValidateExpected("inline javascript allowed for inlining",
-                   StringPrintf(kHtmlFormat, "a.js"),
-                   StringPrintf(kInlineJs, "document.write('a');"));
+                   absl::StrFormat(kHtmlFormat, "a.js"),
+                   absl::StrFormat(kInlineJs, "document.write('a');"));
 }
 
 TEST_P(JavascriptFilterTest, RewriteButExceedLogThreshold) {
   InitFiltersAndTest(100);
   rewrite_driver_->log_record()->SetRewriterInfoMaxSize(0);
-  ValidateExpected("do_rewrite",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("do_rewrite", GenerateHtml(kOrigJsName),
                    GenerateHtml(expected_rewritten_path_.c_str()));
   EXPECT_STREQ("", AppliedRewriterStringFromLog());
 }
@@ -307,8 +296,7 @@ TEST_P(JavascriptFilterTest, RewriteAlreadyCachedProperly) {
 
 TEST_P(JavascriptFilterTest, NoRewriteOriginUncacheable) {
   InitFiltersAndTest(0);  // origin not cacheable
-  ValidateExpected("no_extend_origin_not_cacheable",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("no_extend_origin_not_cacheable", GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
 
   EXPECT_EQ(0, blocks_minified_->Get());
@@ -321,8 +309,7 @@ TEST_P(JavascriptFilterTest, NoRewriteOriginUncacheable) {
 TEST_P(JavascriptFilterTest, IdentifyLibrary) {
   RegisterLibrary();
   InitFiltersAndTest(100);
-  ValidateExpected("identify_library",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("identify_library", GenerateHtml(kOrigJsName),
                    GenerateHtml(kLibraryUrl));
 
   EXPECT_EQ(1, libraries_identified_->Get());
@@ -334,8 +321,7 @@ TEST_P(JavascriptFilterTest, IdentifyLibraryTwice) {
   // Make sure cached recognition is handled properly.
   RegisterLibrary();
   InitFiltersAndTest(100);
-  ValidateExpected("identify_library_twice",
-                   GenerateTwoHtml(kOrigJsName),
+  ValidateExpected("identify_library_twice", GenerateTwoHtml(kOrigJsName),
                    GenerateTwoHtml(kLibraryUrl));
   // The second rewrite uses cached data from the first rewrite.
   EXPECT_EQ(1, libraries_identified_->Get());
@@ -354,18 +340,17 @@ TEST_P(JavascriptFilterTest, JsPreserveURLsOnTest) {
   rewrite_driver()->AddFilters();
   EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascriptExternal));
   // Verify that preserve had a chance to forbid some filters.
-  EXPECT_FALSE(options()->Enabled(
-      RewriteOptions::kCanonicalizeJavascriptLibraries));
+  EXPECT_FALSE(
+      options()->Enabled(RewriteOptions::kCanonicalizeJavascriptLibraries));
   InitTest(100);
   // Make sure the URL doesn't change.
-  ValidateExpected("js_urls_preserved",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("js_urls_preserved", GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
 
   // We should have optimized the JS even though we didn't render the URL.
   ClearStats();
-  GoogleString out_js_url = Encode(
-      kTestDomain, kFilterId, "0", kRewrittenJsName, "js");
+  GoogleString out_js_url =
+      Encode(kTestDomain, kFilterId, "0", kRewrittenJsName, "js");
   GoogleString out_js;
   EXPECT_TRUE(FetchResourceUrl(out_js_url, &out_js));
   EXPECT_EQ(1, http_cache()->cache_hits()->Get());
@@ -383,10 +368,10 @@ TEST_P(JavascriptFilterTest, JsPreserveOverridingExtend) {
   // Make sure that when in conservative mode the URL stays the same.
   RegisterLibrary();
 
-  scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> global_options(options()->NewOptions());
   global_options->EnableFilter(RewriteOptions::kExtendCacheCss);
 
-  scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> vhost_options(options()->NewOptions());
   vhost_options->SoftEnableFilterForTesting(
       RewriteOptions::kRewriteJavascriptExternal);
   vhost_options->SoftEnableFilterForTesting(
@@ -400,15 +385,14 @@ TEST_P(JavascriptFilterTest, JsPreserveOverridingExtend) {
   InitTest(100);
 
   // Make sure the URL doesn't change.
-  ValidateExpected("js_urls_preserved",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("js_urls_preserved", GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
 
   // We should have preemptively optimized the JS even though we didn't render
   // the URL.
   ClearStats();
-  GoogleString out_js_url = Encode(
-      kTestDomain, kFilterId, "0", kOrigJsName, "js");
+  GoogleString out_js_url =
+      Encode(kTestDomain, kFilterId, "0", kOrigJsName, "js");
   GoogleString out_js;
   EXPECT_TRUE(FetchResourceUrl(out_js_url, &out_js));
   EXPECT_EQ(1, http_cache()->cache_hits()->Get());
@@ -426,11 +410,11 @@ TEST_P(JavascriptFilterTest, JsExtendOverridingPreserve) {
   // Make sure that when in conservative mode the URL stays the same.
   RegisterLibrary();
 
-  scoped_ptr<RewriteOptions> global_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> global_options(options()->NewOptions());
   global_options->set_js_preserve_urls(true);
   global_options->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
 
-  scoped_ptr<RewriteOptions> vhost_options(options()->NewOptions());
+  std::unique_ptr<RewriteOptions> vhost_options(options()->NewOptions());
   vhost_options->EnableFilter(RewriteOptions::kExtendCacheScripts);
   options()->Merge(*global_options);
   options()->Merge(*vhost_options);
@@ -439,15 +423,14 @@ TEST_P(JavascriptFilterTest, JsExtendOverridingPreserve) {
   InitTest(100);
 
   // Make sure the URL is updated.
-  ValidateExpected("js_extend_overrides_preserve",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(Encode(
-                       "", kFilterId, "0", kRewrittenJsName, "js").c_str()));
+  ValidateExpected(
+      "js_extend_overrides_preserve", GenerateHtml(kOrigJsName),
+      GenerateHtml(Encode("", kFilterId, "0", kRewrittenJsName, "js").c_str()));
 
   ClearStats();
   GoogleString out_js;
-  GoogleString out_js_url = Encode(
-      kTestDomain, kFilterId, "0", kRewrittenJsName, "js");
+  GoogleString out_js_url =
+      Encode(kTestDomain, kFilterId, "0", kRewrittenJsName, "js");
   EXPECT_TRUE(FetchResourceUrl(out_js_url, &out_js));
   EXPECT_EQ(1, http_cache()->cache_hits()->Get());
   EXPECT_EQ(0, http_cache()->cache_misses()->Get());
@@ -468,12 +451,10 @@ TEST_P(JavascriptFilterTest, JsPreserveURLsNoPreemptiveRewriteTest) {
   options()->set_js_preserve_urls(true);
   options()->set_in_place_preemptive_rewrite_javascript(false);
   rewrite_driver()->AddFilters();
-  EXPECT_TRUE(options()->Enabled(
-      RewriteOptions::kRewriteJavascriptExternal));
+  EXPECT_TRUE(options()->Enabled(RewriteOptions::kRewriteJavascriptExternal));
   InitTest(100);
   // Make sure the URL doesn't change.
-  ValidateExpected("js_urls_preserved_no_preemptive",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("js_urls_preserved_no_preemptive", GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
 
   // We should not have attempted any rewriting.
@@ -486,8 +467,8 @@ TEST_P(JavascriptFilterTest, JsPreserveURLsNoPreemptiveRewriteTest) {
 
   // But, if we fetch the JS directly, we should receive the optimized version.
   ClearStats();
-  GoogleString out_js_url = Encode(
-      kTestDomain, kFilterId, "0", kRewrittenJsName, "js");
+  GoogleString out_js_url =
+      Encode(kTestDomain, kFilterId, "0", kRewrittenJsName, "js");
   GoogleString out_js;
   EXPECT_TRUE(FetchResourceUrl(out_js_url, &out_js));
   EXPECT_EQ(kJsMinData, out_js);
@@ -500,8 +481,7 @@ TEST_P(JavascriptFilterTest, IdentifyLibraryNoMinification) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("identify_library_no_minification",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(kLibraryUrl));
+                   GenerateHtml(kOrigJsName), GenerateHtml(kLibraryUrl));
 
   EXPECT_EQ(1, libraries_identified_->Get());
   EXPECT_EQ(1, blocks_minified_->Get());
@@ -515,8 +495,7 @@ TEST_P(JavascriptFilterTest, DisallowedUrlsNotCheckedForCanonicalization) {
   options()->Disallow(kOrigJsNameRegexp);
   rewrite_driver_->AddFilters();
   InitTest(100);
-  ValidateExpected("no_library_identification",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("no_library_identification", GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
 
   EXPECT_EQ(0, libraries_identified_->Get());
@@ -531,8 +510,7 @@ TEST_P(JavascriptFilterTest, AllowWhenInliningUrlsStillNotChecked) {
   options()->AllowOnlyWhenInlining(kOrigJsNameRegexp);
   rewrite_driver_->AddFilters();
   InitTest(100);
-  ValidateExpected("no_library_identification",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("no_library_identification", GenerateHtml(kOrigJsName),
                    GenerateHtml(kOrigJsName));
 
   EXPECT_EQ(0, libraries_identified_->Get());
@@ -550,8 +528,7 @@ TEST_P(JavascriptFilterTest, IdentifyFailureNoMinification) {
   // We didn't register any libraries, so we should see that minification
   // happened but that nothing changed on the page.
   ValidateExpected("identify_failure_no_minification",
-                   GenerateHtml(kOrigJsName),
-                   GenerateHtml(kOrigJsName));
+                   GenerateHtml(kOrigJsName), GenerateHtml(kOrigJsName));
 
   EXPECT_EQ(0, libraries_identified_->Get());
   EXPECT_EQ(1, blocks_minified_->Get());
@@ -564,8 +541,7 @@ TEST_P(JavascriptFilterTest, IgnoreLibraryNoIdentification) {
   options()->EnableFilter(RewriteOptions::kRewriteJavascriptExternal);
   rewrite_driver_->AddFilters();
   InitTest(100);
-  ValidateExpected("ignore_library",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("ignore_library", GenerateHtml(kOrigJsName),
                    GenerateHtml(expected_rewritten_path_.c_str()));
 
   EXPECT_EQ(0, libraries_identified_->Get());
@@ -583,8 +559,7 @@ TEST_P(JavascriptFilterTest, DontCombineIdentified) {
   RegisterLibrary();
   options()->EnableFilter(RewriteOptions::kCombineJavascript);
   InitFiltersAndTest(100);
-  ValidateExpected("DontCombineIdentified",
-                   GenerateTwoHtml(kOrigJsName),
+  ValidateExpected("DontCombineIdentified", GenerateTwoHtml(kOrigJsName),
                    GenerateTwoHtml(kLibraryUrl));
 }
 
@@ -593,15 +568,13 @@ TEST_P(JavascriptFilterTest, DontInlineIdentified) {
   RegisterLibrary();
   options()->EnableFilter(RewriteOptions::kInlineJavascript);
   InitFiltersAndTest(100);
-  ValidateExpected("DontInlineIdentified",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("DontInlineIdentified", GenerateHtml(kOrigJsName),
                    GenerateHtml(kLibraryUrl));
 }
 
 TEST_P(JavascriptFilterTest, ServeFiles) {
   InitFilters();
-  TestServeFiles(&kContentTypeJavascript, kFilterId, "js",
-                 kOrigJsName, kJsData,
+  TestServeFiles(&kContentTypeJavascript, kFilterId, "js", kOrigJsName, kJsData,
                  kRewrittenJsName, kJsMinData);
 
   EXPECT_EQ(1, blocks_minified_->Get());
@@ -623,8 +596,7 @@ TEST_P(JavascriptFilterTest, ServeFilesUnhealthy) {
 
   InitFilters();
   InitTest(100);
-  TestServeFiles(&kContentTypeJavascript, kFilterId, "js",
-                 kOrigJsName, kJsData,
+  TestServeFiles(&kContentTypeJavascript, kFilterId, "js", kOrigJsName, kJsData,
                  kRewrittenJsName, kJsMinData);
 }
 
@@ -642,8 +614,7 @@ TEST_P(JavascriptFilterTest, ServeRewrittenLibrary) {
 
   // And having done so, we should still identify the library in subsequent html
   // (ie the cache should not be corrupted to prevent library identification).
-  ValidateExpected("identify_library",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("identify_library", GenerateHtml(kOrigJsName),
                    GenerateHtml(kLibraryUrl));
 }
 
@@ -652,8 +623,7 @@ TEST_P(JavascriptFilterTest, ServeJsonFile) {
   // Set content type extension to "js" because filter is caching it with js
   // extension, but the in-place lookup will still cache and serve with original
   // content type. Tests for this in in_place_rewrite_context_test.
-  TestServeFiles(&kContentTypeJson, kFilterId, "js",
-                 kOrigJsonName, kJsonData,
+  TestServeFiles(&kContentTypeJson, kFilterId, "js", kOrigJsonName, kJsonData,
                  kRewrittenJsonName, kJsonMinData);
 
   EXPECT_EQ(1, blocks_minified_->Get());
@@ -686,8 +656,7 @@ TEST_P(JavascriptFilterTest, IdentifyAjaxLibrary) {
   EXPECT_TRUE(FetchResourceUrl(url, &content));
   EXPECT_EQ(kJsData, content);
   // But rewriting the page will see the js url.
-  ValidateExpected("IdentifyAjaxLibrary",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("IdentifyAjaxLibrary", GenerateHtml(kOrigJsName),
                    GenerateHtml(kLibraryUrl));
 }
 
@@ -699,10 +668,9 @@ TEST_P(JavascriptFilterTest, InvalidInputMimetype) {
   const char* kNotJsFile = "script.notjs";
 
   SetResponseWithDefaultHeaders(kNotJsFile, not_java_script, kJsData, 100);
-  ValidateExpected("wrong_mime",
-                   GenerateHtml(kNotJsFile),
-                   GenerateHtml(Encode("", kFilterId, "0",
-                                       kNotJsFile, "js").c_str()));
+  ValidateExpected(
+      "wrong_mime", GenerateHtml(kNotJsFile),
+      GenerateHtml(Encode("", kFilterId, "0", kNotJsFile, "js").c_str()));
 }
 
 TEST_P(JavascriptFilterTest, RewriteJs404) {
@@ -726,20 +694,15 @@ TEST_P(JavascriptFilterTest, NoExtensionCorruption) {
   TestCorruptUrl(".js%22");
 }
 
-TEST_P(JavascriptFilterTest, NoQueryCorruption) {
-  TestCorruptUrl(".js?query");
-}
+TEST_P(JavascriptFilterTest, NoQueryCorruption) { TestCorruptUrl(".js?query"); }
 
-TEST_P(JavascriptFilterTest, NoWrongExtCorruption) {
-  TestCorruptUrl(".html");
-}
+TEST_P(JavascriptFilterTest, NoWrongExtCorruption) { TestCorruptUrl(".html"); }
 
 TEST_P(JavascriptFilterTest, InlineJavascript) {
   // Test minification of a simple inline script
   InitFiltersAndTest(100);
-  ValidateExpected("inline javascript",
-                   StringPrintf(kInlineJs, kJsData),
-                   StringPrintf(kInlineJs, kJsMinData));
+  ValidateExpected("inline javascript", absl::StrFormat(kInlineJs, kJsData),
+                   absl::StrFormat(kInlineJs, kJsMinData));
 
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(0, minification_failures_->Get());
@@ -753,9 +716,8 @@ TEST_P(JavascriptFilterTest, NoMinificationInlineJS) {
   // Test no minification of a simple inline script.
   InitFiltersAndTest(100);
   const char kSmallJS[] = "alert('hello');";
-  ValidateExpected("inline javascript",
-                   StringPrintf(kInlineJs, kSmallJS),
-                   StringPrintf(kInlineJs, kSmallJS));
+  ValidateExpected("inline javascript", absl::StrFormat(kInlineJs, kSmallJS),
+                   absl::StrFormat(kInlineJs, kSmallJS));
 
   // There was no minification error, so 1 here.
   EXPECT_EQ(1, blocks_minified_->Get());
@@ -770,19 +732,18 @@ TEST_P(JavascriptFilterTest, StripInlineWhitespace) {
   ValidateExpected(
       "StripInlineWhitespace",
       StrCat("<script src='", kOrigJsName, "'>   \t\n   </script>"),
-      StrCat("<script src='",
-             Encode("", kFilterId, "0", kOrigJsName, "js"),
+      StrCat("<script src='", Encode("", kFilterId, "0", kOrigJsName, "js"),
              "'></script>"));
 }
 
 TEST_P(JavascriptFilterTest, RetainInlineData) {
   // Test to make sure we keep inline data when minifying external scripts.
   InitFiltersAndTest(100);
-  ValidateExpected("StripInlineWhitespace",
-                   StrCat("<script src='", kOrigJsName, "'> data </script>"),
-                   StrCat("<script src='",
-                          Encode("", kFilterId, "0", kOrigJsName, "js"),
-                          "'> data </script>"));
+  ValidateExpected(
+      "StripInlineWhitespace",
+      StrCat("<script src='", kOrigJsName, "'> data </script>"),
+      StrCat("<script src='", Encode("", kFilterId, "0", kOrigJsName, "js"),
+             "'> data </script>"));
 }
 
 // Test minification of a simple inline script in markup with no
@@ -794,12 +755,16 @@ TEST_P(JavascriptFilterTest, CdataJavascriptNoMimetype) {
   InitFiltersAndTest(100);
   ValidateExpected(
       "cdata javascript no mimetype",
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsMinData).c_str()));
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataWrapper, kJsMinData).c_str()));
   ValidateExpected(
       "cdata javascript no mimetype with \\r",
-      StringPrintf(kInlineJs, StringPrintf(kCdataAltWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsMinData).c_str()));
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataAltWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataWrapper, kJsMinData).c_str()));
 }
 
 // Same as CdataJavascriptNoMimetype, but with explicit HTML mimetype.
@@ -808,12 +773,14 @@ TEST_P(JavascriptFilterTest, CdataJavascriptHtmlMimetype) {
   InitFiltersAndTest(100);
   ValidateExpected(
       "cdata javascript with explicit HTML mimetype",
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, kJsMinData));
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs, kJsMinData));
   ValidateExpected(
       "cdata javascript with explicit HTML mimetype and \\r",
-      StringPrintf(kInlineJs, StringPrintf(kCdataAltWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, kJsMinData));
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataAltWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs, kJsMinData));
 }
 
 // Same as CdataJavascriptNoMimetype, but with explicit XHTML mimetype.
@@ -822,12 +789,16 @@ TEST_P(JavascriptFilterTest, CdataJavascriptXhtmlMimetype) {
   InitFiltersAndTest(100);
   ValidateExpected(
       "cdata javascript with explicit XHTML mimetype",
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsMinData).c_str()));
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataWrapper, kJsMinData).c_str()));
   ValidateExpected(
       "cdata javascript with explicit XHTML mimetype and \\r",
-      StringPrintf(kInlineJs, StringPrintf(kCdataAltWrapper, kJsData).c_str()),
-      StringPrintf(kInlineJs, StringPrintf(kCdataWrapper, kJsMinData).c_str()));
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataAltWrapper, kJsData).c_str()),
+      absl::StrFormat(kInlineJs,
+                      absl::StrFormat(kCdataWrapper, kJsMinData).c_str()));
 }
 
 TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
@@ -835,15 +806,21 @@ TEST_P(JavascriptFilterTest, XHtmlInlineJavascript) {
   // where it must be wrapped in CDATA.
   InitFiltersAndTest(100);
   const GoogleString xhtml_script_format =
-      StrCat(kXhtmlDtd, StringPrintf(kInlineJs, kCdataWrapper));
-  ValidateExpected("xhtml inline javascript",
-                   StringPrintf(xhtml_script_format.c_str(), kJsData),
-                   StringPrintf(xhtml_script_format.c_str(), kJsMinData));
+      StrCat(kXhtmlDtd, absl::StrFormat(kInlineJs, kCdataWrapper));
+  ValidateExpected(
+      "xhtml inline javascript",
+      absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_format),
+                      kJsData),
+      absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_format),
+                      kJsMinData));
   const GoogleString xhtml_script_alt_format =
-      StrCat(kXhtmlDtd, StringPrintf(kInlineJs, kCdataAltWrapper));
-  ValidateExpected("xhtml inline javascript",
-                   StringPrintf(xhtml_script_alt_format.c_str(), kJsData),
-                   StringPrintf(xhtml_script_format.c_str(), kJsMinData));
+      StrCat(kXhtmlDtd, absl::StrFormat(kInlineJs, kCdataAltWrapper));
+  ValidateExpected(
+      "xhtml inline javascript",
+      absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_alt_format),
+                      kJsData),
+      absl::StrFormat(*absl::ParsedFormat<'s'>::New(xhtml_script_format),
+                      kJsMinData));
 }
 
 // http://github.com/apache/incubator-pagespeed-mod/issues/324
@@ -858,7 +835,7 @@ TEST_P(JavascriptFilterTest, RetainExtraHeaders) {
 // previously busting regexps with backslashes in them.
 TEST_P(JavascriptFilterTest, BackslashInRegexp) {
   InitFilters();
-  GoogleString input = StringPrintf(kInlineJs, "/http:\\/\\/[^/]+\\//");
+  GoogleString input = absl::StrFormat(kInlineJs, "/http:\\/\\/[^/]+\\//");
   ValidateNoChanges("backslash_in_regexp", input);
 }
 
@@ -877,8 +854,7 @@ TEST_P(JavascriptFilterTest, WeirdSrcCrash) {
   SetResponseWithDefaultHeaders(kUrl, kContentTypeJavascript, kJsData, 300);
   ValidateExpected("weird_attr", "<script src=foo<bar>Content",
                    StrCat("<script src=",
-                          Encode("", kFilterId, "0", kUrl, "js"),
-                          ">Content"));
+                          Encode("", kFilterId, "0", kUrl, "js"), ">Content"));
   ValidateNoChanges("weird_tag", "<script<foo>");
 }
 
@@ -897,16 +873,14 @@ TEST_P(JavascriptFilterTest, MinificationFailure) {
 TEST_P(JavascriptFilterTest, ReuseRewrite) {
   InitFiltersAndTest(100);
 
-  ValidateExpected("reuse_rewrite1",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("reuse_rewrite1", GenerateHtml(kOrigJsName),
                    GenerateHtml(expected_rewritten_path_.c_str()));
   // First time: We minify JS and use the minified version.
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(1, num_uses_->Get());
 
   ClearStats();
-  ValidateExpected("reuse_rewrite2",
-                   GenerateHtml(kOrigJsName),
+  ValidateExpected("reuse_rewrite2", GenerateHtml(kOrigJsName),
                    GenerateHtml(expected_rewritten_path_.c_str()));
   // Second time: We reuse the original rewrite.
   EXPECT_EQ(0, blocks_minified_->Get());
@@ -916,17 +890,15 @@ TEST_P(JavascriptFilterTest, ReuseRewrite) {
 TEST_P(JavascriptFilterTest, NoReuseInline) {
   InitFiltersAndTest(100);
 
-  ValidateExpected("reuse_inline1",
-                   StringPrintf(kInlineJs, kJsData),
-                   StringPrintf(kInlineJs, kJsMinData));
+  ValidateExpected("reuse_inline1", absl::StrFormat(kInlineJs, kJsData),
+                   absl::StrFormat(kInlineJs, kJsMinData));
   // First time: We minify JS and use the minified version.
   EXPECT_EQ(1, blocks_minified_->Get());
   EXPECT_EQ(1, num_uses_->Get());
 
   ClearStats();
-  ValidateExpected("reuse_inline2",
-                   StringPrintf(kInlineJs, kJsData),
-                   StringPrintf(kInlineJs, kJsMinData));
+  ValidateExpected("reuse_inline2", absl::StrFormat(kInlineJs, kJsData),
+                   absl::StrFormat(kInlineJs, kJsMinData));
   // Second time: Apparently we minify it again.
   // NOTE: This test is here to document current behavior. It should be fine
   // to change this behavior so that the rewrite is cached (although it may
@@ -945,24 +917,22 @@ TEST_P(JavascriptFilterTest, ExtraCdataOnMalformedInput) {
   static const char kIssue542LinkInScript[] =
       "<![CDATA[<link href='http://fonts.googleapis.com/css'>]]>";
 
-  const GoogleString kHtmlInput = StringPrintf(
-      kInlineScriptFormat,
-      StrCat("\n", kIssue542LinkInScript, "\n").c_str());
-  const GoogleString kHtmlOutput = StringPrintf(
-      kInlineScriptFormat,
-      kIssue542LinkInScript);
+  const GoogleString kHtmlInput = absl::StrFormat(
+      kInlineScriptFormat, StrCat("\n", kIssue542LinkInScript, "\n").c_str());
+  const GoogleString kHtmlOutput =
+      absl::StrFormat(kInlineScriptFormat, kIssue542LinkInScript);
   ValidateExpected("broken_cdata", kHtmlInput, kHtmlOutput);
 }
 
 TEST_P(JavascriptFilterTest, ValidCdata) {
   InitFiltersAndTest(100);
 
-  const GoogleString kHtmlInput = StringPrintf(
+  const GoogleString kHtmlInput = absl::StrFormat(
       kInlineScriptFormat,
-      StringPrintf(kCdataWrapper, "alert ( 'foo' ) ; \n").c_str());
-  const GoogleString kHtmlOutput = StringPrintf(
-      kInlineScriptFormat,
-      StringPrintf(kCdataWrapper, "alert('foo');").c_str());
+      absl::StrFormat(kCdataWrapper, "alert ( 'foo' ) ; \n").c_str());
+  const GoogleString kHtmlOutput =
+      absl::StrFormat(kInlineScriptFormat,
+                      absl::StrFormat(kCdataWrapper, "alert('foo');").c_str());
   ValidateExpected("valid_cdata", kHtmlInput, kHtmlOutput);
 }
 
@@ -1011,11 +981,11 @@ TEST_P(JavascriptFilterTest, FlushAfterBeginScript) {
   InitFilters();
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText(
-      "<html><body><script>");
+  rewrite_driver()->ParseText("<html><body><script>");
   rewrite_driver()->Flush();
-  rewrite_driver()->ParseText("alert  (  'Hello, World!'  )  </script>"
-                              "<script></script></body></html>");
+  rewrite_driver()->ParseText(
+      "alert  (  'Hello, World!'  )  </script>"
+      "<script></script></body></html>");
   rewrite_driver()->FinishParse();
 
   // Expect text to be rewritten because it is coalesced.
@@ -1026,9 +996,10 @@ TEST_P(JavascriptFilterTest, FlushAfterBeginScript) {
   //   EndElement script
   //   StartElement script
   //   EndElement script
-  EXPECT_EQ("<html><body><script>alert('Hello, World!')</script>"
-            "<script></script></body></html>",
-            output_buffer_);
+  EXPECT_EQ(
+      "<html><body><script>alert('Hello, World!')</script>"
+      "<script></script></body></html>",
+      output_buffer_);
 }
 
 TEST_P(JavascriptFilterTest, StripInlineWhitespaceFlush) {
@@ -1045,7 +1016,7 @@ TEST_P(JavascriptFilterTest, StripInlineWhitespaceFlush) {
   rewrite_driver()->ParseText("   </script>\n");
   rewrite_driver()->FinishParse();
   const GoogleString expected =
-      StringPrintf(kHtmlFormat, expected_rewritten_path_.c_str());
+      absl::StrFormat(kHtmlFormat, expected_rewritten_path_.c_str());
   EXPECT_EQ(expected, output_buffer_);
 }
 
@@ -1091,10 +1062,8 @@ TEST_P(JavascriptFilterTest, ArisCombineJs) {
       "var script_tags = document.getElementsByTagName('script');";
   SetResponseWithDefaultHeaders("introspective.js", kContentTypeJavascript,
                                 introspective_js, 100);
-  SetResponseWithDefaultHeaders("a.js", kContentTypeJavascript,
-                                kJsData, 100);
-  SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript,
-                                kJsData, 100);
+  SetResponseWithDefaultHeaders("a.js", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript, kJsData, 100);
 
   static const char kHtmlBefore[] =
       "<script type='text/javascript' src='introspective.js'></script>\n"
@@ -1116,13 +1085,14 @@ void JavascriptFilterTest::SourceMapTest(StringPiece input_js,
   options()->EnableFilter(RewriteOptions::kIncludeJsSourceMaps);
   InitFilters();
 
-  SetResponseWithDefaultHeaders("input.js", kContentTypeJavascript,
-                                input_js, 100);
+  SetResponseWithDefaultHeaders("input.js", kContentTypeJavascript, input_js,
+                                100);
 
-  GoogleString expected_map = StrCat(
-      ")]}'\n{\"mappings\":\"", expected_mapping_vlq, "\",\"names\":[],"
-      "\"sources\":[\"http://test.com/input.js?PageSpeed=off\"],"
-      "\"version\":3}\n");
+  GoogleString expected_map =
+      StrCat(")]}'\n{\"mappings\":\"", expected_mapping_vlq,
+             "\",\"names\":[],"
+             "\"sources\":[\"http://test.com/input.js?PageSpeed=off\"],"
+             "\"version\":3}\n");
 
   GoogleString source_map_url =
       Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId,
@@ -1130,21 +1100,21 @@ void JavascriptFilterTest::SourceMapTest(StringPiece input_js,
 
   GoogleString expected_output = expected_output_js.as_string();
   if (options()->use_experimental_js_minifier()) {
-    StrAppend(&expected_output, "\n"
-              "//# sourceMappingURL=", source_map_url, "\n");
+    StrAppend(&expected_output,
+              "\n"
+              "//# sourceMappingURL=",
+              source_map_url, "\n");
   }
 
   const GoogleString rewritten_js_name =
       Encode("", RewriteOptions::kJavascriptMinId,
              hasher()->Hash(expected_output), "input.js", "js");
-  ValidateExpected("source_maps",
-                   GenerateHtml("input.js"),
+  ValidateExpected("source_maps", GenerateHtml("input.js"),
                    GenerateHtml(rewritten_js_name.c_str()));
 
-
   GoogleString output_js;
-  EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, rewritten_js_name),
-                               &output_js));
+  EXPECT_TRUE(
+      FetchResourceUrl(StrCat(kTestDomain, rewritten_js_name), &output_js));
   EXPECT_STREQ(expected_output, output_js);
 
   if (options()->use_experimental_js_minifier()) {
@@ -1205,26 +1175,25 @@ TEST_P(JavascriptFilterTest, NoSourceMapJsCombine) {
   options()->EnableFilter(RewriteOptions::kIncludeJsSourceMaps);
   InitFilters();
 
-  SetResponseWithDefaultHeaders("a.js", kContentTypeJavascript,
-                                kJsData, 100);
-  SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript,
-                                kJsData, 100);
+  SetResponseWithDefaultHeaders("a.js", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders("b.js", kContentTypeJavascript, kJsData, 100);
 
   const char combined_name[] = "a.js+b.js.pagespeed.jc.0.js";
 
   static const char kHtmlBefore[] =
       "<script type='text/javascript' src='a.js'></script>\n"
       "<script type='text/javascript' src='b.js'></script>\n";
-  GoogleString kHtmlAfter = StrCat(
-      "<script src=\"", combined_name, "\"></script>"
-      "<script>eval(mod_pagespeed_0);</script>\n"
-      "<script>eval(mod_pagespeed_0);</script>\n");
+  GoogleString kHtmlAfter = StrCat("<script src=\"", combined_name,
+                                   "\"></script>"
+                                   "<script>eval(mod_pagespeed_0);</script>\n"
+                                   "<script>eval(mod_pagespeed_0);</script>\n");
   ValidateExpected("introspective", kHtmlBefore, kHtmlAfter);
 
   // Note: There is no //# ScriptSourceMap in combine output.
-  GoogleString expected_output = StrCat(
-      "var mod_pagespeed_0 = \"", kJsMinData, "\";\n"
-      "var mod_pagespeed_0 = \"", kJsMinData, "\";\n");
+  GoogleString expected_output = StrCat("var mod_pagespeed_0 = \"", kJsMinData,
+                                        "\";\n"
+                                        "var mod_pagespeed_0 = \"",
+                                        kJsMinData, "\";\n");
   GoogleString output_js;
   EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, combined_name), &output_js));
   EXPECT_EQ(expected_output, output_js);
@@ -1238,19 +1207,20 @@ TEST_P(JavascriptFilterTest, SourceMapUnsanitaryUrl) {
   // Most servers will ignore unknown query params.
   mock_url_fetcher()->set_strip_query_params(true);
 
-  SetResponseWithDefaultHeaders("input.js", kContentTypeJavascript,
-                                kJsData, 100);
+  SetResponseWithDefaultHeaders("input.js", kContentTypeJavascript, kJsData,
+                                100);
 
   GoogleString unsanitary_url =
-      Encode(kTestDomain, RewriteOptions::kJavascriptMinId,
-             "0", "input.js?evil=\n", "js");
+      Encode(kTestDomain, RewriteOptions::kJavascriptMinId, "0",
+             "input.js?evil=\n", "js");
 
   GoogleString output_js;
   EXPECT_TRUE(FetchResourceUrl(unsanitary_url, &output_js));
   // Note: The important thing is that there's no newline in the mapping URL.
-  GoogleString expected_output_js = StrCat(
-      kJsMinData, "\n//# sourceMappingURL="
-      "http://test.com/input.js,qevil=.pagespeed.sm.0.map\n");
+  GoogleString expected_output_js =
+      StrCat(kJsMinData,
+             "\n//# sourceMappingURL="
+             "http://test.com/input.js,qevil=.pagespeed.sm.0.map\n");
   EXPECT_EQ(expected_output_js, output_js);
 }
 
@@ -1269,24 +1239,27 @@ TEST_P(JavascriptFilterTest, ProperSourceMapForPagespeedInput) {
   rewrite_driver_->AddFilters();
 
   const char input_js[] = "foo = 1;";
-  GoogleString outlined_js_tail =
-      Encode("", JsOutlineFilter::kFilterId,
-             hasher()->Hash(input_js), "_", "js");
+  GoogleString outlined_js_tail = Encode("", JsOutlineFilter::kFilterId,
+                                         hasher()->Hash(input_js), "_", "js");
 
   const char expected_mapping_vlq[] = "AAAA,GAAI,CAAE";
   // Note: No ?PageSpeed=off
-  GoogleString expected_source_map = StrCat(
-      ")]}'\n{\"mappings\":\"", expected_mapping_vlq, "\",\"names\":[],"
-      "\"sources\":[\"", kTestDomain, outlined_js_tail, "\"],"
-      "\"version\":3}\n");
+  GoogleString expected_source_map =
+      StrCat(")]}'\n{\"mappings\":\"", expected_mapping_vlq,
+             "\",\"names\":[],"
+             "\"sources\":[\"",
+             kTestDomain, outlined_js_tail,
+             "\"],"
+             "\"version\":3}\n");
   GoogleString source_map_url =
       Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId,
              hasher()->Hash(expected_source_map), outlined_js_tail, "map");
 
   const char rewritten_js[] = "foo=1;";
-  GoogleString expected_output_js =
-      StrCat(rewritten_js, "\n"
-             "//# sourceMappingURL=", source_map_url, "\n");
+  GoogleString expected_output_js = StrCat(rewritten_js,
+                                           "\n"
+                                           "//# sourceMappingURL=",
+                                           source_map_url, "\n");
   GoogleString rewritten_js_url =
       Encode(kTestDomain, RewriteOptions::kJavascriptMinId,
              hasher()->Hash(expected_output_js), outlined_js_tail, "js");
@@ -1313,17 +1286,18 @@ TEST_P(JavascriptFilterTest, SourceMapOnDemandNotEnabled) {
   // From SourceMapsSimple
   const char input_js[] = "  foo  bar  ";
   const char expected_vlq[] = "AAAE,IAAK";
-  GoogleString expected_map = StrCat(
-      ")]}'\n{\"mappings\":\"", expected_vlq, "\",\"names\":[],"
-      "\"sources\":[\"http://test.com/input.js?PageSpeed=off\"],"
-      "\"version\":3}\n");
+  GoogleString expected_map =
+      StrCat(")]}'\n{\"mappings\":\"", expected_vlq,
+             "\",\"names\":[],"
+             "\"sources\":[\"http://test.com/input.js?PageSpeed=off\"],"
+             "\"version\":3}\n");
 
-  SetResponseWithDefaultHeaders("input.js", kContentTypeJavascript,
-                                input_js, 100);
+  SetResponseWithDefaultHeaders("input.js", kContentTypeJavascript, input_js,
+                                100);
 
   GoogleString source_map_url =
-      Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId,
-             "0", "input.js", "map");
+      Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId, "0",
+             "input.js", "map");
 
   GoogleString source_map;
   bool result = FetchResourceUrl(source_map_url, &source_map);
@@ -1347,8 +1321,8 @@ TEST_P(JavascriptFilterTest, SourceMapNoOpt) {
   SetResponseWithDefaultHeaders("input.js", kContentTypeJavascript, "", 100);
 
   GoogleString source_map_url =
-      Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId,
-             "0", "input.js", "map");
+      Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId, "0",
+             "input.js", "map");
 
   // Test both the uncached and cached case.
   for (int i = 0; i < 2; ++i) {
@@ -1365,10 +1339,10 @@ TEST_P(JavascriptFilterTest, InlineAndNotExternal) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
 TEST_P(JavascriptFilterTest, InlineAndNotExternalPreserve) {
@@ -1380,10 +1354,10 @@ TEST_P(JavascriptFilterTest, InlineAndNotExternalPreserve) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
 TEST_P(JavascriptFilterTest, InlineAndCanonicalNotExternal) {
@@ -1393,10 +1367,10 @@ TEST_P(JavascriptFilterTest, InlineAndCanonicalNotExternal) {
   rewrite_driver_->AddFilters();
   InitTest(100);
   ValidateExpected("inline_and_canonical_and_not_external",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsMinData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)));
+                   StrCat(absl::StrFormat(kInlineJs, kJsData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)),
+                   StrCat(absl::StrFormat(kInlineJs, kJsMinData),
+                          absl::StrFormat(kHtmlFormat, kOrigJsName)));
 }
 
 TEST_P(JavascriptFilterTest, ExternalAndNotInline) {
@@ -1404,12 +1378,12 @@ TEST_P(JavascriptFilterTest, ExternalAndNotInline) {
   options()->DisableFilter(RewriteOptions::kRewriteJavascriptInline);
   rewrite_driver_->AddFilters();
   InitTest(100);
-  ValidateExpected("external_not_inline",
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat, kOrigJsName)),
-                   StrCat(StringPrintf(kInlineJs, kJsData),
-                          StringPrintf(kHtmlFormat,
-                                       expected_rewritten_path_.c_str())));
+  ValidateExpected(
+      "external_not_inline",
+      StrCat(absl::StrFormat(kInlineJs, kJsData),
+             absl::StrFormat(kHtmlFormat, kOrigJsName)),
+      StrCat(absl::StrFormat(kInlineJs, kJsData),
+             absl::StrFormat(kHtmlFormat, expected_rewritten_path_.c_str())));
 }
 
 TEST_P(JavascriptFilterTest, ContentTypeValidation) {
@@ -1420,10 +1394,10 @@ TEST_P(JavascriptFilterTest, BasicCsp) {
   InitFilters();
   EnableDebug();
 
-  SetResponseWithDefaultHeaders(
-      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
-  SetResponseWithDefaultHeaders(
-      "uploads/sneaky.png", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders("scripts/a.js", kContentTypeJavascript, kJsData,
+                                100);
+  SetResponseWithDefaultHeaders("uploads/sneaky.png", kContentTypeJavascript,
+                                kJsData, 100);
 
   static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
@@ -1431,13 +1405,10 @@ TEST_P(JavascriptFilterTest, BasicCsp) {
 
   ValidateExpected(
       "basic_csp",
-      StrCat(kCsp,
-             ScriptSrc("scripts/a.js"),
-             ScriptSrc("uploads/sneaky.png")),
-      StrCat(kCsp,
-             ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js")),
+      StrCat(kCsp, ScriptSrc("scripts/a.js"), ScriptSrc("uploads/sneaky.png")),
+      StrCat(kCsp, ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js")),
              ScriptSrc("uploads/sneaky.png"),
-              "<!--The preceding resource was not rewritten "
+             "<!--The preceding resource was not rewritten "
              "because CSP disallows its fetch-->"));
 }
 
@@ -1445,26 +1416,23 @@ TEST_P(JavascriptFilterTest, RenderCsp) {
   InitFilters();
   EnableDebug();
 
-  SetResponseWithDefaultHeaders(
-      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
-  SetResponseWithDefaultHeaders(
-      "uploads/sneaky.png", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders("scripts/a.js", kContentTypeJavascript, kJsData,
+                                100);
+  SetResponseWithDefaultHeaders("uploads/sneaky.png", kContentTypeJavascript,
+                                kJsData, 100);
 
   static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"script-src */scripts/a.js;\">";
 
   // First try w/o CSP, should rewrite.
-  ValidateExpected(
-      "no_csp",
-      ScriptSrc("scripts/a.js"),
-      ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js")));
+  ValidateExpected("no_csp", ScriptSrc("scripts/a.js"),
+                   ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js")));
 
   // Now render again w/CSP -- blocked since .pagespeed. resource isn't
   // permitted.
   ValidateExpected(
-      "render_csp",
-      StrCat(kCsp, ScriptSrc("scripts/a.js")),
+      "render_csp", StrCat(kCsp, ScriptSrc("scripts/a.js")),
       StrCat(kCsp, ScriptSrc("scripts/a.js"),
              "<!--PageSpeed output (by JavascriptFilter) not permitted by "
              "Content Security Policy-->"));
@@ -1474,19 +1442,16 @@ TEST_P(JavascriptFilterTest, CspIrrelevant) {
   InitFilters();
   EnableDebug();
 
-  SetResponseWithDefaultHeaders(
-      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders("scripts/a.js", kContentTypeJavascript, kJsData,
+                                100);
 
   static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"img-src https:\">";
 
   ValidateExpected(
-      "basic_csp",
-      StrCat(kCsp,
-             ScriptSrc("scripts/a.js")),
-      StrCat(kCsp,
-             ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js"))));
+      "basic_csp", StrCat(kCsp, ScriptSrc("scripts/a.js")),
+      StrCat(kCsp, ScriptSrc(Encode("scripts/", "jm", "0", "a.js", "js"))));
 }
 
 TEST_P(JavascriptFilterTest, InlineCsp) {
@@ -1496,12 +1461,10 @@ TEST_P(JavascriptFilterTest, InlineCsp) {
   static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"script-src */scripts/;  default-src */uploads/\">";
-  static const char kScript[] =
-      "<script> var a  = 42;</script>";
+  static const char kScript[] = "<script> var a  = 42;</script>";
 
   ValidateExpected(
-      "inline_csp",
-      StrCat(kCsp, kScript),
+      "inline_csp", StrCat(kCsp, kScript),
       StrCat(kCsp, kScript,
              "<!--Avoiding modifying inline script with CSP present-->"));
 }
@@ -1513,12 +1476,10 @@ TEST_P(JavascriptFilterTest, InlineCsp2) {
   static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"default-src */uploads/\">";
-  static const char kScript[] =
-      "<script> var a  = 42;</script>";
+  static const char kScript[] = "<script> var a  = 42;</script>";
 
   ValidateExpected(
-      "inline_csp2",
-      StrCat(kCsp, kScript),
+      "inline_csp2", StrCat(kCsp, kScript),
       StrCat(kCsp, kScript,
              "<!--Avoiding modifying inline script with CSP present-->"));
 }
@@ -1531,22 +1492,18 @@ TEST_P(JavascriptFilterTest, InlineCsp3) {
   static const char kCsp[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
       "content=\"img-src */uploads/\">";
-  static const char kScript[] =
-      "<script> var a  = 42;</script>";
-  static const char kScriptMin[] =
-      "<script>var a=42;</script>";
+  static const char kScript[] = "<script> var a  = 42;</script>";
+  static const char kScriptMin[] = "<script>var a=42;</script>";
 
-  ValidateExpected(
-      "inline_csp3",
-      StrCat(kCsp, kScript),
-      StrCat(kCsp, kScriptMin));
+  ValidateExpected("inline_csp3", StrCat(kCsp, kScript),
+                   StrCat(kCsp, kScriptMin));
 }
 
 TEST_P(JavascriptFilterTest, CspBaseUri) {
   InitFilters();
   EnableDebug();
-  SetResponseWithDefaultHeaders(
-      "scripts/a.js", kContentTypeJavascript, kJsData, 100);
+  SetResponseWithDefaultHeaders("scripts/a.js", kContentTypeJavascript, kJsData,
+                                100);
 
   static const char kCspAndBase[] =
       "<meta http-equiv=\"Content-Security-Policy\" "
@@ -1555,8 +1512,7 @@ TEST_P(JavascriptFilterTest, CspBaseUri) {
 
   ValidateExpected(
       "base_uri_csp",
-      StrCat(kCspAndBase,
-             ScriptSrc("scripts/a.js"),
+      StrCat(kCspAndBase, ScriptSrc("scripts/a.js"),
              ScriptSrc("http://test.com/scripts/a.js")),
       StrCat(kCspAndBase,
              "<!--Unable to check safety of a base with CSP base-uri, "
@@ -1566,7 +1522,7 @@ TEST_P(JavascriptFilterTest, CspBaseUri) {
 }
 
 // We test with use_experimental_minifier == GetParam() as both true and false.
-INSTANTIATE_TEST_CASE_P(JavascriptFilterTestInstance, JavascriptFilterTest,
-                        ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(JavascriptFilterTestInstance, JavascriptFilterTest,
+                         ::testing::Bool());
 
 }  // namespace net_instaweb

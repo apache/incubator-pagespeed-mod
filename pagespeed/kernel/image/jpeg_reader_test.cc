@@ -17,12 +17,12 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/jpeg_reader.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/jpeg_reader.h"
 #include "pagespeed/kernel/image/read_image.h"
 #include "pagespeed/kernel/image/test_utils.h"
 
@@ -44,18 +44,18 @@ using pagespeed::image_compression::ReadTestFile;
 using pagespeed::image_compression::ReadTestFileWithExt;
 
 const char* kValidJpegImages[] = {
-  "test411",        // RGB color space with 4:1:1 chroma sub-sampling.
-  "test420",        // RGB color space with 4:2:0 chroma sub-sampling.
-  "test422",        // RGB color space with 4:2:2 chroma sub-sampling.
-  "test444",        // RGB color space with full chroma information.
-  "testgray",       // Grayscale color space.
+    "test411",   // RGB color space with 4:1:1 chroma sub-sampling.
+    "test420",   // RGB color space with 4:2:0 chroma sub-sampling.
+    "test422",   // RGB color space with 4:2:2 chroma sub-sampling.
+    "test444",   // RGB color space with full chroma information.
+    "testgray",  // Grayscale color space.
 };
 
-const char *kInvalidFiles[] = {
-  "notajpeg.png",   // A png.
-  "notajpeg.gif",   // A gif.
-  "emptyfile.jpg",  // A zero-byte file.
-  "corrupt.jpg",    // Invalid huffman code in the image data section.
+const char* kInvalidFiles[] = {
+    "notajpeg.png",   // A png.
+    "notajpeg.gif",   // A gif.
+    "emptyfile.jpg",  // A zero-byte file.
+    "corrupt.jpg",    // Invalid huffman code in the image data section.
 };
 
 const size_t kValidJpegImageCount = arraysize(kValidJpegImages);
@@ -83,11 +83,11 @@ TEST(JpegReaderTest, InvalidJpegs) {
     MockMessageHandler message_handler(new NullMutex);
     JpegScanlineReader reader(&message_handler);
     message_handler.AddPatternToSkipPrinting(kMessagePatternLibJpegFailure);
-    if (i < kInvalidFileCount-1) {
+    if (i < kInvalidFileCount - 1) {
       ASSERT_FALSE(reader.Initialize(src_data.c_str(), src_data.length()));
     } else {
       ASSERT_TRUE(reader.Initialize(src_data.c_str(), src_data.length()));
-      void* scanline = NULL;
+      void* scanline = nullptr;
       // The image data section of this image is corrupted. The first 89 rows
       // can be decoded correctly, but not for the 90th or later rows.
       for (int row = 0; row < 89; ++row) {
@@ -101,7 +101,7 @@ TEST(JpegReaderTest, InvalidJpegs) {
 // Verify that the reader work properly no matter how many scalines it reads.
 TEST(JpegReaderTest, PartialRead) {
   GoogleString image1, image2;
-  void* scanline = NULL;
+  void* scanline = nullptr;
   MockMessageHandler message_handler(new NullMutex);
 
   ReadTestFile(kJpegTestDir, kValidJpegImages[0], "jpg", &image1);

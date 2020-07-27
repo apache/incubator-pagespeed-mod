@@ -33,21 +33,19 @@ const char kCanonical[] = "canonical";
 namespace net_instaweb {
 
 HandleNoscriptRedirectFilter::HandleNoscriptRedirectFilter(
-    RewriteDriver* rewrite_driver) : rewrite_driver_(rewrite_driver) {
+    RewriteDriver* rewrite_driver)
+    : rewrite_driver_(rewrite_driver) {
   Init();
 }
 
-HandleNoscriptRedirectFilter::~HandleNoscriptRedirectFilter() {
-}
+HandleNoscriptRedirectFilter::~HandleNoscriptRedirectFilter() {}
 
 void HandleNoscriptRedirectFilter::Init() {
   canonical_present_ = false;
   canonical_inserted_ = false;
 }
 
-void HandleNoscriptRedirectFilter::StartDocument() {
-  Init();
-}
+void HandleNoscriptRedirectFilter::StartDocument() { Init(); }
 
 void HandleNoscriptRedirectFilter::StartElement(HtmlElement* element) {
   if (!canonical_inserted_ && !canonical_present_ &&
@@ -55,9 +53,9 @@ void HandleNoscriptRedirectFilter::StartElement(HtmlElement* element) {
     // Checks if a <link rel=canonical href=...> is present.
     HtmlElement::Attribute* rel_attr = element->FindAttribute(HtmlName::kRel);
     HtmlElement::Attribute* href_attr = element->FindAttribute(HtmlName::kHref);
-    canonical_present_ = (rel_attr != NULL && href_attr != NULL &&
-                          StringCaseEqual(rel_attr->DecodedValueOrNull(),
-                                          kCanonical));
+    canonical_present_ =
+        (rel_attr != nullptr && href_attr != nullptr &&
+         StringCaseEqual(rel_attr->DecodedValueOrNull(), kCanonical));
   }
 }
 
@@ -73,8 +71,8 @@ void HandleNoscriptRedirectFilter::EndElement(HtmlElement* element) {
     // no such element, to insert our link element we might need to add a head
     // (since all heads might have been flushed already).
     HtmlCharactersNode* link_node = rewrite_driver_->NewCharactersNode(
-        element, StringPrintf(kLinkRelCanonicalFormatter,
-                              rewrite_driver_->url()));
+        element,
+        absl::StrFormat(kLinkRelCanonicalFormatter, rewrite_driver_->url()));
     rewrite_driver_->AppendChild(element, link_node);
     canonical_inserted_ = true;
   }

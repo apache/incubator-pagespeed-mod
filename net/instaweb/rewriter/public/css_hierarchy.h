@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_HIERARCHY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_HIERARCHY_H_
 
@@ -77,22 +76,16 @@ class CssHierarchy {
   // valid for the life of this object.
   void InitializeRoot(const GoogleUrl& css_base_url,
                       const GoogleUrl& css_trim_url,
-                      const StringPiece input_contents,
-                      bool has_unparseables,
-                      int64 flattened_result_limit,
-                      Css::Stylesheet* stylesheet,
+                      const StringPiece input_contents, bool has_unparseables,
+                      int64 flattened_result_limit, Css::Stylesheet* stylesheet,
                       MessageHandler* message_handler);
 
   // A hierarchy needs rewriting only if it has an import to read and expand.
-  bool NeedsRewriting() const {
-    return flattening_succeeded_ && !url_.empty();
-  }
+  bool NeedsRewriting() const { return flattening_succeeded_ && !url_.empty(); }
 
   const StringPiece url() const { return url_; }
   const StringPiece url_for_humans() const {
-    return (url_.empty() ? "inline"
-            : IsDataUrl(url_) ? "data URL"
-            : url_);
+    return (url_.empty() ? "inline" : IsDataUrl(url_) ? "data URL" : url_);
   }
 
   const GoogleUrl& css_base_url() const { return css_base_url_; }
@@ -299,7 +292,7 @@ class CssHierarchy {
   // The parsed form of the CSS, in various states of transformation. Created
   // from the input text form by Parse, mutated by RollUpContents and
   // RollUpStylesheets - see their description for details.
-  scoped_ptr<Css::Stylesheet> stylesheet_;
+  std::unique_ptr<Css::Stylesheet> stylesheet_;
 
   // The charset for this CSS as specified by HTTP headers, or a charset
   // attribute, or an @charset rule, or inherited from the parent.

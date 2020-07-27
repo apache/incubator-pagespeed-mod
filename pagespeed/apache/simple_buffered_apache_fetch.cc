@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/simple_buffered_apache_fetch.h"
 
 #include <algorithm>
@@ -29,11 +28,8 @@
 namespace net_instaweb {
 
 SimpleBufferedApacheFetch::SimpleBufferedApacheFetch(
-    const RequestContextPtr& request_context,
-    RequestHeaders* request_headers,
-    ThreadSystem* thread_system,
-    request_rec* req,
-    MessageHandler* handler)
+    const RequestContextPtr& request_context, RequestHeaders* request_headers,
+    ThreadSystem* thread_system, request_rec* req, MessageHandler* handler)
     : AsyncFetch(request_context),
       apache_writer_(new ApacheWriter(req, thread_system)),
       message_handler_(handler),
@@ -46,9 +42,7 @@ SimpleBufferedApacheFetch::SimpleBufferedApacheFetch(
   SetRequestHeadersTakingOwnership(request_headers);
 }
 
-SimpleBufferedApacheFetch::~SimpleBufferedApacheFetch() {
-  CHECK(wait_called_);
-}
+SimpleBufferedApacheFetch::~SimpleBufferedApacheFetch() { CHECK(wait_called_); }
 
 // Called on the apache request thread.  Blocks until the request is retired.
 void SimpleBufferedApacheFetch::Wait() {

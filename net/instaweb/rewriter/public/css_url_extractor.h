@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_URL_EXTRACTOR_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_URL_EXTRACTOR_H_
 
@@ -33,11 +32,11 @@ namespace net_instaweb {
 class CssUrlExtractor : public CssTagScanner::Transformer {
  public:
   CssUrlExtractor() {}
-  virtual ~CssUrlExtractor();
+  ~CssUrlExtractor() override;
 
   void ExtractUrl(const StringPiece& in_text, StringVector* urls);
 
-  virtual TransformStatus Transform(GoogleString* str);
+  TransformStatus Transform(GoogleString* str) override;
 
  private:
   StringVector* out_urls_;

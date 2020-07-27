@@ -43,20 +43,18 @@ class MakeShowAdsAsyncFilter : public CommonFilter {
   static const char kShowAdsApiReplacedForAsync[];
 
   explicit MakeShowAdsAsyncFilter(RewriteDriver* rewrite_driver);
-  virtual ~MakeShowAdsAsyncFilter();
+  ~MakeShowAdsAsyncFilter() override;
 
   static void InitStats(Statistics* statistics);
 
   // Overrides CommonFilter
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
 
   // Overrides HtmlFilter
-  virtual const char* Name() const {
-    return "MakeShowAdsAsyncFilter";
-  }
-  virtual void Characters(HtmlCharactersNode* characters);
+  const char* Name() const override { return "MakeShowAdsAsyncFilter"; }
+  void Characters(HtmlCharactersNode* characters) override;
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

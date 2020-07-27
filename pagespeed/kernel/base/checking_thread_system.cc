@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/checking_thread_system.h"
 
 #include "base/logging.h"
@@ -35,24 +34,18 @@ class Timer;
 class CheckingThreadSystem::CheckingCondvar : public ThreadSystem::Condvar {
  public:
   CheckingCondvar(CheckingThreadSystem::Mutex* mutex,
-          ThreadSystem::Condvar* condvar)
-      : mutex_(mutex), condvar_(condvar) { }
-  virtual ~CheckingCondvar() { }
-  virtual CheckingThreadSystem::Mutex* mutex() const {
-    return mutex_;
-  }
-  virtual void Signal() {
-    condvar_->Signal();
-  }
-  virtual void Broadcast() {
-    condvar_->Broadcast();
-  }
-  virtual void Wait() {
+                  ThreadSystem::Condvar* condvar)
+      : mutex_(mutex), condvar_(condvar) {}
+  ~CheckingCondvar() override {}
+  CheckingThreadSystem::Mutex* mutex() const override { return mutex_; }
+  void Signal() override { condvar_->Signal(); }
+  void Broadcast() override { condvar_->Broadcast(); }
+  void Wait() override {
     mutex_->DropLockControl();
     condvar_->Wait();
     mutex_->TakeLockControl();
   }
-  virtual void TimedWait(int64 timeout_ms) {
+  void TimedWait(int64 timeout_ms) override {
     mutex_->DropLockControl();
     condvar_->TimedWait(timeout_ms);
     mutex_->TakeLockControl();
@@ -60,7 +53,7 @@ class CheckingThreadSystem::CheckingCondvar : public ThreadSystem::Condvar {
 
  private:
   CheckingThreadSystem::Mutex* mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
   DISALLOW_COPY_AND_ASSIGN(CheckingCondvar);
 };
 
@@ -183,7 +176,7 @@ void CheckingThreadSystem::RWLock::ReaderUnlock() {
 
 // Destructor and methods for CheckingThreadSystem
 
-CheckingThreadSystem::~CheckingThreadSystem() { }
+CheckingThreadSystem::~CheckingThreadSystem() {}
 
 CheckingThreadSystem::Mutex* CheckingThreadSystem::NewMutex() {
   return new Mutex(thread_system_->NewMutex());
@@ -198,8 +191,6 @@ ThreadSystem::ThreadImpl* CheckingThreadSystem::NewThreadImpl(
   return thread_system_->NewThreadImpl(wrapper, flags);
 }
 
-Timer* CheckingThreadSystem::NewTimer() {
-  return thread_system_->NewTimer();
-}
+Timer* CheckingThreadSystem::NewTimer() { return thread_system_->NewTimer(); }
 
 }  // namespace net_instaweb

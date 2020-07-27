@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_SCANLINE_INTERFACE_H_
 #define PAGESPEED_KERNEL_IMAGE_SCANLINE_INTERFACE_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_util.h"
@@ -97,24 +97,21 @@ class ScanlineWriterInterface {
 
   virtual ScanlineStatus InitializeWriteWithStatus(const void* config,
                                                    GoogleString* const out) = 0;
-  inline bool InitializeWrite(const void* config,
-                              GoogleString* const out) {
+  inline bool InitializeWrite(const void* config, GoogleString* const out) {
     return InitializeWriteWithStatus(config, out).Success();
   }
 
   // Writes the current scan line with data provided. Returns false
   // if the write fails.
   virtual ScanlineStatus WriteNextScanlineWithStatus(
-      const void *scanline_bytes) = 0;
-  inline bool WriteNextScanline(const void *scanline_bytes) {
+      const void* scanline_bytes) = 0;
+  inline bool WriteNextScanline(const void* scanline_bytes) {
     return WriteNextScanlineWithStatus(scanline_bytes).Success();
   }
 
   // Finalizes write structure once all scanlines are written.
   virtual ScanlineStatus FinalizeWriteWithStatus() = 0;
-  inline bool FinalizeWrite() {
-    return FinalizeWriteWithStatus().Success();
-  }
+  inline bool FinalizeWrite() { return FinalizeWriteWithStatus().Success(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ScanlineWriterInterface);

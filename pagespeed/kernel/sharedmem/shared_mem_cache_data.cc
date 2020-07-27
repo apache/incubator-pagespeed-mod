@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Data structure operation helpers for SharedMemCache. See the top of
 // shared_mem_cache.cc for data format descriptions.
 
@@ -45,7 +44,7 @@ double percent(int64 portion, int64 total) {
 
 }  // namespace
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 struct Sector<kBlockSize>::MemLayout {
   MemLayout(size_t mutex_size, size_t cache_entries, size_t data_blocks) {
     // Check out alignment assumptions -- everything must be of a size
@@ -55,12 +54,10 @@ struct Sector<kBlockSize>::MemLayout {
     CHECK_EQ(48u, sizeof(CacheEntry));
 
     header_bytes = AlignTo(8, sizeof(SectorHeader) + mutex_size);
-    block_successor_list_bytes =
-        AlignTo(8, sizeof(BlockNum) * data_blocks);
+    block_successor_list_bytes = AlignTo(8, sizeof(BlockNum) * data_blocks);
     size_t directory_size = sizeof(CacheEntry) * cache_entries;
-    metadata_bytes =
-        AlignTo(kBlockSize,
-                header_bytes + directory_size + block_successor_list_bytes);
+    metadata_bytes = AlignTo(
+        kBlockSize, header_bytes + directory_size + block_successor_list_bytes);
   }
 
   size_t header_bytes;  // also offset to the block successor list.
@@ -68,7 +65,7 @@ struct Sector<kBlockSize>::MemLayout {
   size_t metadata_bytes;  // e.g. offset to the blocks.
 };
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 Sector<kBlockSize>::Sector(AbstractSharedMemSegment* segment,
                            size_t sector_offset, size_t cache_entries,
                            size_t data_blocks)
@@ -85,18 +82,17 @@ Sector<kBlockSize>::Sector(AbstractSharedMemSegment* segment,
   blocks_base_ = base + layout.metadata_bytes;
 }
 
-template<size_t kBlockSize>
-Sector<kBlockSize>::~Sector() {
-}
+template <size_t kBlockSize>
+Sector<kBlockSize>::~Sector() {}
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 bool Sector<kBlockSize>::Attach(MessageHandler* handler) {
   mutex_.reset(
       segment_->AttachToSharedMutex(sector_offset_ + sizeof(SectorHeader)));
-  return (mutex_.get() != NULL);
+  return (mutex_.get() != nullptr);
 }
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 bool Sector<kBlockSize>::Initialize(MessageHandler* handler)
     NO_THREAD_SAFETY_ANALYSIS {
   if (!segment_->InitializeSharedMutex(sector_offset_ + sizeof(SectorHeader),
@@ -131,7 +127,7 @@ bool Sector<kBlockSize>::Initialize(MessageHandler* handler)
   return true;
 }
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 size_t Sector<kBlockSize>::RequiredSize(AbstractSharedMem* shmem_runtime,
                                         size_t cache_entries,
                                         size_t data_blocks) {
@@ -140,12 +136,11 @@ size_t Sector<kBlockSize>::RequiredSize(AbstractSharedMem* shmem_runtime,
   return layout.metadata_bytes + data_blocks * kBlockSize;
 }
 
-template<size_t kBlockSize>
-int Sector<kBlockSize>::AllocBlocksFromFreeList(int goal,
-                                                BlockVector* blocks) {
+template <size_t kBlockSize>
+int Sector<kBlockSize>::AllocBlocksFromFreeList(int goal, BlockVector* blocks) {
   int allocated = 0;
   while ((allocated < goal) &&
-          (sector_header_->free_list_front != kInvalidBlock)) {
+         (sector_header_->free_list_front != kInvalidBlock)) {
     int block_num = sector_header_->free_list_front;
     sector_header_->free_list_front = GetBlockSuccessor(block_num);
     blocks->push_back(block_num);
@@ -155,7 +150,7 @@ int Sector<kBlockSize>::AllocBlocksFromFreeList(int goal,
   return allocated;
 }
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 void Sector<kBlockSize>::ReturnBlocksToFreeList(const BlockVector& blocks) {
   for (size_t c = 0; c < blocks.size(); ++c) {
     BlockNum block_num = blocks[c];
@@ -165,7 +160,7 @@ void Sector<kBlockSize>::ReturnBlocksToFreeList(const BlockVector& blocks) {
   sector_header_->stats.used_blocks -= blocks.size();
 }
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 void Sector<kBlockSize>::InsertEntryIntoLRU(EntryNum entry_num) {
   CacheEntry* entry = EntryAt(entry_num);
   CHECK((entry->lru_prev == kInvalidEntry) &&
@@ -180,13 +175,12 @@ void Sector<kBlockSize>::InsertEntryIntoLRU(EntryNum entry_num) {
   sector_header_->lru_list_front = entry_num;
 }
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 void Sector<kBlockSize>::UnlinkEntryFromLRU(int entry_num) {
   CacheEntry* entry = EntryAt(entry_num);
 
   // TODO(morlovich): again, perhaps a bit too much work for stats.
-  if (entry->lru_next != kInvalidEntry ||
-      entry->lru_prev != kInvalidEntry ||
+  if (entry->lru_next != kInvalidEntry || entry->lru_prev != kInvalidEntry ||
       sector_header_->lru_list_front == entry_num) {
     --sector_header_->stats.used_entries;
   }
@@ -216,10 +210,10 @@ void Sector<kBlockSize>::UnlinkEntryFromLRU(int entry_num) {
   entry->lru_next = kInvalidEntry;
 }
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 size_t Sector<kBlockSize>::BytesInPortion(size_t total_bytes, size_t b,
                                           size_t total) {
-  if (b != (total -1)) {
+  if (b != (total - 1)) {
     return kBlockSize;
   } else {
     size_t rem = total_bytes % kBlockSize;
@@ -227,7 +221,7 @@ size_t Sector<kBlockSize>::BytesInPortion(size_t total_bytes, size_t b,
   }
 }
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 int Sector<kBlockSize>::BlockListForEntry(CacheEntry* entry,
                                           BlockVector* out_blocks) {
   int data_blocks = DataBlocksForSize(entry->byte_size);
@@ -255,8 +249,7 @@ SectorStats::SectorStats()
       num_get_hit(0),
       last_checkpoint_ms(0),
       used_entries(0),
-      used_blocks(0) {
-}
+      used_blocks(0) {}
 
 void SectorStats::Add(const SectorStats& other) {
   num_put += other.num_put;
@@ -274,38 +267,36 @@ void SectorStats::Add(const SectorStats& other) {
 GoogleString SectorStats::Dump(size_t total_entries,
                                size_t total_blocks) const {
   GoogleString out;
-  StringAppendF(&out, "Total put operations: %s\n",
-                Integer64ToString(num_put).c_str());
-  StringAppendF(&out, "  updating an existing key: %s\n",
-                Integer64ToString(num_put_update).c_str());
-  StringAppendF(&out, "  replace/conflict miss: %s\n",
-                Integer64ToString(num_put_replace).c_str());
-  StringAppendF(
-      &out, "  simultaneous same-key insert: %s\n",
-      Integer64ToString(num_put_concurrent_create).c_str());
-  StringAppendF(
-      &out, "  dropped since all of associativity set locked: %s\n",
-      Integer64ToString(num_put_concurrent_full_set).c_str());
-  StringAppendF(
-      &out, "  spinning sleeps performed by writers: %s\n",
-      Integer64ToString(num_put_spins).c_str());
+  absl::StrAppendFormat(&out, "Total put operations: %s\n",
+                        Integer64ToString(num_put).c_str());
+  absl::StrAppendFormat(&out, "  updating an existing key: %s\n",
+                        Integer64ToString(num_put_update).c_str());
+  absl::StrAppendFormat(&out, "  replace/conflict miss: %s\n",
+                        Integer64ToString(num_put_replace).c_str());
+  absl::StrAppendFormat(&out, "  simultaneous same-key insert: %s\n",
+                        Integer64ToString(num_put_concurrent_create).c_str());
+  absl::StrAppendFormat(&out,
+                        "  dropped since all of associativity set locked: %s\n",
+                        Integer64ToString(num_put_concurrent_full_set).c_str());
+  absl::StrAppendFormat(&out, "  spinning sleeps performed by writers: %s\n",
+                        Integer64ToString(num_put_spins).c_str());
 
-  StringAppendF(&out, "Total get operations: %s\n",
-                Integer64ToString(num_get).c_str());
-  StringAppendF(&out, "  hits: %s (%.2f%%)\n",
-                Integer64ToString(num_get_hit).c_str(),
-                percent(num_get_hit, num_get));
+  absl::StrAppendFormat(&out, "Total get operations: %s\n",
+                        Integer64ToString(num_get).c_str());
+  absl::StrAppendFormat(&out, "  hits: %s (%.2f%%)\n",
+                        Integer64ToString(num_get_hit).c_str(),
+                        percent(num_get_hit, num_get));
 
-  StringAppendF(&out, "Entries used: %s (%.2f%%)\n",
-                Integer64ToString(used_entries).c_str(),
-                percent(used_entries, total_entries));
-  StringAppendF(&out, "Blocks used: %s (%.2f%%)\n",
-                Integer64ToString(used_blocks).c_str(),
-                percent(used_blocks, total_blocks));
+  absl::StrAppendFormat(&out, "Entries used: %s (%.2f%%)\n",
+                        Integer64ToString(used_entries).c_str(),
+                        percent(used_entries, total_entries));
+  absl::StrAppendFormat(&out, "Blocks used: %s (%.2f%%)\n",
+                        Integer64ToString(used_blocks).c_str(),
+                        percent(used_blocks, total_blocks));
   return out;
 }
 
-template<size_t kBlockSize>
+template <size_t kBlockSize>
 void Sector<kBlockSize>::DumpStats(MessageHandler* handler) {
   mutex()->Lock();
   GoogleString dump = sector_stats()->Dump(cache_entries_, data_blocks_);

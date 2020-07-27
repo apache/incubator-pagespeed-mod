@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_SCHEDULE_REWRITE_RPC_HANDLER_H_
 #define PAGESPEED_CONTROLLER_SCHEDULE_REWRITE_RPC_HANDLER_H_
 
@@ -51,12 +50,12 @@ namespace net_instaweb {
 class ScheduleRewriteRpcHandler
     : public RequestResultRpcHandler<
           ScheduleRewriteRpcHandler, ScheduleRewriteController,
-          grpc::CentralControllerRpcService::AsyncService,
-          ScheduleRewriteRequest, ScheduleRewriteResponse> {
+          CentralControllerRpcService::AsyncService, ScheduleRewriteRequest,
+          ScheduleRewriteResponse> {
  protected:
-  ScheduleRewriteRpcHandler(
-      grpc::CentralControllerRpcService::AsyncService* service,
-      ::grpc::ServerCompletionQueue* cq, ScheduleRewriteController* controller);
+  ScheduleRewriteRpcHandler(CentralControllerRpcService::AsyncService* service,
+                            ::grpc::ServerCompletionQueue* cq,
+                            ScheduleRewriteController* controller);
 
   // RequestResultRpcHandler implementation.
   void HandleClientRequest(const ScheduleRewriteRequest& req,
@@ -64,7 +63,7 @@ class ScheduleRewriteRpcHandler
   void HandleClientResult(const ScheduleRewriteRequest& req) override;
   void HandleOperationFailed() override;
 
-  void InitResponder(grpc::CentralControllerRpcService::AsyncService* service,
+  void InitResponder(CentralControllerRpcService::AsyncService* service,
                      ::grpc::ServerContext* ctx, ReaderWriterT* responder,
                      ::grpc::ServerCompletionQueue* cq,
                      void* callback) override;

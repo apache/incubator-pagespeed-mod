@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/compressed_cache.h"
 
 #include <cstddef>
+#include <memory>
 
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -39,7 +39,7 @@
 namespace net_instaweb {
 
 namespace {
-const size_t kMaxSize = 10*kStackBufferSize;
+const size_t kMaxSize = 10 * kStackBufferSize;
 }
 
 class CompressedCacheTest : public CacheTestBase {
@@ -50,7 +50,8 @@ class CompressedCacheTest : public CacheTestBase {
         stats_(thread_system_.get()),
         random_(thread_system_->NewMutex()) {
     CompressedCache::InitStats(&stats_);
-    compressed_cache_.reset(new CompressedCache(lru_cache_.get(), &stats_));
+    compressed_cache_ =
+        std::make_unique<CompressedCache>(lru_cache_.get(), &stats_);
   }
 
   // Get the raw compressed buffer out directly out of the LRU cache.
@@ -64,13 +65,13 @@ class CompressedCacheTest : public CacheTestBase {
     return ret;
   }
 
-  virtual CacheInterface* Cache() { return compressed_cache_.get(); }
+  CacheInterface* Cache() override { return compressed_cache_.get(); }
 
   GoogleMessageHandler handler_;
-  scoped_ptr<LRUCache> lru_cache_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<LRUCache> lru_cache_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
-  scoped_ptr<CompressedCache> compressed_cache_;
+  std::unique_ptr<CompressedCache> compressed_cache_;
   SimpleRandom random_;
 };
 
@@ -112,7 +113,7 @@ TEST_F(CompressedCacheTest, LargeDataHighEntropy) {
   GoogleString value = random_.GenerateHighEntropyString(5 * kStackBufferSize);
   CheckPut("Name", value);
   CheckGet("Name", value);
-  EXPECT_LT(2*kStackBufferSize, lru_cache_->size_bytes());
+  EXPECT_LT(2 * kStackBufferSize, lru_cache_->size_bytes());
   EXPECT_EQ(0, compressed_cache_->CorruptPayloads());
 }
 

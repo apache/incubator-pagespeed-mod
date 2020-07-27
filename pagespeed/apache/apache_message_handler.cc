@@ -17,18 +17,16 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/apache/apache_message_handler.h"
 
-#include <signal.h>
 #include <unistd.h>
 
-#include "pagespeed/apache/apr_timer.h"
-#include "pagespeed/apache/log_message_handler.h"
+#include <csignal>
 
 #include "pagespeed/apache/apache_httpd_includes.h"
 #include "pagespeed/apache/apache_logging_includes.h"
+#include "pagespeed/apache/apr_timer.h"
+#include "pagespeed/apache/log_message_handler.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/debug.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -55,8 +53,7 @@ static void signal_handler(int sig) {
   alarm(2);
   ap_log_error(APLOG_MARK, APLOG_ALERT, APR_SUCCESS, global_server,
                "[@%s] CRASH with signal:%d at %s",
-               net_instaweb::Integer64ToString(getpid()).c_str(),
-               sig,
+               net_instaweb::Integer64ToString(getpid()).c_str(), sig,
                net_instaweb::StackTraceString().c_str());
   kill(getpid(), SIGKILL);
 }
@@ -111,23 +108,22 @@ int ApacheMessageHandler::GetApacheLogLevel(MessageType type) {
   return APLOG_ALERT;
 }
 
-void ApacheMessageHandler::MessageSImpl(
-    MessageType type, const GoogleString& message) {
+void ApacheMessageHandler::MessageSImpl(MessageType type,
+                                        const GoogleString& message) {
   int log_level = GetApacheLogLevel(type);
   ap_log_error(APLOG_MARK, log_level, APR_SUCCESS, server_rec_,
-               "[%s %s @%ld] %s",
-               kModuleName, version_.c_str(), static_cast<long>(getpid()),
-               message.c_str());
+               "[%s %s @%ld] %s", kModuleName, version_.c_str(),
+               static_cast<long>(getpid()), message.c_str());
   AddMessageToBuffer(type, message);
 }
 
-void ApacheMessageHandler::FileMessageSImpl(
-    MessageType type, const char* file, int line, const GoogleString& message) {
+void ApacheMessageHandler::FileMessageSImpl(MessageType type, const char* file,
+                                            int line,
+                                            const GoogleString& message) {
   int log_level = GetApacheLogLevel(type);
   ap_log_error(APLOG_MARK, log_level, APR_SUCCESS, server_rec_,
-               "[%s %s @%ld] %s:%d: %s",
-               kModuleName, version_.c_str(), static_cast<long>(getpid()),
-               file, line, message.c_str());
+               "[%s %s @%ld] %s:%d: %s", kModuleName, version_.c_str(),
+               static_cast<long>(getpid()), file, line, message.c_str());
   AddMessageToBuffer(type, file, line, message);
 }
 

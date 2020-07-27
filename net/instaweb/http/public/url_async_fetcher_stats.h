@@ -48,11 +48,9 @@ class UrlAsyncFetcherStats : public UrlAsyncFetcher {
   //
   // Does not own base_fetcher (so you can have multiple UrlAsyncFetcherStats
   // objects around a single UrlAsyncFetcher object).
-  UrlAsyncFetcherStats(StringPiece prefix,
-                       UrlAsyncFetcher* base_fetcher,
-                       Timer* timer,
-                       Statistics* statistics);
-  virtual ~UrlAsyncFetcherStats();
+  UrlAsyncFetcherStats(StringPiece prefix, UrlAsyncFetcher* base_fetcher,
+                       Timer* timer, Statistics* statistics);
+  ~UrlAsyncFetcherStats() override;
 
   // This must be called once for every unique prefix used with
   // UrlAsyncFetcherStats.
@@ -60,12 +58,11 @@ class UrlAsyncFetcherStats : public UrlAsyncFetcher {
 
   // Reimplementation of UrlAsyncFetcher methods. See base class
   // for API specifications.
-  virtual bool SupportsHttps() const;
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
-  virtual int64 timeout_ms();
-  virtual void ShutDown();
+  bool SupportsHttps() const override;
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
+  int64 timeout_ms() override;
+  void ShutDown() override;
 
  private:
   class StatsAsyncFetch;

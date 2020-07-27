@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_MOCK_APACHE_H_
 #define PAGESPEED_APACHE_MOCK_APACHE_H_
 
@@ -75,4 +74,3 @@ GoogleString ActionsSinceLastCall();
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_APACHE_MOCK_APACHE_H_
-

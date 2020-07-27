@@ -33,20 +33,19 @@ namespace net_instaweb {
 class InlineResourceSlot : public ResourceSlot {
  public:
   // TODO(sligocki): Construct resource in this function??
-  InlineResourceSlot(const ResourcePtr& resource,
-                     HtmlCharactersNode* char_node,
+  InlineResourceSlot(const ResourcePtr& resource, HtmlCharactersNode* char_node,
                      StringPiece location);
 
   // Debug information should be placed next to <style> or <script> block
   // surrounding the Characters node.
-  virtual HtmlElement* element() const { return char_node_->parent(); }
+  HtmlElement* element() const override { return char_node_->parent(); }
 
-  virtual void Render();
-  virtual GoogleString LocationString() const;
+  void Render() override;
+  GoogleString LocationString() const override;
 
  protected:
   REFCOUNT_FRIEND_DECLARATION(InlineResourceSlot);
-  virtual ~InlineResourceSlot();
+  ~InlineResourceSlot() override;
 
  private:
   HtmlCharactersNode* char_node_;
@@ -63,8 +62,8 @@ class InlineResourceSlotComparator {
                   const InlineResourceSlotPtr& q) const;
 };
 
-typedef std::set<InlineResourceSlotPtr,
-                 InlineResourceSlotComparator> InlineResourceSlotSet;
+typedef std::set<InlineResourceSlotPtr, InlineResourceSlotComparator>
+    InlineResourceSlotSet;
 
 }  // namespace net_instaweb
 

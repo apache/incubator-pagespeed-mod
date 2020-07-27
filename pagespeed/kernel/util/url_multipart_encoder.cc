@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/url_multipart_encoder.h"
 
 #include "pagespeed/kernel/base/message_handler.h"
@@ -32,7 +31,7 @@ namespace {
 // see how we like this aesthetically.  We want to stay within legal
 // filename space as well so the filenames don't look too ugly.
 
-const char kEscape = '=';            // Nice if this is filename-legal
+const char kEscape = '=';  // Nice if this is filename-legal
 const char kEscapedEscape[] = "==";
 const char kSeparator = '+';
 const char kEscapedSeparator[] = "=+";
@@ -42,8 +41,7 @@ const char kEscapedSeparator[] = "=+";
 namespace net_instaweb {
 class ResourceContext;
 
-UrlMultipartEncoder::~UrlMultipartEncoder() {
-}
+UrlMultipartEncoder::~UrlMultipartEncoder() {}
 
 void UrlMultipartEncoder::Encode(const StringVector& urls,
                                  const ResourceContext* data,
@@ -76,8 +74,7 @@ void UrlMultipartEncoder::Encode(const StringVector& urls,
 }
 
 bool UrlMultipartEncoder::Decode(const StringPiece& encoding,
-                                 StringVector* urls,
-                                 ResourceContext* data,
+                                 StringVector* urls, ResourceContext* data,
                                  MessageHandler* handler) const {
   GoogleString buf;
 

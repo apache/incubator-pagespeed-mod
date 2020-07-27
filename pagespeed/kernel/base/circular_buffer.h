@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_CIRCULAR_BUFFER_H_
 #define PAGESPEED_KERNEL_UTIL_CIRCULAR_BUFFER_H_
 
@@ -42,8 +41,7 @@ class CircularBuffer {
   // block_size is the size of the block, it must be equal to Sizeof(capacity).
   // capacity is the size of the data buffer (the maximum amount of data
   // which we can buffer at one time).
-  static CircularBuffer* Init(bool parent, void* block,
-                              const int block_size,
+  static CircularBuffer* Init(bool parent, void* block, const int block_size,
                               const int capacity);
   // Return the size in bytes of the memory block to allocate to hold a buffer
   // with size equal to capacity.

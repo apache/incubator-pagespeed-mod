@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_TEST_BASE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_OPTIONS_TEST_BASE_H_
 
@@ -30,22 +29,19 @@ namespace net_instaweb {
 
 // Helper class to for tests that need to initialized RewriteOptions.  This
 // class is templated so any flavor of RewriteOptions can be used.
-template<class OptionsClass>
+template <class OptionsClass>
 class RewriteOptionsTestBase : public testing::Test {
  public:
-  RewriteOptionsTestBase()
-      : thread_system_(Platform::CreateThreadSystem()) {
+  RewriteOptionsTestBase() : thread_system_(Platform::CreateThreadSystem()) {
     OptionsClass::Initialize();
   }
 
-  ~RewriteOptionsTestBase() {
-    OptionsClass::Terminate();
-  }
+  ~RewriteOptionsTestBase() override { OptionsClass::Terminate(); }
 
   ThreadSystem* thread_system() { return thread_system_.get(); }
   OptionsClass* NewOptions() { return new OptionsClass(thread_system()); }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
 };
 
 }  // namespace net_instaweb

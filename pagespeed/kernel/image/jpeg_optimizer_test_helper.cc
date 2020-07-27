@@ -17,19 +17,19 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 
-#include <setjmp.h>
+#include <csetjmp>
+
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/image/jpeg_reader.h"
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG
-#include "jpeglib.h"                                                 // NOLINT
+#include "jpeglib.h"  // NOLINT
 #else
-#include "third_party/libjpeg_turbo/src/jpeglib.h"
+#include "external/libjpeg_turbo/jpeglib.h"
 #endif
 }
 
@@ -47,11 +47,10 @@ namespace image_compression {
 const int kColorProfileMarker = JPEG_APP0 + 2;
 const int kExifDataMarker = JPEG_APP0 + 1;
 
-bool GetJpegNumComponentsAndSamplingFactors(
-    const GoogleString& jpeg,
-    int* out_num_components,
-    int* out_h_samp_factor,
-    int* out_v_samp_factor) {
+bool GetJpegNumComponentsAndSamplingFactors(const GoogleString& jpeg,
+                                            int* out_num_components,
+                                            int* out_h_samp_factor,
+                                            int* out_v_samp_factor) {
   MockMessageHandler message_handler_(new NullMutex);
   JpegReader reader(&message_handler_);
   jpeg_decompress_struct* jpeg_decompress = reader.decompress_struct();
@@ -62,7 +61,7 @@ bool GetJpegNumComponentsAndSamplingFactors(
   }
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(&env);
+  jpeg_decompress->client_data = static_cast<void*>(&env);
 
   reader.PrepareForRead(jpeg.data(), jpeg.size());
   jpeg_read_header(jpeg_decompress, TRUE);
@@ -83,7 +82,7 @@ bool IsJpegSegmentPresent(const GoogleString& data, int segment) {
   }
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(&env);
+  jpeg_decompress->client_data = static_cast<void*>(&env);
 
   reader.PrepareForRead(data.data(), data.size());
   jpeg_save_markers(jpeg_decompress, segment, 0xFFFF);
@@ -91,7 +90,7 @@ bool IsJpegSegmentPresent(const GoogleString& data, int segment) {
 
   bool is_marker_present = false;
   for (jpeg_saved_marker_ptr marker = jpeg_decompress->marker_list;
-       marker != NULL; marker = marker->next) {
+       marker != nullptr; marker = marker->next) {
     if (marker->marker == segment) {
       is_marker_present = true;
       break;
@@ -112,7 +111,7 @@ int GetNumScansInJpeg(const GoogleString& data) {
   }
 
   // Need to install env so that it will be longjmp()ed to on error.
-  jpeg_decompress->client_data = static_cast<void *>(&env);
+  jpeg_decompress->client_data = static_cast<void*>(&env);
 
   reader.PrepareForRead(data.data(), data.size());
   jpeg_read_header(jpeg_decompress, TRUE);
@@ -130,14 +129,9 @@ int GetNumScansInJpeg(const GoogleString& data) {
   return num_scans;
 }
 
-int GetColorProfileMarker() {
-  return kColorProfileMarker;
-}
+int GetColorProfileMarker() { return kColorProfileMarker; }
 
-int GetExifDataMarker() {
-  return kExifDataMarker;
-}
+int GetExifDataMarker() { return kExifDataMarker; }
 
 }  // namespace image_compression
 }  // namespace pagespeed_testing
-

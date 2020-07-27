@@ -39,14 +39,14 @@ class MockTimeCache::DelayCallback : public CacheInterface::Callback {
   DelayCallback(MockTimeCache* parent, Callback* orig_callback)
       : parent_(parent), orig_callback_(orig_callback) {}
 
-  virtual ~DelayCallback() {}
+  ~DelayCallback() override {}
 
-  virtual bool ValidateCandidate(const GoogleString& key, KeyState state) {
+  bool ValidateCandidate(const GoogleString& key, KeyState state) override {
     orig_callback_->set_value(value());
     return orig_callback_->DelegatedValidateCandidate(key, state);
   }
 
-  virtual void Done(KeyState state) {
+  void Done(KeyState state) override {
     Scheduler* scheduler = parent_->scheduler();
     int64 wakeup_time_us = scheduler->timer()->NowUs() + parent_->delay_us();
     scheduler->AddAlarmAtUs(
@@ -64,10 +64,7 @@ class MockTimeCache::DelayCallback : public CacheInterface::Callback {
 };
 
 MockTimeCache::MockTimeCache(Scheduler* scheduler, CacheInterface* cache)
-    : scheduler_(scheduler),
-      cache_(cache),
-      delay_us_(0) {
-}
+    : scheduler_(scheduler), cache_(cache), delay_us_(0) {}
 
 MockTimeCache::~MockTimeCache() {}
 
@@ -87,8 +84,6 @@ void MockTimeCache::Put(const GoogleString& key, const SharedString& value) {
   cache_->Put(key, value);
 }
 
-void MockTimeCache::Delete(const GoogleString& key) {
-  cache_->Delete(key);
-}
+void MockTimeCache::Delete(const GoogleString& key) { cache_->Delete(key); }
 
 }  // namespace net_instaweb

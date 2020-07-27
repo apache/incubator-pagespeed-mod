@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_INSTAWEB_CONTEXT_H_
 #define PAGESPEED_APACHE_INSTAWEB_CONTEXT_H_
 
@@ -71,16 +70,14 @@ class InstawebContext {
   enum ContentDetectionState { kStart, kHtml, kNotHtml };
 
   // Takes ownership of request_headers.
-  InstawebContext(request_rec* request,
-                  RequestHeaders* request_headers,
+  InstawebContext(request_rec* request, RequestHeaders* request_headers,
                   const ContentType& content_type,
                   ApacheServerContext* server_context,
                   const GoogleString& base_url,
                   const RequestContextPtr& request_context,
                   const QueryParams& pagespeed_query_params,
                   const QueryParams& pagespeed_option_cookies,
-                  bool use_custom_options,
-                  const RewriteOptions& options);
+                  bool use_custom_options, const RewriteOptions& options);
   ~InstawebContext();
 
   void Rewrite(const char* input, int size);
@@ -88,15 +85,13 @@ class InstawebContext {
   void Finish();
 
   apr_bucket_brigade* bucket_brigade() const { return bucket_brigade_; }
-  ContentEncoding content_encoding() const { return  content_encoding_; }
+  ContentEncoding content_encoding() const { return content_encoding_; }
   ApacheServerContext* apache_server_context() { return server_context_; }
   const GoogleString& output() { return output_; }
   bool empty() const { return output_.empty(); }
   void clear() { output_.clear(); }  // TODO(jmarantz): needed?
 
-  ResponseHeaders* response_headers() {
-    return response_headers_.get();
-  }
+  ResponseHeaders* response_headers() { return response_headers_.get(); }
 
   bool sent_headers() { return sent_headers_; }
   void set_sent_headers(bool sent) { sent_headers_ = sent; }
@@ -133,11 +128,11 @@ class InstawebContext {
   ApacheServerContext* server_context_;
   RewriteDriver* rewrite_driver_;
   StringWriter string_writer_;
-  scoped_ptr<GzipInflater> inflater_;
+  std::unique_ptr<GzipInflater> inflater_;
   HtmlDetector html_detector_;
   GoogleString absolute_url_;
-  scoped_ptr<RequestHeaders> request_headers_;
-  scoped_ptr<ResponseHeaders> response_headers_;
+  std::unique_ptr<RequestHeaders> request_headers_;
+  std::unique_ptr<ResponseHeaders> response_headers_;
   bool started_parse_;
   bool sent_headers_;
   bool populated_headers_;

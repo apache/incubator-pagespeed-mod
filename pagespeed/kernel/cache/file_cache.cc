@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/file_cache.h"
 
 #include <algorithm>
@@ -59,10 +58,9 @@ struct CompareByAtime {
 class FileCache::CacheCleanFunction : public Function {
  public:
   CacheCleanFunction(FileCache* cache, int64 next_clean_time_ms)
-      : cache_(cache),
-        next_clean_time_ms_(next_clean_time_ms) {}
-  virtual ~CacheCleanFunction() {}
-  virtual void Run() { cache_->CleanWithLocking(next_clean_time_ms_); }
+      : cache_(cache), next_clean_time_ms_(next_clean_time_ms) {}
+  ~CacheCleanFunction() override {}
+  void Run() override { cache_->CleanWithLocking(next_clean_time_ms_); }
 
  private:
   FileCache* cache_;
@@ -101,11 +99,11 @@ class LockBumpingProgressNotifier : public FileSystem::ProgressNotifier {
   // Takes ownership of nothing.
   LockBumpingProgressNotifier(FileSystem* file_system,
                               GoogleString* clean_lock_path,
-                              MessageHandler* handler) :
-      file_system_(file_system),
-      clean_lock_path_(clean_lock_path),
-      handler_(handler),
-      count_(0) {}
+                              MessageHandler* handler)
+      : file_system_(file_system),
+        clean_lock_path_(clean_lock_path),
+        handler_(handler),
+        count_(0) {}
 
   void Notify() override {
     if (++count_ % kLockBumpIntervalCycles == 0) {
@@ -161,8 +159,7 @@ FileCache::FileCache(const GoogleString& path, FileSystem* file_system,
   StrAppend(&clean_lock_path_, kCleanLockName);
 }
 
-FileCache::~FileCache() {
-}
+FileCache::~FileCache() {}
 
 void FileCache::InitStats(Statistics* statistics) {
   statistics->AddVariable(kBytesFreedInCleanup);
@@ -254,21 +251,20 @@ bool FileCache::Clean(int64 target_size_bytes, int64 target_inode_count) {
   LockBumpingProgressNotifier lock_bumping_notifier(
       file_system_, &clean_lock_path_, message_handler_);
   FileSystem::ProgressNotifier* notifier = &lock_bumping_notifier;
-  if (notifier_for_tests_ != NULL) {
+  if (notifier_for_tests_ != nullptr) {
     notifier = notifier_for_tests_;
   }
   // Get the contents of the cache
   FileSystem::DirInfo dir_info;
-  file_system_->GetDirInfoWithProgress(
-      path_, &dir_info, notifier, message_handler_);
+  file_system_->GetDirInfoWithProgress(path_, &dir_info, notifier,
+                                       message_handler_);
 
   // Check to see if cache size or inode count exceeds our limits.
   // target_inode_count of 0 indicates no inode limit.
   int64 cache_size = dir_info.size_bytes;
   int64 cache_inode_count = dir_info.inode_count;
   if (cache_size < target_size_bytes &&
-      (target_inode_count == 0 ||
-       cache_inode_count < target_inode_count)) {
+      (target_inode_count == 0 || cache_inode_count < target_inode_count)) {
     message_handler_->Message(kInfo,
                               "File cache size is %s and contains %s inodes; "
                               "no cleanup needed.",
@@ -318,10 +314,10 @@ bool FileCache::Clean(int64 target_size_bytes, int64 target_inode_count) {
 
   // Delete files until we are under our targets.
   std::vector<FileSystem::FileInfo>::iterator file_itr = dir_info.files.begin();
-  while (file_itr != dir_info.files.end() &&
-         (cache_size > target_size_bytes ||
-          (target_inode_count != 0 &&
-           cache_inode_count > target_inode_count))) {
+  while (
+      file_itr != dir_info.files.end() &&
+      (cache_size > target_size_bytes ||
+       (target_inode_count != 0 && cache_inode_count > target_inode_count))) {
     notifier->Notify();
     FileSystem::FileInfo file = *file_itr;
     ++file_itr;
@@ -337,8 +333,8 @@ bool FileCache::Clean(int64 target_size_bytes, int64 target_inode_count) {
     // Decrement inode_count even if RemoveFile fails. This is likely because
     // the file has already been removed.
     --cache_inode_count;
-    everything_ok &= file_system_->RemoveFile(file.name.c_str(),
-                                              message_handler_);
+    everything_ok &=
+        file_system_->RemoveFile(file.name.c_str(), message_handler_);
     evictions_->Add(1);
   }
 
@@ -351,9 +347,10 @@ bool FileCache::Clean(int64 target_size_bytes, int64 target_inode_count) {
 }
 
 void FileCache::CleanWithLocking(int64 next_clean_time_ms) {
-  if (file_system_->TryLockWithTimeout(clean_lock_path_, kLockTimeoutMs,
-                                       cache_policy_->timer,
-                                       message_handler_).is_true()) {
+  if (file_system_
+          ->TryLockWithTimeout(clean_lock_path_, kLockTimeoutMs,
+                               cache_policy_->timer, message_handler_)
+          .is_true()) {
     // Update the timestamp file.
     {
       ScopedMutex lock(mutex_.get());
@@ -366,8 +363,7 @@ void FileCache::CleanWithLocking(int64 next_clean_time_ms) {
     }
 
     // Now actually clean.
-    Clean(cache_policy_->target_size_bytes,
-          cache_policy_->target_inode_count);
+    Clean(cache_policy_->target_size_bytes, cache_policy_->target_inode_count);
     file_system_->Unlock(clean_lock_path_, message_handler_);
   } else {
     // The previous cache cleaning run is still active, so skip this round.
@@ -400,9 +396,10 @@ bool FileCache::ShouldClean(int64* suggested_next_clean_time_ms) {
                              &null_handler)) {
     StringToInt64(clean_time_str, &clean_time_ms);
   } else {
-    message_handler_->Message(
-        kWarning, "Failed to read cache clean timestamp %s. "
-        " Doing an extra cache clean to be safe.", clean_time_path_.c_str());
+    message_handler_->Message(kWarning,
+                              "Failed to read cache clean timestamp %s. "
+                              " Doing an extra cache clean to be safe.",
+                              clean_time_path_.c_str());
   }
 
   // If the "clean time" written in the file is older than now, we clean.
@@ -432,8 +429,8 @@ bool FileCache::ShouldClean(int64* suggested_next_clean_time_ms) {
 }
 
 void FileCache::CleanIfNeeded() {
-  DCHECK(worker_ != NULL);
-  if (worker_ != NULL) {
+  DCHECK(worker_ != nullptr);
+  if (worker_ != nullptr) {
     int64 suggested_next_clean_time_ms;
     if (ShouldClean(&suggested_next_clean_time_ms)) {
       worker_->Start();

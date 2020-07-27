@@ -17,19 +17,17 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_CACHE_BATCHER_TESTING_PEER_H_
 #define PAGESPEED_KERNEL_CACHE_CACHE_BATCHER_TESTING_PEER_H_
 
-#include "pagespeed/kernel/cache/cache_batcher.h"
-
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/cache/cache_batcher.h"
 
 namespace net_instaweb {
 
 class CacheBatcherTestingPeer {
  public:
-  CacheBatcherTestingPeer() { }
+  CacheBatcherTestingPeer() {}
 
   static int last_batch_size(CacheBatcher* batcher) {
     return batcher->last_batch_size();

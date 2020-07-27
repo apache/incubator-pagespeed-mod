@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_DYNAMIC_STRING_MAP_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_DYNAMIC_STRING_MAP_TEST_BASE_H_
 
@@ -78,24 +77,23 @@ class SharedDynamicStringMapTestBase : public testing::Test {
 
   std::vector<GoogleString> strings_;
 
-  scoped_ptr<SharedMemTestEnv> test_env_;
-  scoped_ptr<AbstractSharedMem> shmem_runtime_;
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<SharedMemTestEnv> test_env_;
+  std::unique_ptr<AbstractSharedMem> shmem_runtime_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   MockMessageHandler handler_;
 
   DISALLOW_COPY_AND_ASSIGN(SharedDynamicStringMapTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedDynamicStringMapTestTemplate
     : public SharedDynamicStringMapTestBase {
  public:
   SharedDynamicStringMapTestTemplate()
-      : SharedDynamicStringMapTestBase(new ConcreteTestEnv) {
-  }
+      : SharedDynamicStringMapTestBase(new ConcreteTestEnv) {}
 };
 
-TYPED_TEST_CASE_P(SharedDynamicStringMapTestTemplate);
+TYPED_TEST_SUITE_P(SharedDynamicStringMapTestTemplate);
 
 TYPED_TEST_P(SharedDynamicStringMapTestTemplate, TestSimple) {
   SharedDynamicStringMapTestBase::TestSimple();
@@ -127,11 +125,11 @@ TYPED_TEST_P(SharedDynamicStringMapTestTemplate,
   SharedDynamicStringMapTestBase::TestFillMultipleOverlappingThreads();
 }
 
-REGISTER_TYPED_TEST_CASE_P(SharedDynamicStringMapTestTemplate, TestSimple,
-                           TestCreate, TestAdd, TestQuarterFull,
-                           TestFillSingleThread,
-                           TestFillMultipleNonOverlappingThreads,
-                           TestFillMultipleOverlappingThreads);
+REGISTER_TYPED_TEST_SUITE_P(SharedDynamicStringMapTestTemplate, TestSimple,
+                            TestCreate, TestAdd, TestQuarterFull,
+                            TestFillSingleThread,
+                            TestFillMultipleNonOverlappingThreads,
+                            TestFillMultipleOverlappingThreads);
 
 }  // namespace net_instaweb
 

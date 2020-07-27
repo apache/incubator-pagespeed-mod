@@ -42,9 +42,7 @@ const char kRoboto[] = "http://fonts.googleapis.com/css?family=Roboto";
 
 class GoogleFontCssInlineFilterTestBase : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
-    RewriteTestBase::SetUp();
-  }
+  void SetUp() override { RewriteTestBase::SetUp(); }
 
   void SetUpForFontFilterTest(RewriteOptions::Filter filter_to_enable) {
     AddFilter(filter_to_enable);
@@ -64,28 +62,28 @@ class GoogleFontCssInlineFilterTestBase : public RewriteTestBase {
     // Font loader CSS gets Cache-Control:private, max-age=86400
     ResponseHeaders response_headers;
     SetDefaultLongCacheHeaders(&kContentTypeCss, &response_headers);
-    response_headers.SetDateAndCaching(
-        timer()->NowMs(), 86400 * Timer::kSecondMs, ", private");
+    response_headers.SetDateAndCaching(timer()->NowMs(),
+                                       86400 * Timer::kSecondMs, ", private");
 
     // Now upload some UA-specific CSS where UaSensitiveFetcher will find it,
     // for two fake UAs: Chromezilla and Safieri, used since they are short,
     // unlike real UA strings.
-    SetFetchResponse(StrCat(kRoboto, "&UA=Chromezilla"),
-                     response_headers, "font_chromezilla");
+    SetFetchResponse(StrCat(kRoboto, "&UA=Chromezilla"), response_headers,
+                     "font_chromezilla");
 
-    SetFetchResponse(StrCat(kRoboto, "&UA=Safieri"),
-                     response_headers, "font_safieri");
+    SetFetchResponse(StrCat(kRoboto, "&UA=Safieri"), response_headers,
+                     "font_safieri");
 
     // If other filters will try to fetch this, they won't have a UA.
-    SetFetchResponse(StrCat(kRoboto, "&UA=unknown"),
-                     response_headers, "font_huh");
+    SetFetchResponse(StrCat(kRoboto, "&UA=unknown"), response_headers,
+                     "font_huh");
     SetCurrentUserAgent(user_agent);
   }
 };
 
 class GoogleFontCssInlineFilterTest : public GoogleFontCssInlineFilterTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     GoogleFontCssInlineFilterTestBase::SetUp();
     SetUpForFontFilterTest(RewriteOptions::kInlineGoogleFontCss);
   }
@@ -93,14 +91,12 @@ class GoogleFontCssInlineFilterTest : public GoogleFontCssInlineFilterTestBase {
 
 TEST_F(GoogleFontCssInlineFilterTest, BasicOperation) {
   ResetUserAgent("Chromezilla");
-  ValidateExpected("simple",
-                   CssLinkHref(kRoboto),
+  ValidateExpected("simple", CssLinkHref(kRoboto),
                    "<style>font_chromezilla</style>");
 
   // Different UAs get different cache entries
   ResetUserAgent("Safieri");
-  ValidateExpected("simple2",
-                   CssLinkHref(kRoboto),
+  ValidateExpected("simple2", CssLinkHref(kRoboto),
                    "<style>font_safieri</style>");
 }
 
@@ -110,8 +106,7 @@ TEST_F(GoogleFontCssInlineFilterTest, UsageRestrictions) {
   options()->ClearSignatureForTesting();
   options()->set_modify_caching_headers(false);
   server_context()->ComputeSignature(options());
-  ValidateExpected("incompat1",
-                   CssLinkHref(kRoboto),
+  ValidateExpected("incompat1", CssLinkHref(kRoboto),
                    StrCat(CssLinkHref(kRoboto),
                           "<!--Cannot inline font loader CSS when "
                           "ModifyCachingHeaders is off-->"));
@@ -120,8 +115,7 @@ TEST_F(GoogleFontCssInlineFilterTest, UsageRestrictions) {
   options()->set_modify_caching_headers(true);
   options()->set_downstream_cache_purge_location_prefix("foo");
   server_context()->ComputeSignature(options());
-  ValidateExpected("incompat2",
-                   CssLinkHref(kRoboto),
+  ValidateExpected("incompat2", CssLinkHref(kRoboto),
                    StrCat(CssLinkHref(kRoboto),
                           "<!--Cannot inline font loader CSS when "
                           "using downstream cache-->"));
@@ -137,7 +131,7 @@ TEST_F(GoogleFontCssInlineFilterTest, ProtocolRelative) {
 class GoogleFontCssInlineFilterSizeLimitTest
     : public GoogleFontCssInlineFilterTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     GoogleFontCssInlineFilterTestBase::SetUp();
     // GoogleFontCssInlineFilter uses google_font_css_inline_max_bytes.
     // Set a threshold at font_safieri, which should prevent longer
@@ -151,21 +145,19 @@ class GoogleFontCssInlineFilterSizeLimitTest
 TEST_F(GoogleFontCssInlineFilterSizeLimitTest, SizeLimit) {
   ResetUserAgent("Chromezilla");
   ValidateExpected(
-      "slightly_long",
-      CssLinkHref(kRoboto),
+      "slightly_long", CssLinkHref(kRoboto),
       StrCat(CssLinkHref(kRoboto),
              "<!--CSS not inlined since it&#39;s bigger than 12 bytes-->"));
 
   ResetUserAgent("Safieri");
-  ValidateExpected("short",
-                   CssLinkHref(kRoboto),
+  ValidateExpected("short", CssLinkHref(kRoboto),
                    "<style>font_safieri</style>");
 }
 
 class GoogleFontCssInlineFilterAndImportTest
     : public GoogleFontCssInlineFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();  // skipped base on purpose
     options()->EnableFilter(
         RewriteOptions::RewriteOptions::kInlineImportToLink);
@@ -178,18 +170,18 @@ TEST_F(GoogleFontCssInlineFilterAndImportTest, ViaInlineImport) {
   // convert a <style>@import'ing </style> this as well.
   ResetUserAgent("Chromezilla");
   ValidateExpected("import",
-                   StringPrintf("<style>@import \"%s\";</style>", kRoboto),
+                   absl::StrFormat("<style>@import \"%s\";</style>", kRoboto),
                    "<style>font_chromezilla</style>");
 
   ResetUserAgent("Safieri");
   ValidateExpected("import",
-                   StringPrintf("<style>@import \"%s\";</style>", kRoboto),
+                   absl::StrFormat("<style>@import \"%s\";</style>", kRoboto),
                    "<style>font_safieri</style>");
 }
 
 class GoogleFontCssInlineFilterAndWidePermissionsTest
     : public GoogleFontCssInlineFilterTestBase {
-  virtual void SetUp() {
+  void SetUp() override {
     GoogleFontCssInlineFilterTestBase::SetUp();
     // Check that we don't rely solely on authorization to properly
     // dispatch the URL to us.
@@ -203,8 +195,7 @@ class GoogleFontCssInlineFilterAndWidePermissionsTest
 
 TEST_F(GoogleFontCssInlineFilterAndWidePermissionsTest, WithWideAuthorization) {
   ResetUserAgent("Chromezilla");
-  ValidateExpected("with_domain_*",
-                   CssLinkHref(kRoboto),
+  ValidateExpected("with_domain_*", CssLinkHref(kRoboto),
                    "<style>font_chromezilla</style>");
 }
 

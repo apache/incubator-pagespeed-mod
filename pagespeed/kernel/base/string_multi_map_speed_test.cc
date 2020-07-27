@@ -17,15 +17,15 @@
  * under the License.
  */
 
-
-#include "pagespeed/kernel/base/string_multi_map.h"
-
 #include <set>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/benchmark.h"
+#include "pagespeed/kernel/base/string_multi_map.h"
 #include "pagespeed/kernel/base/string_util.h"
+// clang-format off
+#include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 //
 // .../src/out/Release/mod_pagespeed_speed_test "BM_Sanitize*
@@ -36,21 +36,20 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
-
 namespace {
 
 static StringPiece kNamesToSanitize[] = {
-  // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
-  "Connection",
-  "KeepAlive",
-  "Proxy-Authenticate",
-  "Proxy-Authorization",
-  "SetCookie",
-  "SetCookie2",
-  "TE",
-  "Trailers",
-  "Transfer-Encoding",
-  "Upgrade",
+    // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+    "Connection",
+    "KeepAlive",
+    "Proxy-Authenticate",
+    "Proxy-Authorization",
+    "SetCookie",
+    "SetCookie2",
+    "TE",
+    "Trailers",
+    "Transfer-Encoding",
+    "Upgrade",
 };
 
 void AddHeaders(net_instaweb::StringMultiMapInsensitive* multi_map) {
@@ -66,8 +65,8 @@ void AddHeaders(net_instaweb::StringMultiMapInsensitive* multi_map) {
   multi_map->Add("Connection", "close");
 }
 
-void BM_SanitizeByArray(int iters) {
-  for (int i = 0; i < iters; ++i) {
+void BM_SanitizeByArray(benchmark::State& state) {
+  for (int i = 0; i < state.iterations(); ++i) {
     net_instaweb::StringMultiMapInsensitive multi_map;
     AddHeaders(&multi_map);
 
@@ -83,8 +82,8 @@ void BM_SanitizeByArray(int iters) {
   }
 }
 
-void BM_SanitizeBySet(int iters) {
-  for (int i = 0; i < iters; ++i) {
+void BM_SanitizeBySet(benchmark::State& state) {
+  for (int i = 0; i < state.iterations(); ++i) {
     net_instaweb::StringMultiMapInsensitive multi_map;
     AddHeaders(&multi_map);
     net_instaweb::StringSetInsensitive remove_set;
@@ -98,7 +97,8 @@ void BM_SanitizeBySet(int iters) {
       }
       bool removed_anything = false;
       for (net_instaweb::StringSetInsensitive::const_iterator iter =
-               remove_set.begin(); iter != remove_set.end(); ++iter) {
+               remove_set.begin();
+           iter != remove_set.end(); ++iter) {
         if (multi_map.RemoveAll(*iter)) {
           removed_anything = true;
         }

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_ANNOTATED_MESSAGE_HANDLER_H_
 #define PAGESPEED_KERNEL_BASE_ANNOTATED_MESSAGE_HANDLER_H_
 
@@ -35,16 +34,16 @@ class AnnotatedMessageHandler : public MessageHandler {
   explicit AnnotatedMessageHandler(MessageHandler* handler);
   AnnotatedMessageHandler(const GoogleString& annotation,
                           MessageHandler* handler);
-  virtual ~AnnotatedMessageHandler();
+  ~AnnotatedMessageHandler() override;
 
  protected:
-  virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageVImpl(MessageType type, const char* msg, va_list args) override;
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageVImpl(MessageType type, const char* filename,
-                                int line, const char* msg, va_list args);
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageVImpl(MessageType type, const char* filename, int line,
+                        const char* msg, va_list args) override;
+  void FileMessageSImpl(MessageType type, const char* filename, int line,
+                        const GoogleString& message) override;
 
  private:
   GoogleString annotation_;

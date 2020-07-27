@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_node.h"
 
 #include "pagespeed/kernel/html/html_element.h"
@@ -30,9 +29,7 @@ HtmlNode::~HtmlNode() {}
 HtmlLeafNode::HtmlLeafNode(HtmlElement* parent,
                            const HtmlEventListIterator& iter,
                            const StringPiece& contents)
-    : HtmlNode(parent),
-      data_(new Data(iter, contents)) {
-}
+    : HtmlNode(parent), data_(new Data(iter, contents)) {}
 
 HtmlLeafNode::~HtmlLeafNode() {}
 
@@ -42,7 +39,7 @@ GoogleString HtmlLeafNode::ToString() const {
 }
 
 void HtmlLeafNode::MarkAsDead(const HtmlEventListIterator& end) {
-  if (data_.get() != NULL) {
+  if (data_.get() != nullptr) {
     set_iter(end);
     data_->is_live_ = false;
   }
@@ -78,7 +75,7 @@ void HtmlCommentNode::SynthesizeEvents(const HtmlEventListIterator& iter,
 HtmlIEDirectiveNode::~HtmlIEDirectiveNode() {}
 
 void HtmlIEDirectiveNode::SynthesizeEvents(const HtmlEventListIterator& iter,
-                                         HtmlEventList* queue) {
+                                           HtmlEventList* queue) {
   // We use -1 as a bogus line number, since the event is synthetic.
   HtmlIEDirectiveEvent* event = new HtmlIEDirectiveEvent(this, -1);
   set_iter(queue->insert(iter, event));

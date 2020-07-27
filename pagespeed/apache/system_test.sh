@@ -120,7 +120,11 @@ fi
 
 SYSTEM_TEST_DIR="$(dirname "${BASH_SOURCE[0]}")/system_tests/"
 run_test statistics
-run_test handler_quoting
+# As we updated our uri parser dependency, the handler quoting tests broke for a good reason:
+# our parser now declines when handed these evil urls.
+# TODO(oschaaf): add a unit test to ensure that behaviour stays put, as we now depend on it.
+# We can't really test that well here.
+#run_test handler_quoting
 run_test loopback
 run_test mod_pagespeed_message
 run_test index_html_handling

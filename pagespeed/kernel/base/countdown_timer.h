@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_COUNTDOWN_TIMER_H_
 #define PAGESPEED_KERNEL_BASE_COUNTDOWN_TIMER_H_
 
 #include <time.h>
+
 #include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {
@@ -34,9 +34,7 @@ class Timer;
 // negative number, HaveTimeLeft() always returns true.
 class CountdownTimer {
  public:
-  CountdownTimer(Timer* timer,
-                 void* user_data,
-                 int64 allowed_time_ms);
+  CountdownTimer(Timer* timer, void* user_data, int64 allowed_time_ms);
 
   void Reset(int64 allowed_time_ms);
 

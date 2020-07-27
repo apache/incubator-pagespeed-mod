@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/rewrite_filter.h"
 
 #include "net/instaweb/rewriter/public/resource.h"
@@ -31,8 +30,7 @@ namespace net_instaweb {
 
 class RewriteContext;
 
-RewriteFilter::~RewriteFilter() {
-}
+RewriteFilter::~RewriteFilter() {}
 
 void RewriteFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(true);
@@ -45,22 +43,17 @@ const UrlSegmentEncoder* RewriteFilter::encoder() const {
   return driver()->default_encoder();
 }
 
-bool RewriteFilter::ComputeOnTheFly() const {
-  return false;
-}
+bool RewriteFilter::ComputeOnTheFly() const { return false; }
 
-RewriteContext* RewriteFilter::MakeRewriteContext() {
-  return NULL;
-}
+RewriteContext* RewriteFilter::MakeRewriteContext() { return nullptr; }
 
 RewriteContext* RewriteFilter::MakeNestedRewriteContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
-  return NULL;
+  return nullptr;
 }
 
 StringPiece RewriteFilter::GetCharsetForScript(
-    const Resource* script,
-    const StringPiece attribute_charset,
+    const Resource* script, const StringPiece attribute_charset,
     const StringPiece enclosing_charset) {
   // 1. If the script has a Content-Type with a charset, use that.
   if (!script->charset().empty()) {
@@ -89,8 +82,7 @@ StringPiece RewriteFilter::GetCharsetForScript(
 }
 
 GoogleString RewriteFilter::GetCharsetForStylesheet(
-    const Resource* stylesheet,
-    const StringPiece attribute_charset,
+    const Resource* stylesheet, const StringPiece attribute_charset,
     const StringPiece enclosing_charset) {
   // 1. If the stylesheet has a Content-Type with a charset, use that, else
   if (!stylesheet->charset().empty()) {
@@ -100,7 +92,8 @@ GoogleString RewriteFilter::GetCharsetForStylesheet(
   // 2. If the stylesheet has an initial @charset, use that.
   StringPiece css(stylesheet->ExtractUncompressedContents());
   StripUtf8Bom(&css);
-  Css::Parser parser(css);
+  CssStringPiece tmp(css.data(), css.size());
+  Css::Parser parser(tmp);
   UnicodeText css_charset = parser.ExtractCharset();
   if (parser.errors_seen_mask() == 0) {
     GoogleString at_charset = UnicodeTextToUTF8(css_charset);
@@ -133,7 +126,7 @@ GoogleString RewriteFilter::GetCharsetForStylesheet(
 const RewriteOptions::Filter* RewriteFilter::RelatedFilters(
     int* num_filters) const {
   *num_filters = 0;
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace net_instaweb

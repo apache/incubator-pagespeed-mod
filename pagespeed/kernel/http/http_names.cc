@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/http/http_names.h"
 
-
-#include "base/at_exit.h"
-#include "base/lazy_instance.h"
+//#include "base/at_exit.h"
+//#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -116,62 +114,101 @@ const char HttpAttributes::kXPageSpeedLoop[] = "X-PageSpeed-Loop";
 
 const char* HttpStatus::GetReasonPhrase(HttpStatus::Code rc) {
   switch (rc) {
-    case HttpStatus::kContinue                : return "Continue";
-    case HttpStatus::kSwitchingProtocols      : return "Switching Protocols";
+    case HttpStatus::kContinue:
+      return "Continue";
+    case HttpStatus::kSwitchingProtocols:
+      return "Switching Protocols";
 
-    case HttpStatus::kOK                      : return "OK";
-    case HttpStatus::kCreated                 : return "Created";
-    case HttpStatus::kAccepted                : return "Accepted";
-    case HttpStatus::kNonAuthoritative        :
+    case HttpStatus::kOK:
+      return "OK";
+    case HttpStatus::kCreated:
+      return "Created";
+    case HttpStatus::kAccepted:
+      return "Accepted";
+    case HttpStatus::kNonAuthoritative:
       return "Non-Authoritative Information";
-    case HttpStatus::kNoContent               : return "No Content";
-    case HttpStatus::kResetContent            : return "Reset Content";
-    case HttpStatus::kPartialContent          : return "Partial Content";
+    case HttpStatus::kNoContent:
+      return "No Content";
+    case HttpStatus::kResetContent:
+      return "Reset Content";
+    case HttpStatus::kPartialContent:
+      return "Partial Content";
 
       // 300 range: redirects
-    case HttpStatus::kMultipleChoices         : return "Multiple Choices";
-    case HttpStatus::kMovedPermanently        : return "Moved Permanently";
-    case HttpStatus::kFound                   : return "Found";
-    case HttpStatus::kSeeOther                : return "See Other";
-    case HttpStatus::kNotModified             : return "Not Modified";
-    case HttpStatus::kUseProxy                : return "Use Proxy";
-    case HttpStatus::kTemporaryRedirect       : return "OK";
+    case HttpStatus::kMultipleChoices:
+      return "Multiple Choices";
+    case HttpStatus::kMovedPermanently:
+      return "Moved Permanently";
+    case HttpStatus::kFound:
+      return "Found";
+    case HttpStatus::kSeeOther:
+      return "See Other";
+    case HttpStatus::kNotModified:
+      return "Not Modified";
+    case HttpStatus::kUseProxy:
+      return "Use Proxy";
+    case HttpStatus::kTemporaryRedirect:
+      return "OK";
 
       // 400 range: client errors
-    case HttpStatus::kBadRequest              : return "Bad Request";
-    case HttpStatus::kUnauthorized            : return "Unauthorized";
-    case HttpStatus::kPaymentRequired         : return "Payment Required";
-    case HttpStatus::kForbidden               : return "Forbidden";
-    case HttpStatus::kNotFound                : return "Not Found";
-    case HttpStatus::kMethodNotAllowed        : return "Method Not Allowed";
-    case HttpStatus::kNotAcceptable           : return "Not Acceptable";
-    case HttpStatus::kProxyAuthRequired       :
+    case HttpStatus::kBadRequest:
+      return "Bad Request";
+    case HttpStatus::kUnauthorized:
+      return "Unauthorized";
+    case HttpStatus::kPaymentRequired:
+      return "Payment Required";
+    case HttpStatus::kForbidden:
+      return "Forbidden";
+    case HttpStatus::kNotFound:
+      return "Not Found";
+    case HttpStatus::kMethodNotAllowed:
+      return "Method Not Allowed";
+    case HttpStatus::kNotAcceptable:
+      return "Not Acceptable";
+    case HttpStatus::kProxyAuthRequired:
       return "Proxy Authentication Required";
-    case HttpStatus::kRequestTimeout          : return "Request Time-out";
-    case HttpStatus::kConflict                : return "Conflict";
-    case HttpStatus::kGone                    : return "Gone";
-    case HttpStatus::kLengthRequired          : return "Length Required";
-    case HttpStatus::kPreconditionFailed      : return "Precondition Failed";
-    case HttpStatus::kEntityTooLarge          :
+    case HttpStatus::kRequestTimeout:
+      return "Request Time-out";
+    case HttpStatus::kConflict:
+      return "Conflict";
+    case HttpStatus::kGone:
+      return "Gone";
+    case HttpStatus::kLengthRequired:
+      return "Length Required";
+    case HttpStatus::kPreconditionFailed:
+      return "Precondition Failed";
+    case HttpStatus::kEntityTooLarge:
       return "Request Entity Too Large";
-    case HttpStatus::kUriTooLong              : return "Request-URI Too Large";
-    case HttpStatus::kUnsupportedMediaType    : return "Unsupported Media Type";
-    case HttpStatus::kRangeNotSatisfiable     :
+    case HttpStatus::kUriTooLong:
+      return "Request-URI Too Large";
+    case HttpStatus::kUnsupportedMediaType:
+      return "Unsupported Media Type";
+    case HttpStatus::kRangeNotSatisfiable:
       return "Requested range not satisfiable";
-    case HttpStatus::kExpectationFailed       : return "Expectation Failed";
+    case HttpStatus::kExpectationFailed:
+      return "Expectation Failed";
 
       // 500 range: server errors
-    case HttpStatus::kInternalServerError     : return "Internal Server Error";
-    case HttpStatus::kNotImplemented          : return "Not Implemented";
-    case HttpStatus::kBadGateway              : return "Bad Gateway";
-    case HttpStatus::kUnavailable             : return "Service Unavailable";
-    case HttpStatus::kGatewayTimeout          : return "Gateway Time-out";
+    case HttpStatus::kInternalServerError:
+      return "Internal Server Error";
+    case HttpStatus::kNotImplemented:
+      return "Not Implemented";
+    case HttpStatus::kBadGateway:
+      return "Bad Gateway";
+    case HttpStatus::kUnavailable:
+      return "Service Unavailable";
+    case HttpStatus::kGatewayTimeout:
+      return "Gateway Time-out";
 
-     // Instaweb proxy failures
-    case HttpStatus::kProxyPublisherFailure  : return "Proxy Publisher Failure";
-    case HttpStatus::kProxyFailure             : return "Proxy Failure";
-    case HttpStatus::kProxyConfigurationFailure: return "Proxy Config Failure";
-    case HttpStatus::kProxyDeclinedRequest    : return "Proxy Declined Request";
+      // Instaweb proxy failures
+    case HttpStatus::kProxyPublisherFailure:
+      return "Proxy Publisher Failure";
+    case HttpStatus::kProxyFailure:
+      return "Proxy Failure";
+    case HttpStatus::kProxyConfigurationFailure:
+      return "Proxy Config Failure";
+    case HttpStatus::kProxyDeclinedRequest:
+      return "Proxy Declined Request";
 
     default:
       // We don't have a name for this response code, so we'll just
@@ -280,13 +317,9 @@ class EndToEndHeadersContainer {
     caching_headers_to_be_removed_ = names;
   }
 
-  const StringPieceVector& end_to_end() const {
-    return end_to_end_;
-  }
+  const StringPieceVector& end_to_end() const { return end_to_end_; }
 
-  const StringPieceVector& hop_by_hop() const {
-    return hop_by_hop_;
-  }
+  const StringPieceVector& hop_by_hop() const { return hop_by_hop_; }
 
   const StringPieceVector& caching_headers_to_be_removed() const {
     return caching_headers_to_be_removed_;
@@ -298,16 +331,16 @@ class EndToEndHeadersContainer {
   StringPieceVector caching_headers_to_be_removed_;
 };
 
-
-base::LazyInstance<EndToEndHeadersContainer>
-    headers_container = LAZY_INSTANCE_INITIALIZER;
-
-const EndToEndHeadersContainer& get_headers_container() {
-  return headers_container.Get();
+static const EndToEndHeadersContainer& get_headers_container() {
+  // We lazy-init to avoid static initialization / a fiasco.
+  // Construct On First Use idiom.
+  // See https://isocpp.org/wiki/faq/ctors#static-init-order-on-first-use.
+  static const EndToEndHeadersContainer* objectptr =
+      new EndToEndHeadersContainer();
+  return *objectptr;
 }
 
 }  // namespace
-
 
 const StringPieceVector& HttpAttributes::SortedEndToEndHeaders() {
   return get_headers_container().end_to_end();

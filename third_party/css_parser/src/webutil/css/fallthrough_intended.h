@@ -59,7 +59,9 @@
 #endif
 
 #ifndef FALLTHROUGH_INTENDED
-#define FALLTHROUGH_INTENDED do { } while (0)
+#define FALLTHROUGH_INTENDED \
+  do {                       \
+  } while (0)
 #endif
 
 #endif  // WEBUTIL_CSS_FALLTHROUGH_INTENDED_H_

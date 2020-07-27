@@ -34,9 +34,8 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
-#include "net/instaweb/rewriter/public/image.h"
-
 #include "net/instaweb/rewriter/cached_result.pb.h"
+#include "net/instaweb/rewriter/public/image.h"
 #include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
@@ -65,19 +64,17 @@ const int kNewQuality = 80;
 class TestImageRewrite {
  public:
   TestImageRewrite(const char* file_name,
-                   net_instaweb::Image::CompressionOptions* options) :
-      handler_(new net_instaweb::NullMutex),
-      timer_(new net_instaweb::NullMutex, 0),
-      options_(options),
-      file_name_(file_name) {
-  }
+                   net_instaweb::Image::CompressionOptions* options)
+      : handler_(new net_instaweb::NullMutex),
+        timer_(new net_instaweb::NullMutex, 0),
+        options_(options),
+        file_name_(file_name) {}
 
   bool Initialize(net_instaweb::ImageType type) {
     expected_output_image_type_ = type;
-    GoogleString file_path = StrCat(net_instaweb::GTestSrcDir(), kTestData,
-                                    file_name_);
-    return file_system_.ReadFile(file_path.c_str(), &contents_,
-                                 &handler_);
+    GoogleString file_path =
+        StrCat(net_instaweb::GTestSrcDir(), kTestData, file_name_);
+    return file_system_.ReadFile(file_path.c_str(), &contents_, &handler_);
   }
 
   void Rewrite(const ImageDim* image_dim) {
@@ -87,9 +84,8 @@ class TestImageRewrite {
     options_->conversions_attempted = 0;
 
     // Rewrite the image.
-    net_instaweb::Image* image =
-        NewImage(contents_, file_name_, "/NOT-USED",
-                 options_, &timer_, &handler_);
+    net_instaweb::Image* image = NewImage(contents_, file_name_, "/NOT-USED",
+                                          options_, &timer_, &handler_);
 
     if (image_dim != NULL && image_dim->has_width() &&
         image_dim->has_height()) {
@@ -156,8 +152,8 @@ static void BM_ConvertPngToWebp(int iters) {
   options.preserve_lossless = true;
 
   TestImageRewrite test_rewrite(kCuppa, &options);
-  ASSERT_TRUE(test_rewrite.Initialize(
-      net_instaweb::IMAGE_WEBP_LOSSLESS_OR_ALPHA));
+  ASSERT_TRUE(
+      test_rewrite.Initialize(net_instaweb::IMAGE_WEBP_LOSSLESS_OR_ALPHA));
   for (int i = 0; i < iters; ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
@@ -186,8 +182,8 @@ static void BM_ConvertGifToWebp(int iters) {
   options.convert_gif_to_png = true;
 
   TestImageRewrite test_rewrite(kIronChef, &options);
-  ASSERT_TRUE(test_rewrite.Initialize(
-      net_instaweb::IMAGE_WEBP_LOSSLESS_OR_ALPHA));
+  ASSERT_TRUE(
+      test_rewrite.Initialize(net_instaweb::IMAGE_WEBP_LOSSLESS_OR_ALPHA));
   for (int i = 0; i < iters; ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
@@ -215,8 +211,8 @@ static void BM_ResizeGifToWebp(int iters) {
   options.preserve_lossless = true;
 
   TestImageRewrite test_rewrite(kIronChef, &options);
-  ASSERT_TRUE(test_rewrite.Initialize(
-      net_instaweb::IMAGE_WEBP_LOSSLESS_OR_ALPHA));
+  ASSERT_TRUE(
+      test_rewrite.Initialize(net_instaweb::IMAGE_WEBP_LOSSLESS_OR_ALPHA));
   ImageDim image_dim;
   image_dim.set_width(190);
   image_dim.set_height(250);

@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_JPEG_UTILS_H_
 #define PAGESPEED_KERNEL_IMAGE_JPEG_UTILS_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {

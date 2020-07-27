@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/add_ids_filter.h"
 
 #include <algorithm>
@@ -36,21 +35,10 @@ namespace {
 // TODO(jmaessen): perhaps this should go somewhere central?  It needs to be a
 // subset of the tags considered divlike by mobilize_label_filter at least.
 const HtmlName::Keyword kDivLikeTags[] = {
-  HtmlName::kArticle,
-  HtmlName::kAside,
-  HtmlName::kContent,
-  HtmlName::kDiv,
-  HtmlName::kFooter,
-  HtmlName::kForm,
-  HtmlName::kHeader,
-  HtmlName::kMain,
-  HtmlName::kMenu,
-  HtmlName::kNav,
-  HtmlName::kSection,
-  HtmlName::kTable,
-  HtmlName::kTr,
-  HtmlName::kUl
-};
+    HtmlName::kArticle, HtmlName::kAside, HtmlName::kContent, HtmlName::kDiv,
+    HtmlName::kFooter,  HtmlName::kForm,  HtmlName::kHeader,  HtmlName::kMain,
+    HtmlName::kMenu,    HtmlName::kNav,   HtmlName::kSection, HtmlName::kTable,
+    HtmlName::kTr,      HtmlName::kUl};
 
 #ifndef NDEBUG
 // For invariant-checking the static data above.
@@ -62,13 +50,11 @@ void CheckKeywordsSorted(const HtmlName::Keyword* list, int len) {
 #endif  // #ifndef NDEBUG
 
 bool IsDivLike(HtmlName::Keyword tag) {
-  return std::binary_search(
-      kDivLikeTags, kDivLikeTags + arraysize(kDivLikeTags), tag);
+  return std::binary_search(kDivLikeTags,
+                            kDivLikeTags + arraysize(kDivLikeTags), tag);
 }
 
-bool NeedsExplicitId(HtmlName::Keyword tag) {
-  return IsDivLike(tag);
-}
+bool NeedsExplicitId(HtmlName::Keyword tag) { return IsDivLike(tag); }
 
 bool IsIgnored(HtmlName::Keyword tag) {
   return (tag == HtmlName::kHtml || tag == HtmlName::kBody);
@@ -82,8 +68,7 @@ const char AddIdsFilter::kIdPrefix[] = "PageSpeed";
 
 const int AddIdsFilter::kIsId = -1;
 
-AddIdsFilter::AddIdsFilter(RewriteDriver* driver)
-    : driver_(driver) {}
+AddIdsFilter::AddIdsFilter(RewriteDriver* driver) : driver_(driver) {}
 
 AddIdsFilter::~AddIdsFilter() {}
 
@@ -126,16 +111,15 @@ void AddIdsFilter::StartDocument() {
 // </html>                         | 2
 void AddIdsFilter::StartElement(HtmlElement* element) {
   HtmlName::Keyword tag = element->keyword();
-  const HtmlElement::Attribute* id =
-      element->FindAttribute(HtmlName::kId);
-  if (id != NULL) {
+  const HtmlElement::Attribute* id = element->FindAttribute(HtmlName::kId);
+  if (id != nullptr) {
     id_stack_.push_back(id);
     div_count_stack_.push_back(kIsId);
   } else if (IsIgnored(tag)) {
     // Don't touch stack in this case.
     return;
   } else if (NeedsExplicitId(tag) ||
-             element->FindAttribute(HtmlName::kClass) != NULL) {
+             element->FindAttribute(HtmlName::kClass) != nullptr) {
     driver_->AddAttribute(element, HtmlName::kId, GetDivCountStackEncoding());
   }
   div_count_stack_.push_back(0);

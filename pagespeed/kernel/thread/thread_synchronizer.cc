@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 // Thread-synchronization utility class for reproducing races in unit tests.
 
 #include "pagespeed/kernel/thread/thread_synchronizer.h"
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -40,8 +39,7 @@ class ThreadSynchronizer::SyncPoint {
         condvar_(mutex_->NewCondvar()),
         signal_count_(0),
         key_(key),
-        allow_sloppy_(false) {
-  }
+        allow_sloppy_(false) {}
 
   ~SyncPoint() {
     // TODO(jmarantz): This highlights that further generality is
@@ -88,8 +86,8 @@ class ThreadSynchronizer::SyncPoint {
   void AllowSloppyTermination() { allow_sloppy_ = true; }
 
  private:
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
   int signal_count_;
   GoogleString key_;  // for debugging;
   bool allow_sloppy_;
@@ -101,18 +99,15 @@ ThreadSynchronizer::ThreadSynchronizer(ThreadSystem* thread_system)
     : enabled_(false),
       thread_system_(thread_system),
       map_mutex_(thread_system->NewMutex()),
-      timer_(thread_system->NewTimer()) {
-}
+      timer_(thread_system->NewTimer()) {}
 
-ThreadSynchronizer::~ThreadSynchronizer() {
-  STLDeleteValues(&sync_map_);
-}
+ThreadSynchronizer::~ThreadSynchronizer() { STLDeleteValues(&sync_map_); }
 
 ThreadSynchronizer::SyncPoint* ThreadSynchronizer::GetSyncPoint(
     const GoogleString& key) {
   ScopedMutex lock(map_mutex_.get());
   SyncPoint* sync_point = sync_map_[key];
-  if (sync_point == NULL) {
+  if (sync_point == nullptr) {
     sync_point = new SyncPoint(thread_system_, key);
     sync_map_[key] = sync_point;
   }

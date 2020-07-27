@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_SYSTEM_CACHES_H_
 #define PAGESPEED_SYSTEM_SYSTEM_CACHES_H_
 
@@ -83,8 +82,7 @@ class SystemCaches {
 
   // thread_limit is an estimate of number of threads that may access the
   // cache at the same time. Does not take ownership of shm_runtime.
-  SystemCaches(RewriteDriverFactory* factory,
-               AbstractSharedMem* shm_runtime,
+  SystemCaches(RewriteDriverFactory* factory, AbstractSharedMem* shm_runtime,
                int thread_limit);
 
   // Note that you must call ShutDown() before this is deleted.
@@ -115,8 +113,8 @@ class SystemCaches {
   //
   // Returns whether successful or not, and if not, *error_msg will contain
   // an error message.  Meant to be called from config parsing.
-  bool CreateShmMetadataCache(
-      StringPiece name, int64 size_kb, GoogleString* error_msg);
+  bool CreateShmMetadataCache(StringPiece name, int64 size_kb,
+                              GoogleString* error_msg);
 
   // Returns, perhaps creating it, an appropriate named manager for this config
   // (potentially sharing with others as appropriate).
@@ -210,7 +208,7 @@ class SystemCaches {
   void SetupPcacheCohorts(ServerContext* server_context,
                           bool enable_property_cache);
 
-  scoped_ptr<SlowWorker> slow_worker_;
+  std::unique_ptr<SlowWorker> slow_worker_;
 
   RewriteDriverFactory* factory_;
   AbstractSharedMem* shared_mem_runtime_;
@@ -236,8 +234,8 @@ class SystemCaches {
   // both memcached and Redis are enabled and one of them goes down, it blocks
   // requests to both servers. Actually, we have that problem already if there
   // different vhosts use different external cache servers.
-  scoped_ptr<QueuedWorkerPool> memcached_pool_;
-  scoped_ptr<QueuedWorkerPool> redis_pool_;
+  std::unique_ptr<QueuedWorkerPool> memcached_pool_;
+  std::unique_ptr<QueuedWorkerPool> redis_pool_;
 
   // Explicit lists of AprMemCache/RedisCache instances are stored individually,
   // as they require extra treatment during startup and shutdown.

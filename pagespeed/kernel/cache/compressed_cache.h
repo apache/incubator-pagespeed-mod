@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_COMPRESSED_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_COMPRESSED_CACHE_H_
 
@@ -38,19 +37,19 @@ class CompressedCache : public CacheInterface {
  public:
   // Does not takes ownership of cache or stats.
   CompressedCache(CacheInterface* cache, Statistics* stats);
-  virtual ~CompressedCache();
+  ~CompressedCache() override;
 
   static void InitStats(Statistics* stats);
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
+  GoogleString Name() const override { return FormatName(cache_->Name()); }
   static GoogleString FormatName(StringPiece cache);
-  virtual CacheInterface* Backend() { return cache_; }
-  virtual bool IsBlocking() const { return cache_->IsBlocking(); }
-  virtual bool IsHealthy() const;
-  virtual void ShutDown();
+  CacheInterface* Backend() override { return cache_; }
+  bool IsBlocking() const override { return cache_->IsBlocking(); }
+  bool IsHealthy() const override;
+  void ShutDown() override;
 
   // Total number of times we did a fetch from the underlying cache and
   // it failed to uncompress due to corruption.

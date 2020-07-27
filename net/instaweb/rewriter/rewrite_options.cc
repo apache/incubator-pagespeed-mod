@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <memory>
 #include <new>
 #include <set>
 #include <utility>
@@ -94,8 +95,7 @@ const char RewriteOptions::kDisableRewriteOnNoTransform[] =
     "DisableRewriteOnNoTransform";
 const char RewriteOptions::kDisableBackgroundFetchesForBots[] =
     "DisableBackgroundFetchesForBots";
-const char RewriteOptions::kDomainRewriteCookies[] =
-    "DomainRewriteCookies";
+const char RewriteOptions::kDomainRewriteCookies[] = "DomainRewriteCookies";
 const char RewriteOptions::kDomainRewriteHyperlinks[] =
     "DomainRewriteHyperlinks";
 const char RewriteOptions::kDomainShardCount[] = "DomainShardCount";
@@ -270,7 +270,7 @@ const char RewriteOptions::kStickyQueryParameters[] = "StickyQueryParameters";
 const char RewriteOptions::kSupportNoScriptEnabled[] = "SupportNoScriptEnabled";
 const char
     RewriteOptions::kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss[] =
-    "TestOnlyPrioritizeCriticalCssDontApplyOriginalCss";
+        "TestOnlyPrioritizeCriticalCssDontApplyOriginalCss";
 const char RewriteOptions::kUseBlankImageForInlinePreview[] =
     "UseBlankImageForInlinePreview";
 const char RewriteOptions::kUseExperimentalJsMinifier[] =
@@ -278,8 +278,7 @@ const char RewriteOptions::kUseExperimentalJsMinifier[] =
 const char RewriteOptions::kUseFallbackPropertyCacheValues[] =
     "UseFallbackPropertyCacheValues";
 const char RewriteOptions::kUseImageScanlineApi[] = "UseImageScanlineApi";
-const char RewriteOptions::kXModPagespeedHeaderValue[] =
-    "XHeaderValue";
+const char RewriteOptions::kXModPagespeedHeaderValue[] = "XHeaderValue";
 const char RewriteOptions::kXPsaBlockingRewrite[] = "BlockingRewriteKey";
 
 const char RewriteOptions::kAllow[] = "Allow";
@@ -317,8 +316,7 @@ const char RewriteOptions::kCacheFlushPollIntervalSec[] =
     "CacheFlushPollIntervalSec";
 const char RewriteOptions::kFetchHttps[] = "FetchHttps";
 const char RewriteOptions::kFetcherTimeOutMs[] = "FetcherTimeOutMs";
-const char RewriteOptions::kFileCacheCleanInodeLimit[] =
-    "FileCacheInodeLimit";
+const char RewriteOptions::kFileCacheCleanInodeLimit[] = "FileCacheInodeLimit";
 const char RewriteOptions::kFileCacheCleanIntervalMs[] =
     "FileCacheCleanIntervalMs";
 const char RewriteOptions::kFileCacheCleanSizeKb[] = "FileCacheSizeKb";
@@ -348,8 +346,7 @@ const char RewriteOptions::kStatisticsLoggingChartsCSS[] =
     "StatisticsLoggingChartsCSS";
 const char RewriteOptions::kStatisticsLoggingChartsJS[] =
     "StatisticsLoggingChartsJS";
-const char RewriteOptions::kStatisticsLoggingEnabled[] =
-    "StatisticsLogging";
+const char RewriteOptions::kStatisticsLoggingEnabled[] = "StatisticsLogging";
 const char RewriteOptions::kStatisticsLoggingIntervalMs[] =
     "StatisticsLoggingIntervalMs";
 const char RewriteOptions::kStatisticsLoggingMaxFileSizeKb[] =
@@ -443,8 +440,8 @@ const int64 RewriteOptions::kDefaultImageRecompressQuality = 85;
 // Jpeg quality that needs to be used while recompressing. If set to -1, we
 // use the value of image_recompress_quality.
 const int64 RewriteOptions::kDefaultImageJpegRecompressQuality = -1;
-const int64
-RewriteOptions::kDefaultImageJpegRecompressQualityForSmallScreens = 70;
+const int64 RewriteOptions::kDefaultImageJpegRecompressQualityForSmallScreens =
+    70;
 // TODO(huibao): Determine proper value for kDefaultImageJpegQualityForSaveData.
 const int64 RewriteOptions::kDefaultImageJpegQualityForSaveData = 50;
 
@@ -464,13 +461,14 @@ const int RewriteOptions::kDefaultImageLimitResizeAreaPercent = 100;
 const int RewriteOptions::kDefaultImageLimitRenderedAreaPercent = 95;
 
 // Sets limit for image optimization to 32MB.
-const int64 RewriteOptions::kDefaultImageResolutionLimitBytes = 32*1024*1024;
+const int64 RewriteOptions::kDefaultImageResolutionLimitBytes =
+    32 * 1024 * 1024;
 
 // WebP quality that needs to be used while recompressing. If set to -1, we
 // use source image quality parameters.
 const int64 RewriteOptions::kDefaultImageWebpRecompressQuality = 80;
-const int64
-RewriteOptions::kDefaultImageWebpRecompressQualityForSmallScreens = 70;
+const int64 RewriteOptions::kDefaultImageWebpRecompressQualityForSmallScreens =
+    70;
 const int64 RewriteOptions::kDefaultImageWebpAnimatedRecompressQuality = 70;
 const int64 RewriteOptions::kDefaultImageWebpQualityForSaveData = 50;
 
@@ -512,8 +510,7 @@ const int64 RewriteOptions::kDefaultMaxImageSizeLowResolutionBytes =
 const int64 RewriteOptions::kDefaultMaxCombinedCssBytes = -1;  // No size limit
 // Setting the limit on combined js resource to -1 will bypass the size check.
 const int64 RewriteOptions::kDefaultMaxCombinedJsBytes = 90 * 1024;
-const int64 RewriteOptions::kDefaultExperimentCookieDurationMs =
-    Timer::kWeekMs;
+const int64 RewriteOptions::kDefaultExperimentCookieDurationMs = Timer::kWeekMs;
 const int64 RewriteOptions::kDefaultFinderPropertiesCacheExpirationTimeMs =
     2 * Timer::kHourMs;
 const int64 RewriteOptions::kDefaultFinderPropertiesCacheRefreshTimeMs =
@@ -545,17 +542,17 @@ const int64 RewriteOptions::kDefaultMaxLowResImageSizeBytes = -1;
 // lesser than the full-res size.
 const int RewriteOptions::kDefaultMaxLowResToFullResImageSizePercentage = 100;
 
-const double RewriteOptions::kDefaultResponsiveImageDensities[] =
-    { 1.5, 2.0, 3.0 };
+const double RewriteOptions::kDefaultResponsiveImageDensities[] = {1.5, 2.0,
+                                                                   3.0};
 
 const RewriteOptions::FilterEnumToIdAndNameEntry*
     RewriteOptions::filter_id_to_enum_array_[RewriteOptions::kEndOfFilters];
 
-RewriteOptions::PropertyNameMap*
-    RewriteOptions::option_name_to_property_map_ = NULL;
+RewriteOptions::PropertyNameMap* RewriteOptions::option_name_to_property_map_ =
+    nullptr;
 
 const RewriteOptions::PropertyBase**
-    RewriteOptions::option_id_to_property_array_ = NULL;
+    RewriteOptions::option_id_to_property_array_ = nullptr;
 
 RewriteOptions::Properties* RewriteOptions::properties_ = nullptr;
 RewriteOptions::Properties* RewriteOptions::all_properties_ = nullptr;
@@ -575,35 +572,35 @@ namespace {
 // and, redundantly, a table of all filters with one-liner
 // documentation and which groups they are in.
 const RewriteOptions::Filter kCoreFilterSet[] = {
-  RewriteOptions::kAddHead,
-  RewriteOptions::kCombineCss,
-  RewriteOptions::kCombineJavascript,
-  RewriteOptions::kConvertGifToPng,                // rewrite_images
-  RewriteOptions::kConvertJpegToProgressive,       // rewrite_images
-  RewriteOptions::kConvertJpegToWebp,              // rewrite_images
-  RewriteOptions::kConvertMetaTags,
-  RewriteOptions::kConvertPngToJpeg,               // rewrite_images
-  RewriteOptions::kConvertToWebpLossless,          // rewrite_images
-  RewriteOptions::kExtendCacheCss,                 // extend_cache
-  RewriteOptions::kExtendCacheImages,              // extend_cache
-  RewriteOptions::kExtendCacheScripts,             // extend_cache
-  RewriteOptions::kFallbackRewriteCssUrls,
-  RewriteOptions::kFlattenCssImports,
-  RewriteOptions::kInlineCss,
-  RewriteOptions::kInlineImages,                   // rewrite_images
-  RewriteOptions::kInlineImportToLink,
-  RewriteOptions::kInlineJavascript,
-  RewriteOptions::kJpegSubsampling,                // rewrite_images
-  RewriteOptions::kRecompressJpeg,                 // rewrite_images
-  RewriteOptions::kRecompressPng,                  // rewrite_images
-  RewriteOptions::kRecompressWebp,                 // rewrite_images
-  RewriteOptions::kResizeImages,                   // rewrite_images
-  RewriteOptions::kRewriteCss,
-  RewriteOptions::kRewriteJavascriptExternal,      // rewrite_javascript
-  RewriteOptions::kRewriteJavascriptInline,        // rewrite_javascript
-  RewriteOptions::kRewriteStyleAttributesWithUrl,
-  RewriteOptions::kStripImageColorProfile,         // rewrite_images
-  RewriteOptions::kStripImageMetaData,             // rewrite_images
+    RewriteOptions::kAddHead,
+    RewriteOptions::kCombineCss,
+    RewriteOptions::kCombineJavascript,
+    RewriteOptions::kConvertGifToPng,           // rewrite_images
+    RewriteOptions::kConvertJpegToProgressive,  // rewrite_images
+    RewriteOptions::kConvertJpegToWebp,         // rewrite_images
+    RewriteOptions::kConvertMetaTags,
+    RewriteOptions::kConvertPngToJpeg,       // rewrite_images
+    RewriteOptions::kConvertToWebpLossless,  // rewrite_images
+    RewriteOptions::kExtendCacheCss,         // extend_cache
+    RewriteOptions::kExtendCacheImages,      // extend_cache
+    RewriteOptions::kExtendCacheScripts,     // extend_cache
+    RewriteOptions::kFallbackRewriteCssUrls,
+    RewriteOptions::kFlattenCssImports,
+    RewriteOptions::kInlineCss,
+    RewriteOptions::kInlineImages,  // rewrite_images
+    RewriteOptions::kInlineImportToLink,
+    RewriteOptions::kInlineJavascript,
+    RewriteOptions::kJpegSubsampling,  // rewrite_images
+    RewriteOptions::kRecompressJpeg,   // rewrite_images
+    RewriteOptions::kRecompressPng,    // rewrite_images
+    RewriteOptions::kRecompressWebp,   // rewrite_images
+    RewriteOptions::kResizeImages,     // rewrite_images
+    RewriteOptions::kRewriteCss,
+    RewriteOptions::kRewriteJavascriptExternal,  // rewrite_javascript
+    RewriteOptions::kRewriteJavascriptInline,    // rewrite_javascript
+    RewriteOptions::kRewriteStyleAttributesWithUrl,
+    RewriteOptions::kStripImageColorProfile,  // rewrite_images
+    RewriteOptions::kStripImageMetaData,      // rewrite_images
 };
 
 // The bandwidth-reduction filters exclude any filter that may modify
@@ -619,20 +616,20 @@ const RewriteOptions::Filter kCoreFilterSet[] = {
 // group and, redundantly, a table of all filters with one-liner documentation
 // and  which groups they are in.
 const RewriteOptions::Filter kOptimizeForBandwidthFilterSet[] = {
-  RewriteOptions::kConvertGifToPng,                // rewrite_images
-  RewriteOptions::kConvertJpegToProgressive,       // rewrite_images
-  RewriteOptions::kConvertJpegToWebp,              // rewrite_images
-  RewriteOptions::kConvertPngToJpeg,               // rewrite_images
-  RewriteOptions::kInPlaceOptimizeForBrowser,
-  RewriteOptions::kJpegSubsampling,                // rewrite_images
-  RewriteOptions::kRecompressJpeg,                 // rewrite_images
-  RewriteOptions::kRecompressPng,                  // rewrite_images
-  RewriteOptions::kRecompressWebp,                 // rewrite_images
-  RewriteOptions::kRewriteCss,
-  RewriteOptions::kRewriteJavascriptExternal,      // rewrite_javascript
-  RewriteOptions::kRewriteJavascriptInline,        // rewrite_javascript
-  RewriteOptions::kStripImageColorProfile,         // rewrite_images
-  RewriteOptions::kStripImageMetaData,             // rewrite_images
+    RewriteOptions::kConvertGifToPng,           // rewrite_images
+    RewriteOptions::kConvertJpegToProgressive,  // rewrite_images
+    RewriteOptions::kConvertJpegToWebp,         // rewrite_images
+    RewriteOptions::kConvertPngToJpeg,          // rewrite_images
+    RewriteOptions::kInPlaceOptimizeForBrowser,
+    RewriteOptions::kJpegSubsampling,  // rewrite_images
+    RewriteOptions::kRecompressJpeg,   // rewrite_images
+    RewriteOptions::kRecompressPng,    // rewrite_images
+    RewriteOptions::kRecompressWebp,   // rewrite_images
+    RewriteOptions::kRewriteCss,
+    RewriteOptions::kRewriteJavascriptExternal,  // rewrite_javascript
+    RewriteOptions::kRewriteJavascriptInline,    // rewrite_javascript
+    RewriteOptions::kStripImageColorProfile,     // rewrite_images
+    RewriteOptions::kStripImageMetaData,         // rewrite_images
 };
 
 // Note: all Core filters are Test filters as well.  For maintainability,
@@ -662,7 +659,7 @@ const RewriteOptions::Filter kDangerousFilterSet[] = {
     RewriteOptions::kCachePartialHtmlDeprecated,
     RewriteOptions::kCanonicalizeJavascriptLibraries,
     RewriteOptions::kComputeVisibleTextDeprecated,
-    RewriteOptions::kDeterministicJs,     // used for measurement
+    RewriteOptions::kDeterministicJs,  // used for measurement
     RewriteOptions::kDisableJavascript,
     RewriteOptions::kDivStructure,
     RewriteOptions::kExperimentCollectMobImageInfo,
@@ -679,35 +676,36 @@ const RewriteOptions::Filter kDangerousFilterSet[] = {
 // SupportNoscriptFilter::IsAnyFilterRequiringScriptExecutionEnabled() method
 // if you update this list.
 const RewriteOptions::Filter kRequiresScriptExecutionFilterSet[] = {
-  RewriteOptions::kCachePartialHtmlDeprecated,
-  RewriteOptions::kDedupInlinedImages,
-  RewriteOptions::kDeferIframe,
-  RewriteOptions::kDeferJavascript,
-  RewriteOptions::kDelayImages,
-  RewriteOptions::kFlushSubresources,
-  RewriteOptions::kLazyloadImages,
-  RewriteOptions::kLocalStorageCache,
-  RewriteOptions::kMobilize,
-  // We do not include kPrioritizeVisibleContent since we do not want to attach
-  // SupportNoscriptFilter in the case of blink pcache miss pass-through, since
-  // this response will not have any custom script inserted.
-  // Do the various critical css filters belong here?  Arguably not, since even
-  // if we transform a page based on beacon results we'll enclose the necessary
-  // in a noscript block and the page will still load / function normally.
+    RewriteOptions::kCachePartialHtmlDeprecated,
+    RewriteOptions::kDedupInlinedImages,
+    RewriteOptions::kDeferIframe,
+    RewriteOptions::kDeferJavascript,
+    RewriteOptions::kDelayImages,
+    RewriteOptions::kFlushSubresources,
+    RewriteOptions::kLazyloadImages,
+    RewriteOptions::kLocalStorageCache,
+    RewriteOptions::kMobilize,
+    // We do not include kPrioritizeVisibleContent since we do not want to
+    // attach SupportNoscriptFilter in the case of blink pcache miss
+    // pass-through, since this response will not have any custom script
+    // inserted. Do the various critical css filters belong here?  Arguably not,
+    // since even if we transform a page based on beacon results we'll enclose
+    // the necessary in a noscript block and the page will still load / function
+    // normally.
 };
 
 // List of filters that require a 'head' element to exist.
 const RewriteOptions::Filter kAddHeadFilters[] = {
-  RewriteOptions::kAddBaseTag,
-  RewriteOptions::kAddHead,
-  RewriteOptions::kAddInstrumentation,
-  RewriteOptions::kCombineHeads,
-  RewriteOptions::kDeterministicJs,
-  RewriteOptions::kHandleNoscriptRedirect,
-  RewriteOptions::kMakeGoogleAnalyticsAsync,
-  RewriteOptions::kMobilize,
-  RewriteOptions::kMoveCssAboveScripts,
-  RewriteOptions::kMoveCssToHead,
+    RewriteOptions::kAddBaseTag,
+    RewriteOptions::kAddHead,
+    RewriteOptions::kAddInstrumentation,
+    RewriteOptions::kCombineHeads,
+    RewriteOptions::kDeterministicJs,
+    RewriteOptions::kHandleNoscriptRedirect,
+    RewriteOptions::kMakeGoogleAnalyticsAsync,
+    RewriteOptions::kMobilize,
+    RewriteOptions::kMoveCssAboveScripts,
+    RewriteOptions::kMoveCssToHead,
 };
 
 // List of filters which are essential for mobilizing webpages, i.e., for
@@ -716,10 +714,10 @@ const RewriteOptions::Filter kAddHeadFilters[] = {
 // TODO(huibao): Once rewrite levels can be combined, move kRewriteCss and
 // kRewriteDomains (and kDomainRewriteHyperlinks Option) into a proxy mode.
 const RewriteOptions::Filter kMobilizeFilterSet[] = {
-  RewriteOptions::kMobilize,
-  // Turn on rewrite_css in order to rewrite hyper-links in CSS.
-  RewriteOptions::kRewriteCss,
-  RewriteOptions::kRewriteDomains,
+    RewriteOptions::kMobilize,
+    // Turn on rewrite_css in order to rewrite hyper-links in CSS.
+    RewriteOptions::kRewriteCss,
+    RewriteOptions::kRewriteDomains,
 };
 
 // Array of mappings from Filter enum to corresponding filter id and name,
@@ -863,34 +861,28 @@ const RewriteOptions::Filter kImagePreserveUrlDisabledFilters[] = {
     // TODO(jkarlin): Remove kResizeImages from the forbid list and allow image
     // squashing prefetching in HTML path (but don't allow resizing based on
     // HTML attributes).
-  RewriteOptions::kDelayImages,
-  RewriteOptions::kExtendCacheImages,
-  RewriteOptions::kInlineImages,
-  RewriteOptions::kLazyloadImages,
-  RewriteOptions::kResizeImages,
-  RewriteOptions::kResizeToRenderedImageDimensions,
-  RewriteOptions::kResponsiveImages,
-  RewriteOptions::kSpriteImages
-};
+    RewriteOptions::kDelayImages,
+    RewriteOptions::kExtendCacheImages,
+    RewriteOptions::kInlineImages,
+    RewriteOptions::kLazyloadImages,
+    RewriteOptions::kResizeImages,
+    RewriteOptions::kResizeToRenderedImageDimensions,
+    RewriteOptions::kResponsiveImages,
+    RewriteOptions::kSpriteImages};
 
 const RewriteOptions::Filter kJsPreserveUrlDisabledFilters[] = {
-  RewriteOptions::kCanonicalizeJavascriptLibraries,
-  RewriteOptions::kCombineJavascript,
-  RewriteOptions::kDeferJavascript,
-  RewriteOptions::kExtendCacheScripts,
-  RewriteOptions::kInlineJavascript,
-  RewriteOptions::kOutlineJavascript
-};
+    RewriteOptions::kCanonicalizeJavascriptLibraries,
+    RewriteOptions::kCombineJavascript,
+    RewriteOptions::kDeferJavascript,
+    RewriteOptions::kExtendCacheScripts,
+    RewriteOptions::kInlineJavascript,
+    RewriteOptions::kOutlineJavascript};
 
 const RewriteOptions::Filter kCssPreserveUrlDisabledFilters[] = {
-  RewriteOptions::kCombineCss,
-  RewriteOptions::kExtendCacheCss,
-  RewriteOptions::kInlineCss,
-  RewriteOptions::kInlineGoogleFontCss,
-  RewriteOptions::kInlineImportToLink,
-  RewriteOptions::kLeftTrimUrls,
-  RewriteOptions::kOutlineCss
-};
+    RewriteOptions::kCombineCss,         RewriteOptions::kExtendCacheCss,
+    RewriteOptions::kInlineCss,          RewriteOptions::kInlineGoogleFontCss,
+    RewriteOptions::kInlineImportToLink, RewriteOptions::kLeftTrimUrls,
+    RewriteOptions::kOutlineCss};
 
 #ifndef NDEBUG
 void CheckFilterSetOrdering(const RewriteOptions::Filter* filters, int num) {
@@ -939,9 +931,7 @@ void StripBeaconUrlQueryParam(GoogleString* url,
 
 // Maps the deprecated options to the new names.
 struct RenamedOptionMap {
-  static bool LessThan(
-      const RenamedOptionMap& option_map,
-      StringPiece arg) {
+  static bool LessThan(const RenamedOptionMap& option_map, StringPiece arg) {
     return StringCaseCompare(option_map.deprecated_option_name, arg) < 0;
   }
 
@@ -950,15 +940,13 @@ struct RenamedOptionMap {
 };
 
 const RenamedOptionMap kRenamedOptionNameData[] = {
-  {"ImageWebpRecompressionQuality",
-      "WebpRecompressionQuality"},
-  {"ImageWebpRecompressionQualityForSmallScreens",
-      "WebpRecompressionQualityForSmallScreens"}
-};
+    {"ImageWebpRecompressionQuality", "WebpRecompressionQuality"},
+    {"ImageWebpRecompressionQualityForSmallScreens",
+     "WebpRecompressionQualityForSmallScreens"}};
 
 // Will be initialized to a sorted list of headers not allowed in
 // AddResourceHeader.
-const StringPieceVector* fixed_resource_headers = NULL;
+const StringPieceVector* fixed_resource_headers = nullptr;
 bool http_header_separators[256] = {false};
 
 }  // namespace
@@ -987,8 +975,8 @@ int RewriteOptions::NumFilterIds() {
   return arraysize(kFilterVectorStaticInitializer);
 }
 
-bool RewriteOptions::ParseRewriteLevel(
-    const StringPiece& in, RewriteLevel* out) {
+bool RewriteOptions::ParseRewriteLevel(const StringPiece& in,
+                                       RewriteLevel* out) {
   bool ret = false;
   if (!in.empty()) {
     if (StringCaseEqual(in, "CoreFilters")) {
@@ -1015,8 +1003,7 @@ bool RewriteOptions::ParseRewriteLevel(
 }
 
 bool RewriteOptions::ParseInlineUnauthorizedResourceType(
-    const StringPiece& in,
-    ResourceCategorySet* out) {
+    const StringPiece& in, ResourceCategorySet* out) {
   // Examples:
   // InlineResourcesWithoutExplicitAuthorization Script,Stylesheet
   // InlineResourcesWithoutExplicitAuthorization Stylesheet
@@ -1128,9 +1115,9 @@ RewriteOptions::RewriteOptions(ThreadSystem* thread_system)
       signature_(),
       hasher_(kHashBytes),
       thread_system_(thread_system) {
-  cache_purge_mutex_.reset(new NullRWLock);
+  cache_purge_mutex_ = std::make_unique<NullRWLock>();
 
-  DCHECK(properties_ != NULL)
+  DCHECK(properties_ != nullptr)
       << "Call RewriteOptions::Initialize() before construction";
 
   // Sanity-checks -- will be active only when compiled for debug.
@@ -1213,247 +1200,207 @@ void RewriteOptions::AddProperties() {
   // 4. Options which should be in mod_pagespeed but need a bit more
   //    implementation before they are ready.  Marked as:
   //    // TODO(jmarantz): implement for mod_pagespeed.
+  AddBaseProperty(kPassThrough, &RewriteOptions::level_, "l", kRewriteLevel,
+                  kDirectoryScope,
+                  "Base level of rewriting (PassThrough, CoreFilters)", true);
   AddBaseProperty(
-      kPassThrough, &RewriteOptions::level_, "l", kRewriteLevel,
-      kDirectoryScope,
-      "Base level of rewriting (PassThrough, CoreFilters)", true);
-  AddBaseProperty(
-      kDefaultCssFlattenMaxBytes,
-      &RewriteOptions::css_flatten_max_bytes_, "cf",
-      kCssFlattenMaxBytes,
-      kQueryScope,
+      kDefaultCssFlattenMaxBytes, &RewriteOptions::css_flatten_max_bytes_, "cf",
+      kCssFlattenMaxBytes, kQueryScope,
       "Number of bytes below which stylesheets will be flattened.", true);
+  AddBaseProperty(kDefaultCssImageInlineMaxBytes,
+                  &RewriteOptions::css_image_inline_max_bytes_, "cii",
+                  kCssImageInlineMaxBytes, kQueryScope,
+                  "Number of bytes below which CSS images will be inlined.",
+                  true);
   AddBaseProperty(
-      kDefaultCssImageInlineMaxBytes,
-      &RewriteOptions::css_image_inline_max_bytes_,
-      "cii", kCssImageInlineMaxBytes,
-      kQueryScope,
-      "Number of bytes below which CSS images will be inlined.", true);
-  AddBaseProperty(
-      kDefaultCssInlineMaxBytes,
-      &RewriteOptions::css_inline_max_bytes_, "ci",
-      kCssInlineMaxBytes,
-      kQueryScope,
+      kDefaultCssInlineMaxBytes, &RewriteOptions::css_inline_max_bytes_, "ci",
+      kCssInlineMaxBytes, kQueryScope,
       "Number of bytes below which stylesheets will be inlined.", true);
   AddBaseProperty(
       kDefaultGoogleFontCssInlineMaxBytes,
       &RewriteOptions::google_font_css_inline_max_bytes_, "gfci",
-      kGoogleFontCssInlineMaxBytes,
-      kQueryScope,
+      kGoogleFontCssInlineMaxBytes, kQueryScope,
       "Number of bytes below which Google Font stylesheets will be inlined.",
       true);
+  AddBaseProperty(kDefaultCssOutlineMinBytes,
+                  &RewriteOptions::css_outline_min_bytes_, "co",
+                  kCssOutlineMinBytes, kDirectoryScope,
+                  "Number of bytes above which inline CSS resources will be "
+                  "outlined.",
+                  true);
+  AddBaseProperty(kDefaultImageInlineMaxBytes,
+                  &RewriteOptions::image_inline_max_bytes_, "ii",
+                  kImageInlineMaxBytes, kQueryScope,
+                  "Number of bytes below which images will be inlined.", true);
   AddBaseProperty(
-      kDefaultCssOutlineMinBytes,
-      &RewriteOptions::css_outline_min_bytes_, "co",
-      kCssOutlineMinBytes,
-      kDirectoryScope,
-      "Number of bytes above which inline CSS resources will be "
-      "outlined.", true);
-  AddBaseProperty(
-      kDefaultImageInlineMaxBytes,
-      &RewriteOptions::image_inline_max_bytes_, "ii",
-      kImageInlineMaxBytes,
-      kQueryScope,
-      "Number of bytes below which images will be inlined.", true);
-  AddBaseProperty(
-      kDefaultJsInlineMaxBytes,
-      &RewriteOptions::js_inline_max_bytes_, "ji",
-      kJsInlineMaxBytes,
-      kQueryScope,
+      kDefaultJsInlineMaxBytes, &RewriteOptions::js_inline_max_bytes_, "ji",
+      kJsInlineMaxBytes, kQueryScope,
       "Number of bytes below which javascript will be inlined.", true);
-  AddBaseProperty(
-      kDefaultJsOutlineMinBytes,
-      &RewriteOptions::js_outline_min_bytes_, "jo",
-      kJsOutlineMinBytes,
-      kDirectoryScope,
-      "Number of bytes above which inline Javascript resources will"
-      "be outlined.", true);
-  AddBaseProperty(
-      kDefaultProgressiveJpegMinBytes,
-      &RewriteOptions::progressive_jpeg_min_bytes_,
-      "jp", kProgressiveJpegMinBytes,
-      kDirectoryScope,
-      "Minimum size in bytes for converting a jpeg to progressive", true);
-  AddBaseProperty(
-      kDefaultMaxCacheableResponseContentLength,
-      &RewriteOptions::max_cacheable_response_content_length_, "rcl",
-      kMaxCacheableResponseContentLength,
-      kServerScope,
-      "Maximum length of a cacheable response content. "
-      "To remove this limit, use -1.", true);
+  AddBaseProperty(kDefaultJsOutlineMinBytes,
+                  &RewriteOptions::js_outline_min_bytes_, "jo",
+                  kJsOutlineMinBytes, kDirectoryScope,
+                  "Number of bytes above which inline Javascript resources will"
+                  "be outlined.",
+                  true);
+  AddBaseProperty(kDefaultProgressiveJpegMinBytes,
+                  &RewriteOptions::progressive_jpeg_min_bytes_, "jp",
+                  kProgressiveJpegMinBytes, kDirectoryScope,
+                  "Minimum size in bytes for converting a jpeg to progressive",
+                  true);
+  AddBaseProperty(kDefaultMaxCacheableResponseContentLength,
+                  &RewriteOptions::max_cacheable_response_content_length_,
+                  "rcl", kMaxCacheableResponseContentLength, kServerScope,
+                  "Maximum length of a cacheable response content. "
+                  "To remove this limit, use -1.",
+                  true);
   AddBaseProperty(kDefaultMaxHtmlCacheTimeMs,
                   &RewriteOptions::max_html_cache_time_ms_, "hc",
-                  kMaxHtmlCacheTimeMs, kDirectoryScope, NULL, true);
+                  kMaxHtmlCacheTimeMs, kDirectoryScope, nullptr, true);
   AddBaseProperty(
-      kDefaultMaxHtmlParseBytes,
-      &RewriteOptions::max_html_parse_bytes_, "hpb",
+      kDefaultMaxHtmlParseBytes, &RewriteOptions::max_html_parse_bytes_, "hpb",
       kMaxHtmlParseBytes,
       kDirectoryScope,  // TODO(jmarantz): switch to kProcessScopeStrict?
       "Maximum number of bytes of HTML that we parse, before "
-      "redirecting to ?ModPagespeed=off", true);
+      "redirecting to ?ModPagespeed=off",
+      true);
+  AddBaseProperty(kDefaultMinResourceCacheTimeToRewriteMs,
+                  &RewriteOptions::min_resource_cache_time_to_rewrite_ms_, "rc",
+                  kMinResourceCacheTimeToRewriteMs, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): remove this or document it.
+  AddBaseProperty(false, &RewriteOptions::oblivious_pagespeed_urls_, "opu",
+                  kObliviousPagespeedUrls, kDirectoryScope, nullptr,
+                  true);  // Not applicable for mod_pagespeed.
   AddBaseProperty(
-      kDefaultMinResourceCacheTimeToRewriteMs,
-      &RewriteOptions::min_resource_cache_time_to_rewrite_ms_, "rc",
-      kMinResourceCacheTimeToRewriteMs,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): remove this or document it.
-  AddBaseProperty(
-      false,
-      &RewriteOptions::oblivious_pagespeed_urls_, "opu",
-      kObliviousPagespeedUrls,
-      kDirectoryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      false,
-      &RewriteOptions::rewrite_uncacheable_resources_, "rur",
-      kRewriteUncacheableResources,
-      kServerScope,
+      false, &RewriteOptions::rewrite_uncacheable_resources_, "rur",
+      kRewriteUncacheableResources, kServerScope,
       "Allow optimization of uncacheable resources in the in-place rewriting"
-      " mode.", true);
+      " mode.",
+      true);
+  AddBaseProperty(kDefaultIdleFlushTimeMs, &RewriteOptions::idle_flush_time_ms_,
+                  "if", kIdleFlushTimeMs, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): implement for mod_pagespeed.
+  AddBaseProperty(kDefaultFlushBufferLimitBytes,
+                  &RewriteOptions::flush_buffer_limit_bytes_, "fbl",
+                  kFlushBufferLimitBytes, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): implement for mod_pagespeed.
   AddBaseProperty(
-      kDefaultIdleFlushTimeMs,
-      &RewriteOptions::idle_flush_time_ms_, "if",
-      kIdleFlushTimeMs,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultFlushBufferLimitBytes,
-      &RewriteOptions::flush_buffer_limit_bytes_, "fbl",
-      kFlushBufferLimitBytes,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultImplicitCacheTtlMs,
-      &RewriteOptions::implicit_cache_ttl_ms_, "ict",
-      kImplicitCacheTtlMs,
-      kDirectoryScope,
+      kDefaultImplicitCacheTtlMs, &RewriteOptions::implicit_cache_ttl_ms_,
+      "ict", kImplicitCacheTtlMs, kDirectoryScope,
       "Time in milliseconds to cache resources that lack an Expires or "
-      "Cache-Control header", true);
+      "Cache-Control header",
+      true);
   AddBaseProperty(
       kDefaultLoadFromFileCacheTtlMs,
       &RewriteOptions::load_from_file_cache_ttl_ms_, "lfct",
-      kLoadFromFileCacheTtlMs,
-      kDirectoryScope,
+      kLoadFromFileCacheTtlMs, kDirectoryScope,
       "Time in milliseconds to cache resources loaded from file that lack an "
       "Expires or Cache-Control header. If not explicitly set, defaults to "
-      "using the value set by implicit_cache_ttl_ms", true);
+      "using the value set by implicit_cache_ttl_ms",
+      true);
+  AddBaseProperty(kDefaultImageMaxRewritesAtOnce,
+                  &RewriteOptions::image_max_rewrites_at_once_, "im",
+                  kImageMaxRewritesAtOnce, kLegacyProcessScope,
+                  "Set bound on number of images being rewritten at one time "
+                  "(0 = unbounded).",
+                  true);
+  AddBaseProperty(kDefaultMaxUrlSegmentSize,
+                  &RewriteOptions::max_url_segment_size_, "uss",
+                  kMaxUrlSegmentSize, kDirectoryScope,
+                  "Maximum size of a URL segment.", true);
+  AddBaseProperty(kDefaultMaxUrlSize, &RewriteOptions::max_url_size_, "us",
+                  kMaxUrlSize, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+  AddBaseProperty(false, &RewriteOptions::forbid_all_disabled_filters_, "fadf",
+                  kForbidAllDisabledFilters, kDirectoryScope,
+                  "Prevents the use of disabled filters", true);
   AddBaseProperty(
-      kDefaultImageMaxRewritesAtOnce,
-      &RewriteOptions::image_max_rewrites_at_once_,
-      "im", kImageMaxRewritesAtOnce,
-      kLegacyProcessScope,
-      "Set bound on number of images being rewritten at one time "
-      "(0 = unbounded).", true);
-  AddBaseProperty(
-      kDefaultMaxUrlSegmentSize, &RewriteOptions::max_url_segment_size_,
-      "uss", kMaxUrlSegmentSize,
-      kDirectoryScope,
-      "Maximum size of a URL segment.", true);
-  AddBaseProperty(
-      kDefaultMaxUrlSize, &RewriteOptions::max_url_size_, "us",
-      kMaxUrlSize,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::forbid_all_disabled_filters_, "fadf",
-      kForbidAllDisabledFilters,
-      kDirectoryScope,
-      "Prevents the use of disabled filters", true);
-  AddBaseProperty(
-      kDefaultRewriteDeadlineMs, &RewriteOptions::rewrite_deadline_ms_,
-      "rdm", kRewriteDeadlineMs,
-      kDirectoryScope,
+      kDefaultRewriteDeadlineMs, &RewriteOptions::rewrite_deadline_ms_, "rdm",
+      kRewriteDeadlineMs, kDirectoryScope,
       "Time to wait for resource optimization (per flush window) before"
-      "falling back to the original resource for the request.", true);
+      "falling back to the original resource for the request.",
+      true);
+  AddBaseProperty(kEnabledOn, &RewriteOptions::enabled_, "e", kEnabled,
+                  kDirectoryScope, nullptr,
+                  true);  // initialized explicitly in mod_instaweb.cc.
   AddBaseProperty(
-      kEnabledOn, &RewriteOptions::enabled_, "e", kEnabled,
-      kDirectoryScope,
-      NULL, true);  // initialized explicitly in mod_instaweb.cc.
-  AddBaseProperty(
-      false, &RewriteOptions::add_options_to_urls_, "aou",
-      kAddOptionsToUrls,
+      false, &RewriteOptions::add_options_to_urls_, "aou", kAddOptionsToUrls,
       kDirectoryScope,
       "Add query-params with configuration adjustments to rewritten "
-      "URLs.", true);
+      "URLs.",
+      true);
 
   // TODO(jmarantz): consider whether to document this option -- it
   // potentially can hide problems in configuration or bugs.
   AddBaseProperty(
       false, &RewriteOptions::publicly_cache_mismatched_hashes_experimental_,
-      "pcmh",
-      kPubliclyCacheMismatchedHashesExperimental,
-      kDirectoryScope,
+      "pcmh", kPubliclyCacheMismatchedHashesExperimental, kDirectoryScope,
       "When serving a request for a .pagespeed. URL with the wrong hash, allow "
-      "public caching based on the origin TTL.", false);
+      "public caching based on the origin TTL.",
+      false);
 
+  AddBaseProperty(true, &RewriteOptions::in_place_rewriting_enabled_, "ipro",
+                  kInPlaceResourceOptimization, kDirectoryScope,
+                  "Allow rewriting resources even when they are "
+                  "fetched over non-pagespeed URLs.",
+                  true);
+  AddBaseProperty(false, &RewriteOptions::in_place_wait_for_optimized_, "ipwo",
+                  kInPlaceWaitForOptimized, kDirectoryScope,
+                  "Wait for optimizations to complete",
+                  true);  // TODO(jmarantz): Add doc.
+  AddBaseProperty(10, &RewriteOptions::in_place_s_maxage_sec_, "ipsm",
+                  kInPlaceSMaxAgeSec, kServerScope,
+                  "What to set s-maxage to on not-yet-optimized ipro resources",
+                  true);
+  AddBaseProperty(kDefaultRewriteDeadlineMs,
+                  &RewriteOptions::in_place_rewrite_deadline_ms_, "iprdm",
+                  kInPlaceRewriteDeadlineMs, kDirectoryScope,
+                  "Time to wait for an in-place resource optimization before"
+                  "falling back to the original resource for the request.",
+                  true);
   AddBaseProperty(
-      true, &RewriteOptions::in_place_rewriting_enabled_, "ipro",
-      kInPlaceResourceOptimization,
-      kDirectoryScope,
-      "Allow rewriting resources even when they are "
-      "fetched over non-pagespeed URLs.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::in_place_wait_for_optimized_, "ipwo",
-      kInPlaceWaitForOptimized,
-      kDirectoryScope,
-      "Wait for optimizations to complete", true);  // TODO(jmarantz): Add doc.
-  AddBaseProperty(
-      10, &RewriteOptions::in_place_s_maxage_sec_, "ipsm",
-      kInPlaceSMaxAgeSec,
-      kServerScope,
-      "What to set s-maxage to on not-yet-optimized ipro resources", true);
-  AddBaseProperty(
-      kDefaultRewriteDeadlineMs,
-      &RewriteOptions::in_place_rewrite_deadline_ms_, "iprdm",
-      kInPlaceRewriteDeadlineMs,
-      kDirectoryScope,
-      "Time to wait for an in-place resource optimization before"
-      "falling back to the original resource for the request.", true);
-  AddBaseProperty(
-      true, &RewriteOptions::in_place_preemptive_rewrite_css_,
-      "ipprc", kInPlacePreemptiveRewriteCss,
-      kDirectoryScope,
+      true, &RewriteOptions::in_place_preemptive_rewrite_css_, "ipprc",
+      kInPlacePreemptiveRewriteCss, kDirectoryScope,
       "If set, issue preemptive rewrites of CSS on the HTML path when "
-      "configured to use IPRO.", true);
+      "configured to use IPRO.",
+      true);
+  AddBaseProperty(true,
+                  &RewriteOptions::in_place_preemptive_rewrite_css_images_,
+                  "ipprci", kInPlacePreemptiveRewriteCssImages, kDirectoryScope,
+                  "If set, issue preemptive rewrites of CSS images on the IPRO "
+                  "serving path.",
+                  true);
   AddBaseProperty(
-      true, &RewriteOptions::in_place_preemptive_rewrite_css_images_,
-      "ipprci", kInPlacePreemptiveRewriteCssImages,
-      kDirectoryScope,
-      "If set, issue preemptive rewrites of CSS images on the IPRO "
-      "serving path.", true);
-  AddBaseProperty(
-      true, &RewriteOptions::in_place_preemptive_rewrite_images_,
-      "ippri", kInPlacePreemptiveRewriteImages,
-      kDirectoryScope,
+      true, &RewriteOptions::in_place_preemptive_rewrite_images_, "ippri",
+      kInPlacePreemptiveRewriteImages, kDirectoryScope,
       "If set, issue preemptive rewrites of images on the HTML path "
-      "when configured to use IPRO.", true);
+      "when configured to use IPRO.",
+      true);
   AddBaseProperty(
-      true, &RewriteOptions::in_place_preemptive_rewrite_javascript_,
-      "ipprj", kInPlacePreemptiveRewriteJavascript,
-      kDirectoryScope,
+      true, &RewriteOptions::in_place_preemptive_rewrite_javascript_, "ipprj",
+      kInPlacePreemptiveRewriteJavascript, kDirectoryScope,
       "If set, issue preemptive rewrites of JS on the HTML path when "
-      "configured to use IPRO.", true);
+      "configured to use IPRO.",
+      true);
   AddBaseProperty(
-      true, &RewriteOptions::private_not_vary_for_ie_,
-      "pnvie", kPrivateNotVaryForIE,
-      kDirectoryScope,
+      true, &RewriteOptions::private_not_vary_for_ie_, "pnvie",
+      kPrivateNotVaryForIE, kDirectoryScope,
       "If set, serve in-place optimized resources as Cache-Control: private "
       "rather than Vary: Accept.  Avoids an extra fetch on cache hit, but "
       "prevents proxy caching of these resources.  Only relevant if your "
-      "proxy caches Vary: Accept", true);
+      "proxy caches Vary: Accept",
+      true);
+  AddBaseProperty(true, &RewriteOptions::combine_across_paths_, "cp",
+                  kCombineAcrossPaths, kDirectoryScope,
+                  "Allow combining resources from different paths", true);
+  AddBaseProperty(true, &RewriteOptions::critical_images_beacon_enabled_,
+                  "cibe", kCriticalImagesBeaconEnabled, kDirectoryScope,
+                  "Enable insertion of client-side critical "
+                  "image detection js for image optimization filters.",
+                  true);
   AddBaseProperty(
-      true, &RewriteOptions::combine_across_paths_, "cp",
-      kCombineAcrossPaths,
-      kDirectoryScope,
-      "Allow combining resources from different paths", true);
-  AddBaseProperty(
-      true, &RewriteOptions::critical_images_beacon_enabled_, "cibe",
-      kCriticalImagesBeaconEnabled,
-      kDirectoryScope, "Enable insertion of client-side critical "
-      "image detection js for image optimization filters.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::
-                 test_only_prioritize_critical_css_dont_apply_original_css_,
+      false,
+      &RewriteOptions::
+          test_only_prioritize_critical_css_dont_apply_original_css_,
       "dlacae", kTestOnlyPrioritizeCriticalCssDontApplyOriginalCss,
       kDirectoryScope,
       "Stops the prioritize_critical_css filter from invoking its JavaScript "
@@ -1464,44 +1411,35 @@ void RewriteOptions::AddProperties() {
                   kBeaconReinstrumentTimeSec, kDirectoryScope,
                   "How often (in seconds) to reinstrument pages with beacons. "
                   "This is used for both critical image beaconing, and for the "
-                  "prioritize_critical_css filter.", true);
+                  "prioritize_critical_css filter.",
+                  true);
+  AddBaseProperty(false, &RewriteOptions::log_background_rewrites_, "lbr",
+                  kLogBackgroundRewrite, kServerScope, nullptr,
+                  false);  // TODO(huibao): write help & doc for mod_pagespeed.
+  AddBaseProperty(false, &RewriteOptions::log_mobilization_samples_, "lms",
+                  kLogMobilizationSamples, kDirectoryScope,
+                  "Verbose debugging of all sample data"
+                  " generated by mobilization_label_filter.",
+                  false);
   AddBaseProperty(
-      false, &RewriteOptions::log_background_rewrites_, "lbr",
-      kLogBackgroundRewrite,
-      kServerScope,
-      NULL, false);  // TODO(huibao): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::log_mobilization_samples_, "lms",
-      kLogMobilizationSamples,
-      kDirectoryScope,
-      "Verbose debugging of all sample data"
-      " generated by mobilization_label_filter.",
-      false);
-  AddBaseProperty(
-      false, &RewriteOptions::log_rewrite_timing_, "lr",
-      kLogRewriteTiming,
+      false, &RewriteOptions::log_rewrite_timing_, "lr", kLogRewriteTiming,
       kDirectoryScope,
       "Whether or not to report timing information about HtmlParse.", false);
   AddBaseProperty(
-      false, &RewriteOptions::log_url_indices_, "lui",
-      kLogUrlIndices,
+      false, &RewriteOptions::log_url_indices_, "lui", kLogUrlIndices,
       kDirectoryScope,
       "Whether or not to log URL indices for rewriter applications.", false);
-  AddBaseProperty(
-      false, &RewriteOptions::lowercase_html_names_, "lh",
-      kLowercaseHtmlNames,
-      kDirectoryScope,
-      "Lowercase tag and attribute names for HTML.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::always_rewrite_css_, "arc",
-      kAlwaysRewriteCss,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::respect_vary_, "rv", kRespectVary,
-      kDirectoryScope,
-      "Whether to respect Vary headers for resources. "
-      "Vary is always respected for HTML.", true);
+  AddBaseProperty(false, &RewriteOptions::lowercase_html_names_, "lh",
+                  kLowercaseHtmlNames, kDirectoryScope,
+                  "Lowercase tag and attribute names for HTML.", true);
+  AddBaseProperty(false, &RewriteOptions::always_rewrite_css_, "arc",
+                  kAlwaysRewriteCss, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+  AddBaseProperty(false, &RewriteOptions::respect_vary_, "rv", kRespectVary,
+                  kDirectoryScope,
+                  "Whether to respect Vary headers for resources. "
+                  "Vary is always respected for HTML.",
+                  true);
   AddBaseProperty(
       false, &RewriteOptions::respect_x_forwarded_proto_, "rxfp",
       kRespectXForwardedProto,
@@ -1511,63 +1449,46 @@ void RewriteOptions::AddProperties() {
       // Note: We must check this option to get the proper URL, but the proper
       // URL is needed to get directory-specific options, so allowing this in
       // directory-scope would be a circular dependency.
-      kDirectoryScope,
-      "Whether to respect the X-Forwarded-Proto header.", true);
+      kDirectoryScope, "Whether to respect the X-Forwarded-Proto header.",
+      true);
   AddBaseProperty(
-      false, &RewriteOptions::flush_html_, "fh", kFlushHtml,
-      kServerScope,
+      false, &RewriteOptions::flush_html_, "fh", kFlushHtml, kServerScope,
       "Enable auto-flush heuristics for HTML in full proxy mode", true);
-  AddBaseProperty(
-      false, &RewriteOptions::css_preserve_urls_, "cpu",
-      kCssPreserveURLs,
-      kDirectoryScope,
-      "Disable the rewriting of CSS URLs.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::image_preserve_urls_, "ipu",
-      kImagePreserveURLs,
-      kDirectoryScope,
-      "Disable the rewriting of Image URLs.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::js_preserve_urls_, "jpu",
-      kJsPreserveURLs,
-      kDirectoryScope,
-      "Disable the rewriting of Javascript URLs.", true);
-  AddBaseProperty(
-      true, &RewriteOptions::serve_stale_if_fetch_error_, "ss",
-      kServeStaleIfFetchError,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+  AddBaseProperty(false, &RewriteOptions::css_preserve_urls_, "cpu",
+                  kCssPreserveURLs, kDirectoryScope,
+                  "Disable the rewriting of CSS URLs.", true);
+  AddBaseProperty(false, &RewriteOptions::image_preserve_urls_, "ipu",
+                  kImagePreserveURLs, kDirectoryScope,
+                  "Disable the rewriting of Image URLs.", true);
+  AddBaseProperty(false, &RewriteOptions::js_preserve_urls_, "jpu",
+                  kJsPreserveURLs, kDirectoryScope,
+                  "Disable the rewriting of Javascript URLs.", true);
+  AddBaseProperty(true, &RewriteOptions::serve_stale_if_fetch_error_, "ss",
+                  kServeStaleIfFetchError, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       false, &RewriteOptions::proactively_freshen_user_facing_request_, "pfur",
-      kProactivelyFreshenUserFacingRequest,
-      kDirectoryScope,
-      NULL, true);
+      kProactivelyFreshenUserFacingRequest, kDirectoryScope, nullptr, true);
   AddBaseProperty(
-      0,
-      &RewriteOptions::serve_stale_while_revalidate_threshold_sec_,
-      "sswrt",
-      kServeStaleWhileRevalidateThresholdSec,
-      kDirectoryScope,
+      0, &RewriteOptions::serve_stale_while_revalidate_threshold_sec_, "sswrt",
+      kServeStaleWhileRevalidateThresholdSec, kDirectoryScope,
       "Threshold for serving serving stale responses while revalidating in "
       "background. 0 means don't serve stale content."
-      "Note: Stale response will be served only for non-html requests.", true);
+      "Note: Stale response will be served only for non-html requests.",
+      true);
   AddBaseProperty(
       true, &RewriteOptions::follow_flushes_, "ff", kFollowFlushes,
       kDirectoryScope,
       "Attempt to mirror incoming flushes for html streams in the output "
       "when ProxyFetch is used.",
       true);
-  AddBaseProperty(
-      false, &RewriteOptions::enable_defer_js_experimental_, "edje",
-      kEnableDeferJsExperimental,
-      kDirectoryScope,
-      "Enable experimental options in defer javascript.", true);
-  AddBaseProperty(
-      false,
-      &RewriteOptions::disable_background_fetches_for_bots_, "dbfb",
-      kDisableBackgroundFetchesForBots,
-      kDirectoryScope,
-      "Disable pre-emptive background fetches on bot requests.", true);
+  AddBaseProperty(false, &RewriteOptions::enable_defer_js_experimental_, "edje",
+                  kEnableDeferJsExperimental, kDirectoryScope,
+                  "Enable experimental options in defer javascript.", true);
+  AddBaseProperty(false, &RewriteOptions::disable_background_fetches_for_bots_,
+                  "dbfb", kDisableBackgroundFetchesForBots, kDirectoryScope,
+                  "Disable pre-emptive background fetches on bot requests.",
+                  true);
   AddBaseProperty(
       true,  // By default, don't optimize resource if no-transform is set.
       &RewriteOptions::disable_rewrite_on_no_transform_, "drnt",
@@ -1575,11 +1496,11 @@ void RewriteOptions::AddProperties() {
       "If false, resource is rewritten even if no-transform header is set",
       true);
   AddBaseProperty(
-      false, &RewriteOptions::enable_cache_purge_, "euci",
-      kEnableCachePurge,
+      false, &RewriteOptions::enable_cache_purge_, "euci", kEnableCachePurge,
       kServerScope,
       "Allows individual resources to be flushed; adding some overhead to "
-      "the metadata cache", true);
+      "the metadata cache",
+      true);
   AddBaseProperty(
       false, &RewriteOptions::proactive_resource_freshening_, "prf",
       kProactiveResourceFreshening, kServerScope,
@@ -1587,38 +1508,31 @@ void RewriteOptions::AddProperties() {
       "they are close to expiry.",
       true);  // TODO(mpalem): write end user doc in
               // net/instaweb/doc/en/speed/pagespeed/module/system.html
-  AddBaseProperty(
-      false, &RewriteOptions::lazyload_highres_images_,
-      "elhr", kEnableLazyLoadHighResImages,
-      kDirectoryScope,
-      NULL, true);
-  AddBaseProperty(
-      false, &RewriteOptions::default_cache_html_, "dch",
-      kDefaultCacheHtml,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): implement for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultDomainShardCount, &RewriteOptions::domain_shard_count_,
-      "dsc", kDomainShardCount,
-      kQueryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
+  AddBaseProperty(false, &RewriteOptions::lazyload_highres_images_, "elhr",
+                  kEnableLazyLoadHighResImages, kDirectoryScope, nullptr, true);
+  AddBaseProperty(false, &RewriteOptions::default_cache_html_, "dch",
+                  kDefaultCacheHtml, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): implement for mod_pagespeed.
+  AddBaseProperty(kDefaultDomainShardCount,
+                  &RewriteOptions::domain_shard_count_, "dsc",
+                  kDomainShardCount, kQueryScope, nullptr,
+                  true);  // Not applicable for mod_pagespeed.
   AddBaseProperty(
       true, &RewriteOptions::modify_caching_headers_, "mch",
-      kModifyCachingHeaders,
-      kDirectoryScope,
+      kModifyCachingHeaders, kDirectoryScope,
       "Set to false to disallow mod_pagespeed from editing HTML "
       "Cache-Control headers. This is not safe in general and can cause "
-      "the incorrect versions of HTML to be served to users.", true);
+      "the incorrect versions of HTML to be served to users.",
+      true);
 
   // This is not Plain Old Data, so we initialize it here.
-  const RewriteOptions::BeaconUrl kDefaultBeaconUrls =
-      { kDefaultBeaconUrl, kDefaultBeaconUrl,
-        kDefaultBeaconUrl, kDefaultBeaconUrl };
-  AddBaseProperty(
-      kDefaultBeaconUrls, &RewriteOptions::beacon_url_, "bu",
-      kBeaconUrl,
-      kDirectoryScope,
-      "URL for beacon callback injected by add_instrumentation.", false);
+  const RewriteOptions::BeaconUrl kDefaultBeaconUrls = {
+      kDefaultBeaconUrl, kDefaultBeaconUrl, kDefaultBeaconUrl,
+      kDefaultBeaconUrl};
+  AddBaseProperty(kDefaultBeaconUrls, &RewriteOptions::beacon_url_, "bu",
+                  kBeaconUrl, kDirectoryScope,
+                  "URL for beacon callback injected by add_instrumentation.",
+                  false);
 
   // lazyload_images_after_onload_ is especially important for mobile,
   // where the recommendation is that you prefetch all the
@@ -1635,38 +1549,28 @@ void RewriteOptions::AddProperties() {
   // latency, burn battery, etc.
   //
   // http://developer.android.com/training/efficient-downloads/efficient-network-access.html#PrefetchData
-  AddBaseProperty(
-      true, &RewriteOptions::lazyload_images_after_onload_, "llio",
-      kLazyloadImagesAfterOnload,
-      kDirectoryScope,
-      "Wait until page onload before loading lazy images", true);
+  AddBaseProperty(true, &RewriteOptions::lazyload_images_after_onload_, "llio",
+                  kLazyloadImagesAfterOnload, kDirectoryScope,
+                  "Wait until page onload before loading lazy images", true);
 
-  AddBaseProperty(
-      "", &RewriteOptions::request_option_override_, "roo",
-      kRequestOptionOverride,
-      kDirectoryScope,
-      "Token passed in URL to enable pagespeed options in params.", false);
-  AddBaseProperty(
-      "", &RewriteOptions::url_signing_key_, "usk",
-      kUrlSigningKey,
-      kServerScope,
-      "Key used for signing .pagespeed resource URLs.", false);
-  AddBaseProperty(
-      false, &RewriteOptions::accept_invalid_signatures_, "ais",
-      kAcceptInvalidSignatures, kServerScope,
-      "Accept resources with invalid signatures.", false);
-  AddBaseProperty(
-      Timer::kSecondMs,
-      &RewriteOptions::remote_configuration_timeout_ms_, "rcfgt",
-      kRemoteConfigurationTimeoutMs, kServerScope,
-      "Timeout for fetch of remote configuration file.",
-      true);
-  AddBaseProperty(
-      "",
-      &RewriteOptions::remote_configuration_url_, "rcfgu",
-      kRemoteConfigurationUrl, kDirectoryScope,
-      "URL of site from which to pull remote configuration files",
-      true);
+  AddBaseProperty("", &RewriteOptions::request_option_override_, "roo",
+                  kRequestOptionOverride, kDirectoryScope,
+                  "Token passed in URL to enable pagespeed options in params.",
+                  false);
+  AddBaseProperty("", &RewriteOptions::url_signing_key_, "usk", kUrlSigningKey,
+                  kServerScope,
+                  "Key used for signing .pagespeed resource URLs.", false);
+  AddBaseProperty(false, &RewriteOptions::accept_invalid_signatures_, "ais",
+                  kAcceptInvalidSignatures, kServerScope,
+                  "Accept resources with invalid signatures.", false);
+  AddBaseProperty(Timer::kSecondMs,
+                  &RewriteOptions::remote_configuration_timeout_ms_, "rcfgt",
+                  kRemoteConfigurationTimeoutMs, kServerScope,
+                  "Timeout for fetch of remote configuration file.", true);
+  AddBaseProperty("", &RewriteOptions::remote_configuration_url_, "rcfgu",
+                  kRemoteConfigurationUrl, kDirectoryScope,
+                  "URL of site from which to pull remote configuration files",
+                  true);
   AddBaseProperty(
       9, &RewriteOptions::http_cache_compression_level_, "hccl",
       kHttpCacheCompressionLevel, kServerScope,
@@ -1675,370 +1579,314 @@ void RewriteOptions::AddProperties() {
       true);
   AddBaseProperty(
       "", &RewriteOptions::lazyload_images_blank_url_, "llbu",
-      kLazyloadImagesBlankUrl,
-      kDirectoryScope,
+      kLazyloadImagesBlankUrl, kDirectoryScope,
       "URL of image used to display prior to loading the lazy image. "
-      "Empty means use a site-local copy.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::use_blank_image_for_inline_preview_, "biip",
-      kUseBlankImageForInlinePreview,
-      kDirectoryScope,
-      "Use a blank image for inline preview", true);
-  AddBaseProperty(
-      true, &RewriteOptions::inline_only_critical_images_, "ioci",
-      kInlineOnlyCriticalImages,
-      kDirectoryScope,
-      "Inline only critical images", true);
+      "Empty means use a site-local copy.",
+      true);
+  AddBaseProperty(false, &RewriteOptions::use_blank_image_for_inline_preview_,
+                  "biip", kUseBlankImageForInlinePreview, kDirectoryScope,
+                  "Use a blank image for inline preview", true);
+  AddBaseProperty(true, &RewriteOptions::inline_only_critical_images_, "ioci",
+                  kInlineOnlyCriticalImages, kDirectoryScope,
+                  "Inline only critical images", true);
   AddBaseProperty(
       ResourceCategorySet(),
       &RewriteOptions::inline_unauthorized_resource_types_, "irwea",
-      kInlineResourcesWithoutExplicitAuthorization,
-      kDirectoryScope,
+      kInlineResourcesWithoutExplicitAuthorization, kDirectoryScope,
       "Specifies the resource types that can be inlined into HTML even if "
-      "they do not belong to explicitly authorized domains.", true);
+      "they do not belong to explicitly authorized domains.",
+      true);
   AddBaseProperty(
       false, &RewriteOptions::domain_rewrite_cookies_, "drc",
-      kDomainRewriteCookies,
-      kDirectoryScope,
+      kDomainRewriteCookies, kDirectoryScope,
       "Allow rewrite_domains to rewrite domains in Set-Cookie headers.", true);
   AddBaseProperty(
       false, &RewriteOptions::domain_rewrite_hyperlinks_, "drh",
-      kDomainRewriteHyperlinks,
-      kDirectoryScope,
+      kDomainRewriteHyperlinks, kDirectoryScope,
       "Allow rewrite_domains to rewrite <form> and <a> tags in addition "
-      "to resource tags.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::client_domain_rewrite_, "cdr",
-      kClientDomainRewrite,
-      kDirectoryScope,
-      "Allow rewrite_domains to rewrite urls on the client side.", true);
+      "to resource tags.",
+      true);
+  AddBaseProperty(false, &RewriteOptions::client_domain_rewrite_, "cdr",
+                  kClientDomainRewrite, kDirectoryScope,
+                  "Allow rewrite_domains to rewrite urls on the client side.",
+                  true);
   AddBaseProperty(
       kDefaultImageJpegRecompressQuality,
       &RewriteOptions::image_jpeg_recompress_quality_, "iq",
-      kImageJpegRecompressionQuality,
-      kQueryScope,
+      kImageJpegRecompressionQuality, kQueryScope,
       "Set quality parameter for recompressing jpeg images [-1,100], "
-      "100 is lossless, -1 uses ImageRecompressionQuality", true);
+      "100 is lossless, -1 uses ImageRecompressionQuality",
+      true);
   // Use kDefaultImageJpegRecompressQuality as default.
   AddBaseProperty(
       kDefaultImageJpegRecompressQualityForSmallScreens,
       &RewriteOptions::image_jpeg_recompress_quality_for_small_screens_, "iqss",
-      kImageJpegRecompressionQualityForSmallScreens,
-      kQueryScope,
+      kImageJpegRecompressionQualityForSmallScreens, kQueryScope,
       "Set quality parameter for recompressing jpeg images for small "
       "screens. [-1,100], 100 refers to best quality, -1 falls back to "
-      "ImageJpegRecompressionQuality.", true);
+      "ImageJpegRecompressionQuality.",
+      true);
   AddBaseProperty(
       kDefaultImageJpegQualityForSaveData,
       &RewriteOptions::image_jpeg_quality_for_save_data_, "iqsd",
-      kImageJpegQualityForSaveData,
-      kQueryScope,
+      kImageJpegQualityForSaveData, kQueryScope,
       "Set quality for the images which will be optimized to JPEG format in "
       "the Save-Data mode. Use a value in [0,100] to explicitly set the "
-      "quality. Use -1 to ignore the Save-Data header.", true);
+      "quality. Use -1 to ignore the Save-Data header.",
+      true);
   AddBaseProperty(
       kDefaultImageRecompressQuality,
       &RewriteOptions::image_recompress_quality_, "irq",
-      kImageRecompressionQuality,
-      kQueryScope,
+      kImageRecompressionQuality, kQueryScope,
       "Set quality parameter for recompressing images [-1,100], "
       "100 refers to best quality, -1 disables lossy compression. "
       "JpegRecompressionQuality and WebpRecompressionQuality override "
-      "this.", true);
+      "this.",
+      true);
   AddBaseProperty(
       kDefaultImageLimitOptimizedPercent,
       &RewriteOptions::image_limit_optimized_percent_, "ip",
-      kImageLimitOptimizedPercent,
-      kDirectoryScope,
+      kImageLimitOptimizedPercent, kDirectoryScope,
       "Replace images whose size after recompression is less than the "
       "given percent of original image size; 100 means replace if "
-      "smaller.", true);
+      "smaller.",
+      true);
   AddBaseProperty(
       kDefaultImageLimitRenderedAreaPercent,
       &RewriteOptions::image_limit_rendered_area_percent_, "ira",
-      kImageLimitRenderedAreaPercent,
-      kDirectoryScope,
+      kImageLimitRenderedAreaPercent, kDirectoryScope,
       "Limit on percentage of rendered image wxh to the original "
       "image wxh that should be stored in the property cache. This is to "
       "avoid corner cases where rounding off decreases the rendered "
-      "image size by a few pixels.", true);
+      "image size by a few pixels.",
+      true);
   AddBaseProperty(
       kDefaultImageLimitResizeAreaPercent,
       &RewriteOptions::image_limit_resize_area_percent_, "ia",
-      kImageLimitResizeAreaPercent,
-      kDirectoryScope,
+      kImageLimitResizeAreaPercent, kDirectoryScope,
       "Consider resizing images whose area in pixels is less than the "
       "given percent of original image area; 100 means replace if "
-      "smaller.", true);
+      "smaller.",
+      true);
   AddBaseProperty(
       kDefaultImageWebpRecompressQuality,
       &RewriteOptions::image_webp_recompress_quality_, "iw",
-      kImageWebpRecompressionQuality,
-      kQueryScope,
+      kImageWebpRecompressionQuality, kQueryScope,
       "Quality for rewritten webp images [-1,100], 100 refers to best quality, "
-      "-1 uses ImageRecompressionQuality.", true);
+      "-1 uses ImageRecompressionQuality.",
+      true);
   // Use kDefaultImageWebpRecompressQuality as default.
   AddBaseProperty(
       kDefaultImageWebpRecompressQualityForSmallScreens,
       &RewriteOptions::image_webp_recompress_quality_for_small_screens_, "iwss",
-      kImageWebpRecompressionQualityForSmallScreens,
-      kQueryScope,
+      kImageWebpRecompressionQualityForSmallScreens, kQueryScope,
       "Quality for rewritten webp images for small screens. [-1,100], "
       "100 refers to best quality, -1 falls back to "
-      "WebpRecompressionQuality.", true);
+      "WebpRecompressionQuality.",
+      true);
   AddBaseProperty(
       kDefaultImageWebpAnimatedRecompressQuality,
       &RewriteOptions::image_webp_animated_recompress_quality_, "iwa",
-      kImageWebpAnimatedRecompressionQuality,
-      kQueryScope,
+      kImageWebpAnimatedRecompressionQuality, kQueryScope,
       "Quality for rewritten animated webp images [-1,100], "
-      "100 refers to best quality, -1 uses ImageRecompressionQuality.", true);
+      "100 refers to best quality, -1 uses ImageRecompressionQuality.",
+      true);
   AddBaseProperty(
       kDefaultImageWebpQualityForSaveData,
       &RewriteOptions::image_webp_quality_for_save_data_, "iwsd",
-      kImageWebpQualityForSaveData,
-      kQueryScope,
+      kImageWebpQualityForSaveData, kQueryScope,
       "Set quality for the images which will be optimized to lossy WebP "
       "format in the Save-Data mode. Use a value in [0,100] to explicitly set "
-      "the quality. Use -1 to ignore the Save-Data header.", true);
-  AddBaseProperty(
-      kDefaultImageWebpTimeoutMs,
-      &RewriteOptions::image_webp_timeout_ms_, "wt",
-      kImageWebpTimeoutMs,
-      kLegacyProcessScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      "the quality. Use -1 to ignore the Save-Data header.",
+      true);
+  AddBaseProperty(kDefaultImageWebpTimeoutMs,
+                  &RewriteOptions::image_webp_timeout_ms_, "wt",
+                  kImageWebpTimeoutMs, kLegacyProcessScope, nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       kDefaultMaxInlinedPreviewImagesIndex,
       &RewriteOptions::max_inlined_preview_images_index_, "mdii",
-      kMaxInlinedPreviewImagesIndex,
-      kDirectoryScope,
+      kMaxInlinedPreviewImagesIndex, kDirectoryScope,
       "Number of first N images for which low resolution image is "
-      "generated. Negative values result in generation for all images.", true);
-  AddBaseProperty(
-      kDefaultMinImageSizeLowResolutionBytes,
-      &RewriteOptions::min_image_size_low_resolution_bytes_, "nislr",
-      kMinImageSizeLowResolutionBytes,
-      kDirectoryScope,
-      "Minimum image size above which low resolution image is "
-      "generated.", true);
-  AddBaseProperty(
-      kDefaultMaxImageSizeLowResolutionBytes,
-      &RewriteOptions::max_image_size_low_resolution_bytes_, "xislr",
-      kMaxImageSizeLowResolutionBytes,
-      kDirectoryScope,
-      "Maximum image size below which low resolution image is "
-      "generated.", true);
+      "generated. Negative values result in generation for all images.",
+      true);
+  AddBaseProperty(kDefaultMinImageSizeLowResolutionBytes,
+                  &RewriteOptions::min_image_size_low_resolution_bytes_,
+                  "nislr", kMinImageSizeLowResolutionBytes, kDirectoryScope,
+                  "Minimum image size above which low resolution image is "
+                  "generated.",
+                  true);
+  AddBaseProperty(kDefaultMaxImageSizeLowResolutionBytes,
+                  &RewriteOptions::max_image_size_low_resolution_bytes_,
+                  "xislr", kMaxImageSizeLowResolutionBytes, kDirectoryScope,
+                  "Maximum image size below which low resolution image is "
+                  "generated.",
+                  true);
   AddBaseProperty(
       kDefaultFinderPropertiesCacheExpirationTimeMs,
-      &RewriteOptions::finder_properties_cache_expiration_time_ms_,
-      "fpce", kFinderPropertiesCacheExpirationTimeMs,
-      kDirectoryScope,
+      &RewriteOptions::finder_properties_cache_expiration_time_ms_, "fpce",
+      kFinderPropertiesCacheExpirationTimeMs, kDirectoryScope,
       "Number of ms that beacon results for the critical selector finders "
-      "should be considered valid.", true);
-  AddBaseProperty(
-      kDefaultFinderPropertiesCacheRefreshTimeMs,
-      &RewriteOptions::finder_properties_cache_refresh_time_ms_,
-      "fpcr", kFinderPropertiesCacheRefreshTimeMs,
-      kDirectoryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultExperimentCookieDurationMs,
-      &RewriteOptions::experiment_cookie_duration_ms_, "fcd",
-      kExperimentCookieDurationMs,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+      "should be considered valid.",
+      true);
+  AddBaseProperty(kDefaultFinderPropertiesCacheRefreshTimeMs,
+                  &RewriteOptions::finder_properties_cache_refresh_time_ms_,
+                  "fpcr", kFinderPropertiesCacheRefreshTimeMs, kDirectoryScope,
+                  nullptr,
+                  true);  // Not applicable for mod_pagespeed.
+  AddBaseProperty(kDefaultExperimentCookieDurationMs,
+                  &RewriteOptions::experiment_cookie_duration_ms_, "fcd",
+                  kExperimentCookieDurationMs, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       kDefaultImageJpegNumProgressiveScans,
       &RewriteOptions::image_jpeg_num_progressive_scans_, "ijps",
-      kImageJpegNumProgressiveScans,
-      kDirectoryScope,
+      kImageJpegNumProgressiveScans, kDirectoryScope,
       "Number of progressive scans [1,10] to emit when rewriting images as "
       "ten-scan progressive jpegs. "
-      "A value of -1 outputs all progressive scans.", true);
+      "A value of -1 outputs all progressive scans.",
+      true);
   // Use kDefaultImageJpegNumProgressiveScans as default.
   AddBaseProperty(
       kDefaultImageJpegNumProgressiveScans,
       &RewriteOptions::image_jpeg_num_progressive_scans_for_small_screens_,
-      "ijpst",
-      kImageJpegNumProgressiveScansForSmallScreens,
-      kDirectoryScope,
+      "ijpst", kImageJpegNumProgressiveScansForSmallScreens, kDirectoryScope,
       "Number of progressive scans [1,10] to emit when rewriting images as"
       "ten-scan progressive jpegs for small screens. A value of -1 falls "
-      "back to kImageJpegNumProgressiveScans.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::cache_small_images_unrewritten_, "csiu",
-      kCacheSmallImagesUnrewritten,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultImageResolutionLimitBytes,
-      &RewriteOptions::image_resolution_limit_bytes_,
-      "irlb", kImageResolutionLimitBytes,
-      kDirectoryScope,
-      "Maximum byte size of an image for optimization", true);
+      "back to kImageJpegNumProgressiveScans.",
+      true);
+  AddBaseProperty(false, &RewriteOptions::cache_small_images_unrewritten_,
+                  "csiu", kCacheSmallImagesUnrewritten, kDirectoryScope,
+                  nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+  AddBaseProperty(kDefaultImageResolutionLimitBytes,
+                  &RewriteOptions::image_resolution_limit_bytes_, "irlb",
+                  kImageResolutionLimitBytes, kDirectoryScope,
+                  "Maximum byte size of an image for optimization", true);
   AddBaseProperty(
       0, &RewriteOptions::rewrite_random_drop_percentage_, "rrdp",
       kRewriteRandomDropPercentage, kDirectoryScope,
       "The percentage of time that pagespeed should randomly drop an "
       "opportunity to optimize an image.  The value should be an integer "
-      "between 0 and 100 inclusive.", true);
-  AddBaseProperty(
-      "", &RewriteOptions::ga_id_, "ig", kAnalyticsID,
-      kDirectoryScope,
-      "Google Analytics ID to use on site.", true);
-  AddBaseProperty(
-      "", &RewriteOptions::content_experiment_id_, "cxid", kContentExperimentID,
-      kDirectoryScope,
-      "Which Google Analytics content experiment to log to.", true);
+      "between 0 and 100 inclusive.",
+      true);
+  AddBaseProperty("", &RewriteOptions::ga_id_, "ig", kAnalyticsID,
+                  kDirectoryScope, "Google Analytics ID to use on site.", true);
+  AddBaseProperty("", &RewriteOptions::content_experiment_id_, "cxid",
+                  kContentExperimentID, kDirectoryScope,
+                  "Which Google Analytics content experiment to log to.", true);
   AddBaseProperty(
       "", &RewriteOptions::content_experiment_variant_id_, "cxvid",
-      kContentExperimentVariantID,
-      kDirectoryScope,
+      kContentExperimentVariantID, kDirectoryScope,
       "Which Google Analytics content experiment variant to log to.", true);
+  AddBaseProperty(true, &RewriteOptions::use_analytics_js_, "uajs",
+                  kUseAnalyticsJs, kQueryScope,
+                  "Log to analytics.js instead of ga.js with insert_ga.", true);
+  AddBaseProperty(true, &RewriteOptions::increase_speed_tracking_, "st",
+                  kIncreaseSpeedTracking, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+  AddBaseProperty(false, &RewriteOptions::running_experiment_, "fur",
+                  kRunningExperiment, kDirectoryScope, nullptr,
+                  true);  // Not applicable for mod_pagespeed.
+  AddBaseProperty(kDefaultExperimentSlot, &RewriteOptions::experiment_ga_slot_,
+                  "fga", kExperimentSlot, kDirectoryScope, nullptr,
+                  true);  // Not applicable for mod_pagespeed.
+  AddBaseProperty(experiment::kForceNoExperiment,
+                  &RewriteOptions::enroll_experiment_id_, "eeid",
+                  kEnrollExperiment, kQueryScope,
+                  "Assign users to a specific experiment setting.", true);
+  AddBaseProperty(false, &RewriteOptions::report_unload_time_, "rut",
+                  kReportUnloadTime, kDirectoryScope,
+                  "If set reports optional page unload time.", true);
+  AddBaseProperty("", &RewriteOptions::x_header_value_, "xhv",
+                  kXModPagespeedHeaderValue, kDirectoryScope,
+                  "Set the value for the X-Mod-Pagespeed HTTP header", true);
   AddBaseProperty(
-      true, &RewriteOptions::use_analytics_js_, "uajs",
-      kUseAnalyticsJs,
-      kQueryScope,
-      "Log to analytics.js instead of ga.js with insert_ga.", true);
-  AddBaseProperty(
-      true, &RewriteOptions::increase_speed_tracking_, "st",
-      kIncreaseSpeedTracking,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::running_experiment_, "fur", kRunningExperiment,
-      kDirectoryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultExperimentSlot, &RewriteOptions::experiment_ga_slot_, "fga",
-      kExperimentSlot,
-      kDirectoryScope,
-      NULL, true);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      experiment::kForceNoExperiment, &RewriteOptions::enroll_experiment_id_,
-      "eeid",
-      kEnrollExperiment,
-      kQueryScope,
-      "Assign users to a specific experiment setting.", true);
-  AddBaseProperty(
-      false, &RewriteOptions::report_unload_time_, "rut",
-      kReportUnloadTime,
-      kDirectoryScope,
-      "If set reports optional page unload time.", true);
-  AddBaseProperty(
-      "", &RewriteOptions::x_header_value_, "xhv",
-      kXModPagespeedHeaderValue,
-      kDirectoryScope,
-      "Set the value for the X-Mod-Pagespeed HTTP header", true);
-  AddBaseProperty(
-      true, &RewriteOptions::avoid_renaming_introspective_javascript_,
-      "aris", kAvoidRenamingIntrospectiveJavascript,
-      kDirectoryScope,
+      true, &RewriteOptions::avoid_renaming_introspective_javascript_, "aris",
+      kAvoidRenamingIntrospectiveJavascript, kDirectoryScope,
       "Don't combine, inline, cache extend, or otherwise modify "
       "javascript in ways that require changing the URL if we see "
       "introspection in the form of "
-      "document.getElementsByTagName('script').", true);
-  AddBaseProperty(
-      false, &RewriteOptions::reject_blacklisted_, "rbl",
-      kRejectBlacklisted,
-      kDirectoryScope,
-      NULL, false);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      HttpStatus::kForbidden,
-      &RewriteOptions::reject_blacklisted_status_code_, "rbls",
-      kRejectBlacklistedStatusCode,
-      kDirectoryScope,
-      NULL, false);   // Not applicable for mod_pagespeed.
+      "document.getElementsByTagName('script').",
+      true);
+  AddBaseProperty(false, &RewriteOptions::reject_blacklisted_, "rbl",
+                  kRejectBlacklisted, kDirectoryScope, nullptr,
+                  false);  // Not applicable for mod_pagespeed.
+  AddBaseProperty(HttpStatus::kForbidden,
+                  &RewriteOptions::reject_blacklisted_status_code_, "rbls",
+                  kRejectBlacklistedStatusCode, kDirectoryScope, nullptr,
+                  false);  // Not applicable for mod_pagespeed.
   AddBaseProperty(
       kDefaultBlockingRewriteKey, &RewriteOptions::blocking_rewrite_key_,
-      "blrw", kXPsaBlockingRewrite,
-      kServerScope,
+      "blrw", kXPsaBlockingRewrite, kServerScope,
       "If the X-PSA-Pagespeed-Blocking-Rewrite header is present, and "
       "its value matches the configured value, ensure that all "
       "rewrites are completed before sending the response to the "
-      "client.", false);
+      "client.",
+      false);
   AddBaseProperty(
-        false,
-        &RewriteOptions::use_fallback_property_cache_values_,
-        "fbcv", kUseFallbackPropertyCacheValues,
-        kServerScope,
-        "If this is set to true, fallback values will be used from property "
-        "cache if actual value is not present. Here fallback values means "
-        "properties which are shared across all requests which have same url "
-        "if query paramaters are removed. Example: http://www.test.com?a=1 and "
-        "http://www.test.com?a=2 share same fallback properties though they "
-        "are two different urls.", true);
-  AddBaseProperty(
-        false,
-        &RewriteOptions::await_pcache_lookup_,
-        "wpcl", kAwaitPcacheLookup,
-        kServerScope,
-        NULL, true);
-  AddBaseProperty(
-      true, &RewriteOptions::support_noscript_enabled_, "snse",
-      kSupportNoScriptEnabled,
-      kDirectoryScope,
-      "Support for clients with no script support, in filters that "
-      "insert new javascript.", true);
+      false, &RewriteOptions::use_fallback_property_cache_values_, "fbcv",
+      kUseFallbackPropertyCacheValues, kServerScope,
+      "If this is set to true, fallback values will be used from property "
+      "cache if actual value is not present. Here fallback values means "
+      "properties which are shared across all requests which have same url "
+      "if query paramaters are removed. Example: http://www.test.com?a=1 and "
+      "http://www.test.com?a=2 share same fallback properties though they "
+      "are two different urls.",
+      true);
+  AddBaseProperty(false, &RewriteOptions::await_pcache_lookup_, "wpcl",
+                  kAwaitPcacheLookup, kServerScope, nullptr, true);
+  AddBaseProperty(true, &RewriteOptions::support_noscript_enabled_, "snse",
+                  kSupportNoScriptEnabled, kDirectoryScope,
+                  "Support for clients with no script support, in filters that "
+                  "insert new javascript.",
+                  true);
   AddBaseProperty(
       false, &RewriteOptions::enable_extended_instrumentation_, "eei",
-      kEnableExtendedInstrumentation,
-      kDirectoryScope,
+      kEnableExtendedInstrumentation, kDirectoryScope,
       "If set to true, addition instrumentation js is added to that page that "
-      "the beacon can collect more information.", true);
+      "the beacon can collect more information.",
+      true);
   AddBaseProperty(
       true, &RewriteOptions::use_experimental_js_minifier_, "uejsm",
-      kUseExperimentalJsMinifier,
-      kDirectoryScope,
+      kUseExperimentalJsMinifier, kDirectoryScope,
       "If set to false, uses the old legacy::MinifyJs-based minifier. "
       "This option will be deprecated once we do a successful release with the "
-      "new minifier.", true);
+      "new minifier.",
+      true);
+  AddBaseProperty(kDefaultMaxCombinedCssBytes,
+                  &RewriteOptions::max_combined_css_bytes_, "xcc",
+                  kMaxCombinedCssBytes, kQueryScope,
+                  "Maximum size allowed for the combined CSS resource.", true);
   AddBaseProperty(
-      kDefaultMaxCombinedCssBytes,
-      &RewriteOptions::max_combined_css_bytes_, "xcc",
-      kMaxCombinedCssBytes,
-      kQueryScope,
-      "Maximum size allowed for the combined CSS resource.", true);
-  AddBaseProperty(
-      kDefaultMaxCombinedJsBytes,
-      &RewriteOptions::max_combined_js_bytes_, "xcj",
-      kMaxCombinedJsBytes,
-      kDirectoryScope,
+      kDefaultMaxCombinedJsBytes, &RewriteOptions::max_combined_js_bytes_,
+      "xcj", kMaxCombinedJsBytes, kDirectoryScope,
       "Maximum size allowed for the combined JavaScript resource.", true);
   // Currently not applicable for mod_pagespeed.
-  AddBaseProperty(
-      -1, &RewriteOptions::override_caching_ttl_ms_, "octm",
-      kOverrideCachingTtlMs,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      5 * Timer::kSecondMs, &RewriteOptions::blocking_fetch_timeout_ms_,
-      "bfto", RewriteOptions::kFetcherTimeOutMs,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
-  AddBaseProperty(
-      false, &RewriteOptions::enable_prioritizing_scripts_, "eps",
-      kEnablePrioritizingScripts,
-      kDirectoryScope,
-      NULL, true);   // Not applicable for mod_pagespeed.
-  AddRequestProperty(
-      "", &RewriteOptions::pre_connect_url_, "pcu", true);
+  AddBaseProperty(-1, &RewriteOptions::override_caching_ttl_ms_, "octm",
+                  kOverrideCachingTtlMs, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+  AddBaseProperty(5 * Timer::kSecondMs,
+                  &RewriteOptions::blocking_fetch_timeout_ms_, "bfto",
+                  RewriteOptions::kFetcherTimeOutMs, kDirectoryScope, nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+  AddBaseProperty(false, &RewriteOptions::enable_prioritizing_scripts_, "eps",
+                  kEnablePrioritizingScripts, kDirectoryScope, nullptr,
+                  true);  // Not applicable for mod_pagespeed.
+  AddRequestProperty("", &RewriteOptions::pre_connect_url_, "pcu", true);
   AddRequestProperty(
       kDefaultPropertyCacheHttpStatusStabilityThreshold,
       &RewriteOptions::property_cache_http_status_stability_threshold_,
       "pchsst", false);
-  AddBaseProperty(
-      kDefaultMaxRewriteInfoLogSize,
-      &RewriteOptions::max_rewrite_info_log_size_, "mrils",
-      kMaxRewriteInfoLogSize,
-      kDirectoryScope,
-      NULL, false);   // Not applicable for mod_pagespeed.
-  AddBaseProperty(
-      kDefaultMetadataCacheStalenessThresholdMs,
-      &RewriteOptions::metadata_cache_staleness_threshold_ms_, "mcst",
-      kMetadataCacheStalenessThresholdMs,
-      kDirectoryScope,
-      NULL, true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
+  AddBaseProperty(kDefaultMaxRewriteInfoLogSize,
+                  &RewriteOptions::max_rewrite_info_log_size_, "mrils",
+                  kMaxRewriteInfoLogSize, kDirectoryScope, nullptr,
+                  false);  // Not applicable for mod_pagespeed.
+  AddBaseProperty(kDefaultMetadataCacheStalenessThresholdMs,
+                  &RewriteOptions::metadata_cache_staleness_threshold_ms_,
+                  "mcst", kMetadataCacheStalenessThresholdMs, kDirectoryScope,
+                  nullptr,
+                  true);  // TODO(jmarantz): write help & doc for mod_pagespeed.
   AddBaseProperty(
       kDefaultDownstreamCachePurgeMethod,
       &RewriteOptions::downstream_cache_purge_method_, "dcpm",
@@ -2050,29 +1898,27 @@ void RewriteOptions::AddProperties() {
       kDownstreamCacheRebeaconingKey, kDirectoryScope,
       "The key used to authenticate rebeaconing requests from downstream "
       "caches. The value specified for this key in the pagespeed server "
-      "config should be used in the caching layer configuration also.", false);
+      "config should be used in the caching layer configuration also.",
+      false);
   AddBaseProperty(
       kDefaultDownstreamCacheRewrittenPercentageThreshold,
       &RewriteOptions::downstream_cache_rewritten_percentage_threshold_,
-      "dcrpt",
-      kDownstreamCacheRewrittenPercentageThreshold,
-      kDirectoryScope,
+      "dcrpt", kDownstreamCacheRewrittenPercentageThreshold, kDirectoryScope,
       "Threshold for percentage of rewriting to be finished before the "
       "response is served out and simultaneously stored in the downstream "
       "cache, beyond which the response will not be purged from the cache even"
-      "if more rewriting is possible now", true);
-  AddRequestProperty(
-      kDefaultMetadataInputErrorsCacheTtlMs,
-      &RewriteOptions::metadata_input_errors_cache_ttl_ms_,
-      "mect", true);
-  AddRequestProperty(
-      false, &RewriteOptions::override_ie_document_mode_,
-      "oidm", true);
+      "if more rewriting is possible now",
+      true);
+  AddRequestProperty(kDefaultMetadataInputErrorsCacheTtlMs,
+                     &RewriteOptions::metadata_input_errors_cache_ttl_ms_,
+                     "mect", true);
+  AddRequestProperty(false, &RewriteOptions::override_ie_document_mode_, "oidm",
+                     true);
   AddBaseProperty("", &RewriteOptions::amp_link_pattern_, "alp",
                   kAmpLinkPattern, kDirectoryScope, nullptr,
                   true);  // Not applicable for mod_pagespeed.
-  AddBaseProperty(true, &RewriteOptions::honor_csp_, "hcsp",
-                  kHonorCsp, kServerScope,
+  AddBaseProperty(true, &RewriteOptions::honor_csp_, "hcsp", kHonorCsp,
+                  kServerScope,
                   "Controls whether PageSpeed should pay attention to "
                   "Content-Security-Policy directives",
                   false);
@@ -2084,9 +1930,8 @@ void RewriteOptions::AddProperties() {
   // will work, but we will omit it from the documentation because we
   // are enabling it by default.
   AddBaseProperty(
-      true, &RewriteOptions::enable_aggressive_rewriters_for_mobile_,
-      "earm", kEnableAggressiveRewritersForMobile,
-      kDirectoryScope,
+      true, &RewriteOptions::enable_aggressive_rewriters_for_mobile_, "earm",
+      kEnableAggressiveRewritersForMobile, kDirectoryScope,
       "Allows defer_javascript and defer_iframe for mobile browsers", true);
 
   AddBaseProperty(false, &RewriteOptions::serve_xhr_access_control_headers_,
@@ -2094,23 +1939,19 @@ void RewriteOptions::AddProperties() {
                   "Serve access control headers with response headers", false);
 
   AddBaseProperty(
-      "", &RewriteOptions::access_control_allow_origins_,
-      "acao", kAccessControlAllowOrigins,
-      kDirectoryScope,
+      "", &RewriteOptions::access_control_allow_origins_, "acao",
+      kAccessControlAllowOrigins, kDirectoryScope,
       "Comma separated list of origins that are allowed to make cross-origin "
-      "requests", false);
+      "requests",
+      false);
 
-  AddBaseProperty(
-      false, &RewriteOptions::hide_referer_using_meta_,
-      "hrum", kHideRefererUsingMeta,
-      kDirectoryScope,
-      "Hides the referer by adding meta tag to the HTML", true);
+  AddBaseProperty(false, &RewriteOptions::hide_referer_using_meta_, "hrum",
+                  kHideRefererUsingMeta, kDirectoryScope,
+                  "Hides the referer by adding meta tag to the HTML", true);
 
-  AddBaseProperty(
-      false, &RewriteOptions::preserve_subresource_hints_, "psrh",
-      kPreserveSubresourceHints, kQueryScope,
-      "Keep original subresource hints in place.",
-      true);
+  AddBaseProperty(false, &RewriteOptions::preserve_subresource_hints_, "psrh",
+                  kPreserveSubresourceHints, kQueryScope,
+                  "Keep original subresource hints in place.", true);
 
   AddBaseProperty(
       true, &RewriteOptions::preserve_url_relativity_, "pur",
@@ -2118,52 +1959,44 @@ void RewriteOptions::AddProperties() {
       "Keep rewritten URLs as relative as the original resource URL was.",
       true);
 
-  AddBaseProperty(
-      false, &RewriteOptions::allow_logging_urls_in_log_record_,
-      "alulr", kAllowLoggingUrlsInLogRecord, kDirectoryScope,
-      NULL, false);   // Not applicable for mod_pagespeed.
+  AddBaseProperty(false, &RewriteOptions::allow_logging_urls_in_log_record_,
+                  "alulr", kAllowLoggingUrlsInLogRecord, kDirectoryScope,
+                  nullptr,
+                  false);  // Not applicable for mod_pagespeed.
 
   AddBaseProperty(
-      true, &RewriteOptions::allow_options_to_be_set_by_cookies_,
-      "aotbsbc", kAllowOptionsToBeSetByCookies, kDirectoryScope,
+      true, &RewriteOptions::allow_options_to_be_set_by_cookies_, "aotbsbc",
+      kAllowOptionsToBeSetByCookies, kDirectoryScope,
       "Allow options to be set by cookies in addition to query parameters "
-      "and request headers.", true);
+      "and request headers.",
+      true);
 
-  AddBaseProperty(
-      "", &RewriteOptions::non_cacheables_for_cache_partial_html_, "nccp",
-      kNonCacheablesForCachePartialHtml,
-      kDirectoryScope,
-      NULL, false);  // Not applicable for mod_pagespeed.
+  AddBaseProperty("", &RewriteOptions::non_cacheables_for_cache_partial_html_,
+                  "nccp", kNonCacheablesForCachePartialHtml, kDirectoryScope,
+                  nullptr,
+                  false);  // Not applicable for mod_pagespeed.
 
   AddBaseProperty(
       false, &RewriteOptions::no_transform_optimized_images_, "ntoi",
-      kNoTransformOptimizedImages,
-      kDirectoryScope,
+      kNoTransformOptimizedImages, kDirectoryScope,
       "Add no-transform header to cache-control for optimized images", true);
 
   AddBaseProperty(
       kDefaultMaxLowResImageSizeBytes,
-      &RewriteOptions::max_low_res_image_size_bytes_,
-      "lris",
-      kMaxLowResImageSizeBytes,
-      kDirectoryScope,
-      NULL, true);  // TODO(bharathbhushan): write help & doc for mod_pagespeed.
+      &RewriteOptions::max_low_res_image_size_bytes_, "lris",
+      kMaxLowResImageSizeBytes, kDirectoryScope, nullptr,
+      true);  // TODO(bharathbhushan): write help & doc for mod_pagespeed.
 
   AddBaseProperty(
       kDefaultMaxLowResToFullResImageSizePercentage,
-      &RewriteOptions::max_low_res_to_full_res_image_size_percentage_,
-      "lrhrs",
-      kMaxLowResToHighResImageSizePercentage,
-      kDirectoryScope,
-      NULL, true);  // TODO(bharathbhushan): write help & doc for mod_pagespeed.
+      &RewriteOptions::max_low_res_to_full_res_image_size_percentage_, "lrhrs",
+      kMaxLowResToHighResImageSizePercentage, kDirectoryScope, nullptr,
+      true);  // TODO(bharathbhushan): write help & doc for mod_pagespeed.
 
-  AddBaseProperty(
-      true,
-      &RewriteOptions::serve_rewritten_webp_urls_to_any_agent_,
-      "swaa",
-      kServeWebpToAnyAgent,
-      kDirectoryScope,
-      "Serve rewritten .webp images to any user-agent", true);
+  AddBaseProperty(true,
+                  &RewriteOptions::serve_rewritten_webp_urls_to_any_agent_,
+                  "swaa", kServeWebpToAnyAgent, kDirectoryScope,
+                  "Serve rewritten .webp images to any user-agent", true);
 
   AddBaseProperty(
       "", &RewriteOptions::cache_fragment_, "ckp", kCacheFragment,
@@ -2173,40 +2006,38 @@ void RewriteOptions::AddProperties() {
       false);
 
   AddBaseProperty(
-      "",
-      &RewriteOptions::sticky_query_parameters_,
-      "sqp",
-      kStickyQueryParameters,
-      kDirectoryScope,
+      "", &RewriteOptions::sticky_query_parameters_, "sqp",
+      kStickyQueryParameters, kDirectoryScope,
       "The token that must be set by the PageSpeedStickyQueryParameters query "
       "parameter/header in a request to enable the setting of cookies for all "
       "other PageSpeed query parameters/headers in the request. Blank means "
-      "it is disabled.", false);
-  AddBaseProperty(
-      kDefaultOptionCookiesDurationMs,
-      &RewriteOptions::option_cookies_duration_ms_,
-      "ocd",
-      kOptionCookiesDurationMs,
-      kDirectoryScope,
-      "The max-age in ms of cookies that set PageSpeed options.", true);
+      "it is disabled.",
+      false);
+  AddBaseProperty(kDefaultOptionCookiesDurationMs,
+                  &RewriteOptions::option_cookies_duration_ms_, "ocd",
+                  kOptionCookiesDurationMs, kDirectoryScope,
+                  "The max-age in ms of cookies that set PageSpeed options.",
+                  true);
 
   ResponsiveDensities default_densities;
-  default_densities.assign(
-      kDefaultResponsiveImageDensities, kDefaultResponsiveImageDensities +
-      arraysize(kDefaultResponsiveImageDensities));
-  AddBaseProperty(
-      default_densities,  &RewriteOptions::responsive_image_densities_,
-      "rid", kResponsiveImageDensities, kDirectoryScope,
-      "Comma separated list of screen densities to target with "
-      "ResponsiveImageFilter srcsets.", true);
+  default_densities.assign(kDefaultResponsiveImageDensities,
+                           kDefaultResponsiveImageDensities +
+                               arraysize(kDefaultResponsiveImageDensities));
+  AddBaseProperty(default_densities,
+                  &RewriteOptions::responsive_image_densities_, "rid",
+                  kResponsiveImageDensities, kDirectoryScope,
+                  "Comma separated list of screen densities to target with "
+                  "ResponsiveImageFilter srcsets.",
+                  true);
 
   AllowVaryOn default_allow_vary_on;
   ParseFromString(AllowVaryOn::kAutoString, &default_allow_vary_on);
   AddBaseProperty(
-      default_allow_vary_on,  &RewriteOptions::allow_vary_on_,
-      "avo", kAllowVaryOn, kQueryScope,
+      default_allow_vary_on, &RewriteOptions::allow_vary_on_, "avo",
+      kAllowVaryOn, kQueryScope,
       "\"Auto\", \"None\", or comma separated list of strings chosen from "
-      "\"Save-Data\", \"User-Agent\", and \"Accept\".", true);
+      "\"Save-Data\", \"User-Agent\", and \"Accept\".",
+      true);
 
   // Test-only, so no enum.
   AddRequestProperty(false,
@@ -2218,8 +2049,7 @@ void RewriteOptions::AddProperties() {
       ->set_do_not_use_for_signature_computation(true);
 
   AddBaseProperty(
-      0, &RewriteOptions::noop_, "noop", kNoop,
-      kQueryScope,
+      0, &RewriteOptions::noop_, "noop", kNoop, kQueryScope,
       "Meaningless integer option for browser cache-busting in query-params",
       true);
   properties_->property(properties_->size() - 1)
@@ -2303,13 +2133,10 @@ void RewriteOptions::InitializeOptions(const Properties* properties) {
   initialized_options_ += properties->size();
 }
 
-RewriteOptions::OptionBase::~OptionBase() {
-}
+RewriteOptions::OptionBase::~OptionBase() {}
 
 RewriteOptions::Properties::Properties()
-    : initialization_count_(1),
-      owns_properties_(true) {
-}
+    : initialization_count_(1), owns_properties_(true) {}
 
 RewriteOptions::Properties::~Properties() {
   if (owns_properties_) {
@@ -2317,12 +2144,11 @@ RewriteOptions::Properties::~Properties() {
   }
 }
 
-RewriteOptions::PropertyBase::~PropertyBase() {
-}
+RewriteOptions::PropertyBase::~PropertyBase() {}
 
 bool RewriteOptions::Properties::Initialize(Properties** properties_handle) {
   Properties* properties = *properties_handle;
-  if (properties == NULL) {
+  if (properties == nullptr) {
     *properties_handle = new Properties;
     return true;
   }
@@ -2352,7 +2178,7 @@ bool RewriteOptions::Properties::Terminate(Properties** properties_handle) {
   DCHECK_GT(properties->initialization_count_, 0);
   if (--(properties->initialization_count_) == 0) {
     delete properties;
-    *properties_handle = NULL;
+    *properties_handle = nullptr;
     return true;
   }
   return false;
@@ -2439,7 +2265,7 @@ void RewriteOptions::InitOptionIdToPropertyArray() {
   // This method is called first by Initialize, when base properties are
   // added, then zero or more times when subclass properties are added by
   // MergeSubclassProperties (e.g. by ApacheConfig::AddProperties).
-  delete [] option_id_to_property_array_;
+  delete[] option_id_to_property_array_;
   option_id_to_property_array_ =
       new const PropertyBase*[all_properties_->size()];
   for (int i = 0, n = all_properties_->size(); i < n; ++i) {
@@ -2460,8 +2286,8 @@ void RewriteOptions::InitOptionNameToPropertyArray() {
     PropertyBase* prop = all_properties_->property(i);
     StringPiece name(prop->option_name());
     if (!name.empty()) {
-      option_name_to_property_map_->insert(PropertyNameMap::value_type(name,
-                                                                       prop));
+      option_name_to_property_map_->insert(
+          PropertyNameMap::value_type(name, prop));
     }
   }
 }
@@ -2495,18 +2321,18 @@ void RewriteOptions::InitFixedResourceHeaders() {
 }
 
 bool RewriteOptions::Terminate() {
-  if (fixed_resource_headers != NULL) {
+  if (fixed_resource_headers != nullptr) {
     delete fixed_resource_headers;
-    fixed_resource_headers = NULL;
+    fixed_resource_headers = nullptr;
   }
   if (Properties::Terminate(&properties_)) {
-    DCHECK(option_id_to_property_array_ != NULL);
-    delete [] option_id_to_property_array_;
-    option_id_to_property_array_ = NULL;
-    DCHECK(option_name_to_property_map_ != NULL);
+    DCHECK(option_id_to_property_array_ != nullptr);
+    delete[] option_id_to_property_array_;
+    option_id_to_property_array_ = nullptr;
+    DCHECK(option_name_to_property_map_ != nullptr);
     option_name_to_property_map_->clear();
     delete option_name_to_property_map_;
-    option_name_to_property_map_ = NULL;
+    option_name_to_property_map_ = nullptr;
     Properties::Terminate(&all_properties_);
     Properties::Terminate(&deprecated_properties_);
     return true;
@@ -2635,20 +2461,20 @@ void RewriteOptions::DisallowResourcesForProxy() {
 
 bool RewriteOptions::EnableFiltersByCommaSeparatedList(
     const StringPiece& filters, MessageHandler* handler) {
-  return AddCommaSeparatedListToFilterSetState(
-      filters, &enabled_filters_, handler);
+  return AddCommaSeparatedListToFilterSetState(filters, &enabled_filters_,
+                                               handler);
 }
 
 bool RewriteOptions::DisableFiltersByCommaSeparatedList(
     const StringPiece& filters, MessageHandler* handler) {
-  return AddCommaSeparatedListToFilterSetState(
-      filters, &disabled_filters_, handler);
+  return AddCommaSeparatedListToFilterSetState(filters, &disabled_filters_,
+                                               handler);
 }
 
 bool RewriteOptions::ForbidFiltersByCommaSeparatedList(
     const StringPiece& filters, MessageHandler* handler) {
-  return AddCommaSeparatedListToFilterSetState(
-      filters, &forbidden_filters_, handler);
+  return AddCommaSeparatedListToFilterSetState(filters, &forbidden_filters_,
+                                               handler);
 }
 
 void RewriteOptions::DisableAllFilters() {
@@ -2819,8 +2645,9 @@ bool RewriteOptions::AdjustFiltersByCommaSeparatedList(
   return ret;
 }
 
-bool RewriteOptions::AddByNameToFilterSet(
-    const StringPiece& option, FilterSet* set, MessageHandler* handler) {
+bool RewriteOptions::AddByNameToFilterSet(const StringPiece& option,
+                                          FilterSet* set,
+                                          MessageHandler* handler) {
   bool ret = true;
   Filter filter = LookupFilter(option);
   if (filter == kEndOfFilters) {
@@ -2882,7 +2709,7 @@ bool RewriteOptions::AddByNameToFilterSet(
         set->Insert(kCoreFilterSet[i]);
       }
     } else {
-      if (handler != NULL) {
+      if (handler != nullptr) {
         handler->Message(kWarning, "Invalid filter name: %s",
                          option.as_string().c_str());
       }
@@ -2927,8 +2754,7 @@ RewriteOptions::Filter RewriteOptions::LookupFilterById(
   entry.filter_name = "";
   const FilterEnumToIdAndNameEntry** it = std::lower_bound(
       filter_id_to_enum_array_,
-      filter_id_to_enum_array_ + arraysize(filter_id_to_enum_array_),
-      &entry,
+      filter_id_to_enum_array_ + arraysize(filter_id_to_enum_array_), &entry,
       RewriteOptions::FilterEnumToIdAndNameEntryLessThanById);
   // We use lower_bound because it's O(log n) so relatively efficient. It
   // returns a pointer to the entry whose id is >= filter_id; if filter_id is
@@ -2945,13 +2771,13 @@ const RewriteOptions::PropertyBase* RewriteOptions::LookupOptionById(
     StringPiece option_id) {
   const PropertyBase** end =
       option_id_to_property_array_ + all_properties_->size();
-  const PropertyBase** it = std::lower_bound(
-      option_id_to_property_array_, end, option_id, OptionIdCompare());
+  const PropertyBase** it = std::lower_bound(option_id_to_property_array_, end,
+                                             option_id, OptionIdCompare());
   // We use lower_bound because it's O(log n) so relatively efficient, but
   // we must double-check its result as it doesn't guarantee an exact match.
   // Note that std::binary_search provides an exact match but only a bool
   // result and not the actual object we were searching for.
-  return ((it == end || option_id != (*it)->id()) ? NULL : *it);
+  return ((it == end || option_id != (*it)->id()) ? nullptr : *it);
 }
 
 const RewriteOptions::PropertyBase* RewriteOptions::LookupOptionByName(
@@ -2959,31 +2785,29 @@ const RewriteOptions::PropertyBase* RewriteOptions::LookupOptionByName(
   // There are many options without a name, and it doesn't make sense to
   // find "the one" with an empty name, so short-circuit that early.
   if (option_name.empty()) {
-    return NULL;
+    return nullptr;
   }
-  PropertyNameMap::iterator
-      end = option_name_to_property_map_->end(),
-      pos = option_name_to_property_map_->find(
-          GetEffectiveOptionName(option_name));
+  PropertyNameMap::iterator end = option_name_to_property_map_->end(),
+                            pos = option_name_to_property_map_->find(
+                                GetEffectiveOptionName(option_name));
   return (pos == end ? NULL : pos->second);
 }
 
 const StringPiece RewriteOptions::LookupOptionNameById(StringPiece option_id) {
   const PropertyBase* option = LookupOptionById(option_id);
-  return (option == NULL ? StringPiece() : option->option_name());
+  return (option == nullptr ? StringPiece() : option->option_name());
 }
 
 bool RewriteOptions::IsValidOptionName(StringPiece name) {
-  return (LookupOptionByName(name) != NULL);
+  return (LookupOptionByName(name) != nullptr);
 }
 
 bool RewriteOptions::IsDeprecatedOptionName(StringPiece option_name) {
   // If this ever becomes hot, we should make a proper index, rather than
   // using a Properties object to store these.
   for (int i = 0, n = deprecated_properties_->size(); i < n; ++i) {
-    if (StringCaseEqual(
-            option_name,
-            deprecated_properties_->property(i)->option_name())) {
+    if (StringCaseEqual(option_name,
+                        deprecated_properties_->property(i)->option_name())) {
       return true;
     }
   }
@@ -2996,12 +2820,11 @@ bool RewriteOptions::SetOptionsFromName(const OptionSet& option_set,
   for (RewriteOptions::OptionSet::const_iterator iter = option_set.begin();
        iter != option_set.end(); ++iter) {
     GoogleString msg;
-    OptionSettingResult result = SetOptionFromName(
-        iter->first, iter->second, &msg);
+    OptionSettingResult result =
+        SetOptionFromName(iter->first, iter->second, &msg);
     if (result != kOptionOk) {
-      handler->Message(
-          kWarning, "Failed to set %s to %s (%s)",
-          iter->first.c_str(), iter->second.c_str(), msg.c_str());
+      handler->Message(kWarning, "Failed to set %s to %s (%s)",
+                       iter->first.c_str(), iter->second.c_str(), msg.c_str());
       ret = false;
     }
   }
@@ -3010,11 +2833,11 @@ bool RewriteOptions::SetOptionsFromName(const OptionSet& option_set,
 
 RewriteOptions::OptionSettingResult RewriteOptions::SetOptionFromName(
     StringPiece name, StringPiece value, GoogleString* msg) {
-    GoogleString error_detail;
-    OptionSettingResult result = SetOptionFromNameInternal(
-        name, value, RewriteOptions::kProcessScopeStrict /* max_scope*/,
-        &error_detail);
-    return FormatSetOptionMessage(result, name, value, error_detail, msg);
+  GoogleString error_detail;
+  OptionSettingResult result = SetOptionFromNameInternal(
+      name, value, RewriteOptions::kProcessScopeStrict /* max_scope*/,
+      &error_detail);
+  return FormatSetOptionMessage(result, name, value, error_detail, msg);
 }
 
 RewriteOptions::OptionSettingResult RewriteOptions::SetOptionFromName(
@@ -3035,8 +2858,8 @@ RewriteOptions::OptionSettingResult RewriteOptions::SetOptionFromQuery(
 RewriteOptions::OptionSettingResult RewriteOptions::SetOptionFromRemoteConfig(
     StringPiece name, StringPiece value) {
   GoogleString error_detail;
-  return SetOptionFromNameInternal(
-      name, value, RewriteOptions::kDirectoryScope, &error_detail);
+  return SetOptionFromNameInternal(name, value, RewriteOptions::kDirectoryScope,
+                                   &error_detail);
 }
 
 RewriteOptions::OptionSettingResult RewriteOptions::FormatSetOptionMessage(
@@ -3044,17 +2867,19 @@ RewriteOptions::OptionSettingResult RewriteOptions::FormatSetOptionMessage(
     StringPiece error_detail, GoogleString* msg) {
   if (!IsValidOptionName(name)) {
     // Not a mapped option.
-    SStringPrintf(msg, "Option %s not mapped.", name.as_string().c_str());
+    absl::StrAppendFormat(msg, "Option %s not mapped.",
+                          name.as_string().c_str());
     return kOptionNameUnknown;
   }
   switch (result) {
     case kOptionNameUnknown:
-      SStringPrintf(msg, "Option %s not found.", name.as_string().c_str());
+      absl::StrAppendFormat(msg, "Option %s not found.",
+                            name.as_string().c_str());
       break;
     case kOptionValueInvalid:
-      SStringPrintf(msg, "Cannot set option %s to %s. %s",
-                    name.as_string().c_str(), value.as_string().c_str(),
-                    error_detail.as_string().c_str());
+      absl::StrAppendFormat(msg, "Cannot set option %s to %s. %s",
+                            name.as_string().c_str(), value.as_string().c_str(),
+                            error_detail.as_string().c_str());
       break;
     default:
       break;
@@ -3129,7 +2954,7 @@ RewriteOptions::ParseAndSetOptionFromNameWithScope(
     }
   } else if (StringCaseEqual(name, kExperimentSpec)) {
     ExperimentSpec* spec = AddExperimentSpec(arg, handler);
-    if (spec == NULL) {
+    if (spec == nullptr) {
       *msg = "not a valid experiment spec";
       result = RewriteOptions::kOptionValueInvalid;
     } else {
@@ -3137,7 +2962,7 @@ RewriteOptions::ParseAndSetOptionFromNameWithScope(
       // them to a RewriteOptions.  Try to apply them now, so if there are
       // configuration errors we can report them early instead of on each
       // request.
-      scoped_ptr<RewriteOptions> clone(Clone());
+      std::unique_ptr<RewriteOptions> clone(Clone());
       if (!clone->SetOptionsFromName(spec->filter_options(), handler)) {
         *msg = "experiment spec has invalid options= component";
         result = RewriteOptions::kOptionValueInvalid;
@@ -3161,8 +2986,8 @@ RewriteOptions::ParseAndSetOptionFromNameWithScope(
 }
 
 RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName2(
-    StringPiece name, StringPiece arg1, StringPiece arg2,
-    GoogleString* msg, MessageHandler* handler) {
+    StringPiece name, StringPiece arg1, StringPiece arg2, GoogleString* msg,
+    MessageHandler* handler) {
   // Assume all goes well; if not, set result accordingly.
   OptionSettingResult result = RewriteOptions::kOptionOk;
 
@@ -3191,8 +3016,7 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName2(
       *msg = "Argument 1 must be either 'Allow' or 'Disallow'";
       return RewriteOptions::kOptionValueInvalid;
     }
-    if (!file_load_policy()->AddRule(arg2.as_string(),
-                                     is_regexp, allow, msg)) {
+    if (!file_load_policy()->AddRule(arg2.as_string(), is_regexp, allow, msg)) {
       result = RewriteOptions::kOptionValueInvalid;
     }
   } else if (StringCaseEqual(name, kMapOriginDomain)) {
@@ -3258,19 +3082,17 @@ RewriteOptions::OptionSettingResult RewriteOptions::ParseAndSetOptionFromName3(
 
 StringPiece RewriteOptions::GetEffectiveOptionName(StringPiece name) {
   StringPiece effective_name = name;
-  const RenamedOptionMap* end = kRenamedOptionNameData +
-      arraysize(kRenamedOptionNameData);
-  const RenamedOptionMap* entry =
-      std::lower_bound(kRenamedOptionNameData, end, name,
-                       &RenamedOptionMap::LessThan);
+  const RenamedOptionMap* end =
+      kRenamedOptionNameData + arraysize(kRenamedOptionNameData);
+  const RenamedOptionMap* entry = std::lower_bound(
+      kRenamedOptionNameData, end, name, &RenamedOptionMap::LessThan);
   if ((entry != end) && StringCaseEqual(name, entry->deprecated_option_name)) {
     effective_name = entry->new_option_name;
   }
   return effective_name;
 }
 
-RewriteOptions::OptionSettingResult
-RewriteOptions::SetOptionFromNameInternal(
+RewriteOptions::OptionSettingResult RewriteOptions::SetOptionFromNameInternal(
     StringPiece name, StringPiece value, RewriteOptions::OptionScope max_scope,
     GoogleString* error_detail) {
   if (!IsValidOptionName(name)) {
@@ -3298,13 +3120,11 @@ RewriteOptions::SetOptionFromNameInternal(
   return kOptionNameUnknown;
 }
 
-bool RewriteOptions::OptionValue(StringPiece name,
-                                 const char** id,
-                                 bool* was_set,
-                                 GoogleString* value) const {
-  OptionBaseVector::const_iterator it = std::lower_bound(
-      all_options_.begin(), all_options_.end(), name,
-      RewriteOptions::OptionNameLessThanArg);
+bool RewriteOptions::OptionValue(StringPiece name, const char** id,
+                                 bool* was_set, GoogleString* value) const {
+  OptionBaseVector::const_iterator it =
+      std::lower_bound(all_options_.begin(), all_options_.end(), name,
+                       RewriteOptions::OptionNameLessThanArg);
   if (it != all_options_.end()) {
     OptionBase* option = *it;
     if (StringCaseEqual(name, option->option_name())) {
@@ -3330,15 +3150,14 @@ bool RewriteOptions::SetOptionFromNameAndLog(StringPiece name,
   }
 }
 
-bool RewriteOptions::ParseFromString(StringPiece value_string,
-                                     bool* value) {
+bool RewriteOptions::ParseFromString(StringPiece value_string, bool* value) {
   // How are bools passed in the string?  I am assuming "true"/"false" or
   // "on"/"off".
   if (StringCaseEqual(value_string, "true") ||
       StringCaseEqual(value_string, "on")) {
     *value = true;
   } else if (StringCaseEqual(value_string, "false") ||
-      StringCaseEqual(value_string, "off")) {
+             StringCaseEqual(value_string, "off")) {
     *value = false;
   } else {
     // value_string is not "true"/"false" or "on"/"off".  Return a parse
@@ -3525,8 +3344,7 @@ bool RewriteOptions::HasRejectedHeader(
 }
 
 bool RewriteOptions::IsRequestDeclined(
-    const GoogleString& url,
-    const RequestHeaders* request_headers) const {
+    const GoogleString& url, const RequestHeaders* request_headers) const {
   if (IsRejectedUrl(url) ||
       HasRejectedHeader(HttpAttributes::kUserAgent, request_headers) ||
       HasRejectedHeader(HttpAttributes::kXForwardedFor, request_headers)) {
@@ -3563,8 +3381,7 @@ int64 RewriteOptions::CssImageInlineMaxBytes() const {
 }
 
 int64 RewriteOptions::MaxImageInlineMaxBytes() const {
-  return std::max(ImageInlineMaxBytes(),
-                  CssImageInlineMaxBytes());
+  return std::max(ImageInlineMaxBytes(), CssImageInlineMaxBytes());
 }
 
 void RewriteOptions::GetEnabledFiltersRequiringScriptExecution(
@@ -3623,8 +3440,8 @@ DomainLawyer* RewriteOptions::WriteableDomainLawyer() {
   return domain_lawyer_.MakeWriteable();
 }
 
-JavascriptLibraryIdentification* RewriteOptions::
-    WriteableJavascriptLibraryIdentification() {
+JavascriptLibraryIdentification*
+RewriteOptions::WriteableJavascriptLibraryIdentification() {
   Modify();
   return javascript_library_identification_.MakeWriteable();
 }
@@ -3654,8 +3471,8 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
   // but src.forbid_all_disabled_filters() is false,
   // the default merging logic will set it false in the result, but we need
   // to toggle the value: once it's set it has to stay set.
-  bool new_forbid_all_disabled = (forbid_all_disabled_filters() ||
-                                  src.forbid_all_disabled_filters());
+  bool new_forbid_all_disabled =
+      (forbid_all_disabled_filters() || src.forbid_all_disabled_filters());
 
   // If ForbidAllDisabledFilters is turned on, it means no-one can enable a
   // filter that isn't already enabled, meaning the filters enabled in 'src'
@@ -3685,7 +3502,7 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
 
   if (src.downstream_cache_purge_location_prefix_.was_set()) {
     set_downstream_cache_purge_location_prefix(
-      src.downstream_cache_purge_location_prefix());
+        src.downstream_cache_purge_location_prefix());
   }
   for (int i = 0, n = src.resource_headers_.size(); i < n; ++i) {
     NameValue* nv = src.resource_headers_[i];
@@ -3711,8 +3528,8 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
   // RewriteOptions that are instantiated are the same sublcass, so
   // DCHECK that they have the same number of options.
   DCHECK_EQ(all_options_.size(), src.all_options_.size());
-  size_t options_to_merge = std::min(all_options_.size(),
-                                     src.all_options_.size());
+  size_t options_to_merge =
+      std::min(all_options_.size(), src.all_options_.size());
   for (size_t i = 0; i < options_to_merge; ++i) {
     all_options_[i]->Merge(src.all_options_[i]);
   }
@@ -3721,7 +3538,7 @@ void RewriteOptions::Merge(const RewriteOptions& src) {
   for (; it != src.rejected_request_map_.end(); ++it) {
     std::pair<FastWildcardGroupMap::iterator, bool> insert_result =
         rejected_request_map_.insert(std::make_pair(
-            it->first, static_cast<FastWildcardGroup*>(NULL)));
+            it->first, static_cast<FastWildcardGroup*>(nullptr)));
     if (insert_result.second) {
       insert_result.first->second = new FastWildcardGroup;
     }
@@ -3793,8 +3610,8 @@ void RewriteOptions::MergeOnlyProcessScopeOptions(const RewriteOptions& src) {
   DCHECK_EQ(initialized_options_, src.initialized_options_);
   DCHECK_EQ(initialized_options_, all_options_.size());
 
-  size_t options_to_merge = std::min(all_options_.size(),
-                                     src.all_options_.size());
+  size_t options_to_merge =
+      std::min(all_options_.size(), src.all_options_.size());
   for (size_t i = 0; i < options_to_merge; ++i) {
     OptionScope scope = all_options_[i]->scope();
     if (scope == kLegacyProcessScope || scope == kProcessScopeStrict) {
@@ -3830,12 +3647,18 @@ GoogleString RewriteOptions::OptionSignature(ResourceCategorySet x,
 GoogleString RewriteOptions::OptionSignature(RewriteLevel level,
                                              const Hasher* hasher) {
   switch (level) {
-    case kPassThrough: return "p";
-    case kCoreFilters: return "c";
-    case kOptimizeForBandwidth: return "b";
-    case kMobilizeFilters: return "m";
-    case kTestingCoreFilters: return "t";
-    case kAllFilters: return "a";
+    case kPassThrough:
+      return "p";
+    case kCoreFilters:
+      return "c";
+    case kOptimizeForBandwidth:
+      return "b";
+    case kMobilizeFilters:
+      return "m";
+    case kTestingCoreFilters:
+      return "t";
+    case kAllFilters:
+      return "a";
   }
   return "?";
 }
@@ -3863,18 +3686,16 @@ GoogleString RewriteOptions::OptionSignature(
   return hasher->Hash(ToString(densities));
 }
 
-GoogleString RewriteOptions::OptionSignature(
-    const protobuf::MessageLite& proto,
-    const Hasher* hasher) {
+GoogleString RewriteOptions::OptionSignature(const protobuf::MessageLite& proto,
+                                             const Hasher* hasher) {
   return hasher->Hash(ToString(proto));
 }
 
-GoogleString RewriteOptions::OptionSignature(
-    const AllowVaryOn& allow_vary_on, const Hasher* hasher) {
+GoogleString RewriteOptions::OptionSignature(const AllowVaryOn& allow_vary_on,
+                                             const Hasher* hasher) {
   GoogleString out;
   char mask =
-      (allow_vary_on.allow_auto() |
-       (allow_vary_on.allow_accept() << 1) |
+      (allow_vary_on.allow_auto() | (allow_vary_on.allow_accept() << 1) |
        (allow_vary_on.allow_save_data() << 2) |
        (allow_vary_on.allow_user_agent() << 3));
   Web64Encode(GoogleString(&mask, 1), &out);
@@ -3890,7 +3711,6 @@ void RewriteOptions::DisableIfNotExplictlyEnabled(Filter filter) {
 RewriteOptions::MergeOverride RewriteOptions::ComputeMergeOverride(
     Filter filter, const Option<bool>& src_preserve_option,
     const Option<bool>& preserve_option, const RewriteOptions& src) {
-
   // Note: the order of the if and else-if matter. if both this and
   // src have filter enabled and preserve_options set, then the filter
   // would actually be disabled.
@@ -3963,25 +3783,25 @@ void RewriteOptions::ComputeSignatureLockHeld() {
     // with values overridden from the default.
     OptionBase* option = all_options_[i];
     if (option->is_used_for_signature_computation() && option->was_set()) {
-      StrAppend(&signature_, option->id(), ":",
-                option->Signature(hasher()), "_");
+      StrAppend(&signature_, option->id(), ":", option->Signature(hasher()),
+                "_");
     }
   }
-  if (javascript_library_identification() != NULL) {
+  if (javascript_library_identification() != nullptr) {
     StrAppend(&signature_, "LI:");
     javascript_library_identification()->AppendSignature(&signature_);
     StrAppend(&signature_, "_");
   }
   StrAppend(&signature_, domain_lawyer_->Signature(), "_");
   StrAppend(&signature_, "AR:", allow_resources_->Signature(), "_");
-  StrAppend(&signature_, "AWIR:",
-            allow_when_inlining_resources_->Signature(), "_");
+  StrAppend(&signature_, "AWIR:", allow_when_inlining_resources_->Signature(),
+            "_");
   StrAppend(&signature_, "RC:", retain_comments_->Signature(), "_");
   StrAppend(&signature_, "LDC:", lazyload_enabled_classes_->Signature(), "_");
-  StrAppend(&signature_, "CCPI:",
-            css_combining_permitted_ids_->Signature(), "_");
-  StrAppend(&signature_, "BRRU:",
-            blocking_rewrite_referer_urls_->Signature(), "_");
+  StrAppend(&signature_, "CCPI:", css_combining_permitted_ids_->Signature(),
+            "_");
+  StrAppend(&signature_, "BRRU:", blocking_rewrite_referer_urls_->Signature(),
+            "_");
   StrAppend(&signature_, "UCI:");
   for (int i = 0, n = url_cache_invalidation_entries_.size(); i < n; ++i) {
     const UrlCacheInvalidationEntry& entry =
@@ -4051,11 +3871,10 @@ bool RewriteOptions::IsEqual(const RewriteOptions& that) const {
   }
 }
 
-GoogleString RewriteOptions::ToString(const ResourceCategorySet &x) {
+GoogleString RewriteOptions::ToString(const ResourceCategorySet& x) {
   GoogleString result = "";
   const char* delim = "";
-  for (ResourceCategorySet::const_iterator entry = x.begin();
-       entry != x.end();
+  for (ResourceCategorySet::const_iterator entry = x.begin(); entry != x.end();
        ++entry) {
     StrAppend(&result, delim, semantic_type::GetCategoryString(*entry));
     delim = ",";
@@ -4065,12 +3884,18 @@ GoogleString RewriteOptions::ToString(const ResourceCategorySet &x) {
 
 GoogleString RewriteOptions::ToString(RewriteLevel level) {
   switch (level) {
-    case kPassThrough:                 return "Pass Through";
-    case kOptimizeForBandwidth:        return "Optimize For Bandwidth";
-    case kCoreFilters:                 return "Core Filters";
-    case kMobilizeFilters:             return "Mobilize Filters";
-    case kTestingCoreFilters:          return "Testing Core Filters";
-    case kAllFilters:                  return "All Filters";
+    case kPassThrough:
+      return "Pass Through";
+    case kOptimizeForBandwidth:
+      return "Optimize For Bandwidth";
+    case kCoreFilters:
+      return "Core Filters";
+    case kMobilizeFilters:
+      return "Mobilize Filters";
+    case kTestingCoreFilters:
+      return "Testing Core Filters";
+    case kAllFilters:
+      return "All Filters";
   }
   return "?";
 }
@@ -4085,13 +3910,12 @@ GoogleString RewriteOptions::ToString(const BeaconUrl& beacon_url) {
 
 GoogleString RewriteOptions::ToString(const MobTheme& theme) {
   return StrCat(ToString(theme.background_color), " ",
-                ToString(theme.foreground_color), " ",
-                theme.logo_url);
+                ToString(theme.foreground_color), " ", theme.logo_url);
 }
 
 GoogleString RewriteOptions::ToString(const Color& color) {
-  return StringPrintf("#%02x%02x%02x", static_cast<int>(color.r),
-                      static_cast<int>(color.g), static_cast<int>(color.b));
+  return absl::StrFormat("#%02x%02x%02x", static_cast<int>(color.r),
+                         static_cast<int>(color.g), static_cast<int>(color.b));
 }
 
 GoogleString RewriteOptions::ToString(const ResponsiveDensities& densities) {
@@ -4103,7 +3927,7 @@ GoogleString RewriteOptions::ToString(const ResponsiveDensities& densities) {
     // generally not a good idea. But in this case we are only parsing the
     // doubles from config and never performing any arithmetic, so hashing
     // should be alright.
-    StrAppend(&result, delim, StringPrintf("%.4g", *iter));
+    StrAppend(&result, delim, absl::StrFormat("%.4g", *iter));
     delim = ",";
   }
   return result;
@@ -4186,10 +4010,18 @@ GoogleString RewriteOptions::OptionsToString() const {
   StrAppend(&output, "Version: ", IntegerToString(kOptionsVersion), ": ");
 
   switch (enabled_.value()) {
-    case kEnabledOff:       StrAppend(&output, "off\n\n"); break;
-    case kEnabledOn:        StrAppend(&output, "on\n\n"); break;
-    case kEnabledUnplugged: StrAppend(&output, "unplugged\n\n"); break;
-    case kEnabledStandby:   StrAppend(&output, "standby\n\n"); break;
+    case kEnabledOff:
+      StrAppend(&output, "off\n\n");
+      break;
+    case kEnabledOn:
+      StrAppend(&output, "on\n\n");
+      break;
+    case kEnabledUnplugged:
+      StrAppend(&output, "unplugged\n\n");
+      break;
+    case kEnabledStandby:
+      StrAppend(&output, "standby\n\n");
+      break;
   }
   output += "Filters\n";
   for (int i = kFirstFilter; i != kEndOfFilters; ++i) {
@@ -4208,8 +4040,8 @@ GoogleString RewriteOptions::OptionsToString() const {
     // Only including options with values overridden from the default.
     OptionBase* option = all_options_[i];
     if (option->was_set()) {
-      GoogleString name_and_id = StrCat(option->option_name(),
-                                        " (", option->id(), ")");
+      GoogleString name_and_id =
+          StrCat(option->option_name(), " (", option->id(), ")");
       max_width = std::max(max_width, static_cast<int>(name_and_id.size()));
       names.push_back(name_and_id);
       values.push_back(option->ToString());
@@ -4259,9 +4091,8 @@ GoogleString RewriteOptions::OptionsToString() const {
       GoogleString time_string;
       if ((cache_invalidation_ms > 0) &&
           ConvertTimeToString(cache_invalidation_ms, &time_string)) {
-        StrAppend(&output, "\nInvalidation Timestamp: ",
-                  time_string, " (", Integer64ToString(cache_invalidation_ms),
-                  ")\n");
+        StrAppend(&output, "\nInvalidation Timestamp: ", time_string, " (",
+                  Integer64ToString(cache_invalidation_ms), ")\n");
       }
     } else {
       StrAppend(&output, "\nInvalidation Timestamp: (none)");
@@ -4318,12 +4149,13 @@ GoogleString RewriteOptions::ExperimentSpec::ToString() const {
 
   sep = ";options=";
   for (RewriteOptions::OptionSet::const_iterator p = filter_options_.begin(),
-           e = filter_options_.end(); p != e; ++p) {
+                                                 e = filter_options_.end();
+       p != e; ++p) {
     StrAppend(&out, sep, p->first, "=", p->second);
     sep = ",";
   }
 
-  if (matches_device_types_.get() != NULL) {
+  if (matches_device_types_.get() != nullptr) {
     StrAppend(&out, ";matches_device_type=");
     sep = "";
     if ((*matches_device_types_)[UserAgentMatcher::kDesktop]) {
@@ -4365,8 +4197,8 @@ GoogleString RewriteOptions::ExperimentSpec::ToString() const {
 
 GoogleString RewriteOptions::ToExperimentString() const {
   // Only add the experiment id if we're running this experiment.
-  if (GetExperimentSpec(experiment_id_) != NULL) {
-    return StringPrintf("Experiment: %d", experiment_id_);
+  if (GetExperimentSpec(experiment_id_) != nullptr) {
+    return absl::StrFormat("Experiment: %d", experiment_id_);
   }
   return GoogleString();
 }
@@ -4384,7 +4216,7 @@ GoogleString RewriteOptions::ToExperimentDebugString() const {
     output += "no experiment; ";
   } else {
     ExperimentSpec* spec = GetExperimentSpec(experiment_id_);
-    if (spec != NULL) {
+    if (spec != nullptr) {
       output += spec->ToString();
     }
   }
@@ -4398,8 +4230,8 @@ void RewriteOptions::Modify() {
   // The data in last_thread_id_ is currently only examined in DCHECKs so
   // there's no need to pay the cost of populating it in production.
 #ifndef NDEBUG
-  if (thread_system_ != NULL) {
-    if (last_thread_id_.get() == NULL) {
+  if (thread_system_ != nullptr) {
+    if (last_thread_id_.get() == nullptr) {
       last_thread_id_.reset(thread_system_->GetThreadId());
     } else {
       DCHECK(ModificationOK());
@@ -4413,22 +4245,22 @@ void RewriteOptions::Modify() {
 // compiled into the class in non-debug compiles.
 #ifndef NDEBUG
 bool RewriteOptions::ModificationOK() const {
-  return ((last_thread_id_.get() == NULL) ||
+  return ((last_thread_id_.get() == nullptr) ||
           (last_thread_id_->IsCurrentThread()));
 }
 
 bool RewriteOptions::MergeOK() const {
-  return frozen_ || (last_thread_id_.get() == NULL) ||
-      last_thread_id_->IsCurrentThread();
+  return frozen_ || (last_thread_id_.get() == nullptr) ||
+         last_thread_id_->IsCurrentThread();
 }
 #endif
 
 bool RewriteOptions::ValidateConfiguredHttpHeader(const GoogleString& name,
                                                   const GoogleString& value,
                                                   GoogleString* error_message) {
-  DCHECK(error_message != NULL);
+  DCHECK(error_message != nullptr);
 
-  if (error_message == NULL) {
+  if (error_message == nullptr) {
     return false;
   }
 
@@ -4449,13 +4281,13 @@ bool RewriteOptions::ValidateConfiguredHttpHeader(const GoogleString& name,
   for (int i = 0, n = name.size(); i < n; ++i) {
     char c = name[i];
     if (!IsNonControlAscii(c)) {
-      *error_message = StrCat("Invalid character in field name: ",
-                              GoogleString(1, c));
+      *error_message =
+          StrCat("Invalid character in field name: ", GoogleString(1, c));
       return false;
     }
     if (http_header_separators[static_cast<unsigned int>(c)]) {
-      *error_message = StrCat("Separator found in field name: ",
-                              GoogleString(1, c));
+      *error_message =
+          StrCat("Separator found in field name: ", GoogleString(1, c));
       return false;
     }
   }
@@ -4490,18 +4322,18 @@ bool RewriteOptions::ValidateAndAddResourceHeader(const StringPiece& name,
     StringPieceVector hbh = HttpAttributes::SortedHopByHopHeaders();
     StringCompareInsensitive compare;
     if (std::binary_search(&hbh[0], &hbh[0] + hbh.size(), gs_name, compare)) {
-        *error_message = StrCat("Rejecting hop by hop header '", name, " '");
-        return false;
+      *error_message = StrCat("Rejecting hop by hop header '", name, " '");
+      return false;
     }
 
     // We don't allow overwriting of headers we compute, like Cache-Control.
     // In addition, there's a few other headers that should not be allowed
     // so reject those fields as well:
     const StringPiece* start = &fixed_resource_headers->at(0);
-    if (std::binary_search(
-        start, start + fixed_resource_headers->size(), gs_name, compare)) {
-        *error_message = StrCat("Rejecting header '", name, " '");
-        return false;
+    if (std::binary_search(start, start + fixed_resource_headers->size(),
+                           gs_name, compare)) {
+      *error_message = StrCat("Rejecting header '", name, " '");
+      return false;
     }
 
     // Arbitrary limit of adding 20 headers
@@ -4535,7 +4367,7 @@ RewriteOptions::ExperimentSpec* RewriteOptions::GetExperimentSpec(
       return experiment_specs_[i];
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 bool RewriteOptions::AvailableExperimentId(int id) {
@@ -4543,14 +4375,14 @@ bool RewriteOptions::AvailableExperimentId(int id) {
       id == experiment::kNoExperiment) {
     return false;
   }
-  return (GetExperimentSpec(id) == NULL);
+  return (GetExperimentSpec(id) == nullptr);
 }
 
 RewriteOptions::ExperimentSpec* RewriteOptions::AddExperimentSpec(
     const StringPiece& spec, MessageHandler* handler) {
   ExperimentSpec* f_spec = new ExperimentSpec(spec, this, handler);
   if (!InsertExperimentSpecInVector(f_spec)) {
-    return NULL;  // InsertExperimentSpecInVector deletes f_spec on failure.
+    return nullptr;  // InsertExperimentSpecInVector deletes f_spec on failure.
   }
   return f_spec;
 }
@@ -4583,7 +4415,7 @@ bool RewriteOptions::SetupExperimentRewriters() {
   // Do NOT try to set up things to look like the ExperimentSpec
   // for this id: it doesn't match the rewrite options.
   ExperimentSpec* spec = GetExperimentSpec(experiment_id_);
-  if (spec == NULL) {
+  if (spec == nullptr) {
     return false;
   }
 
@@ -4639,10 +4471,9 @@ RewriteOptions::ExperimentSpec::ExperimentSpec(int id)
       ga_variable_slot_(kDefaultExperimentSlot),
       percent_(-1),
       rewrite_level_(kPassThrough),
-      use_default_(false) {
-}
+      use_default_(false) {}
 
-RewriteOptions::ExperimentSpec::~ExperimentSpec() { }
+RewriteOptions::ExperimentSpec::~ExperimentSpec() {}
 
 void RewriteOptions::ExperimentSpec::Merge(const ExperimentSpec& spec) {
   enabled_filters_.Merge(spec.enabled_filters_);
@@ -4656,9 +4487,9 @@ void RewriteOptions::ExperimentSpec::Merge(const ExperimentSpec& spec) {
   percent_ = spec.percent_;
   rewrite_level_ = spec.rewrite_level_;
   use_default_ = spec.use_default_;
-  if (spec.matches_device_types_.get() != NULL) {
-    matches_device_types_.reset(
-        new DeviceTypeBitSet(*spec.matches_device_types_));
+  if (spec.matches_device_types_.get() != nullptr) {
+    matches_device_types_ =
+        std::make_unique<DeviceTypeBitSet>(*spec.matches_device_types_);
   }
   if (!spec.alternate_origin_domains_.empty()) {
     alternate_origin_domains_ = spec.alternate_origin_domains_;
@@ -4730,7 +4561,7 @@ void RewriteOptions::ExperimentSpec::Initialize(const StringPiece& spec,
         AddCommaSeparatedListToOptionSet(options, &filter_options_, handler);
       }
     } else if (StringCaseStartsWith(piece, "matches_device_type")) {
-      matches_device_types_.reset(new DeviceTypeBitSet());
+      matches_device_types_ = std::make_unique<DeviceTypeBitSet>();
       ParseDeviceTypeBitSet(PieceAfterEquals(piece),
                             matches_device_types_.get(), handler);
     } else if (StringCaseStartsWith(piece, "alternate_origin_domain=")) {
@@ -4786,8 +4617,8 @@ bool RewriteOptions::ExperimentSpec::LooksLikeValidHost(
 
   // host_components[1] is the port, which may not be present. Check it is
   // non-empty and contains only numbers.
-  if (host_components.size() > 1 && (host_components[1].empty() ||
-                                     host_components[1].find_first_not_of(
+  if (host_components.size() > 1 &&
+      (host_components[1].empty() || host_components[1].find_first_not_of(
                                          "1234567890") != GoogleString::npos)) {
     return false;
   }
@@ -4923,7 +4754,6 @@ bool RewriteOptions::ExperimentSpec::ParseDeviceTypeBitSet(
 
 bool RewriteOptions::ExperimentSpec::matches_device_type(
     UserAgentMatcher::DeviceType type) const {
-
   // It would be nice to use matches_device_types_->size() for the second
   // if clause. Unfortunately, matches_device_types_ might be NULL and
   // size is not static, despite it being a template paramater.
@@ -4933,7 +4763,7 @@ bool RewriteOptions::ExperimentSpec::matches_device_type(
   }
 
   // If no device_type filter has been specified, this will match all devices.
-  if (matches_device_types_.get() == NULL) {
+  if (matches_device_types_.get() == nullptr) {
     return true;
   }
 
@@ -4978,11 +4808,12 @@ void RewriteOptions::set_inline_unauthorized_resource_types(
   set_option(x, &inline_unauthorized_resource_types_);
 }
 
-void RewriteOptions::AddUrlValuedAttribute(
-    const StringPiece& element, const StringPiece& attribute,
-    semantic_type::Category category) {
-  if (url_valued_attributes_ == NULL) {
-    url_valued_attributes_.reset(new std::vector<ElementAttributeCategory>());
+void RewriteOptions::AddUrlValuedAttribute(const StringPiece& element,
+                                           const StringPiece& attribute,
+                                           semantic_type::Category category) {
+  if (url_valued_attributes_ == nullptr) {
+    url_valued_attributes_ =
+        std::make_unique<std::vector<ElementAttributeCategory>>();
   }
   ElementAttributeCategory eac;
   element.CopyToString(&eac.element);
@@ -5049,8 +4880,7 @@ void RewriteOptions::PurgeUrl(StringPiece url, int64 timestamp_ms) {
 void RewriteOptions::AddUrlCacheInvalidationEntry(
     StringPiece url_pattern, int64 timestamp_ms,
     bool ignores_metadata_and_pcache) {
-  if (enable_cache_purge() &&
-      !ignores_metadata_and_pcache &&
+  if (enable_cache_purge() && !ignores_metadata_and_pcache &&
       (url_pattern.find('*') == StringPiece::npos)) {
     // We could use Wildcard::IsSimple but let's define ? to mean in this
     // context a literal '?' because query-params are way more common than
@@ -5067,9 +4897,8 @@ void RewriteOptions::AddUrlCacheInvalidationEntry(
         return;
       }
     }
-    url_cache_invalidation_entries_.push_back(
-        new UrlCacheInvalidationEntry(url_pattern, timestamp_ms,
-                                      ignores_metadata_and_pcache));
+    url_cache_invalidation_entries_.push_back(new UrlCacheInvalidationEntry(
+        url_pattern, timestamp_ms, ignores_metadata_and_pcache));
   }
 }
 
@@ -5141,8 +4970,7 @@ HttpOptions RewriteOptions::ComputeHttpOptions() const {
 }
 
 bool RewriteOptions::NeedsDependenciesCohort() const {
-  return Enabled(kExperimentHttp2) ||
-         Enabled(kHintPreloadSubresources);
+  return Enabled(kExperimentHttp2) || Enabled(kHintPreloadSubresources);
 }
 
 bool RewriteOptions::CacheFragmentOption::SetFromString(
@@ -5157,8 +4985,9 @@ bool RewriteOptions::CacheFragmentOption::SetFromString(
   for (int i = 0, n = value.length(); i < n; ++i) {
     const char c = value.data()[i];
     if (!IsAsciiAlphaNumeric(c) && c != '-' && c != '_') {
-      *error_detail = ("A CacheFragment must be only letters, numbers, "
-                       "underscores and hyphens.  Found '");
+      *error_detail =
+          ("A CacheFragment must be only letters, numbers, "
+           "underscores and hyphens.  Found '");
       *error_detail += c;
       *error_detail += "'.";
       return false;

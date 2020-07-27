@@ -17,18 +17,16 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_BASE64_UTIL_H_
 #define PAGESPEED_KERNEL_BASE_BASE64_UTIL_H_
 
 #include "pagespeed/kernel/base/string.h"
 
-#include "base/strings/string_piece.h"
+//#include "base/strings/string_piece.h"
+#include "pagespeed/kernel/base/string_util.h"
 #include "third_party/base64/base64.h"
 
 namespace net_instaweb {
-
-typedef base::StringPiece StringPiece;
 
 inline void Web64Encode(const StringPiece& in, GoogleString* out) {
   *out = web64_encode(reinterpret_cast<const unsigned char*>(in.data()),
@@ -42,7 +40,7 @@ inline bool Web64Decode(const StringPiece& in, GoogleString* out) {
 
 inline void Mime64Encode(const StringPiece& in, GoogleString* out) {
   *out = base64_encode(reinterpret_cast<const unsigned char*>(in.data()),
-                      in.size());
+                       in.size());
 }
 
 inline bool Mime64Decode(const StringPiece& in, GoogleString* out) {

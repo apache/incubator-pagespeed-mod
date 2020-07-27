@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/chunking_writer.h"
+
+#include <memory>
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
@@ -42,11 +43,10 @@ namespace {
 // trigger failures on a given operation.
 class TracingWriter : public Writer {
  public:
-  explicit TracingWriter(MessageHandler* expected_handler) :
-      expected_handler_(expected_handler), ops_(0), fail_on_op_(-1) {
-  }
+  explicit TracingWriter(MessageHandler* expected_handler)
+      : expected_handler_(expected_handler), ops_(0), fail_on_op_(-1) {}
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     EXPECT_EQ(expected_handler_, handler);
     if (ops_ == fail_on_op_) {
       // Still advance, so that we know we don't get called again
@@ -61,7 +61,7 @@ class TracingWriter : public Writer {
     return true;
   }
 
-  virtual bool Flush(MessageHandler* handler) {
+  bool Flush(MessageHandler* handler) override {
     EXPECT_EQ(expected_handler_, handler);
     if (ops_ == fail_on_op_) {
       // Still advance, so that we know we don't get called again
@@ -87,24 +87,23 @@ class TracingWriter : public Writer {
   int fail_on_op_;
 };
 
-
 class ChunkingWriterTest : public testing::Test {
  public:
   ChunkingWriterTest() : message_handler_(new NullMutex) {}
 
-  virtual void SetUp() {
-    tracer_.reset(new TracingWriter(&message_handler_));
+  void SetUp() override {
+    tracer_ = std::make_unique<TracingWriter>(&message_handler_);
     SetUpWithLimit(0);
   }
 
   void SetUpWithLimit(int limit) {
-    chunker_.reset(new ChunkingWriter(tracer_.get(), limit));
+    chunker_ = std::make_unique<ChunkingWriter>(tracer_.get(), limit);
   }
 
  protected:
   MockMessageHandler message_handler_;
-  scoped_ptr<TracingWriter> tracer_;
-  scoped_ptr<ChunkingWriter> chunker_;
+  std::unique_ptr<TracingWriter> tracer_;
+  std::unique_ptr<ChunkingWriter> chunker_;
 };
 
 TEST_F(ChunkingWriterTest, UnchunkedBasic) {

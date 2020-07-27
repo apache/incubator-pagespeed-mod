@@ -39,16 +39,90 @@ class Statistics;
 class Variable;
 
 // Visible only for use in tests.
-extern const char kGAExperimentSnippet[];
-extern const char kGAJsSnippet[];
-extern const char kAnalyticsJsSnippet[];
-extern const char kAnalyticsJsIncreaseSiteSpeedTracking[];
-extern const char kAnalyticsJsIncreaseSiteSpeedTrackingMinimal[];
-extern const char kContentExperimentsJsClientUrl[];
-extern const char kContentExperimentsNonNumericVariantComment[];
-extern const char kContentExperimentsSetChosenVariationSnippet[];
-extern const char kContentExperimentsSetExpAndVariantSnippet[];
-extern const char kGASpeedTracking[];
+// Google Analytics snippet for setting experiment related variables.  Use with
+// old ga.js and custom variable experiment reporting. Arguments are:
+//   %s: Optional snippet to increase site speed tracking.
+//   %u: Which ga.js custom variable to support to.
+//   %s: Experiment spec string, shown in the GA UI.
+extern inline constexpr char kGAExperimentSnippet[] =
+    "var _gaq = _gaq || [];"
+    "%s"
+    "_gaq.push(['_setCustomVar', %u, 'ExperimentState', '%s'"
+    "]);";
+
+// Google Analytics async snippet along with the _trackPageView call.
+extern inline constexpr char kGAJsSnippet[] =
+    "if (window.parent == window) {"
+    "var _gaq = _gaq || [];"
+    "_gaq.push(['_setAccount', '%s']);"     // %s is the GA account number.
+    "_gaq.push(['_setDomainName', '%s']);"  // %s is the domain name
+    "_gaq.push(['_setAllowLinker', true]);"
+    "%s"  // Optional snippet to increase site speed tracking.
+    "_gaq.push(['_trackPageview']);"
+    "(function() {"
+    "var ga = document.createElement('script'); ga.type = 'text/javascript';"
+    "ga.async = true;"
+    "ga.src = 'https://ssl.google-analytics.com/ga.js';"
+    "var s = document.getElementsByTagName('script')[0];"
+    "s.parentNode.insertBefore(ga, s);"
+    "})();"
+    "}";
+
+// Google Universal analytics snippet.  First argument is the GA account number,
+// second is kContentExperimentsSetExpAndVariantSnippet or nothing.
+extern inline constexpr char kAnalyticsJsSnippet[] =
+    "if (window.parent == window) {"
+    "(function(i,s,o,g,r,a,m){"
+    "i['GoogleAnalyticsObject']=r;"
+    "i[r]=i[r]||function(){"
+    "(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();"
+    "a=s.createElement(o), m=s.getElementsByTagName(o)[0];"
+    "a.async=1;a.src=g;m.parentNode.insertBefore(a,m)"
+    "})(window,document,'script',"
+    "'//www.google-analytics.com/analytics.js','ga');"
+    "ga('create', '%s', 'auto'%s);"
+    "%s"
+    "ga('send', 'pageview');"
+    "}";
+
+// Increase site speed tracking to 100% when using analytics.js
+// Use the first one if we're inserting the snippet, or if the site we're
+// modifying isn't already using a fields object with ga('create'), the second
+// one if there is an existing snippet with a fields object.
+extern inline constexpr char kAnalyticsJsIncreaseSiteSpeedTracking[] =
+    ", {'siteSpeedSampleRate': 100}";
+extern inline constexpr char kAnalyticsJsIncreaseSiteSpeedTrackingMinimal[] =
+    "'siteSpeedSampleRate': 100,";
+
+// When using content experiments with ga.js you need to do a sychronous load
+// of /cx/api.js first.
+extern inline constexpr char kContentExperimentsJsClientUrl[] =
+    "//www.google-analytics.com/cx/api.js";
+
+// When using content experiments with ga.js, after /cx/api.js has loaded and
+// before ga.js loads you need to call this.  The first argument is the
+// variant id, the second is the experiment id.
+extern inline constexpr char kContentExperimentsSetChosenVariationSnippet[] =
+    "cxApi.setChosenVariation(%d, '%s');";
+
+// When using content experiments with ga.js, the variant ID must be numeric.
+// If the user requests a non-numeric variant with ga.js, we inject this
+// comment. The string is bracketed with newlines because otherwise it's
+// invisible in a wall of JavaScript.
+extern inline constexpr char kContentExperimentsNonNumericVariantComment[] =
+    "\n/* mod_pagespeed cannot inject experiment variant '%s' "
+    "because it's not a number */\n";
+
+// When using content experiments with analytics.js, after ga('create', ..._)
+// and before ga('[...].send', 'pageview'), we need to insert:
+extern inline constexpr char kContentExperimentsSetExpAndVariantSnippet[] =
+    "ga('set', 'expId', '%s');"
+    "ga('set', 'expVar', '%s');";
+
+// Set the sample rate to 100%.
+// TODO(nforman): Allow this to be configurable through RewriteOptions.
+extern inline constexpr char kGASpeedTracking[] =
+    "_gaq.push(['_setSiteSpeedSampleRate', 100]);";
 
 // This class is the implementation of the insert_ga filter, which handles:
 // * Adding a Google Analytics snippet to html pages.
@@ -56,18 +130,18 @@ extern const char kGASpeedTracking[];
 class InsertGAFilter : public CommonFilter {
  public:
   explicit InsertGAFilter(RewriteDriver* rewrite_driver);
-  virtual ~InsertGAFilter();
+  ~InsertGAFilter() override;
 
   // Set up statistics for this filter.
   static void InitStats(Statistics* stats);
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
   // HTML Events we expect to be in <script> elements.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
-  virtual const char* Name() const { return "InsertGASnippet"; }
+  const char* Name() const override { return "InsertGASnippet"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:
@@ -97,7 +171,7 @@ class InsertGAFilter : public CommonFilter {
   GoogleString ConstructExperimentSnippet() const;
 
   // If appropriate, insert the GA snippet at the end of the document.
-  virtual void EndDocument();
+  void EndDocument() override;
 
   // If RewriteInlineScript left work to do, finish it now.
   void HandleEndScript(HtmlElement* script);

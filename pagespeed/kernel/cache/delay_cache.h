@@ -50,13 +50,13 @@ class DelayCache : public CacheInterface {
  public:
   // Note: takes ownership of nothing.
   DelayCache(CacheInterface* cache, ThreadSystem* thread_system);
-  virtual ~DelayCache();
+  ~DelayCache() override;
 
   // Reimplementations of CacheInterface methods.
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
-  virtual void MultiGet(MultiGetRequest* request);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
+  void MultiGet(MultiGetRequest* request) override;
 
   // Instructs the cache to delay delivery of callbacks for specific cache-key.
   // It is a fatal error -- reported at class destruction, to request delay of
@@ -74,11 +74,11 @@ class DelayCache : public CacheInterface {
                             QueuedWorkerPool::Sequence* sequence);
 
   static GoogleString FormatName(StringPiece name);
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
+  GoogleString Name() const override { return FormatName(cache_->Name()); }
 
-  virtual bool IsBlocking() const { return false; }
-  virtual bool IsHealthy() const { return cache_->IsHealthy(); }
-  virtual void ShutDown() { cache_->ShutDown(); }
+  bool IsBlocking() const override { return false; }
+  bool IsHealthy() const override { return cache_->IsHealthy(); }
+  void ShutDown() override { cache_->ShutDown(); }
 
  private:
   class DelayCallback;
@@ -89,7 +89,7 @@ class DelayCache : public CacheInterface {
   typedef std::map<GoogleString, DelayCallback*> DelayMap;
 
   CacheInterface* cache_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   StringSet delay_requests_;
   DelayMap delay_map_;
 

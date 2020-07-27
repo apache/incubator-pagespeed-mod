@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_ADD_HEAD_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_ADD_HEAD_FILTER_H_
 
@@ -33,14 +32,14 @@ class HtmlParse;
 class AddHeadFilter : public EmptyHtmlFilter {
  public:
   explicit AddHeadFilter(HtmlParse* parser, bool combine_multiple_heads);
-  virtual ~AddHeadFilter();
+  ~AddHeadFilter() override;
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndDocument();
-  virtual void EndElement(HtmlElement* element);
-  virtual void Flush();
-  virtual const char* Name() const { return "AddHead"; }
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndDocument() override;
+  void EndElement(HtmlElement* element) override;
+  void Flush() override;
+  const char* Name() const override { return "AddHead"; }
 
  private:
   HtmlParse* html_parse_;

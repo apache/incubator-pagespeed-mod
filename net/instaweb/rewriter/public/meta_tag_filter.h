@@ -41,12 +41,12 @@ class Variable;
 class MetaTagFilter : public CommonFilter {
  public:
   explicit MetaTagFilter(RewriteDriver* rewrite_driver);
-  virtual ~MetaTagFilter();
+  ~MetaTagFilter() override;
 
   static void InitStats(Statistics* stats);
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override {}
 
   // Rewrite tags in the following form:
   // <meta http-equiv="Content-Type" content="text/html" >
@@ -55,16 +55,15 @@ class MetaTagFilter : public CommonFilter {
   // "dangerous" to mutate the html (in case a script is looking for something),
   // we leave the tag in there.  As long as the tags and the headers match,
   // there should not be a performance hit.
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void Flush();
+  void EndElementImpl(HtmlElement* element) override;
+  void Flush() override;
 
-  virtual const char* Name() const { return "ConvertMetaTags"; }
+  const char* Name() const override { return "ConvertMetaTags"; }
 
   // Utility function to extract the mime type and/or charset from a meta tag
   // and update the response_headers if they are not set already.
-  static bool ExtractAndUpdateMetaTagDetails(
-      HtmlElement* element,
-      ResponseHeaders* response_headers);
+  static bool ExtractAndUpdateMetaTagDetails(HtmlElement* element,
+                                             ResponseHeaders* response_headers);
 
  private:
   ResponseHeaders* response_headers_;

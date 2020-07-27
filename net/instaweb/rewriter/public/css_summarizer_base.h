@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_SUMMARIZER_BASE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_SUMMARIZER_BASE_H_
 
@@ -57,7 +56,7 @@ class CssSummarizerBase : public RewriteFilter {
   static const char kNumCssNotUsedForCriticalCssComputation[];
 
   explicit CssSummarizerBase(RewriteDriver* driver);
-  virtual ~CssSummarizerBase();
+  ~CssSummarizerBase() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -124,9 +123,7 @@ class CssSummarizerBase : public RewriteFilter {
   // summarization process (eg because it uses an inapplicable media type and
   // we'll just throw it away when we're done anyway).  By default all CSS
   // must be summarized.
-  virtual bool MustSummarize(HtmlElement* element) const {
-    return true;
-  }
+  virtual bool MustSummarize(HtmlElement* element) const { return true; }
 
   // This should be overridden to compute a per-resource summary.
   // The method should not modify the object state, and only
@@ -154,8 +151,7 @@ class CssSummarizerBase : public RewriteFilter {
   // to true if they delete the element.
   //
   // The default implementation does nothing.
-  virtual void RenderSummary(int pos,
-                             HtmlElement* element,
+  virtual void RenderSummary(int pos, HtmlElement* element,
                              HtmlCharactersNode* char_node,
                              bool* is_element_deleted);
 
@@ -166,8 +162,7 @@ class CssSummarizerBase : public RewriteFilter {
   // Like with RenderSummary, this corresponds to entry [pos] in the summary
   // table, and elements points to the <link> or <style> containing CSS,
   // with char_node being non-null in case it was a <style>.
-  virtual void WillNotRenderSummary(int pos,
-                                    HtmlElement* element,
+  virtual void WillNotRenderSummary(int pos, HtmlElement* element,
                                     HtmlCharactersNode* char_node);
 
   // This is called at the end of the document when all outstanding summary
@@ -203,14 +198,14 @@ class CssSummarizerBase : public RewriteFilter {
 
   // Overrides of the filter APIs. You MUST call through to this class's
   // implementations if you override them.
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void RenderDone();
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  void EndElementImpl(HtmlElement* element) override;
+  void RenderDone() override;
 
-  virtual RewriteContext* MakeRewriteContext();
+  RewriteContext* MakeRewriteContext() override;
 
  private:
   class Context;
@@ -248,7 +243,7 @@ class CssSummarizerBase : public RewriteFilter {
   // Stores all the computed summaries.
   std::vector<SummaryInfo> summaries_;
 
-  scoped_ptr<AbstractMutex> progress_lock_;
+  std::unique_ptr<AbstractMutex> progress_lock_;
   int outstanding_rewrites_;  // guarded by progress_lock_
   bool saw_end_of_document_;  // guarded by progress_lock_
   // Lists indexes into summaries_ vector that got canceled due to

@@ -35,28 +35,27 @@ namespace net_instaweb {
 // TODO(piatek): Remove this default constructor that permits NULL request
 // contexts.
 AsyncFetch::AsyncFetch()
-    : request_headers_(NULL),
-      response_headers_(NULL),
-      extra_response_headers_(NULL),
-      request_ctx_(NULL),
+    : request_headers_(nullptr),
+      response_headers_(nullptr),
+      extra_response_headers_(nullptr),
+      request_ctx_(nullptr),
       owns_request_headers_(false),
       owns_response_headers_(false),
       owns_extra_response_headers_(false),
       headers_complete_(false),
-      content_length_(kContentLengthUnknown) {
-}
+      content_length_(kContentLengthUnknown) {}
 
 AsyncFetch::AsyncFetch(const RequestContextPtr& request_ctx)
-    : request_headers_(NULL),
-      response_headers_(NULL),
-      extra_response_headers_(NULL),
+    : request_headers_(nullptr),
+      response_headers_(nullptr),
+      extra_response_headers_(nullptr),
       request_ctx_(request_ctx),
       owns_request_headers_(false),
       owns_response_headers_(false),
       owns_extra_response_headers_(false),
       headers_complete_(false),
       content_length_(kContentLengthUnknown) {
-  DCHECK(request_ctx_.get() != NULL);
+  DCHECK(request_ctx_.get() != nullptr);
 }
 
 AsyncFetch::~AsyncFetch() {
@@ -72,7 +71,7 @@ AsyncFetch::~AsyncFetch() {
 }
 
 AbstractLogRecord* AsyncFetch::log_record() {
-  CHECK(request_context().get() != NULL);
+  CHECK(request_context().get() != nullptr);
   return request_context()->log_record();
 }
 
@@ -171,7 +170,7 @@ void AsyncFetch::SetRequestHeadersTakingOwnership(RequestHeaders* headers) {
 RequestHeaders* AsyncFetch::request_headers() {
   // TODO(jmarantz): Consider DCHECKing that only const reads occur
   // after headers_complete_.
-  if (request_headers_ == NULL) {
+  if (request_headers_ == nullptr) {
     request_headers_ = new RequestHeaders;
     owns_request_headers_ = true;
   }
@@ -179,12 +178,12 @@ RequestHeaders* AsyncFetch::request_headers() {
 }
 
 const RequestHeaders* AsyncFetch::request_headers() const {
-  CHECK(request_headers_ != NULL);
+  CHECK(request_headers_ != nullptr);
   return request_headers_;
 }
 
 ResponseHeaders* AsyncFetch::response_headers() {
-  if (response_headers_ == NULL) {
+  if (response_headers_ == nullptr) {
     response_headers_ = new ResponseHeaders(request_ctx_->options());
     owns_response_headers_ = true;
   }
@@ -201,7 +200,7 @@ void AsyncFetch::set_response_headers(ResponseHeaders* headers) {
 }
 
 ResponseHeaders* AsyncFetch::extra_response_headers() {
-  if (extra_response_headers_ == NULL) {
+  if (extra_response_headers_ == nullptr) {
     extra_response_headers_ = new ResponseHeaders(request_ctx_->options());
     owns_extra_response_headers_ = true;
   }
@@ -220,7 +219,7 @@ void AsyncFetch::set_extra_response_headers(ResponseHeaders* headers) {
 GoogleString AsyncFetch::LoggingString() {
   GoogleString logging_info_str;
 
-  if (NULL == request_ctx_.get()) {
+  if (nullptr == request_ctx_.get()) {
     return logging_info_str;
   }
 
@@ -241,8 +240,7 @@ GoogleString AsyncFetch::LoggingString() {
   return logging_info_str;
 }
 
-StringAsyncFetch::~StringAsyncFetch() {
-}
+StringAsyncFetch::~StringAsyncFetch() {}
 
 bool AsyncFetchUsingWriter::HandleWrite(const StringPiece& sp,
                                         MessageHandler* handler) {
@@ -253,19 +251,16 @@ bool AsyncFetchUsingWriter::HandleFlush(MessageHandler* handler) {
   return writer_->Flush(handler);
 }
 
-AsyncFetchUsingWriter::~AsyncFetchUsingWriter() {
-}
+AsyncFetchUsingWriter::~AsyncFetchUsingWriter() {}
 
 SharedAsyncFetch::SharedAsyncFetch(AsyncFetch* base_fetch)
-    : AsyncFetch(base_fetch->request_context()),
-      base_fetch_(base_fetch) {
+    : AsyncFetch(base_fetch->request_context()), base_fetch_(base_fetch) {
   set_response_headers(base_fetch->response_headers());
   set_extra_response_headers(base_fetch->extra_response_headers());
   set_request_headers(base_fetch->request_headers());
 }
 
-SharedAsyncFetch::~SharedAsyncFetch() {
-}
+SharedAsyncFetch::~SharedAsyncFetch() {}
 
 void SharedAsyncFetch::PropagateContentLength() {
   if (content_length_known()) {
@@ -320,10 +315,8 @@ bool AsyncFetch::IsGoogleCacheVia(StringPiece via_value) {
   StringPieceVector tokens;
   SplitStringPieceToVector(via_value, " ", &tokens, true);
   double version;
-  return
-      (tokens.size() == 2) &&
-      StringCaseEqual(tokens[1], "google") &&
-      StringToDouble(tokens[0], &version);
+  return (tokens.size() == 2) && StringCaseEqual(tokens[1], "google") &&
+         StringToDouble(tokens[0], &version);
 }
 
 const char FallbackSharedAsyncFetch::kStaleWarningHeaderValue[] =
@@ -335,8 +328,8 @@ FallbackSharedAsyncFetch::FallbackSharedAsyncFetch(AsyncFetch* base_fetch,
     : SharedAsyncFetch(base_fetch),
       handler_(handler),
       serving_fallback_(false),
-      fallback_responses_served_(NULL) {
-  if (fallback != NULL && !fallback->Empty()) {
+      fallback_responses_served_(nullptr) {
+  if (fallback != nullptr && !fallback->Empty()) {
     fallback_.Link(fallback);
   }
 }
@@ -359,7 +352,7 @@ void FallbackSharedAsyncFetch::HandleHeadersComplete() {
     SharedAsyncFetch::HandleHeadersComplete();
     SharedAsyncFetch::HandleWrite(contents, handler_);
     SharedAsyncFetch::HandleFlush(handler_);
-    if (fallback_responses_served_ != NULL) {
+    if (fallback_responses_served_ != nullptr) {
       fallback_responses_served_->Add(1);
     }
     // Do not call Done() on the base fetch yet since it could delete shared
@@ -390,15 +383,13 @@ void FallbackSharedAsyncFetch::HandleDone(bool success) {
 }
 
 ConditionalSharedAsyncFetch::ConditionalSharedAsyncFetch(
-    AsyncFetch* base_fetch,
-    HTTPValue* cached_value,
-    MessageHandler* handler)
+    AsyncFetch* base_fetch, HTTPValue* cached_value, MessageHandler* handler)
     : SharedAsyncFetch(base_fetch),
       handler_(handler),
       serving_cached_value_(false),
       added_conditional_headers_to_request_(false),
-      num_conditional_refreshes_(NULL) {
-  if (cached_value != NULL && !cached_value->Empty()) {
+      num_conditional_refreshes_(nullptr) {
+  if (cached_value != nullptr && !cached_value->Empty()) {
     // Only do our own conditional fetch if the original request wasn't
     // conditional.
     if (!request_headers()->Has(HttpAttributes::kIfModifiedSince) &&
@@ -410,16 +401,16 @@ ConditionalSharedAsyncFetch::ConditionalSharedAsyncFetch(
         // Copy the Etag and Last-Modified if any into the If-None-Match and
         // If-Modified-Since request headers. Also, ensure that the Etag wasn't
         // added by us.
-        const char* etag = cached_response_headers.Lookup1(
-            HttpAttributes::kEtag);
-        if (etag != NULL && !StringCaseStartsWith(etag,
-                                                  HTTPCache::kEtagPrefix)) {
+        const char* etag =
+            cached_response_headers.Lookup1(HttpAttributes::kEtag);
+        if (etag != nullptr &&
+            !StringCaseStartsWith(etag, HTTPCache::kEtagPrefix)) {
           request_headers()->Add(HttpAttributes::kIfNoneMatch, etag);
           added_conditional_headers_to_request_ = true;
         }
-        const char* last_modified = cached_response_headers.Lookup1(
-            HttpAttributes::kLastModified);
-        if (last_modified != NULL) {
+        const char* last_modified =
+            cached_response_headers.Lookup1(HttpAttributes::kLastModified);
+        if (last_modified != nullptr) {
           request_headers()->Add(HttpAttributes::kIfModifiedSince,
                                  last_modified);
           added_conditional_headers_to_request_ = true;
@@ -454,7 +445,7 @@ void ConditionalSharedAsyncFetch::HandleHeadersComplete() {
     SharedAsyncFetch::HandleFlush(handler_);
     // Do not call Done() on the base fetch yet since it could delete shared
     // pointers.
-    if (num_conditional_refreshes_ != NULL) {
+    if (num_conditional_refreshes_ != nullptr) {
       num_conditional_refreshes_->Add(1);
     }
   } else {

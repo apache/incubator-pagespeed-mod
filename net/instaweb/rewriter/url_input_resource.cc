@@ -21,7 +21,7 @@
 
 #include "net/instaweb/rewriter/public/url_input_resource.h"
 
-#include "base/logging.h"               // for COMPACT_GOOGLE_LOG_FATAL, etc
+#include "base/logging.h"  // for COMPACT_GOOGLE_LOG_FATAL, etc
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_query.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -60,13 +60,13 @@ UrlInputResource::UrlInputResource(RewriteDriver* rewrite_driver,
                                    const StringPiece& url,
                                    bool is_authorized_domain)
     : CacheableResourceBase("url_input_resource", url,
-                            GetCacheKey(url, is_authorized_domain),
-                            type, rewrite_driver) {
+                            GetCacheKey(url, is_authorized_domain), type,
+                            rewrite_driver) {
   set_is_authorized_domain(is_authorized_domain);
   if (!is_authorized_domain) {
     GoogleUrl tmp_url(url);
     if (tmp_url.IsWebValid() &&
-        tmp_url.IntPort() == url::PORT_UNSPECIFIED) {
+        GoogleUrl::isPortGurlUnspecified(tmp_url.IntPort())) {
       // Note: Port 80 and 443 are considered as "unspecified" ports for http
       // and https respectively, so we will allow URLs that carry the
       // expected port numbers wrt the protocols.
@@ -81,15 +81,14 @@ UrlInputResource::UrlInputResource(RewriteDriver* rewrite_driver,
       rewrite_options()->disable_rewrite_on_no_transform());
 }
 
-UrlInputResource::~UrlInputResource() {
-}
+UrlInputResource::~UrlInputResource() {}
 
 void UrlInputResource::InitStats(Statistics* stats) {
   CacheableResourceBase::InitStats("url_input_resource", stats);
 }
 
-void UrlInputResource::PrepareRequest(
-    const RequestContextPtr& request_context, RequestHeaders* headers) {
+void UrlInputResource::PrepareRequest(const RequestContextPtr& request_context,
+                                      RequestHeaders* headers) {
   if (!is_authorized_domain() && !origin_.empty()) {
     request_context->AddSessionAuthorizedFetchOrigin(origin_);
   }

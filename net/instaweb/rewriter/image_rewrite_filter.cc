@@ -17,14 +17,13 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/image_rewrite_filter.h"
 
-#include <limits.h>
-#include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/time.h>
 
 #include <algorithm>
+#include <climits>
 #include <cstdarg>
 #include <utility>
 #include <vector>
@@ -92,10 +91,10 @@ void DetermineQualities(const RewriteOptions& options,
     // Use Save-Data qualities.
     image_options->webp_quality = options.ImageWebpQualityForSaveData();
     image_options->webp_animated_quality =
-      options.ImageWebpQualityForSaveData();
+        options.ImageWebpQualityForSaveData();
     image_options->jpeg_quality = options.ImageJpegQualityForSaveData();
     image_options->jpeg_num_progressive_scans =
-      options.image_jpeg_num_progressive_scans();
+        options.image_jpeg_num_progressive_scans();
   } else if (resource_context.may_use_small_screen_quality()) {
     // Use small screen qualities.
     image_options->webp_quality = options.ImageWebpQualityForSmallScreen();
@@ -113,8 +112,7 @@ void DetermineQualities(const RewriteOptions& options,
   }
 }
 
-int64 GetPageWidth(const int64 page_height,
-                   const int64 image_width,
+int64 GetPageWidth(const int64 page_height, const int64 image_width,
                    const int64 image_height) {
   if (image_height > 0) {
     return (page_height * image_width + image_height / 2) / image_height;
@@ -126,8 +124,7 @@ int64 GetPageWidth(const int64 page_height,
   }
 }
 
-int64 GetPageHeight(const int64 page_width,
-                    const int64 image_height,
+int64 GetPageHeight(const int64 page_width, const int64 image_height,
                     const int64 image_width) {
   if (image_height > 0) {
     return (page_width * image_height + image_width / 2) / image_width;
@@ -144,7 +141,7 @@ void SetDesiredDimensionsIfRequired(ImageDim* desired_dim,
   if (!ImageUrlEncoder::HasValidDimension(*desired_dim)) {
     return;
   }
-  int32 page_width = desired_dim->width();  // Rendered width.
+  int32 page_width = desired_dim->width();    // Rendered width.
   int32 page_height = desired_dim->height();  // Rendered height.
   const int64 image_width = image_dim.width();
   const int64 image_height = image_dim.height();
@@ -157,68 +154,67 @@ void SetDesiredDimensionsIfRequired(ImageDim* desired_dim,
     // math in int64 to avoid overflow in the numerator.  The additional
     // image_height / 2 causes us to round rather than truncate.
     desired_dim->set_height(page_height);
-    desired_dim->set_width(static_cast<int32>(GetPageWidth(
-        page_height, image_width, image_height)));
+    desired_dim->set_width(static_cast<int32>(
+        GetPageWidth(page_height, image_width, image_height)));
   } else if (!desired_dim->has_height()) {
     desired_dim->set_width(page_width);
-    desired_dim->set_height(static_cast<int32>(GetPageHeight(
-        page_width, image_height, image_width)));
+    desired_dim->set_height(static_cast<int32>(
+        GetPageHeight(page_width, image_height, image_width)));
   }
 }
 
 // Returns true if the low-res image can be inline-previewed.
 bool ShouldInlinePreview(const int64 low_res_size, const int64 full_res_size,
                          const RewriteOptions* options) {
-  bool low_res_is_small = options->max_low_res_image_size_bytes() < 0 ||
+  bool low_res_is_small =
+      options->max_low_res_image_size_bytes() < 0 ||
       low_res_size <= options->max_low_res_image_size_bytes();
   bool low_res_smaller_than_full_res =
-      low_res_size * 100 < full_res_size *
-      options->max_low_res_to_full_res_image_size_percentage();
+      low_res_size * 100 <
+      full_res_size * options->max_low_res_to_full_res_image_size_percentage();
   return (low_res_is_small && low_res_smaller_than_full_res);
 }
 
 const char* const kRelatedOptions[] = {
-  RewriteOptions::kImageJpegNumProgressiveScans,
-  RewriteOptions::kImageJpegNumProgressiveScansForSmallScreens,
-  RewriteOptions::kImageJpegRecompressionQuality,
-  RewriteOptions::kImageJpegRecompressionQualityForSmallScreens,
-  RewriteOptions::kImageJpegQualityForSaveData,
-  RewriteOptions::kImageLimitOptimizedPercent,
-  RewriteOptions::kImageLimitResizeAreaPercent,
-  RewriteOptions::kImageMaxRewritesAtOnce,
-  RewriteOptions::kImagePreserveURLs,
-  RewriteOptions::kImageRecompressionQuality,
-  RewriteOptions::kImageResolutionLimitBytes,
-  RewriteOptions::kImageWebpRecompressionQuality,
-  RewriteOptions::kImageWebpRecompressionQualityForSmallScreens,
-  RewriteOptions::kImageWebpAnimatedRecompressionQuality,
-  RewriteOptions::kImageWebpQualityForSaveData,
-  RewriteOptions::kProgressiveJpegMinBytes
-};
+    RewriteOptions::kImageJpegNumProgressiveScans,
+    RewriteOptions::kImageJpegNumProgressiveScansForSmallScreens,
+    RewriteOptions::kImageJpegRecompressionQuality,
+    RewriteOptions::kImageJpegRecompressionQualityForSmallScreens,
+    RewriteOptions::kImageJpegQualityForSaveData,
+    RewriteOptions::kImageLimitOptimizedPercent,
+    RewriteOptions::kImageLimitResizeAreaPercent,
+    RewriteOptions::kImageMaxRewritesAtOnce,
+    RewriteOptions::kImagePreserveURLs,
+    RewriteOptions::kImageRecompressionQuality,
+    RewriteOptions::kImageResolutionLimitBytes,
+    RewriteOptions::kImageWebpRecompressionQuality,
+    RewriteOptions::kImageWebpRecompressionQualityForSmallScreens,
+    RewriteOptions::kImageWebpAnimatedRecompressionQuality,
+    RewriteOptions::kImageWebpQualityForSaveData,
+    RewriteOptions::kProgressiveJpegMinBytes};
 
 }  // namespace
 
 // Expose kRelatedFilters as a class variable for the benefit of
 // static-init-time merging in css_filter.cc.
 const RewriteOptions::Filter ImageRewriteFilter::kRelatedFilters[] = {
-  RewriteOptions::kConvertGifToPng,
-  RewriteOptions::kConvertJpegToProgressive,
-  RewriteOptions::kConvertJpegToWebp,
-  RewriteOptions::kConvertPngToJpeg,
-  RewriteOptions::kConvertToWebpAnimated,
-  RewriteOptions::kConvertToWebpLossless,
-  RewriteOptions::kJpegSubsampling,
-  RewriteOptions::kRecompressJpeg,
-  RewriteOptions::kRecompressPng,
-  RewriteOptions::kRecompressWebp,
-  RewriteOptions::kResizeImages,
-  RewriteOptions::kResizeMobileImages,
-  RewriteOptions::kStripImageColorProfile,
-  RewriteOptions::kStripImageMetaData
-};
+    RewriteOptions::kConvertGifToPng,
+    RewriteOptions::kConvertJpegToProgressive,
+    RewriteOptions::kConvertJpegToWebp,
+    RewriteOptions::kConvertPngToJpeg,
+    RewriteOptions::kConvertToWebpAnimated,
+    RewriteOptions::kConvertToWebpLossless,
+    RewriteOptions::kJpegSubsampling,
+    RewriteOptions::kRecompressJpeg,
+    RewriteOptions::kRecompressPng,
+    RewriteOptions::kRecompressWebp,
+    RewriteOptions::kResizeImages,
+    RewriteOptions::kResizeMobileImages,
+    RewriteOptions::kStripImageColorProfile,
+    RewriteOptions::kStripImageMetaData};
 const int ImageRewriteFilter::kRelatedFiltersSize = arraysize(kRelatedFilters);
 
-StringPieceVector* ImageRewriteFilter::related_options_ = NULL;
+StringPieceVector* ImageRewriteFilter::related_options_ = nullptr;
 
 // names for Statistics variables.
 const char ImageRewriteFilter::kImageRewrites[] = "image_rewrites";
@@ -308,21 +304,12 @@ const int kDelayImageWidthForMobile = 320;
 namespace {
 
 void LogImageBackgroundRewriteActivity(
-    RewriteDriver* driver,
-    RewriterApplication::Status status,
-    const GoogleString& url,
-    const char* id,
-    int original_size,
-    int optimized_size,
-    bool is_recompressed,
-    ImageType original_image_type,
-    ImageType optimized_image_type,
-    bool is_resized,
-    int original_width,
-    int original_height,
-    bool is_resized_using_rendered_dimensions,
-    int resized_width,
-    int resized_height) {
+    RewriteDriver* driver, RewriterApplication::Status status,
+    const GoogleString& url, const char* id, int original_size,
+    int optimized_size, bool is_recompressed, ImageType original_image_type,
+    ImageType optimized_image_type, bool is_resized, int original_width,
+    int original_height, bool is_resized_using_rendered_dimensions,
+    int resized_width, int resized_height) {
   const RewriteOptions* options = driver->options();
   if (!options->log_background_rewrites()) {
     return;
@@ -332,14 +319,14 @@ void LogImageBackgroundRewriteActivity(
       driver->request_context()->GetBackgroundRewriteLog(
           driver->server_context()->thread_system(),
           options->allow_logging_urls_in_log_record(),
-          options->log_url_indices(),
-          options->max_rewrite_info_log_size());
+          options->log_url_indices(), options->max_rewrite_info_log_size());
 
   // Write log for background rewrites.
-  log_record->LogImageBackgroundRewriteActivity(status, url, id, original_size,
-      optimized_size, is_recompressed, original_image_type,
-      optimized_image_type, is_resized, original_width, original_height,
-      is_resized_using_rendered_dimensions, resized_width, resized_height);
+  log_record->LogImageBackgroundRewriteActivity(
+      status, url, id, original_size, optimized_size, is_recompressed,
+      original_image_type, optimized_image_type, is_resized, original_width,
+      original_height, is_resized_using_rendered_dimensions, resized_width,
+      resized_height);
 }
 
 const char* MessageForInlineResult(InlineResult inline_result) {
@@ -349,20 +336,23 @@ const char* MessageForInlineResult(InlineResult inline_result) {
       // No message will be displayed.
       break;
     case INLINE_UNSUPPORTED_DEVICE:
-      message = "The image was not inlined because device does not support "
-        "inlinling.";
+      message =
+          "The image was not inlined because device does not support "
+          "inlinling.";
       break;
     case INLINE_NOT_CRITICAL:
-      message = "The image was not inlined because you have chosen to only "
-        "inline the critical images but this image is not critical.";
+      message =
+          "The image was not inlined because you have chosen to only "
+          "inline the critical images but this image is not critical.";
       break;
     case INLINE_NO_DATA:
     case INLINE_TOO_LARGE:
       message = "The image was not inlined because it has too many bytes.";
       break;
     case INLINE_CACHE_SMALL_IMAGES_UNREWRITTEN:
-      message = "The image was not inlined because CacheSmallImagesUnrewritten "
-        "has been set.";
+      message =
+          "The image was not inlined because CacheSmallImagesUnrewritten "
+          "has been set.";
       break;
     case INLINE_RESPONSIVE:
       // Don't add any debug message for virtual responsive images. This virtual
@@ -373,8 +363,9 @@ const char* MessageForInlineResult(InlineResult inline_result) {
       message = "The image was not inlined because it is a shortcut icon.";
       break;
     case INLINE_INTERNAL_ERROR:
-      message = "The image was not inlined because the internal data was "
-        "corrupted.";
+      message =
+          "The image was not inlined because the internal data was "
+          "corrupted.";
       break;
   }
   return message;
@@ -392,11 +383,10 @@ class ImageRewriteFilter::Context : public SingleRewriteContext {
     kNonCssNested,
   };
 
-  Context(int64 css_image_inline_max_bytes,
-          ImageRewriteFilter* filter, RewriteDriver* driver,
-          RewriteContext* parent, ResourceContext* resource_context,
-          Place place, int html_index, bool in_noscript_element,
-          bool is_resized_using_rendered_dimensions)
+  Context(int64 css_image_inline_max_bytes, ImageRewriteFilter* filter,
+          RewriteDriver* driver, RewriteContext* parent,
+          ResourceContext* resource_context, Place place, int html_index,
+          bool in_noscript_element, bool is_resized_using_rendered_dimensions)
       : SingleRewriteContext(driver, parent, resource_context),
         css_image_inline_max_bytes_(css_image_inline_max_bytes),
         filter_(filter),
@@ -405,39 +395,38 @@ class ImageRewriteFilter::Context : public SingleRewriteContext {
         in_noscript_element_(in_noscript_element),
         is_resized_using_rendered_dimensions_(
             is_resized_using_rendered_dimensions) {}
-  virtual ~Context() {}
+  ~Context() override {}
 
   bool PolicyPermitsRendering() const override;
-  virtual void Render();
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output);
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
-  virtual const UrlSegmentEncoder* encoder() const;
+  void Render() override;
+  void RewriteSingle(const ResourcePtr& input,
+                     const OutputResourcePtr& output) override;
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
+  const UrlSegmentEncoder* encoder() const override;
 
   // Implements UserAgentCacheKey method of RewriteContext.
-  virtual GoogleString UserAgentCacheKey(
-      const ResourceContext* resource_context) const;
+  GoogleString UserAgentCacheKey(
+      const ResourceContext* resource_context) const override;
 
   // Implements EncodeUserAgentIntoResourceContext of RewriteContext.
-  virtual void EncodeUserAgentIntoResourceContext(
-      ResourceContext* context);
+  void EncodeUserAgentIntoResourceContext(ResourceContext* context) override;
 
-  virtual void FixFetchFallbackHeaders(const CachedResult& cached_result,
-                                       ResponseHeaders* headers) {
+  void FixFetchFallbackHeaders(const CachedResult& cached_result,
+                               ResponseHeaders* headers) override {
     AddLinkRelCanonicalForFallbackHeaders(headers);
     SingleRewriteContext::FixFetchFallbackHeaders(cached_result, headers);
   }
 
-  using RewriteContext::Options;
   using RewriteContext::FindServerContext;
+  using RewriteContext::Options;
 
  private:
   class InvokeRewriteFunction;
 
   friend class ImageRewriteFilter;
 
-  virtual bool ScheduleViaCentralController() { return true; }
+  bool ScheduleViaCentralController() override { return true; }
 
   int64 css_image_inline_max_bytes_;
   ImageRewriteFilter* filter_;
@@ -462,17 +451,17 @@ class ImageRewriteFilter::Context::InvokeRewriteFunction
         filter_(filter),
         input_resource_(input_resource),
         output_resource_(output_resource) {}
-  virtual ~InvokeRewriteFunction() { }
+  ~InvokeRewriteFunction() override {}
 
  protected:
-  virtual void RunImpl(scoped_ptr<ExpensiveOperationContext>* context) {
+  void RunImpl(std::unique_ptr<ExpensiveOperationContext>* context) override {
     RewriteResult result = filter_->RewriteLoadedResourceImpl(
         context_, input_resource_, output_resource_);
     (*context)->Done();
     context_->RewriteDone(result, 0);
   }
 
-  virtual void CancelImpl() {
+  void CancelImpl() override {
     filter_->ReportDroppedRewrite();
     filter_->InfoAndTrace(context_, "%s: Too busy to rewrite image.",
                           input_resource_->url().c_str());
@@ -491,52 +480,50 @@ class ImageRewriteFilter::Context::InvokeRewriteFunction
 // TODO(huibao): Move the logic for determining output format to a centralized
 // method which should consider all relevant factors.
 void SetWebpCompressionOptions(
-    const ResourceContext& resource_context,
-    const RewriteOptions& options,
+    const ResourceContext& resource_context, const RewriteOptions& options,
     const StringPiece& url,
     Image::ConversionVariables* webp_conversion_variables,
     Image::CompressionOptions* image_options) {
   switch (resource_context.libwebp_level()) {
-      case ResourceContext::LIBWEBP_NONE:
-        image_options->preferred_webp = pagespeed::image_compression::WEBP_NONE;
-        image_options->allow_webp_alpha = false;
-        VLOG(1) << "User agent is not webp capable";
-        break;
+    case ResourceContext::LIBWEBP_NONE:
+      image_options->preferred_webp = pagespeed::image_compression::WEBP_NONE;
+      image_options->allow_webp_alpha = false;
+      VLOG(1) << "User agent is not webp capable";
+      break;
 
-      case ResourceContext::LIBWEBP_LOSSY_ONLY:
+    case ResourceContext::LIBWEBP_LOSSY_ONLY:
+      image_options->preferred_webp = pagespeed::image_compression::WEBP_LOSSY;
+      image_options->allow_webp_alpha = false;
+      VLOG(1) << "User agent is webp lossy capable ";
+      break;
+
+    case ResourceContext::LIBWEBP_ANIMATED:
+      if (options.Enabled(RewriteOptions::kConvertToWebpAnimated)) {
+        image_options->preferred_webp =
+            pagespeed::image_compression::WEBP_ANIMATED;
+        image_options->allow_webp_animated = true;
+        image_options->allow_webp_alpha = true;
+        break;
+      }
+      VLOG(1) << "User agent is webp animated capable ";
+      FALLTHROUGH_INTENDED;
+
+    case ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA:
+      image_options->allow_webp_alpha = true;
+      if (options.Enabled(RewriteOptions::kConvertToWebpLossless)) {
+        image_options->preferred_webp =
+            pagespeed::image_compression::WEBP_LOSSLESS;
+        VLOG(1) << "User agent is webp lossless+alpha capable "
+                << "and lossless images preferred";
+      } else {
         image_options->preferred_webp =
             pagespeed::image_compression::WEBP_LOSSY;
-        image_options->allow_webp_alpha = false;
-        VLOG(1) << "User agent is webp lossy capable ";
-        break;
-
-      case ResourceContext::LIBWEBP_ANIMATED:
-        if (options.Enabled(RewriteOptions::kConvertToWebpAnimated)) {
-          image_options->preferred_webp =
-              pagespeed::image_compression::WEBP_ANIMATED;
-          image_options->allow_webp_animated = true;
-          image_options->allow_webp_alpha = true;
-          break;
-        }
-        VLOG(1) << "User agent is webp animated capable ";
-        FALLTHROUGH_INTENDED;
-
-      case ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA:
-        image_options->allow_webp_alpha = true;
-        if (options.Enabled(RewriteOptions::kConvertToWebpLossless)) {
-          image_options->preferred_webp =
-              pagespeed::image_compression::WEBP_LOSSLESS;
-          VLOG(1) << "User agent is webp lossless+alpha capable "
-                  << "and lossless images preferred";
-        } else {
-          image_options->preferred_webp =
-              pagespeed::image_compression::WEBP_LOSSY;
-          VLOG(1) << "User agent is webp lossless+alpha capable "
-                  << "and lossy images preferred";
-        }
-        break;
-      default:
-        LOG(DFATAL) << "Unhandled libwebp_level";
+        VLOG(1) << "User agent is webp lossless+alpha capable "
+                << "and lossy images preferred";
+      }
+      break;
+    default:
+      LOG(DFATAL) << "Unhandled libwebp_level";
   }
   image_options->webp_conversion_variables = webp_conversion_variables;
 }
@@ -602,8 +589,8 @@ void ImageRewriteFilter::Context::Render() {
     } else if (place_ == Place::kHtmlAttr) {
       // We use manual rendering for HTML, as we have to consider whether to
       // inline, and may also pass in width and height attributes.
-      HtmlResourceSlot* html_slot = static_cast<HtmlResourceSlot*>(
-          resource_slot);
+      HtmlResourceSlot* html_slot =
+          static_cast<HtmlResourceSlot*>(resource_slot);
       rewrote_url = filter_->FinishRewriteImageUrl(
           result, resource_context(), html_slot->element(),
           html_slot->attribute(), html_index_, html_slot, &inline_result);
@@ -640,7 +627,7 @@ const UrlSegmentEncoder* ImageRewriteFilter::Context::encoder() const {
 
 GoogleString ImageRewriteFilter::Context::UserAgentCacheKey(
     const ResourceContext* resource_context) const {
-  if (resource_context != NULL) {
+  if (resource_context != nullptr) {
     // cache-key is sensitive to whether the UA supports webp or not.
     return ImageUrlEncoder::CacheKeyFromResourceContext(*resource_context);
   }
@@ -653,15 +640,13 @@ void ImageRewriteFilter::Context::EncodeUserAgentIntoResourceContext(
 }
 
 ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver)
-    : RewriteFilter(driver),
-      image_counter_(0),
-      saw_end_document_(false) {
+    : RewriteFilter(driver), image_counter_(0), saw_end_document_(false) {
   Statistics* stats = server_context()->statistics();
   image_rewrites_ = stats->GetVariable(kImageRewrites);
   image_resized_using_rendered_dimensions_ =
       stats->GetVariable(kImageResizedUsingRenderedDimensions);
-  image_norewrites_high_resolution_ = stats->GetVariable(
-      kImageNoRewritesHighResolution);
+  image_norewrites_high_resolution_ =
+      stats->GetVariable(kImageNoRewritesHighResolution);
   image_rewrites_dropped_intentionally_ =
       stats->GetVariable(kImageRewritesDroppedIntentionally);
   image_rewrites_dropped_decode_failure_ =
@@ -688,64 +673,46 @@ ImageRewriteFilter::ImageRewriteFilter(RewriteDriver* driver)
   image_rewrite_latency_total_ms_ =
       stats->GetVariable(kImageRewriteLatencyTotalMs);
 
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_GIF)->timeout_count =
-      stats->GetVariable(kImageWebpFromGifTimeouts);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_PNG)->timeout_count =
-      stats->GetVariable(kImageWebpFromPngTimeouts);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_JPEG)->timeout_count =
-      stats->GetVariable(kImageWebpFromJpegTimeouts);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_GIF_ANIMATED)->timeout_count =
-      stats->GetVariable(kImageWebpFromGifAnimatedTimeouts);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_GIF)
+      ->timeout_count = stats->GetVariable(kImageWebpFromGifTimeouts);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_PNG)
+      ->timeout_count = stats->GetVariable(kImageWebpFromPngTimeouts);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_JPEG)
+      ->timeout_count = stats->GetVariable(kImageWebpFromJpegTimeouts);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_GIF_ANIMATED)
+      ->timeout_count = stats->GetVariable(kImageWebpFromGifAnimatedTimeouts);
 
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_GIF)->success_ms =
-      stats->GetHistogram(kImageWebpFromGifSuccessMs);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_PNG)->success_ms =
-      stats->GetHistogram(kImageWebpFromPngSuccessMs);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_JPEG)->success_ms =
-      stats->GetHistogram(kImageWebpFromJpegSuccessMs);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_GIF_ANIMATED)->success_ms =
-      stats->GetHistogram(kImageWebpFromGifAnimatedSuccessMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_GIF)
+      ->success_ms = stats->GetHistogram(kImageWebpFromGifSuccessMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_PNG)
+      ->success_ms = stats->GetHistogram(kImageWebpFromPngSuccessMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_JPEG)
+      ->success_ms = stats->GetHistogram(kImageWebpFromJpegSuccessMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_GIF_ANIMATED)
+      ->success_ms = stats->GetHistogram(kImageWebpFromGifAnimatedSuccessMs);
 
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_GIF)->failure_ms =
-      stats->GetHistogram(kImageWebpFromGifFailureMs);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_PNG)->failure_ms =
-      stats->GetHistogram(kImageWebpFromPngFailureMs);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_JPEG)->failure_ms =
-      stats->GetHistogram(kImageWebpFromJpegFailureMs);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::FROM_GIF_ANIMATED)->failure_ms =
-      stats->GetHistogram(kImageWebpFromGifAnimatedFailureMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_GIF)
+      ->failure_ms = stats->GetHistogram(kImageWebpFromGifFailureMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_PNG)
+      ->failure_ms = stats->GetHistogram(kImageWebpFromPngFailureMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_JPEG)
+      ->failure_ms = stats->GetHistogram(kImageWebpFromJpegFailureMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::FROM_GIF_ANIMATED)
+      ->failure_ms = stats->GetHistogram(kImageWebpFromGifAnimatedFailureMs);
 
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::NONOPAQUE)->timeout_count =
-      stats->GetVariable(kImageWebpWithAlphaTimeouts);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::NONOPAQUE)->success_ms =
-      stats->GetHistogram(kImageWebpWithAlphaSuccessMs);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::NONOPAQUE)->failure_ms =
-      stats->GetHistogram(kImageWebpWithAlphaFailureMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::NONOPAQUE)
+      ->timeout_count = stats->GetVariable(kImageWebpWithAlphaTimeouts);
+  webp_conversion_variables_.Get(Image::ConversionVariables::NONOPAQUE)
+      ->success_ms = stats->GetHistogram(kImageWebpWithAlphaSuccessMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::NONOPAQUE)
+      ->failure_ms = stats->GetHistogram(kImageWebpWithAlphaFailureMs);
 
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::OPAQUE)->timeout_count =
-      stats->GetVariable(kImageWebpOpaqueTimeouts);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::OPAQUE)->success_ms =
-      stats->GetHistogram(kImageWebpOpaqueSuccessMs);
-  webp_conversion_variables_.Get(
-      Image::ConversionVariables::OPAQUE)->failure_ms =
-      stats->GetHistogram(kImageWebpOpaqueFailureMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::OPAQUE)
+      ->timeout_count = stats->GetVariable(kImageWebpOpaqueTimeouts);
+  webp_conversion_variables_.Get(Image::ConversionVariables::OPAQUE)
+      ->success_ms = stats->GetHistogram(kImageWebpOpaqueSuccessMs);
+  webp_conversion_variables_.Get(Image::ConversionVariables::OPAQUE)
+      ->failure_ms = stats->GetHistogram(kImageWebpOpaqueFailureMs);
 
   image_rewrite_latency_ok_ms_ = stats->GetHistogram(kImageRewriteLatencyOkMs);
   image_rewrite_latency_failed_ms_ =
@@ -812,16 +779,16 @@ void ImageRewriteFilter::InitStats(Statistics* statistics) {
 }
 
 void ImageRewriteFilter::Initialize() {
-  CHECK(related_options_ == NULL);
+  CHECK(related_options_ == nullptr);
   related_options_ = new StringPieceVector;
   ImageRewriteFilter::AddRelatedOptions(ImageRewriteFilter::related_options_);
   std::sort(related_options_->begin(), related_options_->end());
 }
 
 void ImageRewriteFilter::Terminate() {
-  CHECK(related_options_ != NULL);
+  CHECK(related_options_ != nullptr);
   delete related_options_;
-  related_options_ = NULL;
+  related_options_ = nullptr;
 }
 
 void ImageRewriteFilter::AddRelatedOptions(StringPieceVector* target) {
@@ -838,9 +805,7 @@ void ImageRewriteFilter::StartDocumentImpl() {
       RewriteOptions::kImageCompressionId, RewriterHtmlApplication::ACTIVE);
 }
 
-void ImageRewriteFilter::EndDocument() {
-  saw_end_document_  = true;
-}
+void ImageRewriteFilter::EndDocument() { saw_end_document_ = true; }
 
 void ImageRewriteFilter::RenderDone() {
   // Only care about the very end, not every flush window; framework orders
@@ -851,22 +816,20 @@ void ImageRewriteFilter::RenderDone() {
     return;
   }
   if (!image_info_.empty()) {
-    GoogleString code =
-        "psMobStaticImageInfo = {";
+    GoogleString code = "psMobStaticImageInfo = {";
     for (AssociatedImageInfoMap::iterator i = image_info_.begin(),
                                           e = image_info_.end();
          i != e; ++i) {
       const AssociatedImageInfo& image_info = i->second;
-      EscapeToJsStringLiteral(image_info.url(), true /* want quotes */,
-                              &code);
+      EscapeToJsStringLiteral(image_info.url(), true /* want quotes */, &code);
       StrAppend(&code, ":{");
-      StrAppend(&code, "w:",
-                IntegerToString(image_info.dimensions().width()), ",");
-      StrAppend(&code, "h:",
-                IntegerToString(image_info.dimensions().height()), "},");
+      StrAppend(&code, "w:", IntegerToString(image_info.dimensions().width()),
+                ",");
+      StrAppend(&code, "h:", IntegerToString(image_info.dimensions().height()),
+                "},");
     }
     StrAppend(&code, "}");
-    HtmlElement* script = driver()->NewElement(NULL, HtmlName::kScript);
+    HtmlElement* script = driver()->NewElement(nullptr, HtmlName::kScript);
     HtmlCharactersNode* chars = driver()->NewCharactersNode(script, code);
     InsertNodeAtBodyEnd(script);
     driver()->AppendChild(script, chars);
@@ -918,8 +881,7 @@ Image::CompressionOptions* ImageRewriteFilter::ImageOptionsForLoadedResource(
       !options->Enabled(RewriteOptions::kStripImageMetaData);
   image_options->retain_color_sampling =
       !options->Enabled(RewriteOptions::kJpegSubsampling);
-  image_options->webp_conversion_timeout_ms =
-      options->image_webp_timeout_ms();
+  image_options->webp_conversion_timeout_ms = options->image_webp_timeout_ms();
 
   return image_options;
 }
@@ -936,8 +898,8 @@ bool ImageRewriteFilter::ResizeImageIfNecessary(
 
   if (image_dim.width() <= 0 || image_dim.height() <= 0) {
     cached->add_debug_message(
-        StringPrintf("Cannot resize %s: Image must be at least 1x1",
-                     UrlForDebugMessages(rewrite_context).c_str()));
+        absl::StrFormat("Cannot resize %s: Image must be at least 1x1",
+                        UrlForDebugMessages(rewrite_context).c_str()));
     return false;
   }
 
@@ -961,14 +923,14 @@ bool ImageRewriteFilter::ResizeImageIfNecessary(
     }
 
     driver()->InfoAt(rewrite_context, "%s image `%s' from %dx%d to %dx%d",
-                     message, url.c_str(),
-                     image_dim.width(), image_dim.height(),
-                     desired_dim->width(), desired_dim->height());
+                     message, url.c_str(), image_dim.width(),
+                     image_dim.height(), desired_dim->width(),
+                     desired_dim->height());
     cached->add_debug_message(image->resize_debug_message());
   } else {
     cached->add_debug_message(
-        StringPrintf("Image %s does not appear to need resizing.",
-                     UrlForDebugMessages(rewrite_context).c_str()));
+        absl::StrFormat("Image %s does not appear to need resizing.",
+                        UrlForDebugMessages(rewrite_context).c_str()));
   }
 
   // Cache image dimensions, including any resizing we did.
@@ -985,8 +947,7 @@ bool ImageRewriteFilter::ResizeImageIfNecessary(
 //
 // Returns the dimensions to resize to in *desired_dimensions.
 bool ImageRewriteFilter::ShouldResize(const ResourceContext& resource_context,
-                                      const GoogleString& url,
-                                      Image* image,
+                                      const GoogleString& url, Image* image,
                                       ImageDim* desired_dim) {
   const RewriteOptions* options = driver()->options();
   if (!options->Enabled(RewriteOptions::kResizeImages) &&
@@ -1004,8 +965,8 @@ bool ImageRewriteFilter::ShouldResize(const ResourceContext& resource_context,
       // Respect the aspect ratio of the image when doing the resize.
       SetDesiredDimensionsIfRequired(desired_dim, image_dim);
     } else {
-      UpdateDesiredImageDimsIfNecessary(
-          image_dim, resource_context, desired_dim);
+      UpdateDesiredImageDimsIfNecessary(image_dim, resource_context,
+                                        desired_dim);
       if (options->Enabled(RewriteOptions::kResizeImages) &&
           ImageUrlEncoder::HasValidDimension(*desired_dim) &&
           ImageUrlEncoder::HasValidDimensions(image_dim)) {
@@ -1015,8 +976,7 @@ bool ImageRewriteFilter::ShouldResize(const ResourceContext& resource_context,
     if (ImageUrlEncoder::HasValidDimension(*desired_dim) &&
         ImageUrlEncoder::HasValidDimensions(image_dim)) {
       const int64 page_area =
-          static_cast<int64>(desired_dim->width()) *
-          desired_dim->height();
+          static_cast<int64>(desired_dim->width()) * desired_dim->height();
       const int64 image_area =
           static_cast<int64>(image_dim.width()) * image_dim.height();
       if (page_area * 100 <
@@ -1049,8 +1009,8 @@ int64 GetCurrentCpuTimeMs(Timer* timer) {
 
 // Format as InfoAt and using TracePrintf.
 // TODO(jmaessen): Avoid formatting if neither applies.
-void ImageRewriteFilter::InfoAndTrace(
-    Context* rewrite_context, const char* format, ...) {
+void ImageRewriteFilter::InfoAndTrace(Context* rewrite_context,
+                                      const char* format, ...) {
   va_list args;
   va_start(args, format);
   GoogleString message;
@@ -1061,8 +1021,8 @@ void ImageRewriteFilter::InfoAndTrace(
 }
 
 RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
-      Context* rewrite_context, const ResourcePtr& input_resource,
-      const OutputResourcePtr& result) {
+    Context* rewrite_context, const ResourcePtr& input_resource,
+    const OutputResourcePtr& result) {
   rewrite_context->TracePrintf("Image rewrite: %s",
                                input_resource->url().c_str());
   MessageHandler* message_handler = driver()->message_handler();
@@ -1072,8 +1032,8 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
 
   resource_context = *rewrite_context->resource_context();
 
-  if (!encoder_.Decode(result->name(),
-                       &urls, &resource_context, message_handler)) {
+  if (!encoder_.Decode(result->name(), &urls, &resource_context,
+                       message_handler)) {
     image_rewrites_dropped_intentionally_->Add(1);
     image_rewrites_dropped_decode_failure_->Add(1);
     return kRewriteFailed;
@@ -1081,7 +1041,7 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
 
   Image::CompressionOptions* image_options =
       ImageOptionsForLoadedResource(resource_context, input_resource);
-  scoped_ptr<Image> image(
+  std::unique_ptr<Image> image(
       NewImage(input_resource->ExtractUncompressedContents(),
                input_resource->url(), server_context()->filename_prefix(),
                image_options, driver()->timer(), message_handler));
@@ -1098,10 +1058,10 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   if (original_image_type == IMAGE_UNKNOWN) {
     image_rewrites_dropped_intentionally_->Add(1);
     image_rewrites_dropped_mime_type_unknown_->Add(1);
-    driver()->InfoAt(
-        rewrite_context, "%s: Image MIME type could not be "
-        "discovered from reading magic bytes; rewriting dropped.",
-        input_resource->url().c_str());
+    driver()->InfoAt(rewrite_context,
+                     "%s: Image MIME type could not be "
+                     "discovered from reading magic bytes; rewriting dropped.",
+                     input_resource->url().c_str());
     return kRewriteFailed;
   }
   // We used to reject beacon images based on their size (1x1 or less) here, but
@@ -1112,7 +1072,8 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   ImageDim image_dim;
   image->Dimensions(&image_dim);
   int64 image_width = image_dim.width(), image_height = image_dim.height();
-  if ((image_width*image_height*4) > options->image_resolution_limit_bytes()) {
+  if ((image_width * image_height * 4) >
+      options->image_resolution_limit_bytes()) {
     image_rewrites_dropped_intentionally_->Add(1);
     image_norewrites_high_resolution_->Add(1);
     return kRewriteFailed;
@@ -1124,9 +1085,8 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   Timer* timer = server_context()->timer();
   int64 rewrite_time_start_ms = GetCurrentCpuTimeMs(timer);
   CachedResult* cached = result->EnsureCachedResultCreated();
-  is_resized = ResizeImageIfNecessary(
-      rewrite_context, input_resource->url(),
-      &resource_context, image.get(), cached);
+  is_resized = ResizeImageIfNecessary(rewrite_context, input_resource->url(),
+                                      &resource_context, image.get(), cached);
 
   // When the "resize_images" filter has been turned on and the IMG tag has
   // width and/or height specified, we assume that the image will be resized so
@@ -1137,7 +1097,7 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   if (!is_resized) {
     resource_context.clear_desired_image_dims();
     GoogleString name;
-    GoogleUrl mapped_gurl;  // Not used
+    GoogleUrl mapped_gurl;        // Not used
     GoogleString failure_reason;  // Not used
     if (driver()->GenerateOutputResourceNameAndUrl(
             encoder(), &resource_context, input_resource, &name, &mapped_gurl,
@@ -1173,28 +1133,25 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
       // This needs to happen before Write to persist.
       SaveIfInlinable(image->Contents(), image->image_type(), cached);
 
-      server_context()->MergeNonCachingResponseHeaders(
-          input_resource, result);
+      server_context()->MergeNonCachingResponseHeaders(input_resource, result);
       if (options->no_transform_optimized_images()) {
         result->set_cache_control_suffix(",no-transform");
       }
       if (driver()->Write(
-              ResourceVector(1, input_resource), image->Contents(),
-              output_type, StringPiece() /* no charset for images */,
-              result.get())) {
+              ResourceVector(1, input_resource), image->Contents(), output_type,
+              StringPiece() /* no charset for images */, result.get())) {
         // Static cast to avoid format string trouble.
-        driver()->InfoAt(
-            rewrite_context,
-            "Shrinking image `%s' (%u bytes) to `%s' (%u bytes)",
-            input_resource->url().c_str(),
-            static_cast<unsigned>(image->input_size()),
-            result->url().c_str(),
-            static_cast<unsigned>(image->output_size()));
+        driver()->InfoAt(rewrite_context,
+                         "Shrinking image `%s' (%u bytes) to `%s' (%u bytes)",
+                         input_resource->url().c_str(),
+                         static_cast<unsigned>(image->input_size()),
+                         result->url().c_str(),
+                         static_cast<unsigned>(image->output_size()));
 
         // Update stats.
         image_rewrites_->Add(1);
-        image_rewrite_total_bytes_saved_->Add(
-            image->input_size() - image->output_size());
+        image_rewrite_total_bytes_saved_->Add(image->input_size() -
+                                              image->output_size());
         image_rewrite_total_original_bytes_->Add(image->input_size());
         if (result->type()->type() == ContentType::kWebp) {
           image_webp_rewrites_->Add(1);
@@ -1213,13 +1170,12 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
       // Eliminate any image dimensions from a resize operation that
       // succeeded, but yielded overly-large output.
       image_rewrites_dropped_nosaving_resize_->Add(1);
-      InfoAndTrace(
-          rewrite_context,
-          "Shrink of image `%s' (%u -> %u bytes) doesn't save space; "
-          "dropped.",
-          input_resource->url().c_str(),
-          static_cast<unsigned>(image->input_size()),
-          static_cast<unsigned>(image->output_size()));
+      InfoAndTrace(rewrite_context,
+                   "Shrink of image `%s' (%u -> %u bytes) doesn't save space; "
+                   "dropped.",
+                   input_resource->url().c_str(),
+                   static_cast<unsigned>(image->input_size()),
+                   static_cast<unsigned>(image->output_size()));
       ImageDim* dims = cached->mutable_image_file_dims();
       dims->clear_width();
       dims->clear_height();
@@ -1237,8 +1193,8 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
   }
 
   cached->set_optimized_image_type(optimized_image_type);
-  cached->set_size(rewrite_result == kRewriteOk ? image->output_size() :
-                   image->input_size());
+  cached->set_size(rewrite_result == kRewriteOk ? image->output_size()
+                                                : image->input_size());
   SaveDebugMessageToCache(image->debug_message(), cached);
 
   // Try inlining input image if output hasn't been inlined already.
@@ -1253,12 +1209,9 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
       !cached->has_low_resolution_inlined_data() &&
       image_size >= options->min_image_size_low_resolution_bytes() &&
       image_size <= options->max_image_size_low_resolution_bytes()) {
-    Image::CompressionOptions* image_options =
-        new Image::CompressionOptions();
-    SetWebpCompressionOptions(resource_context, *options,
-                              input_resource->url(),
-                              &webp_conversion_variables_,
-                              image_options);
+    Image::CompressionOptions* image_options = new Image::CompressionOptions();
+    SetWebpCompressionOptions(resource_context, *options, input_resource->url(),
+                              &webp_conversion_variables_, image_options);
 
     image_options->jpeg_quality = options->ImageJpegQuality();
     image_options->webp_quality = options->ImageWebpQuality();
@@ -1281,17 +1234,18 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
     image_options->jpeg_num_progressive_scans =
         options->image_jpeg_num_progressive_scans();
 
-    scoped_ptr<Image> low_image;
+    std::unique_ptr<Image> low_image;
     if (driver()->options()->use_blank_image_for_inline_preview()) {
       image_options->use_transparent_for_blank_image = true;
-      low_image.reset(BlankImageWithOptions(image_width, image_height,
-          IMAGE_PNG, server_context()->filename_prefix(),
-          timer, message_handler, image_options));
+      low_image.reset(
+          BlankImageWithOptions(image_width, image_height, IMAGE_PNG,
+                                server_context()->filename_prefix(), timer,
+                                message_handler, image_options));
       low_image->EnsureLoaded(true);
     } else {
       low_image.reset(NewImage(image->Contents(), input_resource->url(),
-          server_context()->filename_prefix(), image_options,
-          timer, message_handler));
+                               server_context()->filename_prefix(),
+                               image_options, timer, message_handler));
       low_image->SetDebugMessageUrl(UrlForDebugMessages(rewrite_context));
     }
     low_image->SetTransformToLowRes();
@@ -1330,11 +1284,11 @@ RewriteResult ImageRewriteFilter::RewriteLoadedResourceImpl(
                                  static_cast<unsigned>(image->output_size()));
   }
 
-  const ImageDim& post_resize_dim =
-      resource_context.desired_image_dims();
-  LogImageBackgroundRewriteActivity(driver(),
-      rewrite_result == kRewriteOk ?
-          RewriterApplication::APPLIED_OK : RewriterApplication::NOT_APPLIED,
+  const ImageDim& post_resize_dim = resource_context.desired_image_dims();
+  LogImageBackgroundRewriteActivity(
+      driver(),
+      rewrite_result == kRewriteOk ? RewriterApplication::APPLIED_OK
+                                   : RewriterApplication::NOT_APPLIED,
       input_resource->url(), LoggingId(), original_size, optimized_size,
       is_recompressed, original_image_type, optimized_image_type, is_resized,
       image_width, image_height,
@@ -1354,8 +1308,7 @@ void ImageRewriteFilter::ResizeLowQualityImage(
   low_image->Dimensions(&image_dim);
   if (image_dim.width() >= kDelayImageWidthForMobile) {
     const RewriteOptions* options = driver()->options();
-    Image::CompressionOptions* image_options =
-        new Image::CompressionOptions();
+    Image::CompressionOptions* image_options = new Image::CompressionOptions();
     image_options->jpeg_quality = options->ImageJpegQuality();
     image_options->webp_quality = options->ImageWebpQuality();
     image_options->webp_animated_quality = options->ImageWebpAnimatedQuality();
@@ -1370,15 +1323,16 @@ void ImageRewriteFilter::ResizeLowQualityImage(
         options->Enabled(RewriteOptions::kRecompressPng);
     image_options->recompress_webp =
         options->Enabled(RewriteOptions::kRecompressWebp);
-    scoped_ptr<Image> image(
+    std::unique_ptr<Image> image(
         NewImage(low_image->Contents(), input_resource->url(),
                  server_context()->filename_prefix(), image_options,
                  driver()->timer(), driver()->message_handler()));
     image->SetTransformToLowRes();
     ImageDim resized_dim;
     resized_dim.set_width(kDelayImageWidthForMobile);
-    resized_dim.set_height((static_cast<int64>(resized_dim.width()) *
-                            image_dim.height()) / image_dim.width());
+    resized_dim.set_height(
+        (static_cast<int64>(resized_dim.width()) * image_dim.height()) /
+        image_dim.width());
     MessageHandler* message_handler = driver()->message_handler();
     bool resized = image->ResizeTo(resized_dim);
     StringPiece contents = image->Contents();
@@ -1389,22 +1343,18 @@ void ImageRewriteFilter::ResizeLowQualityImage(
           kInfo,
           "Resized low quality image (%s) from "
           "%dx%d(%d bytes) to %dx%d(%d bytes)",
-          input_resource->url().c_str(),
-          image_dim.width(), image_dim.height(),
-          static_cast<int>(old_contents.size()),
-          resized_dim.width(), resized_dim.width(),
-          static_cast<int>(contents.size()));
+          input_resource->url().c_str(), image_dim.width(), image_dim.height(),
+          static_cast<int>(old_contents.size()), resized_dim.width(),
+          resized_dim.width(), static_cast<int>(contents.size()));
     } else {
       message_handler->Message(
           kInfo,
           "Couldn't resize low quality image (%s) or resized image file is "
           "not smaller: "
           "%dx%d(%d bytes) => %dx%d(%d bytes)",
-          input_resource->url().c_str(),
-          image_dim.width(), image_dim.height(),
-          static_cast<int>(old_contents.size()),
-          resized_dim.width(), resized_dim.height(),
-          static_cast<int>(contents.size()));
+          input_resource->url().c_str(), image_dim.width(), image_dim.height(),
+          static_cast<int>(old_contents.size()), resized_dim.width(),
+          resized_dim.height(), static_cast<int>(contents.size()));
     }
   }
 }
@@ -1418,8 +1368,7 @@ void ImageRewriteFilter::SaveIfInlinable(const StringPiece& contents,
   // cause us to save inline information for an image that won't ever actually
   // be inlined (because it's too big to inline in html, say, and doesn't occur
   // in css).
-  int64 image_inline_max_bytes =
-      driver()->options()->MaxImageInlineMaxBytes();
+  int64 image_inline_max_bytes = driver()->options()->MaxImageInlineMaxBytes();
   if (static_cast<int64>(contents.size()) < image_inline_max_bytes) {
     cached->set_inlined_data(contents.data(), contents.size());
     cached->set_inlined_image_type(static_cast<int>(image_type));
@@ -1429,8 +1378,8 @@ void ImageRewriteFilter::SaveIfInlinable(const StringPiece& contents,
 // Convert (possibly NULL) Image* to corresponding (possibly NULL) ContentType*
 const ContentType* ImageRewriteFilter::ImageToContentType(
     const GoogleString& origin_url, Image* image) {
-  const ContentType* content_type = NULL;
-  if (image != NULL) {
+  const ContentType* content_type = nullptr;
+  if (image != nullptr) {
     // Even if we know the content type from the extension coming
     // in, the content-type can change as a result of compression,
     // e.g. gif to png, or jpeg to webp.
@@ -1439,8 +1388,8 @@ const ContentType* ImageRewriteFilter::ImageToContentType(
   return content_type;
 }
 
-void ImageRewriteFilter::ComputePreserveUrls(
-    const RewriteOptions* options, ResourceSlot* slot) {
+void ImageRewriteFilter::ComputePreserveUrls(const RewriteOptions* options,
+                                             ResourceSlot* slot) {
   // Note that in RewriteOptions::Merge we turn off image_preserve_urls
   // when merging into a configuration that has explicitly
   // enabled cache_extend_images.
@@ -1464,7 +1413,7 @@ void ImageRewriteFilter::ComputePreserveUrls(
 
 void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
                                               HtmlElement::Attribute* src) {
-  scoped_ptr<ResourceContext> resource_context(new ResourceContext);
+  std::unique_ptr<ResourceContext> resource_context(new ResourceContext);
   const RewriteOptions* options = driver()->options();
   bool is_resized_using_rendered_dimensions = false;
 
@@ -1489,7 +1438,7 @@ void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
 
   ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
       src->DecodedValueOrNull(), RewriteDriver::InputRole::kImg, element));
-  if (input_resource.get() == NULL) {
+  if (input_resource.get() == nullptr) {
     return;
   }
 
@@ -1498,17 +1447,15 @@ void ImageRewriteFilter::BeginRewriteImageUrl(HtmlElement* element,
   // insert the relevant javascript functions.
   if (driver()->request_properties()->SupportsImageInlining()) {
     LocalStorageCacheFilter::InlineState state;
-    LocalStorageCacheFilter::AddStorableResource(src->DecodedValueOrNull(),
-                                                 driver(),
-                                                 true /* ignore cookie */,
-                                                 element, &state);
+    LocalStorageCacheFilter::AddStorableResource(
+        src->DecodedValueOrNull(), driver(), true /* ignore cookie */, element,
+        &state);
   }
-  Context* context = new Context(0 /* No CSS inlining, it's html */,
-                                 this, driver(), NULL /*not nested */,
-                                 resource_context.release(),
-                                 Context::Place::kHtmlAttr, image_counter_++,
-                                 noscript_element() != NULL,
-                                 is_resized_using_rendered_dimensions);
+  Context* context = new Context(
+      0 /* No CSS inlining, it's html */, this, driver(),
+      nullptr /*not nested */, resource_context.release(),
+      Context::Place::kHtmlAttr, image_counter_++,
+      noscript_element() != nullptr, is_resized_using_rendered_dimensions);
   ResourceSlotPtr slot(driver()->GetSlot(input_resource, element, src));
   context->AddSlot(slot);
 
@@ -1527,15 +1474,15 @@ void ImageRewriteFilter::BeginRewriteSrcSet(HtmlElement* element,
       continue;
     }
 
-    scoped_ptr<ResourceContext> resource_context(new ResourceContext);
+    std::unique_ptr<ResourceContext> resource_context(new ResourceContext);
     EncodeUserAgentIntoResourceContext(resource_context.get());
 
-    Context* context = new Context(0 /* No CSS inlining, it's html */,
-                                   this, driver(), nullptr /*not nested */,
-                                   resource_context.release(),
-                                   Context::Place::kSrcset, image_counter_++,
-                                   noscript_element() != nullptr,
-                                   false /*not resizing with rendered dim */);
+    Context* context =
+        new Context(0 /* No CSS inlining, it's html */, this, driver(),
+                    nullptr /*not nested */, resource_context.release(),
+                    Context::Place::kSrcset, image_counter_++,
+                    noscript_element() != nullptr,
+                    false /*not resizing with rendered dim */);
     context->AddSlot(RefCountedPtr<ResourceSlot>(slot));
     ComputePreserveUrls(driver()->options(), slot);
     driver()->InitiateRewrite(context);
@@ -1546,9 +1493,9 @@ bool ImageRewriteFilter::FinishRewriteCssImageUrl(
     int64 css_image_inline_max_bytes, const CachedResult* cached,
     ResourceSlot* slot, InlineResult* inline_result) {
   GoogleString data_url;
-  *inline_result = TryInline(false /*not html*/, false /*not critical*/,
-                             css_image_inline_max_bytes, cached, slot,
-                             &data_url);
+  *inline_result =
+      TryInline(false /*not html*/, false /*not critical*/,
+                css_image_inline_max_bytes, cached, slot, &data_url);
 
   if (*inline_result == INLINE_SUCCESS) {
     // TODO(jmaessen): Can we make output URL reflect actual *usage*
@@ -1584,10 +1531,10 @@ const char* SkipAsciiWhitespace(const char* position) {
   return position;
 }
 
-bool GetDimensionAttribute(
-    const HtmlElement* element, HtmlName::Keyword name, int* value) {
+bool GetDimensionAttribute(const HtmlElement* element, HtmlName::Keyword name,
+                           int* value) {
   const HtmlElement::Attribute* attribute = element->FindAttribute(name);
-  if (attribute == NULL) {
+  if (attribute == nullptr) {
     return false;
   }
   const char* position = attribute->DecodedValueOrNull();
@@ -1610,8 +1557,8 @@ void SetHeightFromAttribute(const HtmlElement* element, ImageDim* page_dim) {
   }
 }
 
-void DeleteMatchingImageDimsAfterInline(
-    const CachedResult* cached, HtmlElement* element) {
+void DeleteMatchingImageDimsAfterInline(const CachedResult* cached,
+                                        HtmlElement* element) {
   // Never strip width= or height= attributes from non-img elements.
   if (element->keyword() != HtmlName::kImg) {
     return;
@@ -1632,17 +1579,18 @@ void DeleteMatchingImageDimsAfterInline(
         if (!element->FindAttribute(HtmlName::kHeight)) {
           // No height, just delete width.
           element->DeleteAttribute(HtmlName::kWidth);
-        } else if (GetDimensionAttribute(
-                element, HtmlName::kHeight, &attribute_height) &&
-            cached->image_file_dims().height() == attribute_height) {
+        } else if (GetDimensionAttribute(element, HtmlName::kHeight,
+                                         &attribute_height) &&
+                   cached->image_file_dims().height() == attribute_height) {
           // Both dimensions match, delete both.
           element->DeleteAttribute(HtmlName::kWidth);
           element->DeleteAttribute(HtmlName::kHeight);
         }
       }
     } else if (!element->FindAttribute(HtmlName::kWidth) &&
-        GetDimensionAttribute(element, HtmlName::kHeight, &attribute_height) &&
-        cached->image_file_dims().height() == attribute_height) {
+               GetDimensionAttribute(element, HtmlName::kHeight,
+                                     &attribute_height) &&
+               cached->image_file_dims().height() == attribute_height) {
       // No width, matching height
       element->DeleteAttribute(HtmlName::kHeight);
     }
@@ -1669,9 +1617,9 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
   // explicitly marked as inlinable).
   const char* responsive_attr =
       element->AttributeValue(HtmlName::kDataPagespeedResponsiveTemp);
-  if (responsive_attr != NULL &&
+  if (responsive_attr != nullptr &&
       StringPiece(responsive_attr) !=
-      ResponsiveImageFirstFilter::kInlinableVirtualImage) {
+          ResponsiveImageFirstFilter::kInlinableVirtualImage) {
     *inline_result = INLINE_RESPONSIVE;
   } else if (element->keyword() == HtmlName::kLink) {
     // Don't inline shortcut images.  All shortcut images are on link tags, and
@@ -1688,9 +1636,9 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
     // src->SetValue() copies implicitly.
     GoogleString data_url;
     // TODO(sligocki): Use different threshold for responsive images?
-    *inline_result = TryInline(true /*in html*/, is_critical_image,
-                               options->ImageInlineMaxBytes(),
-                               cached, slot, &data_url);
+    *inline_result =
+        TryInline(true /*in html*/, is_critical_image,
+                  options->ImageInlineMaxBytes(), cached, slot, &data_url);
 
     if (*inline_result == INLINE_SUCCESS) {
       DCHECK(!options->cache_small_images_unrewritten())
@@ -1698,8 +1646,8 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
           << "image_inlining_identify_and_cache_without_rewriting set.";
       src->SetValue(data_url);
       // Note the use of the ORIGINAL url not the data url.
-      LocalStorageCacheFilter::AddLscAttributes(src_value, *cached,
-                                                driver(), element);
+      LocalStorageCacheFilter::AddLscAttributes(src_value, *cached, driver(),
+                                                element);
       // AddLscAttributes uses the width and height attributes so must be called
       // before we delete them with:
       DeleteMatchingImageDimsAfterInline(cached, element);
@@ -1724,8 +1672,7 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
     if (options->Enabled(RewriteOptions::kInsertImageDimensions) &&
         (element->keyword() == HtmlName::kImg ||
          element->keyword() == HtmlName::kInput) &&
-        !HasAnyDimensions(element) &&
-        cached->has_image_file_dims() &&
+        !HasAnyDimensions(element) && cached->has_image_file_dims() &&
         ImageUrlEncoder::HasValidDimensions(cached->image_file_dims())) {
       // Add image dimensions. We don't bother to resize if either dimension is
       // specified with units (em, %) rather than as absolute pixels. But note
@@ -1737,9 +1684,10 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
       driver()->AddAttribute(element, HtmlName::kHeight,
                              IntegerToString(file_dims.height()));
     }
-    if (element->FindAttribute(HtmlName::kDataPagespeedResponsiveTemp) != NULL
-        && cached->has_image_file_dims()
-        && ImageUrlEncoder::HasValidDimensions(cached->image_file_dims())) {
+    if (element->FindAttribute(HtmlName::kDataPagespeedResponsiveTemp) !=
+            nullptr &&
+        cached->has_image_file_dims() &&
+        ImageUrlEncoder::HasValidDimensions(cached->image_file_dims())) {
       // If this is an image used by ResponsiveImageFilter, add information
       // on actual final dimensions used. That way we can decide which to use
       // in srcset and which to discard (because they are the same size as a
@@ -1761,34 +1709,31 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
        element->keyword() == HtmlName::kInput)) {
     try_low_res_src_insertion = true;
     int max_preview_image_index = options->max_inlined_preview_images_index();
-    if (!image_inlined &&
-        !slot->preserve_urls() &&
-        is_critical_image &&
+    if (!image_inlined && !slot->preserve_urls() && is_critical_image &&
         driver()->request_properties()->SupportsImageInlining() &&
         driver()->server_context()->critical_images_finder()->Available(
             driver()) != CriticalImagesFinder::kNoDataYet &&
         cached->has_low_resolution_inlined_data() &&
         (max_preview_image_index < 0 ||
          image_index < max_preview_image_index)) {
-      low_res_image_type = static_cast<ImageType>(
-          cached->low_resolution_inlined_image_type());
+      low_res_image_type =
+          static_cast<ImageType>(cached->low_resolution_inlined_image_type());
 
       const ContentType* content_type =
           Image::TypeToContentType(low_res_image_type);
-      DCHECK(content_type != NULL) << "Invalid Image Type: "
-                                   << low_res_image_type;
-      if (content_type != NULL) {
+      DCHECK(content_type != nullptr)
+          << "Invalid Image Type: " << low_res_image_type;
+      if (content_type != nullptr) {
         GoogleString data_url;
         DataUrl(*content_type, BASE64, cached->low_resolution_inlined_data(),
                 &data_url);
-        driver()->AddAttribute(
-            element, HtmlName::kDataPagespeedLowResSrc, data_url);
+        driver()->AddAttribute(element, HtmlName::kDataPagespeedLowResSrc,
+                               data_url);
         driver()->increment_num_inline_preview_images();
         low_res_src_inserted = true;
       } else {
-        driver()->message_handler()->Message(kError,
-                                             "Invalid low res image type: %d",
-                                             low_res_image_type);
+        driver()->message_handler()->Message(
+            kError, "Invalid low res image type: %d", low_res_image_type);
       }
     }
   }
@@ -1796,18 +1741,11 @@ bool ImageRewriteFilter::FinishRewriteImageUrl(
   // Absolutify the image url for logging.
   GoogleUrl image_gurl(driver()->base_url(), src_value);
   driver()->log_record()->LogImageRewriteActivity(
-      LoggingId(),
-      image_gurl.spec_c_str(),
-      (rewrote_url ?
-       RewriterApplication::APPLIED_OK :
-       RewriterApplication::NOT_APPLIED),
-      image_inlined,
-      is_critical_image,
-      cached->optimizable(),
-      cached->size(),
-      try_low_res_src_insertion,
-      low_res_src_inserted,
-      low_res_image_type,
+      LoggingId(), image_gurl.spec_c_str(),
+      (rewrote_url ? RewriterApplication::APPLIED_OK
+                   : RewriterApplication::NOT_APPLIED),
+      image_inlined, is_critical_image, cached->optimizable(), cached->size(),
+      try_low_res_src_insertion, low_res_src_inserted, low_res_image_type,
       cached->low_resolution_inlined_data().size());
   return rewrote_url;
 }
@@ -1821,8 +1759,7 @@ void ImageRewriteFilter::SaveDebugMessageToCache(const GoogleString& message,
   }
 }
 
-GoogleString ImageRewriteFilter::UrlForDebugMessages(
-    const Context* rc) const {
+GoogleString ImageRewriteFilter::UrlForDebugMessages(const Context* rc) const {
   GoogleString slot_url = rc->slot(0)->resource()->url();
   GoogleUrl url(slot_url);
   if (!url.IsWebValid()) {
@@ -1837,13 +1774,11 @@ GoogleString ImageRewriteFilter::UrlForDebugMessages(
   }
 
   GoogleString mapped;
-  if (DomainRewriteFilter::Rewrite(url.Spec(), url,
-                                   rc->FindServerContext(),
-                                   rc->Options(),
-                                   true, /* apply sharding */
-                                   true, /* apply_domain_suffix*/
-                                   &mapped)
-       == DomainRewriteFilter::kRewroteDomain) {
+  if (DomainRewriteFilter::Rewrite(url.Spec(), url, rc->FindServerContext(),
+                                   rc->Options(), true, /* apply sharding */
+                                   true,                /* apply_domain_suffix*/
+                                   &mapped) ==
+      DomainRewriteFilter::kRewroteDomain) {
     return mapped;
   }
 
@@ -1867,28 +1802,28 @@ bool ImageRewriteFilter::StoreUrlInPropertyCache(const StringPiece& url) {
     return true;
   }
   PropertyPage* property_page = driver()->property_page();
-  if (property_page == NULL) {
+  if (property_page == nullptr) {
     LOG(WARNING) << "image_inlining_identify_and_cache_without_rewriting "
                  << "without PropertyPage.";
     return false;
   }
   const PropertyCache::Cohort* cohort =
       driver()->server_context()->dom_cohort();
-  if (cohort == NULL) {
+  if (cohort == nullptr) {
     LOG(WARNING) << "image_inlining_identify_and_cache_without_rewriting "
                  << "without configured DOM cohort.";
     return false;
   }
-  PropertyValue* value = property_page->GetProperty(
-      cohort, kInlinableImageUrlsPropertyName);
+  PropertyValue* value =
+      property_page->GetProperty(cohort, kInlinableImageUrlsPropertyName);
   VLOG(3) << "image_inlining_identify_and_cache_without_rewriting value "
           << "inserted into pcache: " << url;
   GoogleString new_value(StrCat("\"", url, "\""));
   if (value->has_value()) {
     StrAppend(&new_value, ",", value->value());
   }
-  property_page->UpdateValue(
-      cohort, kInlinableImageUrlsPropertyName, new_value);
+  property_page->UpdateValue(cohort, kInlinableImageUrlsPropertyName,
+                             new_value);
   return true;
 }
 
@@ -1903,9 +1838,9 @@ bool ImageRewriteFilter::HasAnyDimensions(HtmlElement* element) {
   return extractor.HasAnyDimensions();
 }
 
-bool ImageRewriteFilter::ParseDimensionAttribute(
-    const char* position, int* value) {
-  if (position == NULL) {
+bool ImageRewriteFilter::ParseDimensionAttribute(const char* position,
+                                                 int* value) {
+  if (position == nullptr) {
     return false;
   }
   // Note that we rely heavily on null-termination of char* here to cause our
@@ -1965,9 +1900,7 @@ bool ImageRewriteFilter::ParseDimensionAttribute(
 }
 
 void ImageRewriteFilter::GetDimensions(
-    HtmlElement* element,
-    ImageDim* page_dim,
-    const HtmlElement::Attribute* src,
+    HtmlElement* element, ImageDim* page_dim, const HtmlElement::Attribute* src,
     bool* is_resized_using_rendered_dimensions) {
   css_util::StyleExtractor extractor(element);
   css_util::DimensionState state = extractor.state();
@@ -1988,8 +1921,8 @@ void ImageRewriteFilter::GetDimensions(
         std::pair<int32, int32> dimensions;
         CriticalImagesFinder* finder =
             driver()->server_context()->critical_images_finder();
-        if (finder->GetRenderedImageDimensions(
-                driver(), src_gurl, &dimensions)) {
+        if (finder->GetRenderedImageDimensions(driver(), src_gurl,
+                                               &dimensions)) {
           if (dimensions.first != 0 && dimensions.second != 0) {
             rendered_width = dimensions.first;
             rendered_height = dimensions.second;
@@ -2031,9 +1964,9 @@ void ImageRewriteFilter::GetDimensions(
   int64 image_attribute_area = page_dim->width() * page_dim->height();
   // Note: we check for image_attribute_area = 1 (-1 * -1 = 1) when we have
   // -1(unset) for both height and width from the image attributes.
-  if (rendered_area != 0 && ((image_attribute_area != 1 &&
-       rendered_area < image_attribute_area) ||
-      (image_attribute_area == 1))) {
+  if (rendered_area != 0 &&
+      ((image_attribute_area != 1 && rendered_area < image_attribute_area) ||
+       (image_attribute_area == 1))) {
     page_dim->set_width(rendered_width);
     page_dim->set_height(rendered_height);
     *is_resized_using_rendered_dimensions = true;
@@ -2042,8 +1975,10 @@ void ImageRewriteFilter::GetDimensions(
 }
 
 InlineResult ImageRewriteFilter::TryInline(bool is_html, bool is_critical,
-    int64 image_inline_max_bytes, const CachedResult* cached_result,
-    ResourceSlot* slot, GoogleString* data_url) {
+                                           int64 image_inline_max_bytes,
+                                           const CachedResult* cached_result,
+                                           ResourceSlot* slot,
+                                           GoogleString* data_url) {
   int32 image_type_value = cached_result->inlined_image_type();
   if (!ImageType_IsValid(image_type_value)) {
     LOG(DFATAL) << "Invalid inlined_image_type in cached_result";
@@ -2097,7 +2032,6 @@ InlineResult ImageRewriteFilter::TryInline(bool is_html, bool is_critical,
 }
 
 void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
-
   // Don't rewrite if there is a pagespeed_no_transform or
   // data-pagespeed-no-transform attribute.
   if (element->FindAttribute(HtmlName::kDataPagespeedNoTransform)) {
@@ -2115,7 +2049,7 @@ void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
   resource_tag_scanner::ScanElement(element, driver()->options(), &attributes);
   for (int i = 0, n = attributes.size(); i < n; ++i) {
     if (attributes[i].category != semantic_type::kImage ||
-        attributes[i].url->DecodedValueOrNull() == NULL) {
+        attributes[i].url->DecodedValueOrNull() == nullptr) {
       continue;
     }
 
@@ -2127,25 +2061,22 @@ void ImageRewriteFilter::StartElementImpl(HtmlElement* element) {
       // we might still have to modify the element.
       LocalStorageCacheFilter::InlineState state;
       if (LocalStorageCacheFilter::AddStorableResource(
-              attributes[i].url->DecodedValueOrNull(),
-              driver(),
-              false /* check cookie */,
-              element, &state)) {
+              attributes[i].url->DecodedValueOrNull(), driver(),
+              false /* check cookie */, element, &state)) {
         continue;
       }
     }
 
     BeginRewriteImageUrl(element, attributes[i].url);
-   
-  
+
     HtmlElement::Attribute* srcset = element->FindAttribute(HtmlName::kSrcset);
-    HtmlElement::Attribute* datasrcset = element->FindAttribute(HtmlName::kDataSrcset);
+    HtmlElement::Attribute* datasrcset =
+        element->FindAttribute(HtmlName::kDataSrcset);
     if (srcset != nullptr) {
-	    BeginRewriteSrcSet(element, srcset);
+      BeginRewriteSrcSet(element, srcset);
     } else if (datasrcset != nullptr) {
-	    BeginRewriteSrcSet(element, datasrcset);
-    }	    
-  
+      BeginRewriteSrcSet(element, datasrcset);
+    }
   }
 }
 
@@ -2167,11 +2098,9 @@ void ImageRewriteFilter::EncodeUserAgentIntoResourceContext(
 RewriteContext* ImageRewriteFilter::MakeRewriteContext() {
   ResourceContext* resource_context = new ResourceContext;
   EncodeUserAgentIntoResourceContext(resource_context);
-  return new Context(0 /*No CSS inlining, it's html */,
-                     this, driver(), NULL /*not nested */,
-                     resource_context,
-                     Context::Place::kFetch,
-                     kNotCriticalIndex,
+  return new Context(0 /*No CSS inlining, it's html */, this, driver(),
+                     nullptr /*not nested */, resource_context,
+                     Context::Place::kFetch, kNotCriticalIndex,
                      false /*not in noscript */,
                      false /*not resized by rendered dimensions*/);
 }
@@ -2184,7 +2113,7 @@ RewriteContext* ImageRewriteFilter::MakeNestedRewriteContextForCss(
   // allowed.
   ResourceContext* cloned_context = new ResourceContext;
   const ResourceContext* parent_context = parent->resource_context();
-  if (parent_context != NULL) {
+  if (parent_context != nullptr) {
     *cloned_context = *parent_context;
   }
 
@@ -2193,16 +2122,12 @@ RewriteContext* ImageRewriteFilter::MakeNestedRewriteContextForCss(
     // checks only UserAgentSupportsWebp when creating the context, but while
     // rewriting the image, rewrite options should also be checked.
     ImageUrlEncoder::SetLibWebpLevel(
-        *driver()->options(), *driver()->request_properties(),
-        cloned_context);
+        *driver()->options(), *driver()->request_properties(), cloned_context);
   }
-  Context* context = new Context(css_image_inline_max_bytes,
-                                 this, NULL /* driver*/, parent,
-                                 cloned_context,
-                                 Context::Place::kCss,
-                                 kNotCriticalIndex,
-                                 false /*not in noscript */,
-                                 false /*not resized by rendered dimensions*/);
+  Context* context = new Context(
+      css_image_inline_max_bytes, this, nullptr /* driver*/, parent,
+      cloned_context, Context::Place::kCss, kNotCriticalIndex,
+      false /*not in noscript */, false /*not resized by rendered dimensions*/);
   context->AddSlot(slot);
   return context;
 }
@@ -2210,14 +2135,14 @@ RewriteContext* ImageRewriteFilter::MakeNestedRewriteContextForCss(
 RewriteContext* ImageRewriteFilter::MakeNestedRewriteContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
   ResourceContext* resource_context = new ResourceContext;
-  DCHECK(parent != NULL);
-  DCHECK(parent->resource_context() != NULL);
-  if (parent != NULL && parent->resource_context() != NULL) {
+  DCHECK(parent != nullptr);
+  DCHECK(parent->resource_context() != nullptr);
+  if (parent != nullptr && parent->resource_context() != nullptr) {
     *resource_context = *(parent->resource_context());
   }
   Context* context = new Context(
-      0 /*No Css inling */, this, NULL /* driver */, parent, resource_context,
-      Context::Place::kNonCssNested, kNotCriticalIndex,
+      0 /*No Css inling */, this, nullptr /* driver */, parent,
+      resource_context, Context::Place::kNonCssNested, kNotCriticalIndex,
       false /*not in noscript */, false /*not resized by rendered dimensions*/);
   context->AddSlot(slot);
   return context;
@@ -2255,9 +2180,9 @@ void ImageRewriteFilter::ReportDroppedRewrite() {
   image_rewrites_dropped_due_to_load_->IncBy(1);
 }
 
-bool ImageRewriteFilter::ExtractAssociatedImageInfo(
-    const CachedResult* result, RewriteContext* context,
-    AssociatedImageInfo* out) {
+bool ImageRewriteFilter::ExtractAssociatedImageInfo(const CachedResult* result,
+                                                    RewriteContext* context,
+                                                    AssociatedImageInfo* out) {
   bool ret = false;
   if (result->has_image_file_dims()) {
     if (result->url().empty()) {

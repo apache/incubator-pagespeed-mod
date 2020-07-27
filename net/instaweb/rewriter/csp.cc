@@ -23,6 +23,8 @@
 
 #include "net/instaweb/rewriter/public/csp.h"
 
+#include <memory>
+
 #include "net/instaweb/rewriter/public/csp_directive.h"
 
 namespace net_instaweb {
@@ -47,8 +49,7 @@ char Last(StringPiece input) {
 }
 
 inline bool IsAsciiAlpha(char ch) {
-  return (((ch >= 'a') && (ch <= 'z')) ||
-          ((ch >= 'A') && (ch <= 'Z')));
+  return (((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')));
 }
 
 inline bool IsSchemeContinuation(char ch) {
@@ -57,8 +58,8 @@ inline bool IsSchemeContinuation(char ch) {
 
 inline bool IsBase64Char(char ch) {
   // ALPHA / DIGIT / "+" / "/" / "-" / "_"
-  return IsAsciiAlphaNumeric(ch) ||
-         (ch == '+') || (ch == '/') || (ch == '-') || (ch == '_');
+  return IsAsciiAlphaNumeric(ch) || (ch == '+') || (ch == '/') || (ch == '-') ||
+         (ch == '_');
 }
 
 }  // namespace
@@ -93,8 +94,8 @@ bool CspSourceExpression::TryParseScheme(StringPiece* input) {
   }
 
   // We now want to see if it's actually foo://
-  if ((pos + 2 < input->size())
-       && ((*input)[pos + 1] == '/') && ((*input)[pos + 2] == '/')) {
+  if ((pos + 2 < input->size()) && ((*input)[pos + 1] == '/') &&
+      ((*input)[pos + 2] == '/')) {
     input->substr(0, pos).CopyToString(&mutable_url_data()->scheme_part);
     input->remove_prefix(pos + 3);
     LowerString(&mutable_url_data()->scheme_part);
@@ -140,9 +141,8 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
       input.remove_prefix(1);
     }
 
-    while (!input.empty()
-           && (IsAsciiAlphaNumeric(input[0])
-               || (input[0] == '-') || (input[0] == '.'))) {
+    while (!input.empty() && (IsAsciiAlphaNumeric(input[0]) ||
+                              (input[0] == '-') || (input[0] == '.'))) {
       result.mutable_url_data()->host_part.push_back(input[0]);
       input.remove_prefix(1);
     }
@@ -202,8 +202,8 @@ CspSourceExpression CspSourceExpression::Parse(StringPiece input) {
   return result;
 }
 
-bool CspSourceExpression::Matches(
-    const GoogleUrl& origin_url, const GoogleUrl& url) const {
+bool CspSourceExpression::Matches(const GoogleUrl& origin_url,
+                                  const GoogleUrl& url) const {
   // Implementation of the "Does url match expression in origin with
   // redirect count?" algorithm (where redirect count is 0 for our
   // purposes, since we check the request).
@@ -251,22 +251,16 @@ bool CspSourceExpression::Matches(
   // Some special handling of *, which for some reason handles some schemes
   // a bit differently than other things with * host portion and no scheme
   // specified.
-  if (kind_ == kHostSource &&
-      expr_scheme.empty() &&
-      expr_host == "*" &&
-      expr_port.empty() &&
-      expr_path.empty()) {
-    if (url.SchemeIs("http") ||
-        url.SchemeIs("https") ||
-        url.SchemeIs("ftp")) {
+  if (kind_ == kHostSource && expr_scheme.empty() && expr_host == "*" &&
+      expr_port.empty() && expr_path.empty()) {
+    if (url.SchemeIs("http") || url.SchemeIs("https") || url.SchemeIs("ftp")) {
       return true;
     }
     return (url.Scheme() == origin_url.Scheme());
   }
 
-  if (!expr_scheme.empty()
-      && url.Scheme() != expr_scheme
-      && !(expr_scheme == "http" && url.SchemeIs("https"))) {
+  if (!expr_scheme.empty() && url.Scheme() != expr_scheme &&
+      !(expr_scheme == "http" && url.SchemeIs("https"))) {
     return false;
   }
 
@@ -278,9 +272,8 @@ bool CspSourceExpression::Matches(
     return false;
   }
 
-  if (expr_scheme.empty()
-      && url.Scheme() != origin_url.Scheme()
-      && !(origin_url.SchemeIs("http") && url.SchemeIs("https"))) {
+  if (expr_scheme.empty() && url.Scheme() != origin_url.Scheme() &&
+      !(origin_url.SchemeIs("http") && url.SchemeIs("https"))) {
     return false;
   }
 
@@ -305,9 +298,9 @@ bool CspSourceExpression::Matches(
   } else {
     // TODO(morlovich): Check whether the :80/:443 case is about effective
     // or explicit port.
-    if (expr_port != "*"
-        && expr_port != IntegerToString(url.EffectiveIntPort())
-        && !(expr_port == "80" && url.EffectiveIntPort() == 443)) {
+    if (expr_port != "*" &&
+        expr_port != IntegerToString(url.EffectiveIntPort()) &&
+        !(expr_port == "80" && url.EffectiveIntPort() == 443)) {
       return false;
     }
   }
@@ -322,8 +315,8 @@ bool CspSourceExpression::Matches(
       return false;
     }
 
-    if (url_data().path_exact_match
-        && (url_path_list.size() != expr_path.size())) {
+    if (url_data().path_exact_match &&
+        (url_path_list.size() != expr_path.size())) {
       return false;
     }
 
@@ -395,7 +388,7 @@ bool CspSourceExpression::ParseBase64(StringPiece input) {
 
 bool CspSourceExpression::HasDefaultPortForScheme(const GoogleUrl& url) {
   int url_scheme_port = GoogleUrl::DefaultPortForScheme(url.Scheme());
-  if (url_scheme_port == url::PORT_UNSPECIFIED) {
+  if (GoogleUrl::isPortGurlUnspecified(url_scheme_port)) {
     return false;
   }
 
@@ -450,8 +443,8 @@ std::unique_ptr<CspSourceList> CspSourceList::Parse(StringPiece input) {
   return result;
 }
 
-bool CspSourceList::Matches(
-    const GoogleUrl& origin_url, const GoogleUrl& url) const {
+bool CspSourceList::Matches(const GoogleUrl& origin_url,
+                            const GoogleUrl& url) const {
   for (const CspSourceExpression& expr : expressions_) {
     if (expr.Matches(origin_url, url)) {
       return true;
@@ -481,7 +474,7 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
     return policy;
   }
 
-  policy.reset(new CspPolicy);
+  policy = std::make_unique<CspPolicy>();
   for (StringPiece token : tokens) {
     TrimCspWhitespace(&token);
     StringPiece::size_type pos = token.find(' ');
@@ -503,7 +496,7 @@ std::unique_ptr<CspPolicy> CspPolicy::Parse(StringPiece input) {
       int dir_name_num = static_cast<int>(dir_name);
       if (dir_name != CspDirective::kNumSourceListDirectives &&
           policy->policies_[dir_name_num] == nullptr) {
-        policy->policies_[dir_name_num].reset(new CspSourceList());
+        policy->policies_[dir_name_num] = std::make_unique<CspSourceList>();
       }
     }
   }
@@ -566,9 +559,8 @@ bool CspPolicy::PermitsInlineStyleAttribute() const {
   return PermitsInlineStyle();
 }
 
-bool CspPolicy::CanLoadUrl(
-    CspDirective role, const GoogleUrl& origin_url,
-    const GoogleUrl& url) const {
+bool CspPolicy::CanLoadUrl(CspDirective role, const GoogleUrl& origin_url,
+                           const GoogleUrl& url) const {
   // AKA: "Does url match source list in origin with redirect count?", combined
   // with the various pre-request checks.
   CHECK(role == CspDirective::kImgSrc || role == CspDirective::kStyleSrc ||
@@ -586,8 +578,8 @@ bool CspPolicy::CanLoadUrl(
   return source_list->Matches(origin_url, url);
 }
 
-bool CspPolicy::IsBasePermitted(
-    const GoogleUrl& previous_origin, const GoogleUrl& base_candidate) const {
+bool CspPolicy::IsBasePermitted(const GoogleUrl& previous_origin,
+                                const GoogleUrl& base_candidate) const {
   const CspSourceList* source_list = SourceListFor(CspDirective::kBaseUri);
   if (source_list != nullptr) {
     if (!source_list->Matches(previous_origin, base_candidate)) {

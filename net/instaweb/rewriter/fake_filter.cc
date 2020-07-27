@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/fake_filter.h"
+
 #include <memory>
 
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -71,9 +71,9 @@ void FakeFilter::Context::DoRewriteSingle(const ResourcePtr input,
     // Set the output type here to make sure that the CachedResult url
     // field has the correct extension for the type.
     const ContentType* output_type = &kContentTypeText;
-    if (filter_->output_content_type() != NULL) {
+    if (filter_->output_content_type() != nullptr) {
       output_type = filter_->output_content_type();
-    } else if (input->type() != NULL) {
+    } else if (input->type() != nullptr) {
       output_type = input->type();
     }
     ResourceVector rv = ResourceVector(1, input);
@@ -88,7 +88,7 @@ void FakeFilter::Context::DoRewriteSingle(const ResourcePtr input,
 
 GoogleString FakeFilter::Context::UserAgentCacheKey(
     const ResourceContext* resource_context) const {
-  if (resource_context != NULL) {
+  if (resource_context != nullptr) {
     return ImageUrlEncoder::CacheKeyFromResourceContext(*resource_context);
   }
   return "";
@@ -104,7 +104,7 @@ void FakeFilter::StartElementImpl(HtmlElement* element) {
       ResourcePtr input_resource(CreateInputResourceOrInsertDebugComment(
           attributes[i].url->DecodedValueOrNull(),
           RewriteDriver::InputRole::kUnknown, element));
-      if (input_resource.get() == NULL) {
+      if (input_resource.get() == nullptr) {
         return;
       }
       ResourceSlotPtr slot(
@@ -119,11 +119,10 @@ void FakeFilter::StartElementImpl(HtmlElement* element) {
 RewriteContext* FakeFilter::MakeNestedRewriteContext(
     RewriteContext* parent, const ResourceSlotPtr& slot) {
   ResourceContext* resource_context = new ResourceContext;
-  if (parent != NULL && parent->resource_context() != NULL) {
+  if (parent != nullptr && parent->resource_context() != nullptr) {
     resource_context->CopyFrom(*parent->resource_context());
   }
-  RewriteContext* context =
-      MakeFakeContext(NULL, parent, resource_context);
+  RewriteContext* context = MakeFakeContext(nullptr, parent, resource_context);
   context->AddSlot(slot);
   return context;
 }

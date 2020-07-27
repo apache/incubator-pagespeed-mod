@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_WAVEFORM_H_
 #define PAGESPEED_KERNEL_BASE_WAVEFORM_H_
 
-#include <utility>                      // for pair
+#include <utility>  // for pair
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -87,7 +86,8 @@ class Waveform {
   double min_;
   double max_;
   double previous_value_;
-  scoped_ptr<AbstractMutex> mutex_;  // protects all the above member variables.
+  std::unique_ptr<AbstractMutex>
+      mutex_;  // protects all the above member variables.
 
   // Un-owned pointer to a variable to export current waveform values.
   // May be NULL.

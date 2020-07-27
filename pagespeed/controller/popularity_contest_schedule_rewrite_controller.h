@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_POPULARITY_CONTEST_SCHEDULE_REWRITE_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_POPULARITY_CONTEST_SCHEDULE_REWRITE_CONTROLLER_H_
 
@@ -100,7 +99,7 @@ class PopularityContestScheduleRewriteController
                                              Timer* timer,
                                              int max_running_rewrites,
                                              int max_queued_rewrites);
-  virtual ~PopularityContestScheduleRewriteController();
+  ~PopularityContestScheduleRewriteController() override;
 
   // ScheduleRewriteController interface.
   void ScheduleRewrite(const GoogleString& key, Function* callback) override;
@@ -138,8 +137,8 @@ class PopularityContestScheduleRewriteController
     }
   };
 
-  typedef std::unordered_map<const GoogleString*, Rewrite*,
-                             StringPtrHash, StringPtrEq>
+  typedef std::unordered_map<const GoogleString*, Rewrite*, StringPtrHash,
+                             StringPtrEq>
       RewriteMap;
 
   // Consider starting the next rewrite in queue_, depending on available
@@ -176,7 +175,7 @@ class PopularityContestScheduleRewriteController
   // Re-assign max_queued_rewrites. For use only in tests.
   void SetMaxQueueSizeForTesting(int size) LOCKS_EXCLUDED(mutex_);
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   // All known rewrites, indexed by Rewrite->key. Key pointers are all owned
   // by their respective Rewrite.
   RewriteMap all_rewrites_ GUARDED_BY(mutex_);

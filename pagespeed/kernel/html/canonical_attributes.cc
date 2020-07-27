@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/canonical_attributes.h"
 
 #include "pagespeed/kernel/html/html_element.h"
@@ -27,10 +26,7 @@ namespace net_instaweb {
 class HtmlParse;
 
 CanonicalAttributes::CanonicalAttributes(HtmlParse* html_parse)
-    : html_parse_(html_parse),
-      num_changes_(0),
-      num_errors_(0) {
-}
+    : html_parse_(html_parse), num_changes_(0), num_errors_(0) {}
 
 CanonicalAttributes::~CanonicalAttributes() {}
 
@@ -41,13 +37,13 @@ void CanonicalAttributes::StartDocument() {
 
 void CanonicalAttributes::StartElement(HtmlElement* element) {
   HtmlElement::AttributeList* attrs = element->mutable_attributes();
-  for (HtmlElement::AttributeIterator i(attrs->begin());
-       i != attrs->end(); ++i) {
+  for (HtmlElement::AttributeIterator i(attrs->begin()); i != attrs->end();
+       ++i) {
     HtmlElement::Attribute& attribute = *i;
     const char* value = attribute.DecodedValueOrNull();
     if (attribute.decoding_error()) {
       ++num_errors_;
-    } else if (value != NULL) {
+    } else if (value != nullptr) {
       ++num_changes_;
 
       // Recomputes escaped attribute.

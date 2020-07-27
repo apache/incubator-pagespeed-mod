@@ -17,11 +17,12 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 
 #include <cstddef>
+#include <memory>
 #include <utility>
+
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -69,30 +70,70 @@ extern const char* JS_responsive_js;
 extern const char* JS_responsive_js_opt;
 
 // TODO(jud): use the data2c build flow to create this data.
-const unsigned char GIF_blank[] = {
-    0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x1, 0x0, 0x1, 0x0,
-    static_cast<unsigned char>(0x80), 0x0, 0x0,
-    static_cast<unsigned char>(0xff), static_cast<unsigned char>(0xff),
-    static_cast<unsigned char>(0xff), static_cast<unsigned char>(0xff),
-    static_cast<unsigned char>(0xff), static_cast<unsigned char>(0xff), 0x21,
-    static_cast<unsigned char>(0xfe), 0x6, 0x70, 0x73, 0x61, 0x5f, 0x6c, 0x6c,
-    0x0, 0x21, static_cast<unsigned char>(0xf9), 0x4, 0x1, 0xa, 0x0, 0x1, 0x0,
-    0x2c, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x2, 0x2, 0x4c, 0x1, 0x0,
-    0x3b};
+const unsigned char GIF_blank[] = {0x47,
+                                   0x49,
+                                   0x46,
+                                   0x38,
+                                   0x39,
+                                   0x61,
+                                   0x1,
+                                   0x0,
+                                   0x1,
+                                   0x0,
+                                   static_cast<unsigned char>(0x80),
+                                   0x0,
+                                   0x0,
+                                   static_cast<unsigned char>(0xff),
+                                   static_cast<unsigned char>(0xff),
+                                   static_cast<unsigned char>(0xff),
+                                   static_cast<unsigned char>(0xff),
+                                   static_cast<unsigned char>(0xff),
+                                   static_cast<unsigned char>(0xff),
+                                   0x21,
+                                   static_cast<unsigned char>(0xfe),
+                                   0x6,
+                                   0x70,
+                                   0x73,
+                                   0x61,
+                                   0x5f,
+                                   0x6c,
+                                   0x6c,
+                                   0x0,
+                                   0x21,
+                                   static_cast<unsigned char>(0xf9),
+                                   0x4,
+                                   0x1,
+                                   0xa,
+                                   0x0,
+                                   0x1,
+                                   0x0,
+                                   0x2c,
+                                   0x0,
+                                   0x0,
+                                   0x0,
+                                   0x0,
+                                   0x1,
+                                   0x0,
+                                   0x1,
+                                   0x0,
+                                   0x0,
+                                   0x2,
+                                   0x2,
+                                   0x4c,
+                                   0x1,
+                                   0x0,
+                                   0x3b};
 const int GIF_blank_len = arraysize(GIF_blank);
 
 // The generated file js_defer.js is named in "<hash>-<fileName>" format.
-const char StaticAssetManager::kGStaticBase[] =
-    "//www.gstatic.com/psa/static/";
+const char StaticAssetManager::kGStaticBase[] = "//www.gstatic.com/psa/static/";
 
 // TODO(jud): Change to "/psaassets/".
 const char StaticAssetManager::kDefaultLibraryUrlPrefix[] = "/psajs/";
 
-StaticAssetManager::StaticAssetManager(
-    const GoogleString& static_asset_base,
-    ThreadSystem* threads,
-    Hasher* hasher,
-    MessageHandler* message_handler)
+StaticAssetManager::StaticAssetManager(const GoogleString& static_asset_base,
+                                       ThreadSystem* threads, Hasher* hasher,
+                                       MessageHandler* message_handler)
     : static_asset_base_(static_asset_base),
       hasher_(hasher),
       message_handler_(message_handler),
@@ -105,25 +146,21 @@ StaticAssetManager::StaticAssetManager(
   // not affect what we are computing here.
   ResponseHeaders header(kDeprecatedDefaultHttpOptions);
   header.SetDateAndCaching(0, ServerContext::kCacheTtlForMismatchedContentMs);
-  cache_header_with_private_ttl_ = StrCat(
-      header.Lookup1(HttpAttributes::kCacheControl),
-      ",private");
+  cache_header_with_private_ttl_ =
+      StrCat(header.Lookup1(HttpAttributes::kCacheControl), ",private");
 
   header.Clear();
   header.SetDateAndCaching(0, ServerContext::kGeneratedMaxAgeMs);
   cache_header_with_long_ttl_ = header.Lookup1(HttpAttributes::kCacheControl);
 }
 
-StaticAssetManager::~StaticAssetManager() {
-  STLDeleteElements(&assets_);
-}
+StaticAssetManager::~StaticAssetManager() { STLDeleteElements(&assets_); }
 
 const GoogleString& StaticAssetManager::GetAssetUrl(
     StaticAssetEnum::StaticAsset module, const RewriteOptions* options) const {
   ThreadSystem::ScopedReader read_lock(lock_.get());
-  return options->Enabled(RewriteOptions::kDebug) ?
-      assets_[module]->debug_url :
-      assets_[module]->opt_url;
+  return options->Enabled(RewriteOptions::kDebug) ? assets_[module]->debug_url
+                                                  : assets_[module]->opt_url;
 }
 
 void StaticAssetManager::SetGStaticHashForTest(
@@ -144,20 +181,19 @@ void StaticAssetManager::SetGStaticHashForTest(
 }
 
 void StaticAssetManager::ApplyGStaticConfiguration(
-    const StaticAssetConfig& config,
-    ConfigurationMode mode) {
+    const StaticAssetConfig& config, ConfigurationMode mode) {
   ScopedMutex write_lock(lock_.get());
   if (!serve_assets_from_gstatic_) {
     return;
   }
   if (mode == kInitialConfiguration) {
-    initial_gstatic_config_.reset(new StaticAssetConfig);
+    initial_gstatic_config_ = std::make_unique<StaticAssetConfig>();
     *initial_gstatic_config_ = config;
     ApplyGStaticConfigurationImpl(*initial_gstatic_config_,
                                   kInitialConfiguration);
   } else {
     // Apply initial + config.
-    CHECK(initial_gstatic_config_.get() != NULL);
+    CHECK(initial_gstatic_config_.get() != nullptr);
     StaticAssetConfig merged_config = *initial_gstatic_config_;
     merged_config.set_release_label(config.release_label());
     for (int i = 0, n = config.asset_size(); i < n; ++i) {
@@ -171,7 +207,7 @@ void StaticAssetManager::ApplyGStaticConfiguration(
 
 void StaticAssetManager::ResetGStaticConfiguration() {
   ScopedMutex write_lock(lock_.get());
-  if (initial_gstatic_config_.get() != NULL) {
+  if (initial_gstatic_config_.get() != nullptr) {
     // If there is no initial there is no update, so it's fine to do nothing
     // in the other case.
     ApplyGStaticConfigurationImpl(*initial_gstatic_config_,
@@ -195,8 +231,8 @@ void StaticAssetManager::ApplyGStaticConfigurationImpl(
     bool should_update = (mode == kInitialConfiguration) ||
                          (asset->release_label == config.release_label());
     if (should_update) {
-      asset->opt_url = StrCat(gstatic_base_, asset_conf.opt_hash(), "-",
-                              asset_conf.name());
+      asset->opt_url =
+          StrCat(gstatic_base_, asset_conf.opt_hash(), "-", asset_conf.name());
       asset->debug_url = StrCat(gstatic_base_, asset_conf.debug_hash(), "-",
                                 asset_conf.name());
       asset->release_label = config.release_label();
@@ -207,8 +243,8 @@ void StaticAssetManager::ApplyGStaticConfigurationImpl(
 void StaticAssetManager::InitializeAssetStrings() {
   ScopedMutex write_lock(lock_.get());
   assets_.resize(StaticAssetEnum::StaticAsset_ARRAYSIZE);
-  for (std::vector<Asset*>::iterator it = assets_.begin();
-       it != assets_.end(); ++it) {
+  for (std::vector<Asset*>::iterator it = assets_.begin(); it != assets_.end();
+       ++it) {
     *it = new Asset;
     (*it)->content_type = kContentTypeJavascript;
   }
@@ -261,12 +297,9 @@ void StaticAssetManager::InitializeAssetStrings() {
       JS_critical_images_beacon_opt;
   assets_[StaticAssetEnum::DEDUP_INLINED_IMAGES_JS]->js_optimized =
       JS_dedup_inlined_images_opt;
-  assets_[StaticAssetEnum::DEFER_IFRAME]->js_optimized =
-      JS_defer_iframe_opt;
-  assets_[StaticAssetEnum::DEFER_JS]->js_optimized =
-      JS_js_defer_opt;
-  assets_[StaticAssetEnum::DELAY_IMAGES_JS]->js_optimized =
-      JS_delay_images_opt;
+  assets_[StaticAssetEnum::DEFER_IFRAME]->js_optimized = JS_defer_iframe_opt;
+  assets_[StaticAssetEnum::DEFER_JS]->js_optimized = JS_js_defer_opt;
+  assets_[StaticAssetEnum::DELAY_IMAGES_JS]->js_optimized = JS_delay_images_opt;
   assets_[StaticAssetEnum::DELAY_IMAGES_INLINE_JS]->js_optimized =
       JS_delay_images_inline_opt;
   assets_[StaticAssetEnum::LAZYLOAD_IMAGES_JS]->js_optimized =
@@ -317,8 +350,8 @@ void StaticAssetManager::InitializeAssetStrings() {
   assets_[StaticAssetEnum::DEPRECATED_MOBILIZE_XHR_JS]->file_name = nullptr;
   assets_[StaticAssetEnum::DEPRECATED_MOBILIZE_LAYOUT_CSS]->file_name = nullptr;
 
-  for (std::vector<Asset*>::iterator it = assets_.begin();
-       it != assets_.end(); ++it) {
+  for (std::vector<Asset*>::iterator it = assets_.begin(); it != assets_.end();
+       ++it) {
     Asset* asset = *it;
     if (asset->file_name == nullptr) {
       continue;
@@ -328,7 +361,8 @@ void StaticAssetManager::InitializeAssetStrings() {
 
     // Make sure names are unique.
     DCHECK(file_name_to_module_map_.find(asset->file_name) ==
-           file_name_to_module_map_.end())  << asset->file_name;
+           file_name_to_module_map_.end())
+        << asset->file_name;
     // Setup a map of file name to the corresponding index in assets_ to
     // allow easier lookup in GetAsset.
     file_name_to_module_map_[asset->file_name] =
@@ -338,37 +372,34 @@ void StaticAssetManager::InitializeAssetStrings() {
 }
 
 void StaticAssetManager::InitializeAssetUrls() {
-  for (std::vector<Asset*>::iterator it = assets_.begin();
-       it != assets_.end(); ++it) {
+  for (std::vector<Asset*>::iterator it = assets_.begin(); it != assets_.end();
+       ++it) {
     Asset* asset = *it;
     // Generated urls are in the format "<filename>.<md5>.<extension>".
-    asset->opt_url = StrCat(static_asset_base_,
-                            library_url_prefix_,
-                            asset->file_name,
-                            ".", asset->js_opt_hash,
-                            asset->content_type.file_extension());
+    asset->opt_url =
+        StrCat(static_asset_base_, library_url_prefix_,
+               asset->file_name == nullptr ? "" : asset->file_name, ".",
+               asset->js_opt_hash, asset->content_type.file_extension());
 
     // Generated debug urls are in the format
     // "<filename>_debug.<md5>.<extension>".
-    asset->debug_url = StrCat(static_asset_base_,
-                              library_url_prefix_,
-                              asset->file_name,
-                              "_debug.", asset->js_debug_hash,
-                              asset->content_type.file_extension());
+    asset->debug_url =
+        StrCat(static_asset_base_, library_url_prefix_,
+               asset->file_name == nullptr ? "" : asset->file_name, "_debug.",
+               asset->js_debug_hash, asset->content_type.file_extension());
   }
 }
 
-const char* StaticAssetManager::GetAsset(
-    StaticAssetEnum::StaticAsset module, const RewriteOptions* options) const {
+const char* StaticAssetManager::GetAsset(StaticAssetEnum::StaticAsset module,
+                                         const RewriteOptions* options) const {
   ThreadSystem::ScopedReader read_lock(lock_.get());
   CHECK(StaticAssetEnum::StaticAsset_IsValid(module));
-  return options->Enabled(RewriteOptions::kDebug) ?
-      assets_[module]->js_debug.c_str() :
-      assets_[module]->js_optimized.c_str();
+  return options->Enabled(RewriteOptions::kDebug)
+             ? assets_[module]->js_debug.c_str()
+             : assets_[module]->js_optimized.c_str();
 }
 
-bool StaticAssetManager::GetAsset(StringPiece file_name,
-                                  StringPiece* content,
+bool StaticAssetManager::GetAsset(StringPiece file_name, StringPiece* content,
                                   ContentType* content_type,
                                   StringPiece* cache_header) const {
   StringPieceVector names;
@@ -387,8 +418,8 @@ bool StaticAssetManager::GetAsset(StringPiece file_name,
 
   if (StringPiece(plain_file_name).ends_with("_debug")) {
     is_debug = true;
-    plain_file_name = plain_file_name.substr(0, plain_file_name.length() -
-                                             strlen("_debug"));
+    plain_file_name =
+        plain_file_name.substr(0, plain_file_name.length() - strlen("_debug"));
   }
 
   ThreadSystem::ScopedReader read_lock(lock_.get());

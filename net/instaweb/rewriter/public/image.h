@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_H_
 
@@ -54,9 +53,7 @@ class Image {
 
   struct ConversionBySourceVariable {
     ConversionBySourceVariable()
-        : timeout_count(NULL),
-          success_ms(NULL),
-          failure_ms(NULL) {}
+        : timeout_count(NULL), success_ms(NULL), failure_ms(NULL) {}
 
     Variable* timeout_count;  // # of timed-out conversions.
     Histogram* success_ms;    // Successful conversion duration.
@@ -75,8 +72,7 @@ class Image {
       NUM_VARIABLE_TYPE
     };
     ConversionBySourceVariable* Get(VariableType var_type) {
-      if ((var_type < FROM_UNKNOWN_FORMAT) ||
-          (var_type >= NUM_VARIABLE_TYPE)) {
+      if ((var_type < FROM_UNKNOWN_FORMAT) || (var_type >= NUM_VARIABLE_TYPE)) {
         return NULL;
       }
       return &(vars[var_type]);
@@ -160,9 +156,7 @@ class Image {
   virtual void Dimensions(ImageDim* natural_dim) = 0;
 
   // Returns the size of original input in bytes.
-  size_t input_size() const {
-    return original_contents_.size();
-  }
+  size_t input_size() const { return original_contents_.size(); }
 
   // Returns the size of output image in bytes.
   size_t output_size() {
@@ -194,9 +188,7 @@ class Image {
 
   // Returns image-appropriate content type, or NULL if no content type is
   // known.  Result is a top-level const pointer and should not be deleted etc.
-  const ContentType* content_type() {
-    return TypeToContentType(image_type());
-  }
+  const ContentType* content_type() { return TypeToContentType(image_type()); }
 
   // Returns the best known image contents.  If image type is not understood,
   // then Contents() will have NULL data().
@@ -240,7 +232,6 @@ class Image {
   // jpeg.
   virtual bool ShouldConvertToProgressive(int64 quality) const = 0;
 
-
   ImageType image_type_;  // Lazily initialized, initially IMAGE_UNKNOWN.
   const StringPiece original_contents_;
   GoogleString output_contents_;  // Lazily filled.
@@ -264,18 +255,15 @@ class Image {
 //
 // TODO(jmarantz): It would seem natural to fold the ImageOptions into the
 // Image object itself.
-Image* NewImage(const StringPiece& original_contents,
-                const GoogleString& url,
+Image* NewImage(const StringPiece& original_contents, const GoogleString& url,
                 const StringPiece& file_prefix,
-                Image::CompressionOptions* options,
-                Timer* timer,
+                Image::CompressionOptions* options, Timer* timer,
                 MessageHandler* handler);
 
 // Creates a blank image of the given dimensions and type.
 // For now, this is assumed to be an 8-bit 4-channel image transparent image.
 Image* BlankImageWithOptions(int width, int height, ImageType type,
-                             const StringPiece& tmp_dir,
-                             Timer* timer,
+                             const StringPiece& tmp_dir, Timer* timer,
                              MessageHandler* handler,
                              Image::CompressionOptions* options);
 

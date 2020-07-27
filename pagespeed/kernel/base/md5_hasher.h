@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MD5_HASHER_H_
 #define PAGESPEED_KERNEL_BASE_MD5_HASHER_H_
 
@@ -33,11 +32,11 @@ class MD5Hasher : public Hasher {
   static const int kDefaultHashSize = 10;
 
   MD5Hasher() : Hasher(kDefaultHashSize) {}
-  explicit MD5Hasher(int hash_size) : Hasher(hash_size) { }
-  virtual ~MD5Hasher();
+  explicit MD5Hasher(int hash_size) : Hasher(hash_size) {}
+  ~MD5Hasher() override;
 
-  virtual GoogleString RawHash(const StringPiece& content) const;
-  virtual int RawHashSizeInBytes() const;
+  GoogleString RawHash(const StringPiece& content) const override;
+  int RawHashSizeInBytes() const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MD5Hasher);

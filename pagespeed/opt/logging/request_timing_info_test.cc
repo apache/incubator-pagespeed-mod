@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/opt/logging/request_timing_info.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -102,7 +101,6 @@ TEST(RequestTimingInfoTest, ProcessingTime) {
   ASSERT_FALSE(timing_info.GetProcessingElapsedMs(&elapsed));
 
   timing_info.RequestFinished();
-
 
   ASSERT_TRUE(timing_info.GetFetchLatencyMs(&elapsed));
   EXPECT_EQ(5, elapsed);
@@ -199,7 +197,7 @@ TEST(RequestTimingInfoTest, TimeToStartParse) {
 
 TEST(RequestTimingInfoTest, CacheLatency) {
   NullMutex mutex;
-  RequestTimingInfo timing_info(NULL, &mutex);
+  RequestTimingInfo timing_info(nullptr, &mutex);
 
   int64 latency_ms;
   ASSERT_FALSE(timing_info.GetHTTPCacheLatencyMs(&latency_ms));

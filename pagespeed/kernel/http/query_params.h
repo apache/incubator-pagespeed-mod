@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTTP_QUERY_PARAMS_H_
 #define PAGESPEED_KERNEL_HTTP_QUERY_PARAMS_H_
 
-#include "pagespeed/kernel/base/string_multi_map.h"
-
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
+#include "pagespeed/kernel/base/string_multi_map.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
@@ -34,7 +32,7 @@ class GoogleUrl;
 // Parses and rewrites URL query parameters.
 class QueryParams {
  public:
-  QueryParams() { }
+  QueryParams() {}
 
   // Parse the query part of the given URL, for example "x=0&y=1&z=2".
   //

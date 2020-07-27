@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/data_url_input_resource.h"
 
 #include "net/instaweb/http/public/http_value.h"
@@ -71,8 +70,7 @@ void DataUrlInputResource::FillInPartitionInputInfo(
 
 void DataUrlInputResource::LoadAndCallback(
     NotCacheablePolicy not_cacheable_policy,
-    const RequestContextPtr& request_context,
-    AsyncCallback* callback) {
+    const RequestContextPtr& request_context, AsyncCallback* callback) {
   callback->Done(false /* lock_failure */, loaded());
 }
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_THREAD_QUEUED_ALARM_H_
 #define PAGESPEED_KERNEL_THREAD_QUEUED_ALARM_H_
 
@@ -44,9 +43,7 @@ class QueuedAlarm : public Function {
   // The object will be destroyed automatically when either the callback
   // is invoked or the cancellation is complete. You should not free the
   // sequence until one of these points is reached.
-  QueuedAlarm(Scheduler* scheduler,
-              Sequence* sequence,
-              int64 wakeup_time_us,
+  QueuedAlarm(Scheduler* scheduler, Sequence* sequence, int64 wakeup_time_us,
               Function* callback);
 
   // Cancels the alarm. This method must be run from the sequence given to the
@@ -61,10 +58,10 @@ class QueuedAlarm : public Function {
   void CancelAlarm();
 
  private:
-  virtual ~QueuedAlarm();
+  ~QueuedAlarm() override;
 
   // Runs in an arbitrary thread.
-  virtual void Run();
+  void Run() override;
 
   // Runs in the sequence case.
   void SequencePortionOfRun();
@@ -74,7 +71,7 @@ class QueuedAlarm : public Function {
   // is already on the queue.
   void SequencePortionOfRunCancelled();
 
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   Scheduler* scheduler_;
   Sequence* sequence_;
   Function* callback_;

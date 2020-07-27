@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/http/data_url.h"
 
 #include <cstddef>
-#include "strings/stringpiece_utils.h"
+////#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/base64_util.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -29,10 +28,8 @@
 
 namespace net_instaweb {
 
-void DataUrl(const ContentType& content_type,
-             const Encoding encoding,
-             const StringPiece& content,
-             GoogleString* result) {
+void DataUrl(const ContentType& content_type, const Encoding encoding,
+             const StringPiece& content, GoogleString* result) {
   result->assign("data:");
   result->append(content_type.mime_type());
   switch (encoding) {
@@ -43,17 +40,17 @@ void DataUrl(const ContentType& content_type,
       result->append(encoded);
       break;
     }
-// TODO(jmaessen): Figure out if we ever need non-BASE64 encodings,
-// and if so actually write them.  Here are the stubs.
-//     case UTF8:
-//       result->append(";charset=\"utf-8\",");
-//       // TODO(jmaessen): find %-encoding code to use here.
-//       //   jmarantz has one pending.
-//       result.append(content);
-//     case LATIN1:
-//       result->append(";charset=\"\",");
-//       // TODO(jmaessen): find %-encoding code to use here.
-//       //   Not the UTF-8 one!
+      // TODO(jmaessen): Figure out if we ever need non-BASE64 encodings,
+      // and if so actually write them.  Here are the stubs.
+      //     case UTF8:
+      //       result->append(";charset=\"utf-8\",");
+      //       // TODO(jmaessen): find %-encoding code to use here.
+      //       //   jmarantz has one pending.
+      //       result.append(content);
+      //     case LATIN1:
+      //       result->append(";charset=\"\",");
+      //       // TODO(jmaessen): find %-encoding code to use here.
+      //       //   Not the UTF-8 one!
     default: {
       // either UNKNOWN or PLAIN.  No special encoding or alphabet.  We're in a
       // context where we don't want to fail, so we try to give sensible output
@@ -74,16 +71,14 @@ bool IsDataImageUrl(const StringPiece url) {
   return strings::StartsWith(url, "data:image/");
 }
 
-bool ParseDataUrl(const StringPiece& url,
-                  const ContentType** content_type,
-                  Encoding* encoding,
-                  StringPiece* encoded_content) {
+bool ParseDataUrl(const StringPiece& url, const ContentType** content_type,
+                  Encoding* encoding, StringPiece* encoded_content) {
   const char kData[] = "data:";
   const size_t kDataSize = STATIC_STRLEN(kData);
   const char kBase64[] = ";base64";
   const size_t kBase64Size = STATIC_STRLEN(kBase64);
   // First invalidate all outputs.
-  *content_type = NULL;
+  *content_type = nullptr;
   *encoding = UNKNOWN;
   *encoded_content = StringPiece();
   size_t header_boundary = url.find(',');
@@ -110,8 +105,7 @@ bool ParseDataUrl(const StringPiece& url,
   return true;
 }
 
-bool DecodeDataUrlContent(Encoding encoding,
-                          const StringPiece& encoded_content,
+bool DecodeDataUrlContent(Encoding encoding, const StringPiece& encoded_content,
                           GoogleString* decoded_content) {
   switch (encoding) {
     case PLAIN:

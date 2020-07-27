@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_BROTLI_INFLATER_H_
 #define PAGESPEED_KERNEL_UTIL_BROTLI_INFLATER_H_
 
@@ -67,7 +66,7 @@ class BrotliInflater {
   // Keep track of if the internal state is "dirty", if so, refreshed by
   // ResetState() before Decompression.
   bool state_used_;
-  std::unique_ptr<BrotliDecoderStateStruct, void(*)(BrotliDecoderStateStruct*)>
+  std::unique_ptr<BrotliDecoderStateStruct, void (*)(BrotliDecoderStateStruct*)>
       brotli_state_;
 
   DISALLOW_COPY_AND_ASSIGN(BrotliInflater);

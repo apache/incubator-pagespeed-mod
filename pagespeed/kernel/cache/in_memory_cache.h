@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_IN_MEMORY_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_IN_MEMORY_CACHE_H_
 

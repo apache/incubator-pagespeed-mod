@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
 
 #include <algorithm>
@@ -26,10 +25,10 @@
 #include "base/logging.h"
 #include "pagespeed/kernel/base/atomic_int32.h"
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/rolling_hash.h"
 #include "pagespeed/kernel/base/stl_util.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/kernel/base/rolling_hash.h"
 #include "pagespeed/kernel/base/wildcard.h"
 
 namespace net_instaweb {
@@ -43,13 +42,13 @@ const int kNoEntry = -1;
 
 StringPiece LongestLiteralStringInWildcard(const Wildcard* wildcard) {
   StringPiece spec = wildcard->spec();
-  const char kWildcardChars[] = { Wildcard::kMatchAny, Wildcard::kMatchOne };
+  const char kWildcardChars[] = {Wildcard::kMatchAny, Wildcard::kMatchOne};
   StringPiece wildcardChars(kWildcardChars, arraysize(kWildcardChars));
   int longest_pos = 0;
   int longest_len = 0;
   int next_wildcard = 0;
-  for (int pos = 0;
-       pos < static_cast<int>(spec.size()); pos = next_wildcard + 1) {
+  for (int pos = 0; pos < static_cast<int>(spec.size());
+       pos = next_wildcard + 1) {
     next_wildcard = spec.find_first_of(wildcardChars, pos);
     if (next_wildcard == static_cast<int>(StringPiece::npos)) {
       next_wildcard = spec.size();
@@ -65,9 +64,7 @@ StringPiece LongestLiteralStringInWildcard(const Wildcard* wildcard) {
 
 }  // namespace
 
-FastWildcardGroup::~FastWildcardGroup() {
-  Clear();
-}
+FastWildcardGroup::~FastWildcardGroup() { Clear(); }
 
 void FastWildcardGroup::Uncompile() {
   if (rolling_hash_length_.value() == kUncompiled) {
@@ -115,9 +112,9 @@ void FastWildcardGroup::CompileNonTrivial() const {
   // Allocate a hash table that's power-of-2 sized and >=
   // 2*num_nontrivial_patterns.
   int hash_index_size;
-  for (hash_index_size = 8;
-       hash_index_size < 2 * num_nontrivial_patterns;
-       hash_index_size *= 2) { }
+  for (hash_index_size = 8; hash_index_size < 2 * num_nontrivial_patterns;
+       hash_index_size *= 2) {
+  }
   pattern_hash_index_.resize(hash_index_size, kNoEntry);
   rolling_hashes_.resize(wildcards_.size());
   effective_indices_.resize(allow_.size());
@@ -282,9 +279,9 @@ bool FastWildcardGroup::Match(const StringPiece& str, bool allow) const {
   if (max_effective_index < exit_effective_index && rolling_end >= 0) {
     // Do a Rabin-Karp rolling match through the string.
     uint64 rolling_hash = RollingHash(str.data(), 0, rolling_hash_length);
-      // Uses signed arithmetic for correct comparison below.
+    // Uses signed arithmetic for correct comparison below.
     for (int ofs = 0;
-         max_effective_index < exit_effective_index && ofs <= rolling_end; ) {
+         max_effective_index < exit_effective_index && ofs <= rolling_end;) {
       // Look up rolling_hash in table, stopping if we find a:
       //   1) Smaller index than max_effective_index
       //   2) Matching string (update max_effective_index).
@@ -295,7 +292,7 @@ bool FastWildcardGroup::Match(const StringPiece& str, bool allow) const {
       // in the linear probe.  This is true even if intervening slots are
       // occupied by entries with completely different hash values - those
       // entries will still have larger indices as they were inserted earlier.
-      for (uint64 probe = 0; ; ++probe) {
+      for (uint64 probe = 0;; ++probe) {
         // The following invariant (and thus loop termination) should be
         // guaranteed by the sparseness of pattern_hash_index_.
         DCHECK_GT(pattern_hash_index_.size(), probe);
@@ -311,8 +308,8 @@ bool FastWildcardGroup::Match(const StringPiece& str, bool allow) const {
         }
       }
       if (++ofs <= rolling_end) {
-        rolling_hash = NextRollingHash(str.data(), ofs, rolling_hash_length,
-                                       rolling_hash);
+        rolling_hash =
+            NextRollingHash(str.data(), ofs, rolling_hash_length, rolling_hash);
       }
     }
   }

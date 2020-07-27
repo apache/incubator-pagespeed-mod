@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/rewritten_content_scanning_filter.h"
+
+#include <memory>
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -43,19 +44,18 @@ class RewrittenContentScanningFilterTest : public RewriteTestBase {
   RewrittenContentScanningFilterTest() {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     rewrite_driver()->AddOwnedPostRenderFilter(
         new RewrittenContentScanningFilter(rewrite_driver_));
-    const PropertyCache::Cohort* dom_cohort =
-        SetupCohort(server_context()->page_property_cache(),
-                    RewriteDriver::kDomCohort);
+    const PropertyCache::Cohort* dom_cohort = SetupCohort(
+        server_context()->page_property_cache(), RewriteDriver::kDomCohort);
     server_context()->set_dom_cohort(dom_cohort);
     server_context()->page_property_cache()->set_enabled(true);
     MockPropertyPage* page = NewMockPage(kRequestUrl);
     rewrite_driver()->set_property_page(page);
     server_context()->page_property_cache()->Read(page);
-    url_namer_.reset(new TestUrlNamer);
+    url_namer_ = std::make_unique<TestUrlNamer>();
     server_context()->set_url_namer(url_namer_.get());
     url_namer_->SetProxyMode(UrlNamer::ProxyExtent::kFull);
   }
@@ -72,7 +72,7 @@ class RewrittenContentScanningFilterTest : public RewriteTestBase {
   }
 
  private:
-  scoped_ptr<TestUrlNamer> url_namer_;
+  std::unique_ptr<TestUrlNamer> url_namer_;
   DISALLOW_COPY_AND_ASSIGN(RewrittenContentScanningFilterTest);
 };
 

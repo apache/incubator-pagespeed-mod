@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/request_properties.h"
 
 #include "net/instaweb/public/global_constants.h"
@@ -30,15 +29,14 @@
 
 namespace net_instaweb {
 
-class RequestPropertiesTest: public testing::Test {
+class RequestPropertiesTest : public testing::Test {
  protected:
   UserAgentMatcher user_agent_matcher_;
 };
 
 TEST_F(RequestPropertiesTest, SupportsWebpRewrittenUrls) {
   RequestProperties request_properties(&user_agent_matcher_);
-  request_properties.SetUserAgent(
-      UserAgentMatcherTestBase::kChrome18UserAgent);
+  request_properties.SetUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);
   RequestHeaders headers;
   headers.Add(HttpAttributes::kAccept, "image/webp");
   request_properties.ParseRequestHeaders(headers);
@@ -47,15 +45,13 @@ TEST_F(RequestPropertiesTest, SupportsWebpRewrittenUrls) {
 
 TEST_F(RequestPropertiesTest, SupportsImageInliningNoRequestHeaders) {
   RequestProperties request_properties(&user_agent_matcher_);
-  request_properties.SetUserAgent(
-      UserAgentMatcherTestBase::kChrome18UserAgent);
+  request_properties.SetUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);
   EXPECT_TRUE(request_properties.SupportsImageInlining());
 }
 
 TEST_F(RequestPropertiesTest, SupportsImageInliningEmptyRequestHeaders) {
   RequestProperties request_properties(&user_agent_matcher_);
-  request_properties.SetUserAgent(
-      UserAgentMatcherTestBase::kChrome18UserAgent);
+  request_properties.SetUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);
   RequestHeaders request_headers;
   request_headers.Add(kPsaCapabilityList, "");
   request_properties.ParseRequestHeaders(request_headers);
@@ -64,8 +60,7 @@ TEST_F(RequestPropertiesTest, SupportsImageInliningEmptyRequestHeaders) {
 
 TEST_F(RequestPropertiesTest, SupportsImageInliningViaRequestHeaders) {
   RequestProperties request_properties(&user_agent_matcher_);
-  request_properties.SetUserAgent(
-      UserAgentMatcherTestBase::kChrome18UserAgent);
+  request_properties.SetUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);
   RequestHeaders request_headers;
   request_properties.ParseRequestHeaders(request_headers);
   request_headers.Add(kPsaCapabilityList,

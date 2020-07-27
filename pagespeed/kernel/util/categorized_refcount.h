@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_CATEGORIZED_REFCOUNT_H_
 #define PAGESPEED_KERNEL_UTIL_CATEGORIZED_REFCOUNT_H_
 
@@ -74,7 +73,7 @@ namespace net_instaweb {
  * TODO(morlovich): Consider having a cap per kind, too? Some are meant to be
  * 0-1 only.
  */
-template<typename ObjectType, typename EnumType>
+template <typename ObjectType, typename EnumType>
 class CategorizedRefcount {
  public:
   // Note: set_mutex must be called before calling any other method on this
@@ -90,9 +89,7 @@ class CategorizedRefcount {
 
   // Sets the mutex that should be held when manipulating reference count
   // of this object. Does not take ownership.
-  void set_mutex(AbstractMutex* mutex) {
-    mutex_ = mutex;
-  }
+  void set_mutex(AbstractMutex* mutex) { mutex_ = mutex; }
 
   void AddRef(EnumType category) {
     ScopedMutex hold(mutex_);

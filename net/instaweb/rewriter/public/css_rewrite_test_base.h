@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Base class for tests which do rewrites within CSS.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_REWRITE_TEST_BASE_H_
@@ -46,8 +45,8 @@ class CssRewriteTestBase : public RewriteTestBase {
     num_parse_failures_ = statistics()->GetVariable(CssFilter::kParseFailures);
     num_rewrites_dropped_ =
         statistics()->GetVariable(CssFilter::kRewritesDropped);
-    total_bytes_saved_ = statistics()->GetUpDownCounter(
-        CssFilter::kTotalBytesSaved);
+    total_bytes_saved_ =
+        statistics()->GetUpDownCounter(CssFilter::kTotalBytesSaved);
     total_original_bytes_ =
         statistics()->GetVariable(CssFilter::kTotalOriginalBytes);
     num_uses_ = statistics()->GetVariable(CssFilter::kUses);
@@ -64,9 +63,9 @@ class CssRewriteTestBase : public RewriteTestBase {
     num_flatten_imports_complex_queries_ =
         statistics()->GetVariable(CssFilter::kComplexQueries);
   }
-  ~CssRewriteTestBase();
+  ~CssRewriteTestBase() override;
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_always_rewrite_css(true);
     AddFilter(RewriteOptions::kRewriteCss);
@@ -75,46 +74,46 @@ class CssRewriteTestBase : public RewriteTestBase {
   enum ValidationFlags {
     kNoFlags = 0,
 
-    kExpectSuccess = 1<<0,   // CSS parser succeeds and URL should be rewritten.
-    kExpectCached = 1<<1,    // CSS parser succeeds and URL should be rewritten,
+    kExpectSuccess =
+        1 << 0,              // CSS parser succeeds and URL should be rewritten.
+    kExpectCached = 1 << 1,  // CSS parser succeeds and URL should be rewritten,
                              // but everything is from the cache so zero stats.
-    kExpectNoChange = 1<<2,  // CSS parser succeeds but the URL is not rewritten
-                             // because we increased the size of contents.
-    kExpectFallback = 1<<3,  // CSS parser fails, fallback succeeds.
-    kExpectFailure = 1<<4,   // CSS parser fails, fallback failed or disabled.
+    kExpectNoChange =
+        1 << 2,  // CSS parser succeeds but the URL is not rewritten
+                 // because we increased the size of contents.
+    kExpectFallback = 1 << 3,  // CSS parser fails, fallback succeeds.
+    kExpectFailure = 1 << 4,   // CSS parser fails, fallback failed or disabled.
 
     // TODO(sligocki): Explain why we turn off stats check at each use-site.
-    kNoStatCheck = 1<<5,
+    kNoStatCheck = 1 << 5,
     // TODO(sligocki): Why would we ever want to clear fetcher?
-    kNoClearFetcher = 1<<6,
+    kNoClearFetcher = 1 << 6,
     // TODO(sligocki): Explain why we turn off other contexts.
-    kNoOtherContexts = 1<<7,
+    kNoOtherContexts = 1 << 7,
 
-    kLinkCharsetIsUTF8 = 1<<8,
-    kLinkScreenMedia = 1<<9,
-    kLinkPrintMedia = 1<<10,
+    kLinkCharsetIsUTF8 = 1 << 8,
+    kLinkScreenMedia = 1 << 9,
+    kLinkPrintMedia = 1 << 10,
 
-    kMetaCharsetUTF8 = 1<<11,
-    kMetaCharsetISO88591 = 1<<12,
-    kMetaHttpEquiv = 1<<13,
-    kMetaHttpEquivUnquoted = 1<<14,
+    kMetaCharsetUTF8 = 1 << 11,
+    kMetaCharsetISO88591 = 1 << 12,
+    kMetaHttpEquiv = 1 << 13,
+    kMetaHttpEquivUnquoted = 1 << 14,
 
     // Flags to the check various import flattening failure statistics.
-    kFlattenImportsCharsetMismatch = 1<<15,
-    kFlattenImportsInvalidUrl = 1<<16,
-    kFlattenImportsLimitExceeded = 1<<17,
-    kFlattenImportsMinifyFailed = 1<<18,
-    kFlattenImportsRecursion = 1<<19,
-    kFlattenImportsComplexQueries = 1<<20,
+    kFlattenImportsCharsetMismatch = 1 << 15,
+    kFlattenImportsInvalidUrl = 1 << 16,
+    kFlattenImportsLimitExceeded = 1 << 17,
+    kFlattenImportsMinifyFailed = 1 << 18,
+    kFlattenImportsRecursion = 1 << 19,
+    kFlattenImportsComplexQueries = 1 << 20,
 
     // Flags to allow methods to know if the HTML is the test input or output.
-    kInputHtml = 1<<21,
-    kOutputHtml = 1<<22,
+    kInputHtml = 1 << 21,
+    kOutputHtml = 1 << 22,
   };
 
-  static bool ExactlyOneTrue(bool a, bool b) {
-    return a ^ b;
-  }
+  static bool ExactlyOneTrue(bool a, bool b) { return a ^ b; }
   static bool ExactlyOneTrue(bool a, bool b, bool c) {
     return ExactlyOneTrue(a, ExactlyOneTrue(b, c));
   }
@@ -125,27 +124,21 @@ class CssRewriteTestBase : public RewriteTestBase {
     return ExactlyOneTrue(a, ExactlyOneTrue(b, c, d, e));
   }
 
-  bool FlagSet(int flags, ValidationFlags f) const {
-    return (flags & f) != 0;
-  }
+  bool FlagSet(int flags, ValidationFlags f) const { return (flags & f) != 0; }
 
   // Sanity check on flags passed in.
   void CheckFlags(int flags) {
-    CHECK(ExactlyOneTrue(FlagSet(flags, kExpectSuccess),
-                         FlagSet(flags, kExpectCached),
-                         FlagSet(flags, kExpectNoChange),
-                         FlagSet(flags, kExpectFallback),
-                         FlagSet(flags, kExpectFailure)));
+    CHECK(ExactlyOneTrue(
+        FlagSet(flags, kExpectSuccess), FlagSet(flags, kExpectCached),
+        FlagSet(flags, kExpectNoChange), FlagSet(flags, kExpectFallback),
+        FlagSet(flags, kExpectFailure)));
   }
 
   // Check that inline CSS gets rewritten correctly.
-  bool ValidateRewriteInlineCss(StringPiece id,
-                                StringPiece css_input,
-                                StringPiece expected_css_output,
-                                int flags);
+  bool ValidateRewriteInlineCss(StringPiece id, StringPiece css_input,
+                                StringPiece expected_css_output, int flags);
 
-  void GetNamerForCss(StringPiece id,
-                      StringPiece expected_css_output,
+  void GetNamerForCss(StringPiece id, StringPiece expected_css_output,
                       ResourceNamer* namer);
 
   GoogleString ExpectedUrlForNamer(const ResourceNamer& namer);
@@ -154,16 +147,13 @@ class CssRewriteTestBase : public RewriteTestBase {
                                  StringPiece expected_css_output);
 
   // Check that external CSS gets rewritten correctly.
-  void ValidateRewriteExternalCss(StringPiece id,
-                                  StringPiece css_input,
-                                  StringPiece expected_css_output,
-                                  int flags) {
+  void ValidateRewriteExternalCss(StringPiece id, StringPiece css_input,
+                                  StringPiece expected_css_output, int flags) {
     ValidateRewriteExternalCssUrl(id, StrCat(kTestDomain, id, ".css"),
                                   css_input, expected_css_output, flags);
   }
 
-  void ValidateRewriteExternalCssUrl(StringPiece id,
-                                     StringPiece css_url,
+  void ValidateRewriteExternalCssUrl(StringPiece id, StringPiece css_url,
                                      StringPiece css_input,
                                      StringPiece expected_css_output,
                                      int flags);
@@ -181,15 +171,13 @@ class CssRewriteTestBase : public RewriteTestBase {
   // Extract the background image from the css text
   GoogleString ExtractCssBackgroundImage(StringPiece in_css);
 
-  void ValidateRewrite(StringPiece id,
-                       StringPiece css_input,
-                       StringPiece gold_output,
-                       int flags) {
-    if (ValidateRewriteInlineCss(StrCat(id, "-inline"),
-                                 css_input, gold_output, flags)) {
+  void ValidateRewrite(StringPiece id, StringPiece css_input,
+                       StringPiece gold_output, int flags) {
+    if (ValidateRewriteInlineCss(StrCat(id, "-inline"), css_input, gold_output,
+                                 flags)) {
       // Don't run for external CSS unless inline succeeds.
-      ValidateRewriteExternalCss(StrCat(id, "-external"),
-                                 css_input, gold_output, flags);
+      ValidateRewriteExternalCss(StrCat(id, "-external"), css_input,
+                                 gold_output, flags);
     }
   }
 
@@ -201,11 +189,10 @@ class CssRewriteTestBase : public RewriteTestBase {
   void ResetStats();
 
   // Validate HTML rewrite as well as checking statistics.
-  bool ValidateWithStats(
-      StringPiece id,
-      StringPiece html_input, StringPiece expected_html_output,
-      StringPiece css_input, StringPiece expected_css_output,
-      int flags);
+  bool ValidateWithStats(StringPiece id, StringPiece html_input,
+                         StringPiece expected_html_output,
+                         StringPiece css_input, StringPiece expected_css_output,
+                         int flags);
 
   // Helper to test for how we handle trailing junk
   void TestCorruptUrl(const char* junk);

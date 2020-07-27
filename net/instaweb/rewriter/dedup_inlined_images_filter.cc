@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/dedup_inlined_images_filter.h"
 
 #include <map>
@@ -48,9 +47,7 @@ const char DedupInlinedImagesFilter::kCandidatesReplaced[] =
     "num_dedup_inlined_images_candidates_replaced";
 
 DedupInlinedImagesFilter::DedupInlinedImagesFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
-      script_inserted_(false),
-      snippet_id_(0) {
+    : CommonFilter(driver), script_inserted_(false), snippet_id_(0) {
   Statistics* stats = server_context()->statistics();
   num_dedup_inlined_images_candidates_found_ =
       stats->GetVariable(kCandidatesFound);
@@ -72,7 +69,7 @@ void DedupInlinedImagesFilter::DetermineEnabled(GoogleString* disabled_reason) {
   // they both replace an image with JavaScript, and in both cases we need
   // to disable the filter for certain classes of UA.
   if (!driver()->request_properties()->SupportsLazyloadImages() ||
-      (driver()->request_headers() != NULL &&
+      (driver()->request_headers() != nullptr &&
        driver()->request_headers()->IsXmlHttpRequest())) {
     set_is_enabled(false);
   }
@@ -83,9 +80,7 @@ void DedupInlinedImagesFilter::StartDocumentImpl() {
   snippet_id_ = 0;
 }
 
-void DedupInlinedImagesFilter::EndDocument() {
-  hash_to_id_map_.clear();
-}
+void DedupInlinedImagesFilter::EndDocument() { hash_to_id_map_.clear(); }
 
 void DedupInlinedImagesFilter::StartElementImpl(HtmlElement* element) {
   // If this is an inlined image that we've seen before, we will replace it
@@ -116,9 +111,9 @@ void DedupInlinedImagesFilter::EndElementImpl(HtmlElement* element) {
     GoogleString hash = server_context()->hasher()->Hash(src);
     GoogleString element_id;
     const char* id = element->AttributeValue(HtmlName::kId);
-    if (id == NULL || id[0] == '\0') {
-      element_id = StrCat("pagespeed_img_", hash,
-                          IntegerToString(++snippet_id_));
+    if (id == nullptr || id[0] == '\0') {
+      element_id =
+          StrCat("pagespeed_img_", hash, IntegerToString(++snippet_id_));
       driver()->AddAttribute(element, HtmlName::kId, element_id);
     } else {
       element_id = id;
@@ -131,8 +126,8 @@ void DedupInlinedImagesFilter::EndElementImpl(HtmlElement* element) {
       DCHECK(script_inserted_);
       num_dedup_inlined_images_candidates_replaced_->Add(1);
       GoogleString from_img_id = hash_to_id_map_[hash];
-      GoogleString script_id = StrCat("pagespeed_script_",
-                                      IntegerToString(++snippet_id_));
+      GoogleString script_id =
+          StrCat("pagespeed_script_", IntegerToString(++snippet_id_));
       // NOTE: If you change this you need to update kMinimumImageCutoff,
       // which is currently set to 185, slightly less than this snippet:
       //   <script type="text/javascript" id="pagespeed_script_1"
@@ -142,8 +137,8 @@ void DedupInlinedImagesFilter::EndElementImpl(HtmlElement* element) {
       //                                          "pagespeed_script_1");
       //   </script>
       GoogleString snippet("pagespeed.dedupInlinedImages.");
-      StrAppend(&snippet, "inlineImg('", from_img_id, "','",
-                element_id, "','", script_id, "');");
+      StrAppend(&snippet, "inlineImg('", from_img_id, "','", element_id, "','",
+                script_id, "');");
       HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
       driver()->InsertElementAfterElement(element, script);
       AddJsToElement(snippet, script);
@@ -162,7 +157,7 @@ bool DedupInlinedImagesFilter::IsDedupCandidate(HtmlElement* element,
   // Ignore images that are smaller than the cutoff, current set to roughly
   // the size of the JS snippet we insert (ignoring the functions JS overhead).
   // TODO(matterbury): Also handle input tags.
-  if (noscript_element() == NULL && element->keyword() == HtmlName::kImg) {
+  if (noscript_element() == nullptr && element->keyword() == HtmlName::kImg) {
     const StringPiece src(element->AttributeValue(HtmlName::kSrc));
     if (IsDataImageUrl(src) && src.size() > kMinimumImageCutoff) {
       *src_iff_true = src;
@@ -175,13 +170,12 @@ bool DedupInlinedImagesFilter::IsDedupCandidate(HtmlElement* element,
 void DedupInlinedImagesFilter::InsertOurScriptElement(HtmlElement* before) {
   StaticAssetManager* static_asset_manager =
       server_context()->static_asset_manager();
-  StringPiece dedup_inlined_images_js =
-      static_asset_manager->GetAsset(
-          StaticAssetEnum::DEDUP_INLINED_IMAGES_JS, driver()->options());
-  const GoogleString& initialized_js = StrCat(dedup_inlined_images_js,
-                                              kDiiInitializer);
-  HtmlElement* script_element = driver()->NewElement(before->parent(),
-                                                     HtmlName::kScript);
+  StringPiece dedup_inlined_images_js = static_asset_manager->GetAsset(
+      StaticAssetEnum::DEDUP_INLINED_IMAGES_JS, driver()->options());
+  const GoogleString& initialized_js =
+      StrCat(dedup_inlined_images_js, kDiiInitializer);
+  HtmlElement* script_element =
+      driver()->NewElement(before->parent(), HtmlName::kScript);
   driver()->InsertElementBeforeElement(before, script_element);
   AddJsToElement(initialized_js, script_element);
   driver()->AddAttribute(script_element, HtmlName::kDataPagespeedNoDefer,

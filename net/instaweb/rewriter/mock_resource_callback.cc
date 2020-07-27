@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/mock_resource_callback.h"
 
 namespace net_instaweb {

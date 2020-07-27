@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 //
 // Map an html tag to a dense index number.
 // Hardwired for speed on builtin tags.
@@ -30,14 +29,12 @@
 #define WEBUTIL_HTML_HTMLTAGINDEX_H__
 
 #include <string.h>
-#include <memory>
-#include "base/scoped_ptr.h"
-#include <string>
-#include "string_using.h"
 
-#include "base/basictypes.h"
-#include "base/integral_types.h"
-#include "base/macros.h"
+#include <memory>
+#include <string>
+
+#include "string_using.h"
+#include "strings/stringpiece.h"
 #include "util/gtl/dense_hash_map.h"
 #include "webutil/html/htmltagenum.h"
 
@@ -49,9 +46,7 @@ class HtmlTagIndex {
   // Add a tag and return its index.  It is okay to add a builtin
   // tag or to add the same tag more than once.
   int AddHtmlTag(const char* tag, int length);
-  int AddHtmlTag(const char* tag) {
-    return AddHtmlTag(tag, strlen(tag));
-  }
+  int AddHtmlTag(const char* tag) { return AddHtmlTag(tag, strlen(tag)); }
 
   // Find returns a value in the half-open range [0..GetIndexMax()).
   // 0 == unknown tag.
@@ -63,32 +58,28 @@ class HtmlTagIndex {
 
   // Return the half-open upper bound on lookup return value.
   // If GetIndexMax returns 10, then find will return [0..9).
-  int GetIndexMax() const {
-    return index_max_;
-  }
+  int GetIndexMax() const { return index_max_; }
 
   // Set case sensitivity.  This cannot be done after any calls to AddHtmlTag.
   void SetCaseSensitive(bool case_sensitive);
-  bool IsCaseSensitive() const {
-    return case_sensitive_;
-  }
+  bool IsCaseSensitive() const { return case_sensitive_; }
 
  private:
   // Case sensitive stuff.
   bool case_sensitive_fixed_;
   bool case_sensitive_;
-  uint32 case_mask_1_;
-  uint32 case_mask_2_;
-  uint32 case_mask_3_;
-  uint32 case_mask_4_;
-  uint64 case_mask_5_;
-  uint64 case_mask_6_;
-  uint64 case_mask_7_;
-  uint64 case_mask_8_;
+  uint32_t case_mask_1_;
+  uint32_t case_mask_2_;
+  uint32_t case_mask_3_;
+  uint32_t case_mask_4_;
+  uint64_t case_mask_5_;
+  uint64_t case_mask_6_;
+  uint64_t case_mask_7_;
+  uint64_t case_mask_8_;
 
   int index_max_;
   typedef dense_hash_map<string, int> CustomTagMap;
-  scoped_ptr<CustomTagMap> custom_tag_map_;
+  std::unique_ptr<CustomTagMap> custom_tag_map_;
 
   DISALLOW_COPY_AND_ASSIGN(HtmlTagIndex);
 };

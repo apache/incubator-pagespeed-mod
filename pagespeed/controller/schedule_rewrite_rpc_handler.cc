@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/schedule_rewrite_rpc_handler.h"
 
 #include "base/logging.h"
@@ -27,7 +26,7 @@
 namespace net_instaweb {
 
 ScheduleRewriteRpcHandler::ScheduleRewriteRpcHandler(
-    grpc::CentralControllerRpcService::AsyncService* service,
+    CentralControllerRpcService::AsyncService* service,
     ::grpc::ServerCompletionQueue* cq, ScheduleRewriteController* controller)
     : RequestResultRpcHandler(service, cq, controller) {}
 
@@ -71,7 +70,7 @@ void ScheduleRewriteRpcHandler::HandleOperationFailed() {
 }
 
 void ScheduleRewriteRpcHandler::InitResponder(
-    grpc::CentralControllerRpcService::AsyncService* service,
+    CentralControllerRpcService::AsyncService* service,
     ::grpc::ServerContext* ctx, ReaderWriterT* responder,
     ::grpc::ServerCompletionQueue* cq, void* callback) {
   service->RequestScheduleRewrite(ctx, responder, cq, cq, callback);

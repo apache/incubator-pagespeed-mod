@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/debug_filter.h"
 
 #include "base/logging.h"
@@ -39,9 +38,7 @@ const int64 kTimeNotSet = -1;
 
 namespace net_instaweb {
 
-DebugFilter::Event::Event() {
-  Clear();
-}
+DebugFilter::Event::Event() { Clear(); }
 
 void DebugFilter::Event::Clear() {
   start_us_ = kTimeNotSet;
@@ -67,8 +64,7 @@ void DebugFilter::Event::AddToTotal() {
 }
 
 DebugFilter::DebugFilter(RewriteDriver* driver)
-    : driver_(driver),
-      timer_(driver->server_context()->timer()) {
+    : driver_(driver), timer_(driver->server_context()->timer()) {
   Clear();
   driver_->SetDynamicallyDisabledFilterList(&dynamically_disabled_filter_list_);
 }
@@ -118,11 +114,15 @@ GoogleString DebugFilter::FormatFlushMessage(int64 time_since_init_parse_us,
   // This format is designed for easy searching in View->Page Source.
   return StrCat(
       "\n"
-      "#Flush after     ", Integer64ToString(time_since_init_parse_us), "us\n"
-      "#Parse duration  ", Integer64ToString(parse_duration_us), "us\n"
-      "#Render duration ", Integer64ToString(render_duration_us), "us\n",
-      StrCat(
-          "#Idle duration   ",  Integer64ToString(idle_duration_us), "us\n"));
+      "#Flush after     ",
+      Integer64ToString(time_since_init_parse_us),
+      "us\n"
+      "#Parse duration  ",
+      Integer64ToString(parse_duration_us),
+      "us\n"
+      "#Render duration ",
+      Integer64ToString(render_duration_us), "us\n",
+      StrCat("#Idle duration   ", Integer64ToString(idle_duration_us), "us\n"));
 }
 
 GoogleString DebugFilter::FormatEndDocumentMessage(
@@ -189,8 +189,8 @@ void DebugFilter::EndElement(HtmlElement* element) {
     // if so, use the original src.
     HtmlElement::Attribute* src;
     if ((src = element->FindAttribute(HtmlName::kDataPagespeedLazySrc)) !=
-            NULL ||
-        (src = element->FindAttribute(HtmlName::kSrc)) != NULL) {
+            nullptr ||
+        (src = element->FindAttribute(HtmlName::kSrc)) != nullptr) {
       GoogleUrl gurl(driver_->base_url(),
                      StringPiece(src->DecodedValueOrNull()));
       GoogleString url_str = gurl.UncheckedSpec().as_string();
@@ -215,10 +215,9 @@ void DebugFilter::Flush() {
   // we don't need to print a FLUSH message at the end of the document
   // if there were no other flushes, the summary is sufficient.
   if ((num_flushes_ > 0) || !end_document_seen_) {
-    GoogleString flush_message = FormatFlushMessage(time_since_init_parse_us,
-                                                    parse_.duration_us(),
-                                                    render_.duration_us(),
-                                                    idle_.duration_us());
+    GoogleString flush_message =
+        FormatFlushMessage(time_since_init_parse_us, parse_.duration_us(),
+                           render_.duration_us(), idle_.duration_us());
     // If a <style> block spans multiple flushes, calling InsertComment here
     // will return false, since we can't insert safely into a literal block.
     // Instead, buffer the messages, and then print when we reach the closing

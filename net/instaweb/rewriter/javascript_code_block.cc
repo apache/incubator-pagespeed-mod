@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/javascript_code_block.h"
 
 #include <cstddef>
@@ -48,7 +47,6 @@ const char JavascriptRewriteConfig::kMinifyUses[] = "javascript_minify_uses";
 const char JavascriptRewriteConfig::kNumReducingMinifications[] =
     "javascript_reducing_minifications";
 
-
 const char JavascriptRewriteConfig::kJSMinificationDisabled[] =
     "javascript_minification_disabled";
 const char JavascriptRewriteConfig::kJSDidNotShrink[] =
@@ -77,8 +75,7 @@ JavascriptRewriteConfig::JavascriptRewriteConfig(
           stats->GetVariable(kNumReducingMinifications)),
       minification_disabled_(stats->GetVariable(kJSMinificationDisabled)),
       did_not_shrink_(stats->GetVariable(kJSDidNotShrink)),
-      failed_to_write_(stats->GetVariable(kJSFailedToWrite)) {
-}
+      failed_to_write_(stats->GetVariable(kJSFailedToWrite)) {}
 
 void JavascriptRewriteConfig::InitStats(Statistics* statistics) {
   statistics->AddVariable(kBlocksMinified);
@@ -94,18 +91,18 @@ void JavascriptRewriteConfig::InitStats(Statistics* statistics) {
   statistics->AddVariable(kJSFailedToWrite);
 }
 
-JavascriptCodeBlock::JavascriptCodeBlock(
-    const StringPiece& original_code, JavascriptRewriteConfig* config,
-    const StringPiece& message_id, MessageHandler* handler)
+JavascriptCodeBlock::JavascriptCodeBlock(const StringPiece& original_code,
+                                         JavascriptRewriteConfig* config,
+                                         const StringPiece& message_id,
+                                         MessageHandler* handler)
     : config_(config),
       message_id_(message_id.data(), message_id.size()),
       original_code_(original_code.data(), original_code.size()),
       rewritten_(false),
       successfully_rewritten_(false),
-      handler_(handler) {
-}
+      handler_(handler) {}
 
-JavascriptCodeBlock::~JavascriptCodeBlock() { }
+JavascriptCodeBlock::~JavascriptCodeBlock() {}
 
 // Is this URL sanitary to be appended (in a line comment) to the JS doc?
 bool JavascriptCodeBlock::IsSanitarySourceMapUrl(StringPiece url) {
@@ -148,7 +145,7 @@ StringPiece JavascriptCodeBlock::ComputeJavascriptLibrary() const {
   if (rewritten_) {
     const JavascriptLibraryIdentification* library_identification =
         config_->library_identification();
-    if (library_identification != NULL) {
+    if (library_identification != nullptr) {
       result = library_identification->Find(rewritten_code_);
       if (!result.empty()) {
         config_->libraries_identified()->Add(1);
@@ -162,14 +159,13 @@ bool JavascriptCodeBlock::UnsafeToRename(const StringPiece& script) {
   // If you're pulling out script elements it's probably because
   // you're trying to do a kind of reflection that would break if we
   // minified the code and mutated its url.
-  return script.find("document.getElementsByTagName('script')")
-           != StringPiece::npos ||
-         script.find("document.getElementsByTagName(\"script\")")
-           != StringPiece::npos ||
+  return script.find("document.getElementsByTagName('script')") !=
+             StringPiece::npos ||
+         script.find("document.getElementsByTagName(\"script\")") !=
+             StringPiece::npos ||
          script.find("$('script')")  // jquery version
-           != StringPiece::npos ||
-         script.find("$(\"script\")")
-           != StringPiece::npos;
+             != StringPiece::npos ||
+         script.find("$(\"script\")") != StringPiece::npos;
 }
 
 bool JavascriptCodeBlock::Rewrite() {
@@ -184,7 +180,7 @@ bool JavascriptCodeBlock::Rewrite() {
   // which case output_code_ should point to the minified code when we're
   // done), or because we're trying to identify a javascript library.
   // Bail if we're not doing one of these things.
-  if (!config_->minify() && (config_->library_identification() == NULL)) {
+  if (!config_->minify() && (config_->library_identification() == nullptr)) {
     return successfully_rewritten_;
   }
 
@@ -200,12 +196,14 @@ bool JavascriptCodeBlock::Rewrite() {
       config_->total_original_bytes()->Add(original_code_.size());
       // Note: This unsigned arithmetic is guaranteed not to underflow because
       // of the if statement above.
-      config_->total_bytes_saved()->Add(
-          original_code_.size() - rewritten_code_.size());
+      config_->total_bytes_saved()->Add(original_code_.size() -
+                                        rewritten_code_.size());
     }
   } else {  // Minification failed.
-    handler_->Message(kInfo, "%s: Javascript minification failed.  "
-                      "Preserving old code.", message_id_.c_str());
+    handler_->Message(kInfo,
+                      "%s: Javascript minification failed.  "
+                      "Preserving old code.",
+                      message_id_.c_str());
     // Note: Although we set rewritten_code_, we do not consider this a
     // successful rewrite and thus will not minify. This is only used for
     // canonical library identification.
@@ -227,9 +225,8 @@ void JavascriptCodeBlock::SwapRewrittenString(GoogleString* other) {
   successfully_rewritten_ = false;
 }
 
-bool JavascriptCodeBlock::MinifyJs(
-    StringPiece input, GoogleString* output,
-    source_map::MappingVector* source_mappings) {
+bool JavascriptCodeBlock::MinifyJs(StringPiece input, GoogleString* output,
+                                   source_map::MappingVector* source_mappings) {
   if (config_->use_experimental_minifier()) {
     return pagespeed::js::MinifyUtf8JsWithSourceMap(
         config_->js_tokenizer_patterns(), input, output, source_mappings);

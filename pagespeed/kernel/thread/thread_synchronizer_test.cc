@@ -17,19 +17,18 @@
  * under the License.
  */
 
-
 // Unit-test for ThreadSynchronizer
 
 #include "pagespeed/kernel/thread/thread_synchronizer.h"
 
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/util/platform.h"
-#include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
+#include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/thread/worker_test_base.h"
+#include "pagespeed/kernel/util/platform.h"
 
 namespace net_instaweb {
 
@@ -42,11 +41,10 @@ class ThreadSynchronizerTest : public testing::Test {
         synchronizer_(thread_system_.get()),
         pool_(1, "thread_synchronizer_test", thread_system_.get()),
         sequence_(pool_.NewSequence()),
-        sync_point_(new WorkerTestBase::SyncPoint(thread_system_.get())) {
-  }
+        sync_point_(new WorkerTestBase::SyncPoint(thread_system_.get())) {}
 
-  ~ThreadSynchronizerTest() {
-    sync_point_.reset(NULL);  // make sure this is destructed first.
+  ~ThreadSynchronizerTest() override {
+    sync_point_.reset(nullptr);  // make sure this is destructed first.
   }
 
  protected:
@@ -58,8 +56,8 @@ class ThreadSynchronizerTest : public testing::Test {
 
   void AppendStringOneCharAtATime(const StringPiece& str) {
     for (int i = 0, n = str.size(); i < n; ++i) {
-      sequence_->Add(MakeFunction(
-          this, &ThreadSynchronizerTest::AppendChar, str[i]));
+      sequence_->Add(
+          MakeFunction(this, &ThreadSynchronizerTest::AppendChar, str[i]));
     }
   }
 
@@ -73,17 +71,15 @@ class ThreadSynchronizerTest : public testing::Test {
     EXPECT_EQ("135", buffer_);
   }
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   ThreadSynchronizer synchronizer_;
   QueuedWorkerPool pool_;
   QueuedWorkerPool::Sequence* sequence_;
-  scoped_ptr<WorkerTestBase::SyncPoint> sync_point_;
+  std::unique_ptr<WorkerTestBase::SyncPoint> sync_point_;
   GoogleString buffer_;
 };
 
-TEST_F(ThreadSynchronizerTest, SyncDisabled) {
-  TestSyncDisabled();
-}
+TEST_F(ThreadSynchronizerTest, SyncDisabled) { TestSyncDisabled(); }
 
 TEST_F(ThreadSynchronizerTest, SyncWrongPrefix) {
   synchronizer_.EnableForPrefix("WrongPrefix_");

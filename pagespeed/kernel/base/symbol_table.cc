@@ -23,8 +23,8 @@
 
 #include <cstddef>
 #include <cstdlib>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/atom.h"
@@ -43,16 +43,15 @@ const size_t kChunkSize = 32768 - 16;
 
 namespace net_instaweb {
 
-template<class CharTransform>
+template <class CharTransform>
 SymbolTable<CharTransform>::SymbolTable()
-    : next_ptr_(NULL),
-      string_bytes_allocated_(0) {
+    : next_ptr_(nullptr), string_bytes_allocated_(0) {
   // We can use an empty string piece as the empty value, since
   // ::Intern has a quick exit on empty inputs.
   string_map_.set_empty_key(StringPiece());
 }
 
-template<class CharTransform>
+template <class CharTransform>
 void SymbolTable<CharTransform>::Clear() {
   string_map_.clear();
   for (int i = 0, n = storage_.size(); i < n; ++i) {
@@ -60,17 +59,17 @@ void SymbolTable<CharTransform>::Clear() {
   }
   storage_.clear();
   pieces_.clear();
-  next_ptr_ = NULL;
+  next_ptr_ = nullptr;
   string_bytes_allocated_ = 0;
 }
 
-template<class CharTransform>
+template <class CharTransform>
 void SymbolTable<CharTransform>::NewStorage() {
   next_ptr_ = static_cast<char*>(std::malloc(kChunkSize));
   storage_.push_back(next_ptr_);
 }
 
-template<class CharTransform>
+template <class CharTransform>
 Atom SymbolTable<CharTransform>::Intern(const StringPiece& src) {
   if (src.empty()) {
     return Atom();
@@ -84,7 +83,7 @@ Atom SymbolTable<CharTransform>::Intern(const StringPiece& src) {
     }
 
     size_t bytes_required = src.size();
-    char* new_symbol_storage = NULL;
+    char* new_symbol_storage = nullptr;
     if (bytes_required > kChunkSize / 4) {
       // The string we are trying to put into the symbol table is sufficiently
       // large that it might waste a lot of our chunked storage, so just
@@ -111,7 +110,7 @@ Atom SymbolTable<CharTransform>::Intern(const StringPiece& src) {
     StringPiece new_sp(new_symbol_storage, src.size());
     pieces_.push_back(new_sp);
     StringPiece* canonical_sp = &pieces_.back();
-    string_map_.insert(make_pair(new_sp, canonical_sp));
+    string_map_.insert(std::make_pair(new_sp, canonical_sp));
     string_bytes_allocated_ += bytes_required;
     return Atom(canonical_sp);
   }

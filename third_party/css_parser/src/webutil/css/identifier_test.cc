@@ -17,20 +17,16 @@
  * under the License.
  */
 
-
-
 #include "webutil/css/identifier.h"
 
 #include <string>
 
-#include "testing/base/public/googletest.h"
-#include "testing/base/public/gunit.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "webutil/css/string.h"
 
 namespace {
 
-class IdentifierTest : public testing::Test {
-};
+class IdentifierTest : public testing::Test {};
 
 TEST_F(IdentifierTest, IdentFromText) {
   UnicodeText s = UTF8ToUnicodeText(string("Inherit"), true);
@@ -40,12 +36,10 @@ TEST_F(IdentifierTest, IdentFromText) {
 }
 
 TEST_F(IdentifierTest, TextFromIdent) {
-  EXPECT_EQ("inherit",
-             UnicodeTextToUTF8(Css::Identifier::TextFromIdent(
-                 Css::Identifier::INHERIT)));
-  EXPECT_EQ("OTHER",
-             UnicodeTextToUTF8(Css::Identifier::TextFromIdent(
-                 Css::Identifier::OTHER)));
+  EXPECT_EQ("inherit", UnicodeTextToUTF8(Css::Identifier::TextFromIdent(
+                           Css::Identifier::INHERIT)));
+  EXPECT_EQ("OTHER", UnicodeTextToUTF8(Css::Identifier::TextFromIdent(
+                         Css::Identifier::OTHER)));
 }
 
 TEST_F(IdentifierTest, UnicodeText) {
@@ -58,8 +52,8 @@ TEST_F(IdentifierTest, UnicodeText) {
 
 TEST_F(IdentifierTest, Inverses) {
   for (int i = 0; i < Css::Identifier::OTHER; ++i) {
-    UnicodeText s = Css::Identifier::TextFromIdent(
-        static_cast<Css::Identifier::Ident>(i));
+    UnicodeText s =
+        Css::Identifier::TextFromIdent(static_cast<Css::Identifier::Ident>(i));
     EXPECT_EQ(static_cast<Css::Identifier::Ident>(i),
               Css::Identifier::IdentFromText(s));
   }

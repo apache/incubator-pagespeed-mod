@@ -17,20 +17,17 @@
  * under the License.
  */
 
-
-
-
 #include "util/utf8/public/unicodetext.h"
 
-#include <string.h>                     // for memcpy, NULL, memcmp, etc
-#include <algorithm>                    // for max
+#include <algorithm>  // for max
+#include <cstring>    // for memcpy, NULL, memcmp, etc
 
-#include "base/logging.h"               // for operator<<, CHECK, etc
-#include "base/stringprintf.h"          // for StringPrintf, StringAppendF
-#include "strings/stringpiece.h"        // for StringPiece, etc
-#include "third_party/utf/utf.h"        // for isvalidcharntorune, etc
-#include "util/utf8/public/unilib.h"    // for IsInterchangeValid, etc
-#include "util/utf8/public/unilib_utf8_utils.h"    // for OneCharLen
+#include "absl/strings/str_format.h"
+#include "base/logging.h"                        // for operator<<, CHECK, etc
+#include "strings/stringpiece.h"                 // for CssStringPiece, etc
+#include "third_party/utf/utf.h"                 // for isvalidcharntorune, etc
+#include "util/utf8/public/unilib.h"             // for IsInterchangeValid, etc
+#include "util/utf8/public/unilib_utf8_utils.h"  // for OneCharLen
 
 static int CodepointDistance(const char* start, const char* end) {
   int n = 0;
@@ -45,9 +42,9 @@ static int CodepointCount(const char* utf8, int len) {
   return CodepointDistance(utf8, utf8 + len);
 }
 
-UnicodeText::const_iterator::difference_type
-distance(const UnicodeText::const_iterator& first,
-         const UnicodeText::const_iterator& last) {
+UnicodeText::const_iterator::difference_type distance(
+    const UnicodeText::const_iterator& first,
+    const UnicodeText::const_iterator& last) {
   return CodepointDistance(first.it_, last.it_);
 }
 
@@ -89,14 +86,13 @@ static int ConvertToInterchangeValid(char* start, int len) {
     if (isvalidcharntorune(start, end - start, &rune, &n)) {
       // structurally valid UTF8, but not interchange valid
       start += n;  // Skip over the whole character.
-    } else {  // bad UTF8
+    } else {       // bad UTF8
       start += 1;  // Skip over just one byte
     }
     *out++ = ' ';
   }
   return out - in;
 }
-
 
 // *************** Data representation **********
 
@@ -145,7 +141,11 @@ void UnicodeText::Repr::clear() {
 
 void UnicodeText::Repr::Copy(const char* data, int size) {
   resize(size);
-  memcpy(data_, data, size);
+  // XXX(oschaaf): sanitizer fix -> can't pass nullptr as the first arg.
+  // data_ will be null here when size == 0
+  if (size) {
+    memcpy(data_, data, size);
+  }
 }
 
 void UnicodeText::Repr::TakeOwnershipOf(char* data, int size, int capacity) {
@@ -172,26 +172,19 @@ void UnicodeText::Repr::append(const char* bytes, int byte_length) {
 }
 
 string UnicodeText::Repr::DebugString() const {
-  return StringPrintf("{Repr %p data=%p size=%d capacity=%d %s}",
-                      this,
-                      data_, size_, capacity_,
-                      ours_ ? "Owned" : "Alias");
+  return absl::StrFormat("{Repr %p data=%p size=%d capacity=%d %s}", this,
+                         data_, size_, capacity_, ours_ ? "Owned" : "Alias");
 }
-
-
 
 // *************** UnicodeText ******************
 
 // ----- Constructors -----
 
 // Default constructor
-UnicodeText::UnicodeText() {
-}
+UnicodeText::UnicodeText() {}
 
 // Copy constructor
-UnicodeText::UnicodeText(const UnicodeText& src) {
-  Copy(src);
-}
+UnicodeText::UnicodeText(const UnicodeText& src) { Copy(src); }
 
 // Substring constructor
 UnicodeText::UnicodeText(const UnicodeText::const_iterator& first,
@@ -205,7 +198,6 @@ string UnicodeText::UTF8Substring(const const_iterator& first,
   CHECK(first <= last) << " Incompatible iterators";
   return string(first.it_, last.it_ - first.it_);
 }
-
 
 // ----- Copy -----
 
@@ -223,26 +215,24 @@ UnicodeText& UnicodeText::Copy(const UnicodeText& src) {
 
 UnicodeText& UnicodeText::CopyUTF8(const char* buffer, int byte_length) {
   repr_.Copy(buffer, byte_length);
-  if (!UniLib:: IsInterchangeValid(buffer, byte_length)) {
+  if (!UniLib::IsInterchangeValid(buffer, byte_length)) {
     LOG(WARNING) << "UTF-8 buffer is not interchange-valid.";
     repr_.size_ = ConvertToInterchangeValid(repr_.data_, byte_length);
   }
   return *this;
 }
 
-UnicodeText& UnicodeText::UnsafeCopyUTF8(const char* buffer,
-                                           int byte_length) {
+UnicodeText& UnicodeText::UnsafeCopyUTF8(const char* buffer, int byte_length) {
   repr_.Copy(buffer, byte_length);
   return *this;
 }
 
 // ----- TakeOwnershipOf  -----
 
-UnicodeText& UnicodeText::TakeOwnershipOfUTF8(char* buffer,
-                                              int byte_length,
+UnicodeText& UnicodeText::TakeOwnershipOfUTF8(char* buffer, int byte_length,
                                               int byte_capacity) {
   repr_.TakeOwnershipOf(buffer, byte_length, byte_capacity);
-  if (!UniLib:: IsInterchangeValid(buffer, byte_length)) {
+  if (!UniLib::IsInterchangeValid(buffer, byte_length)) {
     LOG(WARNING) << "UTF-8 buffer is not interchange-valid.";
     repr_.size_ = ConvertToInterchangeValid(repr_.data_, byte_length);
   }
@@ -259,7 +249,7 @@ UnicodeText& UnicodeText::UnsafeTakeOwnershipOfUTF8(char* buffer,
 // ----- PointTo -----
 
 UnicodeText& UnicodeText::PointToUTF8(const char* buffer, int byte_length) {
-  if (UniLib:: IsInterchangeValid(buffer, byte_length)) {
+  if (UniLib::IsInterchangeValid(buffer, byte_length)) {
     repr_.PointTo(buffer, byte_length);
   } else {
     LOG(WARNING) << "UTF-8 buffer is not interchange-valid.";
@@ -270,7 +260,7 @@ UnicodeText& UnicodeText::PointToUTF8(const char* buffer, int byte_length) {
 }
 
 UnicodeText& UnicodeText::UnsafePointToUTF8(const char* buffer,
-                                          int byte_length) {
+                                            int byte_length) {
   repr_.PointTo(buffer, byte_length);
   return *this;
 }
@@ -280,8 +270,8 @@ UnicodeText& UnicodeText::PointTo(const UnicodeText& src) {
   return *this;
 }
 
-UnicodeText& UnicodeText::PointTo(const const_iterator &first,
-                                  const const_iterator &last) {
+UnicodeText& UnicodeText::PointTo(const const_iterator& first,
+                                  const const_iterator& last) {
   CHECK(first <= last) << " Incompatible iterators";
   repr_.PointTo(first.utf8_data(), last.utf8_data() - first.utf8_data());
   return *this;
@@ -323,11 +313,11 @@ UnicodeText::const_iterator UnicodeText::UnsafeFind(
     const UnicodeText& look, const_iterator start_pos) const {
   // Due to the magic of the UTF8 encoding, searching for a sequence of
   // letters is equivalent to substring search.
-  StringPiece searching(utf8_data(), utf8_length());
-  StringPiece look_piece(look.utf8_data(), look.utf8_length());
-  StringPiece::size_type found =
+  CssStringPiece searching(utf8_data(), utf8_length());
+  CssStringPiece look_piece(look.utf8_data(), look.utf8_length());
+  CssStringPiece::size_type found =
       searching.find(look_piece, start_pos.utf8_data() - utf8_data());
-  if (found == StringPiece::npos) return end();
+  if (found == CssStringPiece::npos) return end();
   return const_iterator(utf8_data() + found);
 }
 
@@ -336,21 +326,18 @@ bool UnicodeText::HasReplacementChar() const {
   //   UnicodeText replacement_char;
   //   replacement_char.push_back(0xFFFD);
   //   return find(replacement_char) != end();
-  StringPiece searching(utf8_data(), utf8_length());
-  StringPiece looking_for("\xEF\xBF\xBD", 3);
-  return searching.find(looking_for) != StringPiece::npos;
+  CssStringPiece searching(utf8_data(), utf8_length());
+  CssStringPiece looking_for("\xEF\xBF\xBD", 3);
+  return searching.find(looking_for) != CssStringPiece::npos;
 }
 
 // ----- other methods -----
 
 // Clear operator
-void UnicodeText::clear() {
-  repr_.clear();
-}
+void UnicodeText::clear() { repr_.clear(); }
 
 // Destructor
 UnicodeText::~UnicodeText() {}
-
 
 void UnicodeText::push_back(char32 c) {
   if (UniLib::IsValidCodepoint(c)) {
@@ -360,7 +347,7 @@ void UnicodeText::push_back(char32 c) {
       repr_.append(buf, len);
     } else {
       LOG(WARNING) << "Unicode value 0x" << std::hex << c
-                  << " is not valid for interchange";
+                   << " is not valid for interchange";
       repr_.append(" ", 1);
     }
   } else {
@@ -380,12 +367,9 @@ bool operator==(const UnicodeText& lhs, const UnicodeText& rhs) {
 }
 
 string UnicodeText::DebugString() const {
-  return StringPrintf("{UnicodeText %p chars=%d repr=%s}",
-                      this,
-                      size(),
-                      repr_.DebugString().c_str());
+  return absl::StrFormat("{UnicodeText %p chars=%d repr=%s}", this, size(),
+                         repr_.DebugString().c_str());
 }
-
 
 // ******************* UnicodeText::const_iterator *********************
 
@@ -416,25 +400,18 @@ char32 UnicodeText::const_iterator::operator*() const {
 
   // Convert from UTF-8
   int byte1 = it_[0];
-  if (byte1 < 0x80)
-    return byte1;
+  if (byte1 < 0x80) return byte1;
 
   int byte2 = it_[1];
-  if (byte1 < 0xE0)
-    return ((byte1 & 0x1F) << 6)
-          | (byte2 & 0x3F);
+  if (byte1 < 0xE0) return ((byte1 & 0x1F) << 6) | (byte2 & 0x3F);
 
   int byte3 = it_[2];
   if (byte1 < 0xF0)
-    return ((byte1 & 0x0F) << 12)
-         | ((byte2 & 0x3F) << 6)
-         |  (byte3 & 0x3F);
+    return ((byte1 & 0x0F) << 12) | ((byte2 & 0x3F) << 6) | (byte3 & 0x3F);
 
   int byte4 = it_[3];
-  return ((byte1 & 0x07) << 18)
-       | ((byte2 & 0x3F) << 12)
-       | ((byte3 & 0x3F) << 6)
-       |  (byte4 & 0x3F);
+  return ((byte1 & 0x07) << 18) | ((byte2 & 0x3F) << 12) |
+         ((byte3 & 0x3F) << 6) | (byte4 & 0x3F);
 }
 
 UnicodeText::const_iterator& UnicodeText::const_iterator::operator++() {
@@ -443,14 +420,18 @@ UnicodeText::const_iterator& UnicodeText::const_iterator::operator++() {
 }
 
 UnicodeText::const_iterator& UnicodeText::const_iterator::operator--() {
-  while (UniLib::IsTrailByte(*--it_));
+  while (UniLib::IsTrailByte(*--it_))
+    ;
   return *this;
 }
 
 int UnicodeText::const_iterator::get_utf8(char* utf8_output) const {
-  utf8_output[0] = it_[0]; if (it_[0] < 0x80) return 1;
-  utf8_output[1] = it_[1]; if (it_[0] < 0xE0) return 2;
-  utf8_output[2] = it_[2]; if (it_[0] < 0xF0) return 3;
+  utf8_output[0] = it_[0];
+  if (it_[0] < 0x80) return 1;
+  utf8_output[1] = it_[1];
+  if (it_[0] < 0xE0) return 2;
+  utf8_output[2] = it_[2];
+  if (it_[0] < 0xF0) return 3;
   utf8_output[3] = it_[3];
   return 4;
 }
@@ -483,15 +464,14 @@ UnicodeText::const_iterator UnicodeText::MakeIterator(const char* p) const {
 }
 
 string UnicodeText::const_iterator::DebugString() const {
-  return StringPrintf("{iter %p}", it_);
+  return absl::StrFormat("{iter %p}", it_);
 }
-
 
 // *************************** Utilities *************************
 
 string CodepointString(const UnicodeText& t) {
   string s;
   UnicodeText::const_iterator it = t.begin(), end = t.end();
-  while (it != end) StringAppendF(&s, "%X ", *it++);
+  while (it != end) absl::StrAppendFormat(&s, "%X ", *it++);
   return s;
 }

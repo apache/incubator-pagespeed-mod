@@ -20,7 +20,7 @@
 #include "pagespeed/system/system_request_context.h"
 
 #include "base/logging.h"
-#include "strings/stringpiece_utils.h"
+//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/http/domain_registry.h"
 
 namespace net_instaweb {
@@ -45,23 +45,24 @@ GoogleString BracketIpv6(StringPiece local_ip) {
 
 SystemRequestContext::SystemRequestContext(
     AbstractMutex* logging_mutex, Timer* timer,
-    StringPiece hostname_for_cache_fragmentation,
-    int local_port, StringPiece local_ip)
+    StringPiece hostname_for_cache_fragmentation, int local_port,
+    StringPiece local_ip)
     : RequestContext(logging_mutex, timer),
       local_port_(local_port),
       local_ip_(BracketIpv6(local_ip)) {
-  set_minimal_private_suffix(domain_registry::MinimalPrivateSuffix(
-      hostname_for_cache_fragmentation));
+  set_minimal_private_suffix(
+      domain_registry::MinimalPrivateSuffix(hostname_for_cache_fragmentation));
 }
 
 SystemRequestContext* SystemRequestContext::DynamicCast(RequestContext* rc) {
-  if (rc == NULL) {
-    return NULL;
+  if (rc == nullptr) {
+    return nullptr;
   }
   SystemRequestContext* out = dynamic_cast<SystemRequestContext*>(rc);
-  DCHECK(out != NULL) << "Invalid request conversion. Do not rely on RTTI for "
-                      << "functional behavior. System handling flows must use "
-                      << "SystemRequestContexts or a subclass.";
+  DCHECK(out != nullptr)
+      << "Invalid request conversion. Do not rely on RTTI for "
+      << "functional behavior. System handling flows must use "
+      << "SystemRequestContexts or a subclass.";
   return out;
 }
 

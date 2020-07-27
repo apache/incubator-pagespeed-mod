@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_READ_IMAGE_H_
 #define PAGESPEED_KERNEL_IMAGE_READ_IMAGE_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/scanline_status.h"
@@ -40,8 +40,8 @@ class ScanlineReaderInterface;
 class ScanlineWriterInterface;
 
 using net_instaweb::MessageHandler;
-using pagespeed::image_compression::QuirksMode;
 using pagespeed::image_compression::QUIRKS_CHROME;
+using pagespeed::image_compression::QuirksMode;
 
 ////////// Scanline API
 
@@ -61,8 +61,8 @@ inline ScanlineReaderInterface* CreateScanlineReader(ImageFormat image_type,
                                                      size_t buffer_length,
                                                      MessageHandler* handler) {
   ScanlineStatus status;
-  return CreateScanlineReader(image_type, image_buffer, buffer_length,
-                              handler, &status);
+  return CreateScanlineReader(image_type, image_buffer, buffer_length, handler,
+                              &status);
 }
 
 // Returns a scanline image writer. The following formats are
@@ -70,25 +70,22 @@ inline ScanlineReaderInterface* CreateScanlineReader(ImageFormat image_type,
 // also calls the InitWithStatus() and InitializeWriteWithStatus()
 // methods of the writer.
 ScanlineWriterInterface* CreateScanlineWriter(
-    ImageFormat image_type,     // Type of the image to write
-    PixelFormat pixel_format,   // Pixel format, RGB_888 etc
-    size_t width,               // Width, in pixels, of the image
-    size_t height,              // Height, in pixels, of the image
-    const void* config,         // Configuration for the output image
-    GoogleString* image_data,   // Output image
-    MessageHandler* handler,    // Message handler
-    ScanlineStatus* status);    // Status code
+    ImageFormat image_type,    // Type of the image to write
+    PixelFormat pixel_format,  // Pixel format, RGB_888 etc
+    size_t width,              // Width, in pixels, of the image
+    size_t height,             // Height, in pixels, of the image
+    const void* config,        // Configuration for the output image
+    GoogleString* image_data,  // Output image
+    MessageHandler* handler,   // Message handler
+    ScanlineStatus* status);   // Status code
 
-inline ScanlineWriterInterface* CreateScanlineWriter(ImageFormat image_type,
-                                                     PixelFormat pixel_format,
-                                                     size_t width,
-                                                     size_t height,
-                                                     const void* config,
-                                                     GoogleString* image_data,
-                                                     MessageHandler* handler) {
+inline ScanlineWriterInterface* CreateScanlineWriter(
+    ImageFormat image_type, PixelFormat pixel_format, size_t width,
+    size_t height, const void* config, GoogleString* image_data,
+    MessageHandler* handler) {
   ScanlineStatus status;
-  return CreateScanlineWriter(image_type, pixel_format, width, height,
-                              config, image_data, handler, &status);
+  return CreateScanlineWriter(image_type, pixel_format, width, height, config,
+                              image_data, handler, &status);
 }
 
 ////////// ImageFrame API
@@ -100,21 +97,16 @@ inline ScanlineWriterInterface* CreateScanlineWriter(ImageFormat image_type,
 // The caller retains ownership of 'image_buffer', 'handler', and
 // 'status'.
 MultipleFrameReader* CreateImageFrameReader(
-    ImageFormat image_type,
-    const void* image_buffer,
-    size_t buffer_length,
-    QuirksMode quirks_mode,
-    MessageHandler* handler,
-    ScanlineStatus* status);
+    ImageFormat image_type, const void* image_buffer, size_t buffer_length,
+    QuirksMode quirks_mode, MessageHandler* handler, ScanlineStatus* status);
 
 // This overloaded form is like the one above but defaults quirks_mode
 // to be QUIRKS_CHROME.
-inline MultipleFrameReader* CreateImageFrameReader(
-    ImageFormat image_type,
-    const void* image_buffer,
-    size_t buffer_length,
-    MessageHandler* handler,
-    ScanlineStatus* status) {
+inline MultipleFrameReader* CreateImageFrameReader(ImageFormat image_type,
+                                                   const void* image_buffer,
+                                                   size_t buffer_length,
+                                                   MessageHandler* handler,
+                                                   ScanlineStatus* status) {
   return CreateImageFrameReader(image_type, image_buffer, buffer_length,
                                 QUIRKS_CHROME, handler, status);
 }
@@ -126,11 +118,11 @@ inline MultipleFrameReader* CreateImageFrameReader(
 // The caller retains ownership of 'config', 'image_data', 'handler',
 // and 'status'.
 MultipleFrameWriter* CreateImageFrameWriter(
-    ImageFormat image_type,     // Type of the image to write
-    const void* config,         // Configuration for the output image
-    GoogleString* image_data,   // Image destination for future writer output
-    MessageHandler* handler,    // Message handler
-    ScanlineStatus* status);    // Status code
+    ImageFormat image_type,    // Type of the image to write
+    const void* config,        // Configuration for the output image
+    GoogleString* image_data,  // Image destination for future writer output
+    MessageHandler* handler,   // Message handler
+    ScanlineStatus* status);   // Status code
 
 ////////// Utilities
 
@@ -152,14 +144,9 @@ MultipleFrameWriter* CreateImageFrameWriter(
 // This function uses the scanline API and supports non-animated
 // images of the following formats: IMAGE_GIF, IMAGE_PNG, IMAGE_JPEG,
 // and IMAGE_WEBP.
-bool ReadImage(ImageFormat image_type,
-               const void* image_buffer,
-               size_t buffer_length,
-               void** pixels,
-               PixelFormat* pixel_format,
-               size_t* width,
-               size_t* height,
-               size_t* stride,
+bool ReadImage(ImageFormat image_type, const void* image_buffer,
+               size_t buffer_length, void** pixels, PixelFormat* pixel_format,
+               size_t* width, size_t* height, size_t* stride,
                MessageHandler* handler);
 
 }  // namespace image_compression

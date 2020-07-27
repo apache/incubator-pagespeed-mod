@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
 
 #include "base/logging.h"
@@ -57,12 +56,12 @@ bool CssRewriteTestBase::ValidateRewriteInlineCss(
   GoogleString html_url = StrCat(kTestDomain, id, ".html");
 
   CheckFlags(flags);
-  GoogleString html_input  = StrCat(prefix, css_input, suffix1, suffix2);
+  GoogleString html_input = StrCat(prefix, css_input, suffix1, suffix2);
   GoogleString html_output = StrCat(prefix, expected_css_output, suffix1,
                                     DebugMessage(html_url), suffix2);
 
-  return ValidateWithStats(id, html_input, html_output,
-                           css_input, expected_css_output, flags);
+  return ValidateWithStats(id, html_input, html_output, css_input,
+                           expected_css_output, flags);
 }
 
 void CssRewriteTestBase::ResetStats() {
@@ -82,10 +81,8 @@ void CssRewriteTestBase::ResetStats() {
 }
 
 bool CssRewriteTestBase::ValidateWithStats(
-    StringPiece id,
-    StringPiece html_input, StringPiece expected_html_output,
-    StringPiece css_input, StringPiece expected_css_output,
-    int flags) {
+    StringPiece id, StringPiece html_input, StringPiece expected_html_output,
+    StringPiece css_input, StringPiece expected_css_output, int flags) {
   ResetStats();
 
   // Rewrite
@@ -99,8 +96,9 @@ bool CssRewriteTestBase::ValidateWithStats(
       EXPECT_EQ(0, num_parse_failures_->Get()) << css_input;
       EXPECT_EQ(0, num_rewrites_dropped_->Get()) << css_input;
       EXPECT_EQ(static_cast<int>(css_input.size()) -
-                static_cast<int>(expected_css_output.size()),
-                total_bytes_saved_->Get()) << css_input;
+                    static_cast<int>(expected_css_output.size()),
+                total_bytes_saved_->Get())
+          << css_input;
       EXPECT_EQ(css_input.size(), total_original_bytes_->Get()) << css_input;
       EXPECT_EQ(1, num_uses_->Get()) << css_input;
     } else if (FlagSet(flags, kExpectCached)) {
@@ -147,17 +145,23 @@ bool CssRewriteTestBase::ValidateWithStats(
   // doesn't count these as new errors so skip this check in that case.
   if (!FlagSet(flags, kExpectCached)) {
     EXPECT_EQ(FlagSet(flags, kFlattenImportsCharsetMismatch) ? 1 : 0,
-              num_flatten_imports_charset_mismatch_->Get()) << css_input;
+              num_flatten_imports_charset_mismatch_->Get())
+        << css_input;
     EXPECT_EQ(FlagSet(flags, kFlattenImportsInvalidUrl) ? 1 : 0,
-              num_flatten_imports_invalid_url_->Get()) << css_input;
+              num_flatten_imports_invalid_url_->Get())
+        << css_input;
     EXPECT_EQ(FlagSet(flags, kFlattenImportsLimitExceeded) ? 1 : 0,
-              num_flatten_imports_limit_exceeded_->Get()) << css_input;
+              num_flatten_imports_limit_exceeded_->Get())
+        << css_input;
     EXPECT_EQ(FlagSet(flags, kFlattenImportsMinifyFailed) ? 1 : 0,
-              num_flatten_imports_minify_failed_->Get()) << css_input;
+              num_flatten_imports_minify_failed_->Get())
+        << css_input;
     EXPECT_EQ(FlagSet(flags, kFlattenImportsRecursion) ? 1 : 0,
-              num_flatten_imports_recursion_->Get()) << css_input;
+              num_flatten_imports_recursion_->Get())
+        << css_input;
     EXPECT_EQ(FlagSet(flags, kFlattenImportsComplexQueries) ? 1 : 0,
-              num_flatten_imports_complex_queries_->Get()) << css_input;
+              num_flatten_imports_complex_queries_->Get())
+        << css_input;
   }
 
   // TODO(sligocki): This success value does not reflect failures in the
@@ -226,24 +230,27 @@ GoogleString CssRewriteTestBase::MakeHtmlWithExternalCssLink(
     debug_message = DebugMessage(css_url);
   }
 
-  return StringPrintf("<head>\n"
-                      "  <title>Example style outline</title>\n"
-                      "%s"
-                      "  <!-- Style starts here -->\n"
-                      "  <link rel='stylesheet' type='text/css' href='%.*s'%s>"
-                      "%s\n"
-                      "  <!-- Style ends here -->\n"
-                      "</head>",
-                      meta_tag.c_str(),
-                      static_cast<int>(css_url.size()), css_url.data(),
-                      link_extras.c_str(), debug_message.c_str());
+  return absl::StrFormat(
+      "<head>\n"
+      "  <title>Example style outline</title>\n"
+      "%s"
+      "  <!-- Style starts here -->\n"
+      "  <link rel='stylesheet' type='text/css' href='%.*s'%s>"
+      "%s\n"
+      "  <!-- Style ends here -->\n"
+      "</head>",
+      meta_tag.c_str(), static_cast<int>(css_url.size()), css_url.data(),
+      link_extras.c_str(), debug_message.c_str());
 }
 
 GoogleString CssRewriteTestBase::MakeIndentedCssWithImage(
     StringPiece image_url) {
-  return StrCat("body {\n"
-                "  background-image: url(", image_url, ");\n"
-                "}\n");
+  return StrCat(
+      "body {\n"
+      "  background-image: url(",
+      image_url,
+      ");\n"
+      "}\n");
 }
 
 GoogleString CssRewriteTestBase::MakeMinifiedCssWithImage(
@@ -251,8 +258,7 @@ GoogleString CssRewriteTestBase::MakeMinifiedCssWithImage(
   return StrCat("body{background-image:url(", image_url, ")}");
 }
 
-GoogleString CssRewriteTestBase::ExtractCssBackgroundImage(
-    StringPiece in_css) {
+GoogleString CssRewriteTestBase::ExtractCssBackgroundImage(StringPiece in_css) {
   const char css_template[] = "*{background-image:url(*)}*";
   GoogleString image_url;
   if (!Wildcard(css_template).Match(in_css)) {
@@ -272,8 +278,8 @@ GoogleString CssRewriteTestBase::ExtractCssBackgroundImage(
 
 // Check that external CSS gets rewritten correctly.
 void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
-    StringPiece id, StringPiece css_url,
-    StringPiece css_input, StringPiece expected_css_output, int flags) {
+    StringPiece id, StringPiece css_url, StringPiece css_input,
+    StringPiece expected_css_output, int flags) {
   CheckFlags(flags);
 
   // Set input file.
@@ -284,9 +290,9 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
   GoogleString html_input = MakeHtmlWithExternalCssLink(css_url, flags, false);
 
   // Do we expect the URL to be rewritten?
-  bool rewrite_url = (FlagSet(flags, kExpectSuccess) ||
-                      FlagSet(flags, kExpectCached) ||
-                      FlagSet(flags, kExpectFallback));
+  bool rewrite_url =
+      (FlagSet(flags, kExpectSuccess) || FlagSet(flags, kExpectCached) ||
+       FlagSet(flags, kExpectFallback));
 
   GoogleString expected_new_url;
   if (rewrite_url) {
@@ -301,16 +307,17 @@ void CssRewriteTestBase::ValidateRewriteExternalCssUrl(
 
   GoogleString expected_html_output =
       MakeHtmlWithExternalCssLink(expected_new_url, flags, true);
-  ValidateWithStats(id, html_input, expected_html_output,
-                    css_input, expected_css_output, flags);
+  ValidateWithStats(id, html_input, expected_html_output, css_input,
+                    expected_css_output, flags);
 
   if (rewrite_url) {
     // Check the new output resource.
     GoogleString actual_output;
     // TODO(sligocki): This will only work with mock_hasher.
     ResponseHeaders headers_out;
-    EXPECT_TRUE(FetchResourceUrl(expected_new_url, &actual_output,
-                                 &headers_out)) << css_url;
+    EXPECT_TRUE(
+        FetchResourceUrl(expected_new_url, &actual_output, &headers_out))
+        << css_url;
     EXPECT_EQ(expected_css_output, actual_output) << css_url;
 
     // Non-fallback CSS should have very long caching headers
@@ -344,9 +351,8 @@ void CssRewriteTestBase::TestCorruptUrl(const char* new_suffix) {
   EXPECT_TRUE(FetchResourceUrl(StrCat(kTestDomain, munged_url), &output));
 
   // Now see that output is correct
-  ValidateRewriteExternalCss(
-      "rep", kInput, kOutput,
-      kExpectSuccess | kNoClearFetcher | kNoStatCheck);
+  ValidateRewriteExternalCss("rep", kInput, kOutput,
+                             kExpectSuccess | kNoClearFetcher | kNoStatCheck);
 }
 
 }  // namespace net_instaweb

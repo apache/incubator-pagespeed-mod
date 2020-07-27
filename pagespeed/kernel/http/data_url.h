@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTTP_DATA_URL_H_
 #define PAGESPEED_KERNEL_HTTP_DATA_URL_H_
 
@@ -30,8 +29,8 @@ struct ContentType;
 enum Encoding {
   UNKNOWN,  // Used only for output of ParseDataUrl.
   BASE64,
-//   LATIN1,  // TODO(jmaessen): implement non-BASE64 encodings.
-//   UTF8,
+  //   LATIN1,  // TODO(jmaessen): implement non-BASE64 encodings.
+  //   UTF8,
   PLAIN
 };
 
@@ -58,13 +57,10 @@ bool IsDataImageUrl(const StringPiece url);
 // Dismantle a data: url into its component pieces, but do not decode the
 // content.  Note that encoded_content will be a substring of the input url and
 // shares its lifetime.  Invalidates all outputs if url does not parse.
-bool ParseDataUrl(const StringPiece& url,
-                  const ContentType** content_type,
-                  Encoding* encoding,
-                  StringPiece* encoded_content);
+bool ParseDataUrl(const StringPiece& url, const ContentType** content_type,
+                  Encoding* encoding, StringPiece* encoded_content);
 
-bool DecodeDataUrlContent(Encoding encoding,
-                          const StringPiece& encoded_content,
+bool DecodeDataUrlContent(Encoding encoding, const StringPiece& encoded_content,
                           GoogleString* decoded_content);
 
 }  // namespace net_instaweb

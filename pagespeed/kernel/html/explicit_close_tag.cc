@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/explicit_close_tag.h"
+
 #include "pagespeed/kernel/html/html_element.h"
 
 namespace net_instaweb {

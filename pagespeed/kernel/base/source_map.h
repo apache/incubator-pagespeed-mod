@@ -46,14 +46,13 @@ struct Mapping {
   int src_col;
 
   Mapping() : gen_line(0), gen_col(0), src_file(0), src_line(0), src_col(0) {}
-  Mapping(int gen_line_arg, int gen_col_arg,
-          int src_file_arg, int src_line_arg, int src_col_arg)
+  Mapping(int gen_line_arg, int gen_col_arg, int src_file_arg, int src_line_arg,
+          int src_col_arg)
       : gen_line(gen_line_arg),
         gen_col(gen_col_arg),
         src_file(src_file_arg),
         src_line(src_line_arg),
-        src_col(src_col_arg) {
-  }
+        src_col(src_col_arg) {}
 };
 
 typedef std::vector<Mapping> MappingVector;
@@ -64,8 +63,7 @@ typedef std::vector<Mapping> MappingVector;
 bool Encode(StringPiece generated_url,  // optional: "" to ignore.
             StringPiece source_url,
             // mappings MUST already be sorted by gen_line and then gen_col.
-            const MappingVector& mappings,
-            GoogleString* encoded_source_map);
+            const MappingVector& mappings, GoogleString* encoded_source_map);
 
 // TODO(sligocki)-maybe: Do we want a decoder as well? Might be nice for
 // testing purposes, then we could throw a lot of random examples at it and
@@ -81,8 +79,7 @@ char EncodeBase64(int val);
 // arbitrary length values.)
 GoogleString EncodeVlq(int32 val);
 // Encodes mappings into a sequence of ; and , separated VLQ base64 values.
-bool EncodeMappings(const MappingVector& mappings,
-                    GoogleString* result);
+bool EncodeMappings(const MappingVector& mappings, GoogleString* result);
 // Percent encode < and > in URLs to avoid XSS shenanigans.
 GoogleString PercentEncode(StringPiece url);
 

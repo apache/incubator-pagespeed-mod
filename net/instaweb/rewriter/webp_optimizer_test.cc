@@ -31,7 +31,7 @@
 #include "webp/decode.h"
 #include "webp/encode.h"
 #else
-#include "third_party/libwebp/src/webp/decode.h"
+#include "external/libwebp/src/webp/decode.h"
 #endif
 
 namespace net_instaweb {
@@ -50,19 +50,19 @@ TEST(WebpOptimizerTest, ReduceWebpImageQualityPreservesAlpha) {
                        &input_image));
 
   WebPBitstreamFeatures features;
-  EXPECT_EQ(VP8_STATUS_OK,
-            WebPGetFeatures(
-                reinterpret_cast<const uint8_t*>(input_image.c_str()),
-                input_image.length(), &features));
+  EXPECT_EQ(
+      VP8_STATUS_OK,
+      WebPGetFeatures(reinterpret_cast<const uint8_t*>(input_image.c_str()),
+                      input_image.length(), &features));
   EXPECT_TRUE(features.has_alpha);
 
   EXPECT_TRUE(ReduceWebpImageQuality(input_image, 50, &output_image));
   EXPECT_NE(input_image, output_image);
 
-  EXPECT_EQ(VP8_STATUS_OK,
-            WebPGetFeatures(
-                reinterpret_cast<const uint8_t*>(output_image.c_str()),
-                output_image.length(), &features));
+  EXPECT_EQ(
+      VP8_STATUS_OK,
+      WebPGetFeatures(reinterpret_cast<const uint8_t*>(output_image.c_str()),
+                      output_image.length(), &features));
   EXPECT_TRUE(features.has_alpha);
 }
 }  // namespace net_instaweb

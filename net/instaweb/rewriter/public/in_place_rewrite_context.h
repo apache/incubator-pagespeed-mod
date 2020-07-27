@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_IN_PLACE_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_IN_PLACE_REWRITE_CONTEXT_H_
 
@@ -60,16 +59,16 @@ class InPlaceRewriteResourceSlot : public ResourceSlot {
   static const char kIproSlotLocation[];
   explicit InPlaceRewriteResourceSlot(const ResourcePtr& resource);
 
-  virtual HtmlElement* element() const { return NULL; }
+  HtmlElement* element() const override { return NULL; }
 
   // Implements ResourceSlot::Render().
-  virtual void Render();
+  void Render() override;
 
   // Implements ResourceSlot::LocationString().
-  virtual GoogleString LocationString() const;
+  GoogleString LocationString() const override;
 
  protected:
-  virtual ~InPlaceRewriteResourceSlot();
+  ~InPlaceRewriteResourceSlot() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(InPlaceRewriteResourceSlot);
@@ -85,36 +84,36 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   static const char kInPlaceUncacheableRewrites[];
 
   InPlaceRewriteContext(RewriteDriver* driver, const StringPiece& url);
-  virtual ~InPlaceRewriteContext();
+  ~InPlaceRewriteContext() override;
 
   // Implements SingleRewriteContext::RewriteSingle().
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output);
+  void RewriteSingle(const ResourcePtr& input,
+                     const OutputResourcePtr& output) override;
   // Implements RewriteContext::id().
-  virtual const char* id() const { return RewriteOptions::kInPlaceRewriteId; }
+  const char* id() const override { return RewriteOptions::kInPlaceRewriteId; }
   // Implements RewriteContext::kind().
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
   // Implements RewriteContext::DecodeFetchUrls().
-  virtual bool DecodeFetchUrls(const OutputResourcePtr& output_resource,
-                               MessageHandler* message_handler,
-                               GoogleUrlStarVector* url_vector);
+  bool DecodeFetchUrls(const OutputResourcePtr& output_resource,
+                       MessageHandler* message_handler,
+                       GoogleUrlStarVector* url_vector) override;
   // Implements RewriteContext::StartFetchReconstruction().
-  virtual void StartFetchReconstruction();
+  void StartFetchReconstruction() override;
 
   static void InitStats(Statistics* statistics);
 
   bool proxy_mode() const { return proxy_mode_; }
   void set_proxy_mode(bool x) { proxy_mode_ = x; }
 
-  virtual int64 GetRewriteDeadlineAlarmMs() const;
+  int64 GetRewriteDeadlineAlarmMs() const override;
 
-  virtual GoogleString UserAgentCacheKey(
-      const ResourceContext* resource_context) const;
-  virtual void EncodeUserAgentIntoResourceContext(ResourceContext* context);
+  GoogleString UserAgentCacheKey(
+      const ResourceContext* resource_context) const override;
+  void EncodeUserAgentIntoResourceContext(ResourceContext* context) override;
 
   // We don't lock for IPRO because IPRO would rather stream back the original
   // resource than wait for the optimization.
-  virtual bool CreationLockBeforeStartFetch() const { return false; }
+  bool CreationLockBeforeStartFetch() const override { return false; }
 
   // The context nested inside this context can be scheduled via the
   // CentralController. See comment in RewriteContext::ObtainLockForCreation.
@@ -126,16 +125,16 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   friend class RecordingFetch;
   bool PolicyPermitsRendering() const override;
   // Implements RewriteContext::Harvest().
-  virtual void Harvest();
+  void Harvest() override;
   void StartFetchReconstructionParent();
   // Implements RewriteContext::FixFetchFallbackHeaders().
-  virtual void FixFetchFallbackHeaders(const CachedResult& cached_result,
-                                       ResponseHeaders* headers);
+  void FixFetchFallbackHeaders(const CachedResult& cached_result,
+                               ResponseHeaders* headers) override;
   // Implements RewriteContext::FetchTryFallback().
-  virtual void FetchTryFallback(const GoogleString& url,
-                                const StringPiece& hash);
+  void FetchTryFallback(const GoogleString& url,
+                        const StringPiece& hash) override;
   // Implements RewriteContext::FetchCallbackDone().
-  virtual void FetchCallbackDone(bool success);
+  void FetchCallbackDone(bool success) override;
 
   RewriteFilter* GetRewriteFilter(const ContentType& type);
 
@@ -169,7 +168,7 @@ class InPlaceRewriteContext : public SingleRewriteContext {
   ResourcePtr input_resource_;
   OutputResourcePtr output_resource_;
 
-  scoped_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
+  std::unique_ptr<CacheUrlAsyncFetcher> cache_fetcher_;
 
   // Are we in proxy mode?
   //
@@ -189,23 +188,21 @@ class InPlaceRewriteContext : public SingleRewriteContext {
 // underlying writer, response headers and callback.
 class RecordingFetch : public SharedAsyncFetch {
  public:
-  RecordingFetch(bool proxy_mode,
-                 AsyncFetch* async_fetch,
-                 const ResourcePtr& resource,
-                 InPlaceRewriteContext* context,
-                 int desired_s_maxage_sec,
-                 MessageHandler* handler);
+  RecordingFetch(bool proxy_mode, AsyncFetch* async_fetch,
+                 const ResourcePtr& resource, InPlaceRewriteContext* context,
+                 int desired_s_maxage_sec, MessageHandler* handler);
 
-  virtual ~RecordingFetch();
+  ~RecordingFetch() override;
 
   // Implements SharedAsyncFetch::HandleHeadersComplete().
-  virtual void HandleHeadersComplete();
+  void HandleHeadersComplete() override;
   // Implements SharedAsyncFetch::HandleWrite().
-  virtual bool HandleWrite(const StringPiece& content, MessageHandler* handler);
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override;
   // Implements SharedAsyncFetch::HandleFlush().
-  virtual bool HandleFlush(MessageHandler* handler);
+  bool HandleFlush(MessageHandler* handler) override;
   // Implements SharedAsyncFetch::HandleDone().
-  virtual void HandleDone(bool success);
+  void HandleDone(bool success) override;
 
  private:
   void FreeDriver();
@@ -236,7 +233,7 @@ class RecordingFetch : public SharedAsyncFetch {
   bool streaming_;
   HTTPValue cache_value_;
   HTTPValueWriter cache_value_writer_;
-  scoped_ptr<ResponseHeaders> saved_headers_;
+  std::unique_ptr<ResponseHeaders> saved_headers_;
   Variable* in_place_oversized_opt_stream_;
   Variable* in_place_uncacheable_rewrites_;
   DISALLOW_COPY_AND_ASSIGN(RecordingFetch);

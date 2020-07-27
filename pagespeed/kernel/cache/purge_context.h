@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_PURGE_CONTEXT_H_
 #define PAGESPEED_KERNEL_CACHE_PURGE_CONTEXT_H_
 
@@ -75,15 +74,10 @@ class PurgeContext {
   static const char kPurgePollTimestampMs[];
   static const char kStatCalls[];
 
-  PurgeContext(StringPiece filename,
-               FileSystem* file_system,
-               Timer* timer,
-               int max_bytes_in_cache,
-               ThreadSystem* thread_system,
-               NamedLockManager* lock_manager,
-               Scheduler* scheduler,
-               Statistics* statistics,
-               MessageHandler* handler);
+  PurgeContext(StringPiece filename, FileSystem* file_system, Timer* timer,
+               int max_bytes_in_cache, ThreadSystem* thread_system,
+               NamedLockManager* lock_manager, Scheduler* scheduler,
+               Statistics* statistics, MessageHandler* handler);
   ~PurgeContext();
 
   static void InitStats(Statistics* statistics);
@@ -182,16 +176,13 @@ class PurgeContext {
   // This method is thread-safe; it grabs mutex_.
   void ModifyPurgeSet(PurgeSet* purges_from_file, GoogleString* buffer,
                       PurgeCallbackVector* return_callbacks,
-                      PurgeSet* return_purges,
-                      int* failures);
+                      PurgeSet* return_purges, int* failures);
 
   // When a write fails, we must do one of these:
   //  a) restore the pending purges & callbacks and try to re-take the lock.
   //  b) call the callbacks with 'false' and drop return_purges.
-  void HandleWriteFailure(int failures,
-                          PurgeCallbackVector* callbacks,
-                          PurgeSet* return_purges,
-                          bool* lock_and_update);
+  void HandleWriteFailure(int failures, PurgeCallbackVector* callbacks,
+                          PurgeSet* return_purges, bool* lock_and_update);
 
   // Writes the serialized purge data into filename_.  This method must
   // be called with the interprocess_lock_ held, but does not reference
@@ -229,12 +220,12 @@ class PurgeContext {
                                  int64* timestamp_ms);
 
   GoogleString filename_;
-  scoped_ptr<NamedLock> interprocess_lock_;
+  std::unique_ptr<NamedLock> interprocess_lock_;
   FileSystem* file_system_;
   Timer* timer_;
 
   Statistics* statistics_;
-  scoped_ptr<AbstractMutex> mutex_;
+  std::unique_ptr<AbstractMutex> mutex_;
   CopyOnWrite<PurgeSet> purge_set_;        // protected by mutex_
   PurgeSet pending_purges_;                // protected by mutex_
   PurgeCallbackVector pending_callbacks_;  // protected by mutex_
@@ -243,7 +234,7 @@ class PurgeContext {
   bool waiting_for_interprocess_lock_;     // protected_by mutex_
   bool reading_;                           // protected_by mutex_
 
-  bool enable_purge_;           // When false, can only flush entire cache.
+  bool enable_purge_;  // When false, can only flush entire cache.
   int max_bytes_in_cache_;
 
   int64 request_batching_delay_ms_;
@@ -255,12 +246,12 @@ class PurgeContext {
   Variable* file_write_failures_;
   Variable* file_writes_;
   Variable* purge_index_;
-  scoped_ptr<UpDownCounter> purge_poll_timestamp_ms_;
+  std::unique_ptr<UpDownCounter> purge_poll_timestamp_ms_;
 
   Scheduler* scheduler_;
   MessageHandler* message_handler_;
 
-  scoped_ptr<PurgeSetCallback> update_callback_;
+  std::unique_ptr<PurgeSetCallback> update_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(PurgeContext);
 };

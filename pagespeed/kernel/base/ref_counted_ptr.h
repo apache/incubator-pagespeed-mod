@@ -39,7 +39,7 @@
 
 namespace net_instaweb {
 
-template<class T>
+template <class T>
 class RefCounted {
  public:
   RefCounted() : ref_count_(0) {}
@@ -51,13 +51,9 @@ class RefCounted {
     }
   }
 
-  void AddRef() {
-    ref_count_.NoBarrierIncrement(1);
-  }
+  void AddRef() { ref_count_.NoBarrierIncrement(1); }
 
-  bool HasOneRef() {
-    return (ref_count_.value() == 1);
-  }
+  bool HasOneRef() { return (ref_count_.value() == 1); }
 
  private:
   AtomicInt32 ref_count_;
@@ -67,7 +63,7 @@ class RefCounted {
 // Template class to help make reference-counted pointers.  You can use
 // a typedef or subclass RefCountedPtr<YourClass>.  YourClass has to inherit
 // off RefCounted<T>.
-template<class T>
+template <class T>
 class RefCountedPtr {
  public:
   RefCountedPtr() : ptr_(NULL) {}
@@ -77,14 +73,13 @@ class RefCountedPtr {
     }
   }
 
-  RefCountedPtr(const RefCountedPtr<T>& src)
-      : ptr_(src.ptr_) {
+  RefCountedPtr(const RefCountedPtr<T>& src) : ptr_(src.ptr_) {
     if (ptr_ != NULL) {
       ptr_->AddRef();
     }
   }
 
-  template<class U>
+  template <class U>
   explicit RefCountedPtr(const RefCountedPtr<U>& src)
       : ptr_(static_cast<T*>(src.ptr_)) {
     if (ptr_ != NULL) {
@@ -110,7 +105,7 @@ class RefCountedPtr {
     return *this;
   }
 
-  template<class U>
+  template <class U>
   RefCountedPtr<T>& operator=(const RefCountedPtr<U>& other) {
     if (other.ptr_ != NULL) {
       other.ptr_->AddRef();
@@ -130,23 +125,18 @@ class RefCountedPtr {
   // desired.
   bool unique() const { return !this->ptr_ || this->ptr_->HasOneRef(); }
 
-  template<typename U>
+  template <typename U>
   RefCountedPtr<U> StaticCast() const {
     return RefCountedPtr<U>(static_cast<U*>(this->get()));
   }
 
-  void clear() {
-    *this = RefCountedPtr();
-  }
-  void reset(T* ptr) {
-    *this = RefCountedPtr(ptr);
-  }
-  void reset(const RefCountedPtr& src) {
-    *this = src;
-  }
+  void clear() { *this = RefCountedPtr(); }
+  void reset(T* ptr) { *this = RefCountedPtr(ptr); }
+  void reset(const RefCountedPtr& src) { *this = src; }
 
  private:
-  template <class U> friend class RefCountedPtr;
+  template <class U>
+  friend class RefCountedPtr;
   operator void*() const;  // don't compare directly to NULL; use get()
   operator T*() const;     // don't assign directly to pointer; use get()
 
@@ -160,7 +150,7 @@ class RefCountedPtr {
 // having a single type (so no polymorphism). It also has slightly
 // different semantics in that it initializes to a default-constructed object
 // and not NULL.
-template<class T>
+template <class T>
 class RefCountedObj {
  public:
   RefCountedObj() : data_ptr_(new Data()) {}

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_H_
 
@@ -54,10 +53,10 @@ class SharedMemLockManager : public NamedLockManager {
   // child processes to finish the initialization.
   //
   // Locks created by this object must not live after it dies.
-  SharedMemLockManager(
-      AbstractSharedMem* shm, const GoogleString& path, Scheduler* scheduler,
-      Hasher* hasher, MessageHandler* handler);
-  virtual ~SharedMemLockManager();
+  SharedMemLockManager(AbstractSharedMem* shm, const GoogleString& path,
+                       Scheduler* scheduler, Hasher* hasher,
+                       MessageHandler* handler);
+  ~SharedMemLockManager() override;
 
   // Sets up our shared state for use of all child processes. Returns
   // whether successful.
@@ -75,7 +74,7 @@ class SharedMemLockManager : public NamedLockManager {
   static void GlobalCleanup(AbstractSharedMem* shm, const GoogleString& path,
                             MessageHandler* message_handler);
 
-  virtual SchedulerBasedAbstractLock* CreateNamedLock(const StringPiece& name);
+  SchedulerBasedAbstractLock* CreateNamedLock(const StringPiece& name) override;
 
  private:
   friend class SharedMemLock;
@@ -88,7 +87,7 @@ class SharedMemLockManager : public NamedLockManager {
   AbstractSharedMem* shm_runtime_;
   GoogleString path_;
 
-  scoped_ptr<AbstractSharedMemSegment> seg_;
+  std::unique_ptr<AbstractSharedMemSegment> seg_;
   Scheduler* scheduler_;
   Hasher* hasher_;
   MessageHandler* handler_;

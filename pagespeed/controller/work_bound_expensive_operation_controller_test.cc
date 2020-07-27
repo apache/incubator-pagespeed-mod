@@ -19,6 +19,8 @@
 
 #include "pagespeed/controller/work_bound_expensive_operation_controller.h"
 
+#include <memory>
+
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/thread_system.h"
@@ -34,10 +36,10 @@ class TrackCallsFunction : public Function {
   TrackCallsFunction() : run_called_(false), cancel_called_(false) {
     set_delete_after_callback(false);
   }
-  virtual ~TrackCallsFunction() { }
+  ~TrackCallsFunction() override {}
 
-  virtual void Run() { run_called_ = true; }
-  virtual void Cancel() { cancel_called_ = true; }
+  void Run() override { run_called_ = true; }
+  void Cancel() override { cancel_called_ = true; }
 
   bool run_called_;
   bool cancel_called_;
@@ -45,16 +47,16 @@ class TrackCallsFunction : public Function {
 
 class WorkBoundExpensiveOperationTest : public testing::Test {
  public:
-  WorkBoundExpensiveOperationTest() :
-    thread_system_(Platform::CreateThreadSystem()),
-    stats_(thread_system_.get()) {
+  WorkBoundExpensiveOperationTest()
+      : thread_system_(Platform::CreateThreadSystem()),
+        stats_(thread_system_.get()) {
     WorkBoundExpensiveOperationController::InitStats(&stats_);
     InitControllerWithLimit(1);
   }
 
   void InitControllerWithLimit(int limit) {
-    controller_.reset(
-        new WorkBoundExpensiveOperationController(limit, &stats_));
+    controller_ =
+        std::make_unique<WorkBoundExpensiveOperationController>(limit, &stats_);
   }
 
   bool TryToWork() {
@@ -66,9 +68,9 @@ class WorkBoundExpensiveOperationTest : public testing::Test {
   }
 
  protected:
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   SimpleStats stats_;
-  scoped_ptr<WorkBoundExpensiveOperationController> controller_;
+  std::unique_ptr<WorkBoundExpensiveOperationController> controller_;
 };
 
 TEST_F(WorkBoundExpensiveOperationTest, EmptyScheduleImmediately) {

@@ -49,21 +49,17 @@ namespace {
 
 class InProcessSharedMemEnv : public SharedMemTestEnv {
  public:
-  InProcessSharedMemEnv()
-      : thread_system_(Platform::CreateThreadSystem()) {
-  }
+  InProcessSharedMemEnv() : thread_system_(Platform::CreateThreadSystem()) {}
 
-  virtual AbstractSharedMem* CreateSharedMemRuntime() {
+  AbstractSharedMem* CreateSharedMemRuntime() override {
     return new InProcessSharedMem(thread_system_.get());
   }
 
-  virtual void ShortSleep() {
-    usleep(1000);
-  }
+  void ShortSleep() override { usleep(1000); }
 
-  virtual bool CreateChild(Function* callback) {
-    RunFunctionThread* thread
-        = new RunFunctionThread(thread_system_.get(), callback);
+  bool CreateChild(Function* callback) override {
+    RunFunctionThread* thread =
+        new RunFunctionThread(thread_system_.get(), callback);
 
     bool ok = thread->Start();
     if (!ok) {
@@ -74,14 +70,14 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
     return true;
   }
 
-  virtual void WaitForChildren() {
+  void WaitForChildren() override {
     for (size_t i = 0; i < child_threads_.size(); ++i) {
       child_threads_[i]->Join();
     }
     STLDeleteElements(&child_threads_);
   }
 
-  virtual void ChildFailed() {
+  void ChildFailed() override {
     // Unfortunately we don't have a clean way of signaling this.
     LOG(FATAL) << "Test failure in child thread";
   }
@@ -91,13 +87,11 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
   class RunFunctionThread : public ThreadSystem::Thread {
    public:
     RunFunctionThread(ThreadSystem* runtime, Function* fn)
-        : Thread(runtime, "thread_run", ThreadSystem::kJoinable),
-          fn_(fn) {
-    }
+        : Thread(runtime, "thread_run", ThreadSystem::kJoinable), fn_(fn) {}
 
-    virtual void Run() {
+    void Run() override {
       fn_->CallRun();
-      fn_ = NULL;
+      fn_ = nullptr;
     }
 
    private:
@@ -105,24 +99,24 @@ class InProcessSharedMemEnv : public SharedMemTestEnv {
     DISALLOW_COPY_AND_ASSIGN(RunFunctionThread);
   };
 
-  scoped_ptr<ThreadSystem> thread_system_;
+  std::unique_ptr<ThreadSystem> thread_system_;
   std::vector<ThreadSystem::Thread*> child_threads_;
 };
 
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedCircularBufferTestTemplate,
-                              InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedDynamicStringMapTestTemplate,
-                              InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemCacheTestTemplate,
-                              InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemCacheDataTestTemplate,
-                              InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemLockManagerTestTemplate,
-                              InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemStatisticsTestTemplate,
-                              InProcessSharedMemEnv);
-INSTANTIATE_TYPED_TEST_CASE_P(InprocessShm, SharedMemTestTemplate,
-                              InProcessSharedMemEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedCircularBufferTestTemplate,
+                               InProcessSharedMemEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedDynamicStringMapTestTemplate,
+                               InProcessSharedMemEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemCacheTestTemplate,
+                               InProcessSharedMemEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemCacheDataTestTemplate,
+                               InProcessSharedMemEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemLockManagerTestTemplate,
+                               InProcessSharedMemEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemStatisticsTestTemplate,
+                               InProcessSharedMemEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(InprocessShm, SharedMemTestTemplate,
+                               InProcessSharedMemEnv);
 
 }  // namespace
 

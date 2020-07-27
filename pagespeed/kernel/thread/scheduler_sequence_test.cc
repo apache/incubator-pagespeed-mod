@@ -45,9 +45,7 @@ const int kTimeoutMs = 1000;  // Mock time, so it does not matter.
 class Increment : public Function {
  public:
   Increment(int expected_value, int* count)
-      : expected_value_(expected_value),
-        count_(count) {
-  }
+      : expected_value_(expected_value), count_(count) {}
 
  protected:
   void Run() override {
@@ -66,7 +64,7 @@ class Increment : public Function {
   DISALLOW_COPY_AND_ASSIGN(Increment);
 };
 
-class SchedulerSequenceTest: public WorkerTestBase {
+class SchedulerSequenceTest : public WorkerTestBase {
  public:
   SchedulerSequenceTest()
       : count_(0),
@@ -74,12 +72,9 @@ class SchedulerSequenceTest: public WorkerTestBase {
         timer_(thread_runtime_->NewMutex(), MockTimer::kApr_5_2010_ms),
         scheduler_(thread_runtime_.get(), &timer_),
         sync1_(thread_runtime_.get()),
-        sequence_(scheduler_.NewSequence()) {
-  }
+        sequence_(scheduler_.NewSequence()) {}
 
-  void SetDone() {
-    done_ = true;
-  }
+  void SetDone() { done_ = true; }
 
   void Add10Tasks() {
     for (int i = 0; i < 10; ++i) {
@@ -104,7 +99,7 @@ class SchedulerSequenceTest: public WorkerTestBase {
   MockTimer timer_;
   MockScheduler scheduler_;
   SyncPoint sync1_;
-  scoped_ptr<Scheduler::Sequence> sequence_;
+  std::unique_ptr<Scheduler::Sequence> sequence_;
 };
 
 TEST_F(SchedulerSequenceTest, RunOnRequestThread) {
@@ -155,7 +150,7 @@ TEST_F(SchedulerSequenceTest, RunOnRequestThreadThenSwitch) {
 
   // Now forward the sequence, including the outstanding increment to 11, and
   // any new tasks, to a pool-based sequence that runs in a separate thread.
-  scoped_ptr<QueuedWorkerPool> pool(new QueuedWorkerPool(
+  std::unique_ptr<QueuedWorkerPool> pool(new QueuedWorkerPool(
       2, "queued_worker_pool_test", thread_runtime_.get()));
   Sequence* pool_sequence = pool->NewSequence();
   {

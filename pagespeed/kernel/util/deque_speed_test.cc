@@ -45,39 +45,46 @@
 #include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/vector_deque.h"
 
-
 // Implementation of deque subset interface using vector, with O(N)
 // mutations at front and no extra memory.  This is for benchmarking
 // comparison.  Surprisingly it beats List even @ 100 elements.
-template<class T>
+template <class T>
 class DequeUsingStdVector : public std::vector<T> {
  public:
   void push_front(const T& value) { this->insert(this->begin(), value); }
   void pop_front() { this->erase(this->begin()); }
 };
 
-template<class Deque> static void FourElementWorkout(int iters,
-                                                     int num_elements) {
-  for (int iter = 0; iter < iters; ++iter) {
+template <class Deque>
+static void FourElementWorkout(benchmark::State& state, int num_elements) {
+  for (int iter = 0; iter < state.iterations(); ++iter) {
     Deque deque;
 
     // Simple usage as pure stack or queue, but not at the same time.
-    for (int i = 0; i < num_elements; ++i) { deque.push_back(i); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.push_back(i);
+    }
     for (int i = 0; i < num_elements; ++i) {
       CHECK_EQ(i, deque.front());
       deque.pop_front();
     }
-    for (int i = 0; i < num_elements; ++i) { deque.push_front(i); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.push_front(i);
+    }
     for (int i = num_elements - 1; i >= 0; --i) {
       CHECK_EQ(i, deque.front());
       deque.pop_front();
     }
-    for (int i = 0; i < num_elements; ++i) { deque.push_front(i); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.push_front(i);
+    }
     for (int i = 0; i < num_elements; ++i) {
       CHECK_EQ(i, deque.back());
       deque.pop_back();
     }
-    for (int i = 0; i < num_elements; ++i) { deque.push_back(i); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.push_back(i);
+    }
     for (int i = num_elements - 1; i >= 0; --i) {
       CHECK_EQ(i, deque.back());
       deque.pop_back();
@@ -88,7 +95,9 @@ template<class Deque> static void FourElementWorkout(int iters,
       deque.push_back(i);
       deque.push_front(i);
     }
-    for (int i = 0; i < num_elements; ++i) { deque.pop_back(); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.pop_back();
+    }
     for (int i = 0; i < num_elements / 2; ++i) {
       deque.push_back(i);
       deque.push_front(i);
@@ -100,12 +109,16 @@ template<class Deque> static void FourElementWorkout(int iters,
       deque.push_front(i);
       deque.push_back(i);
     }
-    for (int i = 0; i < num_elements; ++i) { deque.pop_back(); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.pop_back();
+    }
     for (int i = 0; i < num_elements / 2; ++i) {
       deque.push_front(i);
       deque.push_back(i);
     }
-    for (int i = 0; i < num_elements; ++i) { deque.pop_front(); }
+    for (int i = 0; i < num_elements; ++i) {
+      deque.pop_front();
+    }
 
     // Chasing 1 value pushed onto the back and popped from front.
     for (int i = 0; i < 10 * num_elements; ++i) {
@@ -141,36 +154,36 @@ template<class Deque> static void FourElementWorkout(int iters,
   }
 }
 
-static void BM_List4(int iters) {
-  FourElementWorkout<std::list<int> >(iters, 4);
+static void BM_List4(benchmark::State& state) {
+  FourElementWorkout<std::list<int> >(state, 4);
 }
 
-static void BM_Deque4(int iters) {
-  FourElementWorkout<std::deque<int> >(iters, 4);
+static void BM_Deque4(benchmark::State& state) {
+  FourElementWorkout<std::deque<int> >(state, 4);
 }
 
-static void BM_VectorDeque4(int iters) {
-  FourElementWorkout<net_instaweb::VectorDeque<int> >(iters, 4);
+static void BM_VectorDeque4(benchmark::State& state) {
+  FourElementWorkout<net_instaweb::VectorDeque<int> >(state, 4);
 }
 
-static void BM_DequeUsingStdVector4(int iters) {
-  FourElementWorkout<DequeUsingStdVector<int> >(iters, 4);
+static void BM_DequeUsingStdVector4(benchmark::State& state) {
+  FourElementWorkout<DequeUsingStdVector<int> >(state, 4);
 }
 
-static void BM_List100(int iters) {
-  FourElementWorkout<std::list<int> >(iters, 100);
+static void BM_List100(benchmark::State& state) {
+  FourElementWorkout<std::list<int> >(state, 100);
 }
 
-static void BM_Deque100(int iters) {
-  FourElementWorkout<std::deque<int> >(iters, 100);
+static void BM_Deque100(benchmark::State& state) {
+  FourElementWorkout<std::deque<int> >(state, 100);
 }
 
-static void BM_VectorDeque100(int iters) {
-  FourElementWorkout<net_instaweb::VectorDeque<int> >(iters, 100);
+static void BM_VectorDeque100(benchmark::State& state) {
+  FourElementWorkout<net_instaweb::VectorDeque<int> >(state, 100);
 }
 
-static void BM_DequeUsingStdVector100(int iters) {
-  FourElementWorkout<DequeUsingStdVector<int> >(iters, 100);
+static void BM_DequeUsingStdVector100(benchmark::State& state) {
+  FourElementWorkout<DequeUsingStdVector<int> >(state, 100);
 }
 
 BENCHMARK(BM_List4);

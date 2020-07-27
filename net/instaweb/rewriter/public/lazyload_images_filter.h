@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_LAZYLOAD_IMAGES_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_LAZYLOAD_IMAGES_FILTER_H_
 
@@ -84,9 +83,9 @@ class LazyloadImagesFilter : public CommonFilter {
   static const char* kIsLazyloadScriptInsertedPropertyName;
 
   explicit LazyloadImagesFilter(RewriteDriver* driver);
-  virtual ~LazyloadImagesFilter();
+  ~LazyloadImagesFilter() override;
 
-  virtual const char* Name() const { return "Lazyload Images"; }
+  const char* Name() const override { return "Lazyload Images"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
   static void InitStats(Statistics* statistics);
@@ -95,15 +94,14 @@ class LazyloadImagesFilter : public CommonFilter {
   // Lazyload filter will be no op for the request if ShouldApply returns false.
   static RewriterHtmlApplication::Status ShouldApply(RewriteDriver* driver);
   static GoogleString GetLazyloadJsSnippet(
-      const RewriteOptions* options,
-      StaticAssetManager* static_asset_manager);
+      const RewriteOptions* options, StaticAssetManager* static_asset_manager);
 
  private:
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   // Clears all state associated with the filter.
   void Clear();

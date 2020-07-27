@@ -42,7 +42,7 @@ class ThreadSafeLockManager;
 // requests.
 class LockManagerSpammer : public ThreadSystem::Thread {
  public:
-  virtual ~LockManagerSpammer();
+  ~LockManagerSpammer() override;
 
   // num_threads indicates how many threads will run in parallel.
   // num_iters indicates how many times each thread will run a big loop.
@@ -59,7 +59,7 @@ class LockManagerSpammer : public ThreadSystem::Thread {
   void Denied(NamedLock* lock);
 
  protected:
-  virtual void Run();
+  void Run() override;
 
  private:
   class CountDown {
@@ -77,16 +77,11 @@ class LockManagerSpammer : public ThreadSystem::Thread {
 
   typedef std::vector<NamedLock*> LockVector;
 
-  LockManagerSpammer(Scheduler* scheduler,
-                     ThreadSystem::ThreadFlags flags,
+  LockManagerSpammer(Scheduler* scheduler, ThreadSystem::ThreadFlags flags,
                      const StringVector& lock_names,
                      ThreadSafeLockManager* lock_manager,
-                     bool expecting_denials,
-                     bool delay_unlocks,
-                     int index,
-                     int num_iters,
-                     int num_names,
-                     CountDown* pending_threads);
+                     bool expecting_denials, bool delay_unlocks, int index,
+                     int num_iters, int num_names, CountDown* pending_threads);
 
   Scheduler* scheduler_;
   const StringVector& lock_names_;
@@ -96,8 +91,8 @@ class LockManagerSpammer : public ThreadSystem::Thread {
   int index_;
   int num_iters_;
   int num_names_;
-  scoped_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
-  scoped_ptr<ThreadSystem::Condvar> condvar_;
+  std::unique_ptr<ThreadSystem::CondvarCapableMutex> mutex_;
+  std::unique_ptr<ThreadSystem::Condvar> condvar_;
   int grants_ GUARDED_BY(mutex_);
   int denials_ GUARDED_BY(mutex_);
   LockVector queued_unlocks_ GUARDED_BY(mutex_);

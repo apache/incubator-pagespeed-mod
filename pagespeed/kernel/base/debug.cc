@@ -17,18 +17,21 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/base/debug.h"
 
 #include <sstream>
-#include "pagespeed/kernel/base/debug.h"
+
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
 GoogleString StackTraceString() {
-  base::debug::StackTrace trace;
-  std::ostringstream ostream;
-  trace.OutputToStream(&ostream);
-  return ostream.str();
+  // base::debug::StackTrace trace;
+  // std::ostringstream ostream;
+  // trace.OutputToStream(&ostream);
+  // return ostream.str();
+  // XXX(oschaaf)
+  return "StackTraceString() TODO";
 }
 
 }  // namespace net_instaweb

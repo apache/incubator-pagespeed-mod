@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_HTML_FILTER_H_
 #define PAGESPEED_KERNEL_HTML_HTML_FILTER_H_
 
@@ -54,7 +53,7 @@ class HtmlFilter {
     // rewrite_options.cc, and instead add new enum choices here covering
     // combinations of requiring 'noscript' behavior and their injection
     // behavior.
-    kNeverInjectsScripts    // Indicates this filter never injects scripts.
+    kNeverInjectsScripts  // Indicates this filter never injects scripts.
   };
 
   HtmlFilter();

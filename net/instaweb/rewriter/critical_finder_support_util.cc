@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/critical_finder_support_util.h"
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <set>
 #include <utility>
 
@@ -55,7 +55,7 @@ inline void SaturatingAddTo(int32 addend, int32* dest) {
 
 bool LessBySupportMapValue(const SupportMap::value_type& pair1,
                            const SupportMap::value_type& pair2) {
-    return (pair1.second < pair2.second);
+  return (pair1.second < pair2.second);
 }
 
 SupportMap ConvertCriticalKeysProtoToSupportMap(
@@ -143,7 +143,7 @@ void AddNonceToCriticalSelectors(const int64 timestamp_ms,
                                  NonceGenerator* nonce_generator,
                                  CriticalKeys* critical_keys,
                                  GoogleString* nonce) {
-  CHECK(nonce_generator != NULL);
+  CHECK(nonce_generator != nullptr);
   uint64 nonce_value = nonce_generator->NewNonce();
   StringPiece nonce_piece(reinterpret_cast<char*>(&nonce_value),
                           sizeof(nonce_value));
@@ -154,7 +154,7 @@ void AddNonceToCriticalSelectors(const int64 timestamp_ms,
   }
   ClearInvalidNonces(timestamp_ms, critical_keys);
   // Look for an invalid entry to reuse.
-  CriticalKeys::PendingNonce* pending_nonce = NULL;
+  CriticalKeys::PendingNonce* pending_nonce = nullptr;
   for (int i = 0; i < critical_keys->pending_nonce_size(); ++i) {
     CriticalKeys::PendingNonce* entry = critical_keys->mutable_pending_nonce(i);
     if (!entry->has_nonce()) {
@@ -162,7 +162,7 @@ void AddNonceToCriticalSelectors(const int64 timestamp_ms,
       break;
     }
   }
-  if (pending_nonce == NULL) {
+  if (pending_nonce == nullptr) {
     // No entry to reuse; create new entry
     pending_nonce = critical_keys->add_pending_nonce();
   }
@@ -200,8 +200,9 @@ void GetCriticalKeysFromProto(int64 support_percentage,
                               const CriticalKeys& critical_keys,
                               StringSet* keys) {
   int64 support_threshold =
-      (support_percentage == 0) ?
-      1 : (support_percentage * critical_keys.maximum_possible_support());
+      (support_percentage == 0)
+          ? 1
+          : (support_percentage * critical_keys.maximum_possible_support());
   // Collect supported beacon results
   for (int i = 0; i < critical_keys.key_evidence_size(); ++i) {
     const CriticalKeys::KeyEvidence& evidence = critical_keys.key_evidence(i);
@@ -215,10 +216,9 @@ void GetCriticalKeysFromProto(int64 support_percentage,
 
 // Merge the given set into the existing critical key proto by adding
 // support for new_set to existing support.
-void UpdateCriticalKeys(bool require_prior_support,
-                        const StringSet& new_set, int support_value,
-                        CriticalKeys* critical_keys) {
-  DCHECK(critical_keys != NULL);
+void UpdateCriticalKeys(bool require_prior_support, const StringSet& new_set,
+                        int support_value, CriticalKeys* critical_keys) {
+  DCHECK(critical_keys != nullptr);
   SupportMap support_map = ConvertCriticalKeysProtoToSupportMap(*critical_keys);
   DecaySupportMap(support_value, &support_map);
   // Update maximum_possible_support.  Initial value must account for legacy
@@ -231,14 +231,15 @@ void UpdateCriticalKeys(bool require_prior_support,
     maximum_support = 0;
   } else {
     maximum_support = std::max_element(support_map.begin(), support_map.end(),
-                                       LessBySupportMapValue)->second;
+                                       LessBySupportMapValue)
+                          ->second;
   }
   SaturatingAddTo(support_value, &maximum_support);
   critical_keys->set_maximum_possible_support(maximum_support);
   // Actually add the new_set to the support_map.
   if (require_prior_support) {
-    for (StringSet::const_iterator s = new_set.begin();
-         s != new_set.end(); ++s) {
+    for (StringSet::const_iterator s = new_set.begin(); s != new_set.end();
+         ++s) {
       // Only add entries that are already in the support_map
       // (critical_css_beacon_filter initializes candidate entries to have
       // support 0).  This avoids a cache-fill DoS with spurious beacon data.
@@ -249,8 +250,8 @@ void UpdateCriticalKeys(bool require_prior_support,
     }
   } else {
     // Unconditionally add entries to support_map.
-    for (StringSet::const_iterator s = new_set.begin();
-         s != new_set.end(); ++s) {
+    for (StringSet::const_iterator s = new_set.begin(); s != new_set.end();
+         ++s) {
       SaturatingAddTo(support_value, &support_map[*s]);
     }
   }
@@ -262,21 +263,20 @@ void UpdateCriticalKeys(bool require_prior_support,
 
 void WriteCriticalKeysToPropertyCache(
     const StringSet& new_keys, StringPiece nonce, int support_interval,
-    CriticalKeysWriteFlags flags,
-    StringPiece property_name, const PropertyCache* cache,
-    const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
-    MessageHandler* message_handler, Timer* timer) {
+    CriticalKeysWriteFlags flags, StringPiece property_name,
+    const PropertyCache* cache, const PropertyCache::Cohort* cohort,
+    AbstractPropertyPage* page, MessageHandler* message_handler, Timer* timer) {
   // We can't do anything here if page is NULL, so bail out early.
-  if (page == NULL) {
+  if (page == nullptr) {
     return;
   }
-  scoped_ptr<CriticalKeys> critical_keys;
+  std::unique_ptr<CriticalKeys> critical_keys;
   // TODO(jud): Consider refactoring this into the subclasses as part of the
   // WriteCriticalSelectors refactoring that's ongoing.  Note that this may
   // break slamm's tests at the bottom of critical_selector_finder_test.cc
   // depending on how subclassing is done, so some care will be required.
   if (flags & kReplacePriorResult) {
-    critical_keys.reset(new CriticalKeys);
+    critical_keys = std::make_unique<CriticalKeys>();
   } else {
     // We first need to read the current critical keys in the property cache,
     // then update it with the new set if it exists, or create it if it doesn't.
@@ -294,14 +294,14 @@ void WriteCriticalKeysToPropertyCache(
         // For the former, bail out since there is no use trying to update the
         // property cache if it is not setup. For the later, create a new
         // CriticalKeys, since we just haven't written a value before.
-        if (cohort == NULL) {
+        if (cohort == nullptr) {
           return;
         }
         FALLTHROUGH_INTENDED;
       case kPropertyCacheDecodeExpired:
       case kPropertyCacheDecodeParseError:
         // We can proceed here, but we need to create a new CriticalKeys.
-        critical_keys.reset(new CriticalKeys);
+        critical_keys = std::make_unique<CriticalKeys>();
         break;
     }
 

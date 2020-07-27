@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/compatible_central_controller.h"
 
 #include "pagespeed/controller/named_lock_schedule_rewrite_controller.h"
@@ -30,14 +29,14 @@ CompatibleCentralController::CompatibleCentralController(
     ThreadSystem* thread_system, NamedLockManager* lock_manager)
     : InProcessCentralController(
           new WorkBoundExpensiveOperationController(
-// Treat 0 as -1 (unlimited) for backward compatibility.
-// See longer comment in GoogleRewriteDriverFactory::CreateCentralController().
+              // Treat 0 as -1 (unlimited) for backward compatibility.
+              // See longer comment in
+              // GoogleRewriteDriverFactory::CreateCentralController().
               max_expensive_operations > 0 ? max_expensive_operations : -1,
               statistics),
           new NamedLockScheduleRewriteController(lock_manager, thread_system,
                                                  statistics)) {}
 
-CompatibleCentralController::~CompatibleCentralController() {
-}
+CompatibleCentralController::~CompatibleCentralController() {}
 
 }  // namespace net_instaweb

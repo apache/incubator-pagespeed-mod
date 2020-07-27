@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/defer_iframe_filter.h"
 
 #include "net/instaweb/rewriter/public/request_properties.h"
@@ -40,36 +39,32 @@ const char DeferIframeFilter::kDeferIframeIframeJs[] =
 
 DeferIframeFilter::DeferIframeFilter(RewriteDriver* driver)
     : CommonFilter(driver),
-      static_asset_manager_(
-          driver->server_context()->static_asset_manager()),
+      static_asset_manager_(driver->server_context()->static_asset_manager()),
       script_inserted_(false) {}
 
-DeferIframeFilter::~DeferIframeFilter() {
-}
+DeferIframeFilter::~DeferIframeFilter() {}
 
 void DeferIframeFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(driver()->request_properties()->SupportsJsDefer(
       driver()->options()->enable_aggressive_rewriters_for_mobile()));
 }
 
-void DeferIframeFilter::StartDocumentImpl() {
-  script_inserted_ = false;
-}
+void DeferIframeFilter::StartDocumentImpl() { script_inserted_ = false; }
 
 void DeferIframeFilter::StartElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     return;
   }
   if (element->keyword() == HtmlName::kIframe) {
     if (!script_inserted_) {
-      HtmlElement* script = driver()->NewElement(element->parent(),
-                                                HtmlName::kScript);
+      HtmlElement* script =
+          driver()->NewElement(element->parent(), HtmlName::kScript);
       driver()->InsertNodeBeforeNode(element, script);
 
-      GoogleString js = StrCat(
-          static_asset_manager_->GetAsset(
-              StaticAssetEnum::DEFER_IFRAME, driver()->options()),
-              kDeferIframeInit);
+      GoogleString js =
+          StrCat(static_asset_manager_->GetAsset(StaticAssetEnum::DEFER_IFRAME,
+                                                 driver()->options()),
+                 kDeferIframeInit);
       AddJsToElement(js, script);
       script_inserted_ = true;
     }
@@ -78,14 +73,14 @@ void DeferIframeFilter::StartElementImpl(HtmlElement* element) {
 }
 
 void DeferIframeFilter::EndElementImpl(HtmlElement* element) {
-  if (noscript_element() != NULL) {
+  if (noscript_element() != nullptr) {
     return;
   }
   if (element->keyword() == HtmlName::kPagespeedIframe) {
     HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
     driver()->AddAttribute(script, HtmlName::kType, "text/javascript");
-    HtmlCharactersNode* script_content = driver()->NewCharactersNode(
-        script, kDeferIframeIframeJs);
+    HtmlCharactersNode* script_content =
+        driver()->NewCharactersNode(script, kDeferIframeIframeJs);
     driver()->AppendChild(element, script);
     driver()->AppendChild(script, script_content);
   }

@@ -70,10 +70,8 @@ HttpCacheFailurePolicy::HttpCacheFailurePolicy() {
 }
 
 FetchResponseStatus HttpCacheFailure::ClassifyFailure(
-    const ResponseHeaders& headers,
-    StringPiece contents,
-    bool physical_fetch_success,
-    bool external_cacheable) {
+    const ResponseHeaders& headers, StringPiece contents,
+    bool physical_fetch_success, bool external_cacheable) {
   FetchResponseStatus classification = kFetchStatusNotSet;
 
   int status_code = headers.status_code();

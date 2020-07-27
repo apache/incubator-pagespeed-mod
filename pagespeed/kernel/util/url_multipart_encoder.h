@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_URL_MULTIPART_ENCODER_H_
 #define PAGESPEED_KERNEL_UTIL_URL_MULTIPART_ENCODER_H_
 
@@ -47,15 +46,13 @@ class MessageHandler;
 class UrlMultipartEncoder : public UrlSegmentEncoder {
  public:
   UrlMultipartEncoder() {}
-  virtual ~UrlMultipartEncoder();
+  ~UrlMultipartEncoder() override;
 
-  virtual void Encode(const StringVector& urls, const ResourceContext* data,
-                      GoogleString* encoding) const;
+  void Encode(const StringVector& urls, const ResourceContext* data,
+              GoogleString* encoding) const override;
 
-  virtual bool Decode(const StringPiece& url_segment,
-                      StringVector* urls,
-                      ResourceContext* data,
-                      MessageHandler* handler) const;
+  bool Decode(const StringPiece& encoding, StringVector* urls,
+              ResourceContext* data, MessageHandler* handler) const override;
 
  private:
   StringVector urls_;

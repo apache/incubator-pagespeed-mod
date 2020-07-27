@@ -39,7 +39,7 @@ const int kMaxSize = 100;
 const int kNumThreads = 4;
 const int kNumIters = 10000;
 const int kNumInserts = 10;
-}
+}  // namespace
 
 namespace net_instaweb {
 
@@ -48,8 +48,7 @@ class ThreadsafeCacheTest : public testing::Test {
   ThreadsafeCacheTest()
       : lru_cache_(new LRUCache(kMaxSize)),
         thread_runtime_(Platform::CreateThreadSystem()),
-        threadsafe_cache_(lru_cache_.get(), thread_runtime_->NewMutex()) {
-  }
+        threadsafe_cache_(lru_cache_.get(), thread_runtime_->NewMutex()) {}
 
   void TestHelper(bool expecting_evictions, bool do_deletes,
                   const char* value_pattern) {
@@ -59,8 +58,8 @@ class ThreadsafeCacheTest : public testing::Test {
     lru_cache_->SanityCheck();
   }
 
-  scoped_ptr<LRUCache> lru_cache_;
-  scoped_ptr<ThreadSystem> thread_runtime_;
+  std::unique_ptr<LRUCache> lru_cache_;
+  std::unique_ptr<ThreadSystem> thread_runtime_;
   ThreadsafeCache threadsafe_cache_;
 
  private:

@@ -17,12 +17,15 @@
  * under the License.
  */
 
-#ifndef STRINGS_STRINGPIECE_H_
-#define STRINGS_STRINGPIECE_H_
+#pragma once
 
-//#include "third_party/chromium/src/base/strings/string_piece.h"
-#include "base/strings/string_piece.h"
+#include "absl/strings/string_view.h"
 
-using base::StringPiece;
+typedef absl::string_view CssStringPiece;
 
-#endif  // STRINGS_STRINGPIECE_H_
+// TODO(oschaaf): move this out of here.
+#ifndef DISALLOW_COPY_AND_ASSIGN
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&);               \
+  void operator=(const TypeName&)
+#endif

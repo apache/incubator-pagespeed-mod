@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the experiment utilities.
 
 #include "net/instaweb/rewriter/public/experiment_util.h"
@@ -38,8 +37,7 @@ namespace net_instaweb {
 
 namespace experiment {
 
-class ExperimentUtilTest : public RewriteOptionsTestBase<RewriteOptions> {
-};
+class ExperimentUtilTest : public RewriteOptionsTestBase<RewriteOptions> {};
 
 TEST_F(ExperimentUtilTest, GetCookieState) {
   RequestHeaders req_headers;
@@ -166,7 +164,7 @@ TEST_F(ExperimentUtilTest, SetExperimentCookie) {
   ASSERT_EQ(1, v.size());
   GoogleString expires;
   ConvertTimeToString(Timer::kWeekMs, &expires);
-  GoogleString expected = StringPrintf(
+  GoogleString expected = absl::StrFormat(
       "PageSpeedExperiment=1; Expires=%s; Domain=.www.test.com; Path=/",
       expires.c_str());
   EXPECT_EQ(expected, *v[0]);

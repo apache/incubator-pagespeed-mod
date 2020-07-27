@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_FETCH_H_
 #define PAGESPEED_APACHE_FETCH_H_
 
@@ -55,7 +54,7 @@ class ApacheFetch : public AsyncFetch {
               RequestHeaders* request_headers,
               const RequestContextPtr& request_context,
               const RewriteOptions* options, MessageHandler* handler);
-  virtual ~ApacheFetch();
+  ~ApacheFetch() override;
 
   // When used for in-place resource optimization in mod_pagespeed, we have
   // disabled fetching resources that are not in cache, otherwise we may wind
@@ -79,7 +78,7 @@ class ApacheFetch : public AsyncFetch {
 
   bool status_ok() const { return status_ok_; }
 
-  virtual bool IsCachedResultValid(const ResponseHeaders& headers)
+  bool IsCachedResultValid(const ResponseHeaders& headers) override
       LOCKS_EXCLUDED(scheduler_->mutex());
 
   // By default ApacheFetch is not intended for proxying third party content.
@@ -88,18 +87,18 @@ class ApacheFetch : public AsyncFetch {
   void set_is_proxy(bool x) { is_proxy_ = x; }
 
  protected:
-  virtual void HandleHeadersComplete() LOCKS_EXCLUDED(scheduler_->mutex());
-  virtual void HandleDone(bool success) LOCKS_EXCLUDED(scheduler_->mutex());
-  virtual bool HandleFlush(MessageHandler* handler)
+  void HandleHeadersComplete() override LOCKS_EXCLUDED(scheduler_->mutex());
+  void HandleDone(bool success) override LOCKS_EXCLUDED(scheduler_->mutex());
+  bool HandleFlush(MessageHandler* handler) override
       LOCKS_EXCLUDED(scheduler_->mutex());
-  virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler)
+  bool HandleWrite(const StringPiece& sp, MessageHandler* handler) override
       LOCKS_EXCLUDED(scheduler_->mutex());
 
  private:
   void SendOutHeaders();
 
   GoogleString mapped_url_;
-  scoped_ptr<ApacheWriter> apache_writer_;
+  std::unique_ptr<ApacheWriter> apache_writer_;
   const RewriteOptions* options_ GUARDED_BY(scheduler_->mutex());
 
   MessageHandler* message_handler_;

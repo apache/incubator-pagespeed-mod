@@ -17,12 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_VECTOR_DEQUE_H_
 #define PAGESPEED_KERNEL_BASE_VECTOR_DEQUE_H_
 
-#include <cstddef>    // for size_t
-#include <cstring>    // for memcpy
+#include <cstddef>  // for size_t
+#include <cstring>  // for memcpy
 
 #include "pagespeed/kernel/base/basictypes.h"
 
@@ -46,7 +45,8 @@ namespace net_instaweb {
 // Please do not instantiate this class with an object that cannot be copied
 // with memcpy.  Pointers, integers, and floats are fine, as well as simple
 // structs of those.
-template<class T> class VectorDeque {
+template <class T>
+class VectorDeque {
  public:
   // Constructor provides a small initial allocation, rather than constructing
   // with zero capacity, based on expected usage patterns.
@@ -54,10 +54,9 @@ template<class T> class VectorDeque {
       : start_position_(0),
         size_minus_1_(static_cast<size_t>(-1)),
         capacity_minus_1_(initial_capacity() - 1),
-        data_(new T[initial_capacity()]) {
-  }
+        data_(new T[initial_capacity()]) {}
   ~VectorDeque() {
-    delete [] data_;
+    delete[] data_;
     data_ = NULL;
   }
 
@@ -72,38 +71,34 @@ template<class T> class VectorDeque {
   // Special faster versions of PointerAt(0) that avoid some math.  This
   // seems like a clear small win, however, microbenchmarking suggests it's
   // a significant performance loss.  Investigation is required.
-# define SPECIAL_CASE_POINTER_AT_0 1
+#define SPECIAL_CASE_POINTER_AT_0 1
 
   void push_front(T value) {
     ExpandIfNecessary();
     start_position_ = ModCapacity(start_position_ - 1);
-# if SPECIAL_CASE_POINTER_AT_0
+#if SPECIAL_CASE_POINTER_AT_0
     *PointerAt0() = value;
-# else
+#else
     *PointerAt(0) = value;
-# endif
+#endif
     ++size_minus_1_;
   }
 
-  void pop_back() {
-    --size_minus_1_;
-  }
+  void pop_back() { --size_minus_1_; }
 
   void pop_front() {
     start_position_ = ModCapacity(start_position_ + 1);
     --size_minus_1_;
   }
 
-  T back() const {
-    return *PointerAt(size_minus_1_);
-  }
+  T back() const { return *PointerAt(size_minus_1_); }
 
   T front() const {
-# if SPECIAL_CASE_POINTER_AT_0
+#if SPECIAL_CASE_POINTER_AT_0
     return *PointerAt0();
-# else
+#else
     return *PointerAt(0);
-# endif
+#endif
   }
 
   size_t capacity() const { return capacity_minus_1_ + 1; }
@@ -126,16 +121,12 @@ template<class T> class VectorDeque {
     return data_ + ModCapacity(start_position_ + position);
   }
 
-# if SPECIAL_CASE_POINTER_AT_0
-  T* PointerAt0() {
-    return data_ + start_position_;
-  }
+#if SPECIAL_CASE_POINTER_AT_0
+  T* PointerAt0() { return data_ + start_position_; }
 
-  const T* PointerAt0() const {
-    return data_ + start_position_;
-  }
-# endif
-# undef SPECIAL_CASE_POINTER_AT_0
+  const T* PointerAt0() const { return data_ + start_position_; }
+#endif
+#undef SPECIAL_CASE_POINTER_AT_0
 
   // Expands the deque to accommodate pushing an element onto the front
   // or back.
@@ -176,12 +167,11 @@ template<class T> class VectorDeque {
         memcpy(data_, old_data, start_position_ * sizeof(*data_));
         size_t size_of_right_chunk = sz - start_position_;
         size_t new_start_position = start_position_ + sz;
-        memcpy(data_ + new_start_position,
-               old_data + start_position_,
+        memcpy(data_ + new_start_position, old_data + start_position_,
                size_of_right_chunk * sizeof(*data_));
         start_position_ = new_start_position;
       }
-      delete [] old_data;
+      delete[] old_data;
     }
   }
 
