@@ -79,13 +79,13 @@ class StatisticsLoggerTest : public ::testing::Test {
 
   ~StatisticsLoggerTest() override {}
 
-  static void SetUpTestCase() { HtmlKeywords::Init(); }
+  static void SetUpTestSuite() { HtmlKeywords::Init(); }
 
   void DumpConsoleVarsToWriter(int64 current_time_ms, Writer* writer) {
     logger_.DumpConsoleVarsToWriter(current_time_ms, writer);
   }
 
-  GoogleString CreateVariableDataResponse(bool has_unused_variable,
+  static GoogleString CreateVariableDataResponse(bool has_unused_variable,
                                           bool first) {
     GoogleString var_data;
     if (first) {
@@ -163,7 +163,11 @@ class StatisticsLoggerTest : public ::testing::Test {
 
 TEST_F(StatisticsLoggerTest, TestParseDataFromReader) {
   std::set<GoogleString> var_titles;
-  int64 start_time, end_time, granularity_ms;
+  int64 start_time;
+
+  int64 end_time;
+
+  int64 granularity_ms;
   CreateFakeLogfile(&var_titles, &start_time, &end_time, &granularity_ms);
 
   FileSystem::InputFile* log_file =
@@ -184,7 +188,11 @@ TEST_F(StatisticsLoggerTest, TestParseDataFromReader) {
 
 TEST_F(StatisticsLoggerTest, TestParseDataForGraphs) {
   std::set<GoogleString> var_titles;
-  int64 start_time, end_time, granularity_ms;
+  int64 start_time;
+
+  int64 end_time;
+
+  int64 granularity_ms;
   CreateFakeLogfile(&var_titles, &start_time, &end_time, &granularity_ms);
   FileSystem::InputFile* log_file =
       file_system_.OpenInputFile(kStatsLogFile, &handler_);
@@ -316,7 +324,11 @@ TEST_F(StatisticsLoggerTest, TestParseVarData) {
 // Using fake logfile, make sure JSON output is not malformed.
 TEST_F(StatisticsLoggerTest, NoMalformedJson) {
   std::set<GoogleString> var_titles;
-  int64 start_time, end_time, granularity_ms;
+  int64 start_time;
+
+  int64 end_time;
+
+  int64 granularity_ms;
   CreateFakeLogfile(&var_titles, &start_time, &end_time, &granularity_ms);
 
   GoogleString json_dump;
@@ -331,8 +343,8 @@ TEST_F(StatisticsLoggerTest, NoMalformedJson) {
 
   Json::Value complete_json;
   Json::Reader json_reader;
-  EXPECT_TRUE(json_reader.parse(json_dump.c_str(), complete_json)) << json_dump;
-  EXPECT_TRUE(json_reader.parse(json_dump_graphs.c_str(), complete_json))
+  EXPECT_TRUE(json_reader.parse(json_dump, complete_json)) << json_dump;
+  EXPECT_TRUE(json_reader.parse(json_dump_graphs, complete_json))
       << json_dump_graphs;
 }
 
@@ -342,7 +354,11 @@ TEST_F(StatisticsLoggerTest, Escaping) {
   // missniffs, while escaping for JSON is just pedantic
   std::set<GoogleString> var_titles;
   var_titles.insert("<bo_o>\\");
-  int64 start_time, end_time, granularity_ms;
+  int64 start_time;
+
+  int64 end_time;
+
+  int64 granularity_ms;
   CreateFakeLogfile(&var_titles, &start_time, &end_time, &granularity_ms);
 
   GoogleString json_dump;

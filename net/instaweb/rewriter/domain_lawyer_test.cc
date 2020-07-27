@@ -1443,7 +1443,8 @@ TEST_F(DomainLawyerTest, WildcardOrder) {
   ASSERT_TRUE(second_lawyer.AddOriginDomainMapping("host3", "*abc*.com", "",
                                                    &message_handler_));
   ASSERT_TRUE(second_lawyer.AddOriginDomainMapping(
-      "host1", "abc*.com", "", &message_handler_));  // duplicate entry.
+      "host1", "abc*.com", "",
+      &message_handler_));  // duplicate entry.
   merged_lawyer.Merge(domain_lawyer_);
   merged_lawyer.Merge(second_lawyer);
   EXPECT_EQ(3, merged_lawyer.num_wildcarded_domains());

@@ -49,7 +49,7 @@ EnvoyProcessContext::EnvoyProcessContext() : ProcessContext() {
   server_context_ = driver_factory()->MakeEnvoyServerContext("", -1);
 
   EnvoyRewriteOptions* root_options_ =
-      (EnvoyRewriteOptions*)driver_factory_->default_options();
+      dynamic_cast<EnvoyRewriteOptions*>(driver_factory_->default_options());
   EnvoyRewriteOptions* server_options = root_options_->Clone();
   EnvoyRewriteOptions* options =
       new EnvoyRewriteOptions(driver_factory_->thread_system());

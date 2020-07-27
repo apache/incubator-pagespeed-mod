@@ -35,8 +35,8 @@
 
 namespace {
 
-int WaitMs() { return RunningOnValgrind() ? 2000 : 200; }
-int StealMs() { return RunningOnValgrind() ? 1000 : 100; }
+int WaitMs() { return RunningOnValgrind() != 0 ? 2000 : 200; }
+int StealMs() { return RunningOnValgrind() != 0 ? 1000 : 100; }
 
 // In our test, we set the lock wait timeout at 100ms and the steal
 // time to 200ms.  But we insert timing delays of 150ms so that we

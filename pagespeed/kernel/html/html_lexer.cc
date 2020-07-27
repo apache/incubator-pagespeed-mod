@@ -529,7 +529,8 @@ void HtmlLexer::EvalLiteralTag(char c) {
     // expecting "</x>" for tag x.
     // Chromium source lacks CHECK_GT
     html_parse_->message_handler()->Check(
-        literal_close_.size() > 3, "literal_close_.size() <= 3");  // NOLINT
+        literal_close_.size() > 3,
+        "literal_close_.size() <= 3");  // NOLINT
     int literal_minus_close_size = literal_.size() - literal_close_.size();
     if ((literal_minus_close_size >= 0) &&
         StringCaseEqual(literal_.c_str() + literal_minus_close_size,

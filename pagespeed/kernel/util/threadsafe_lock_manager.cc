@@ -68,7 +68,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
   // Reschedules any outstanding alarms if the wakeup time has changed.
   void UpdateAlarmMutexHeldAndRelease() UNLOCK_FUNCTION() {
     int64 wakeup_time_us = kWakeupNotSet;
-    if (manager_.get() != nullptr) {
+    if (manager_ != nullptr) {
       int64 wakeup_time_ms = manager_->NextWakeupTimeMs();
       if (wakeup_time_ms != MemLockManager::kNoWakeupsPending) {
         wakeup_time_us = wakeup_time_ms * Timer::kMsUs;
@@ -104,7 +104,7 @@ class ThreadSafeLockManager::LockHolder : public RefCounted<LockHolder> {
   void RunWhenSchedulerUnlocked(Function* callback)
       EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     mutex_->DCheckLocked();
-    if (manager_.get() == nullptr) {
+    if (manager_ == nullptr) {
       LOG(DFATAL) << "All locks are denied when manager is deleted";
       EnqueueCancel(callback);
     } else {

@@ -58,7 +58,7 @@ class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
         options_(thread_system_.get()),
         loopback_route_fetcher_(&options_, kOwnIp, 42, &reflecting_fetcher_) {}
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     apr_initialize();
     atexit(apr_terminate);
   }

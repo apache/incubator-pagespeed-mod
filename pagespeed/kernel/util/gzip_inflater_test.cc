@@ -48,8 +48,10 @@ namespace {
 
 class GzipInflaterTest : public testing::Test {
  protected:
-  void TestInflateDeflate(StringPiece payload) {
-    GoogleString deflated, inflated;
+  static void TestInflateDeflate(StringPiece payload) {
+    GoogleString deflated;
+
+    GoogleString inflated;
     StringWriter deflate_writer(&deflated);
     EXPECT_TRUE(GzipInflater::Deflate(payload, GzipInflater::kDeflate,
                                       &deflate_writer));
@@ -207,7 +209,9 @@ TEST_F(GzipInflaterTest, InflateDeflateLargeDataHighEntropy) {
 
 TEST_F(GzipInflaterTest, IncrementalInflateOfOneShotDeflate) {
   const char kPayload[] = "The quick brown fox jumps over the lazy dog";
-  GoogleString deflated, inflated;
+  GoogleString deflated;
+
+  GoogleString inflated;
   StringWriter deflate_writer(&deflated);
   EXPECT_TRUE(
       GzipInflater::Deflate(kPayload, GzipInflater::kDeflate, &deflate_writer));
@@ -248,7 +252,9 @@ TEST_F(GzipInflaterTest, TestUngzip) {
 TEST_F(GzipInflaterTest, TestGzipUnGzip) {
   const int compression_level = 9;
   StringPiece payload("hello");
-  GoogleString deflated, inflated;
+  GoogleString deflated;
+
+  GoogleString inflated;
   StringWriter deflate_writer(&deflated);
   EXPECT_TRUE(GzipInflater::Deflate(payload, GzipInflater::kGzip,
                                     compression_level, &deflate_writer));

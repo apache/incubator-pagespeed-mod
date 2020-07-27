@@ -45,7 +45,7 @@ class StatisticsLogger {
  public:
   // Does not take ownership of any objects passed in.
   StatisticsLogger(int64 update_interval_ms, int64 max_logfile_size_kb,
-                   const StringPiece& log_file,
+                   const StringPiece& logfile_name,
                    MutexedScalar* last_dump_timestamp,
                    MessageHandler* message_handler, Statistics* stats,
                    FileSystem* file_system, Timer* timer);
@@ -92,22 +92,22 @@ class StatisticsLogger {
   void ParseDataFromReader(const StringSet& var_titles,
                            StatisticsLogfileReader* reader,
                            std::vector<int64>* list_of_timestamps,
-                           VarMap* parsed_var_data) const;
+                           VarMap* var_values) const;
   // Save the variables needed by graphs page to the map.
   void ParseDataForGraphs(StatisticsLogfileReader* reader,
                           std::vector<int64>* list_of_timestamps,
-                          VarMap* parsed_var_data) const;
+                          VarMap* var_values) const;
   // Parse a string into a map of variable name -> value.
   // Note: parsed_var_data StringPieces point into logfile_var_data and thus
   // have same lifetime as it.
-  void ParseVarDataIntoMap(
+  static void ParseVarDataIntoMap(
       StringPiece logfile_var_data,
-      std::map<StringPiece, StringPiece>* parsed_var_data) const;
-  void PrintVarDataAsJSON(const VarMap& parsed_var_data, Writer* writer,
-                          MessageHandler* message_handler) const;
-  void PrintTimestampListAsJSON(const std::vector<int64>& list_of_timestamps,
+      std::map<StringPiece, StringPiece>* parsed_var_data) ;
+  static void PrintVarDataAsJSON(const VarMap& parsed_var_data, Writer* writer,
+                          MessageHandler* message_handler) ;
+  static void PrintTimestampListAsJSON(const std::vector<int64>& list_of_timestamps,
                                 Writer* writer,
-                                MessageHandler* message_handler) const;
+                                MessageHandler* message_handler) ;
   void PrintJSON(const std::vector<int64>& list_of_timestamps,
                  const VarMap& parsed_var_data, Writer* writer,
                  MessageHandler* message_handler) const;

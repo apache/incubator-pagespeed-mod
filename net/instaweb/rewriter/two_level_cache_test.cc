@@ -137,8 +137,8 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
   // These must be run prior to the calls to 'new CustomRewriteDriverFactory'
   // in the constructor initializer above.  Thus the calls to Initialize() in
   // the base class are too late.
-  static void SetUpTestCase() { RewriteOptions::Initialize(); }
-  static void TearDownTestCase() { RewriteOptions::Terminate(); }
+  static void SetUpTestSuite() { RewriteOptions::Initialize(); }
+  static void TearDownTestSuite() { RewriteOptions::Terminate(); }
 
   void SetUp() override {
     // Keeping local pointers to cache backends for convenience.  Note that both

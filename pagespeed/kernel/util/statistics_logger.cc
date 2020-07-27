@@ -425,7 +425,7 @@ void StatisticsLogger::ParseDataForGraphs(StatisticsLogfileReader* reader,
 
 void StatisticsLogger::ParseVarDataIntoMap(
     StringPiece logfile_var_data,
-    std::map<StringPiece, StringPiece>* parsed_var_data) const {
+    std::map<StringPiece, StringPiece>* parsed_var_data) {
   std::vector<StringPiece> lines;
   SplitStringPieceToVector(logfile_var_data, "\n", &lines, true);
   for (size_t i = 0; i < lines.size(); ++i) {
@@ -451,7 +451,7 @@ void StatisticsLogger::PrintJSON(const std::vector<int64>& list_of_timestamps,
 
 void StatisticsLogger::PrintTimestampListAsJSON(
     const std::vector<int64>& list_of_timestamps, Writer* writer,
-    MessageHandler* message_handler) const {
+    MessageHandler* message_handler) {
   for (size_t i = 0; i < list_of_timestamps.size(); ++i) {
     writer->Write(Integer64ToString(list_of_timestamps[i]), message_handler);
     if (i != list_of_timestamps.size() - 1) {
@@ -462,7 +462,7 @@ void StatisticsLogger::PrintTimestampListAsJSON(
 
 void StatisticsLogger::PrintVarDataAsJSON(
     const VarMap& parsed_var_data, Writer* writer,
-    MessageHandler* message_handler) const {
+    MessageHandler* message_handler) {
   for (VarMap::const_iterator iterator = parsed_var_data.begin();
        iterator != parsed_var_data.end(); ++iterator) {
     StringPiece var_name = iterator->first;
@@ -472,7 +472,9 @@ void StatisticsLogger::PrintVarDataAsJSON(
     if (iterator != parsed_var_data.begin()) {
       writer->Write(",", message_handler);
     }
-    GoogleString html_name, json_name;
+    GoogleString html_name;
+
+    GoogleString json_name;
     HtmlKeywords::Escape(var_name, &html_name);
     EscapeToJsStringLiteral(html_name, true /* add_quotes*/, &json_name);
 
@@ -503,7 +505,7 @@ StatisticsLogfileReader::~StatisticsLogfileReader() {}
 
 bool StatisticsLogfileReader::ReadNextDataBlock(int64* timestamp,
                                                 GoogleString* data) {
-  if (buffer_.size() < 1) {
+  if (buffer_.empty()) {
     FeedBuffer();
   }
   size_t offset = 0;
@@ -535,10 +537,11 @@ bool StatisticsLogfileReader::ReadNextDataBlock(int64* timestamp,
                              next_timestamp_pos - (newline_pos + 1));
       buffer_.erase(0, next_timestamp_pos);
       return true;
-    } else {
-      *timestamp = old_timestamp;
+    }       *timestamp = old_timestamp;
+
       offset = next_timestamp_pos;
-    }
+
+   
   }
   return false;
 }
@@ -550,10 +553,10 @@ bool StatisticsLogfileReader::ReadNextDataBlock(int64* timestamp,
 size_t StatisticsLogfileReader::BufferFind(const char* search_for,
                                            size_t start_at) {
   size_t position = buffer_.find(search_for, start_at);
-  while (position == buffer_.npos) {
+  while (position == GoogleString::npos) {
     int read = FeedBuffer();
     if (read == 0) {
-      return buffer_.npos;
+      return GoogleString::npos;
     }
     position =
         buffer_.find(search_for, buffer_.size() - read - strlen(search_for));

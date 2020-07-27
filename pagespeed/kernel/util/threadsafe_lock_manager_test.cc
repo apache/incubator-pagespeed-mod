@@ -118,7 +118,7 @@ class ThreadsafeLockManagerTest : public testing::Test {
                         &ThreadsafeLockManagerTest::LogDeny, name);
   }
 
- protected:
+ 
   std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   std::unique_ptr<Scheduler> scheduler_;

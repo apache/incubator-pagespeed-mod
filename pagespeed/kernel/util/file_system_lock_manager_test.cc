@@ -63,7 +63,7 @@ class FileSystemLockManagerTest : public testing::Test {
     return result;
   }
 
-  void AllLocksFail(SchedulerBasedAbstractLock* lock) {
+  static void AllLocksFail(SchedulerBasedAbstractLock* lock) {
     // Note: we do it in this order to make sure that the timed waits don't
     // cause the lock to time out.
     // Note also that we don't do the blocking lock operations, as they'll block
@@ -76,11 +76,11 @@ class FileSystemLockManagerTest : public testing::Test {
 
   MockTimer* timer() { return &timer_; }
 
-  bool TryLock(const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
+  static bool TryLock(const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
     return lock->TryLock();
   }
 
-  bool TryLockStealOld(
+  static bool TryLockStealOld(
       int64 steal_ms, const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
     return lock->TryLockStealOld(steal_ms);
   }

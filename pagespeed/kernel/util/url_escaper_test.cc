@@ -31,8 +31,8 @@ namespace {
 // We pass through a few special characters unchanged, and we
 // accept those characters, plus ',', as acceptable in the encoded
 // URLs.
-static const char kAcceptableSpecialChars[] = ",._+-=";
-static const char kPassThruChars[] = "._+-=";
+const char kAcceptableSpecialChars[] = ",._+-=";
+const char kPassThruChars[] = "._+-=";
 
 }  // namespace
 
@@ -40,8 +40,10 @@ namespace net_instaweb {
 
 class UrlEscaperTest : public testing::Test {
  protected:
-  void CheckEncoding(const StringPiece& url) {
-    GoogleString encoded, decoded;
+  static void CheckEncoding(const StringPiece& url) {
+    GoogleString encoded;
+
+    GoogleString decoded;
     UrlEscaper::EncodeToUrlSegment(url, &encoded);
 
     // Make sure there are only alphanumerics and _+-=%
@@ -56,21 +58,23 @@ class UrlEscaperTest : public testing::Test {
   }
 
   // Some basic text should be completely unchanged upon encode/decode.
-  void CheckUnchanged(const StringPiece& url) {
-    GoogleString encoded, decoded;
+  static void CheckUnchanged(const StringPiece& url) {
+    GoogleString encoded;
+
+    GoogleString decoded;
     UrlEscaper::EncodeToUrlSegment(url, &encoded);
     EXPECT_EQ(url, encoded);
     EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoded, &decoded));
     EXPECT_EQ(url, decoded);
   }
 
-  GoogleString Decode(const StringPiece& encoding) {
+  static GoogleString Decode(const StringPiece& encoding) {
     GoogleString decoded;
     EXPECT_TRUE(UrlEscaper::DecodeFromUrlSegment(encoding, &decoded));
     return decoded;
   }
 
-  GoogleString Encode(const StringPiece& url) {
+  static GoogleString Encode(const StringPiece& url) {
     GoogleString encoded;
     UrlEscaper::EncodeToUrlSegment(url, &encoded);
     return encoded;

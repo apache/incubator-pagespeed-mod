@@ -51,7 +51,7 @@ class UrlMultipartEncoder : public UrlSegmentEncoder {
   void Encode(const StringVector& urls, const ResourceContext* data,
               GoogleString* encoding) const override;
 
-  bool Decode(const StringPiece& url_segment, StringVector* urls,
+  bool Decode(const StringPiece& encoding, StringVector* urls,
               ResourceContext* data, MessageHandler* handler) const override;
 
  private:

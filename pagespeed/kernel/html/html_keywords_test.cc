@@ -30,7 +30,7 @@ namespace net_instaweb {
 
 class HtmlKeywordsTest : public testing::Test {
  protected:
-  static void SetUpTestCase() { HtmlKeywords::Init(); }
+  static void SetUpTestSuite() { HtmlKeywords::Init(); }
 
   StringPiece Unescape(const StringPiece& escaped, GoogleString* buf) {
     bool decoding_error;

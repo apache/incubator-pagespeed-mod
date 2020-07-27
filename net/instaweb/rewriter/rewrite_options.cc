@@ -1732,7 +1732,8 @@ void RewriteOptions::AddProperties() {
   AddBaseProperty(kDefaultFinderPropertiesCacheRefreshTimeMs,
                   &RewriteOptions::finder_properties_cache_refresh_time_ms_,
                   "fpcr", kFinderPropertiesCacheRefreshTimeMs, kDirectoryScope,
-                  nullptr, true);  // Not applicable for mod_pagespeed.
+                  nullptr,
+                  true);  // Not applicable for mod_pagespeed.
   AddBaseProperty(kDefaultExperimentCookieDurationMs,
                   &RewriteOptions::experiment_cookie_duration_ms_, "fcd",
                   kExperimentCookieDurationMs, kDirectoryScope, nullptr,
@@ -1960,7 +1961,8 @@ void RewriteOptions::AddProperties() {
 
   AddBaseProperty(false, &RewriteOptions::allow_logging_urls_in_log_record_,
                   "alulr", kAllowLoggingUrlsInLogRecord, kDirectoryScope,
-                  nullptr, false);  // Not applicable for mod_pagespeed.
+                  nullptr,
+                  false);  // Not applicable for mod_pagespeed.
 
   AddBaseProperty(
       true, &RewriteOptions::allow_options_to_be_set_by_cookies_, "aotbsbc",
@@ -1971,7 +1973,8 @@ void RewriteOptions::AddProperties() {
 
   AddBaseProperty("", &RewriteOptions::non_cacheables_for_cache_partial_html_,
                   "nccp", kNonCacheablesForCachePartialHtml, kDirectoryScope,
-                  nullptr, false);  // Not applicable for mod_pagespeed.
+                  nullptr,
+                  false);  // Not applicable for mod_pagespeed.
 
   AddBaseProperty(
       false, &RewriteOptions::no_transform_optimized_images_, "ntoi",

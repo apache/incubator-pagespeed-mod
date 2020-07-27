@@ -140,7 +140,7 @@ class SerfTestFetch : public AsyncFetch {
 
 class SerfUrlAsyncFetcherTest : public ::testing::Test {
  public:
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     // Run once, before all SerfUrlAsyncFetcherTest tests.
     apr_initialize();
     atexit(apr_terminate);
@@ -1069,7 +1069,7 @@ This text is less than 500 bytes.
     }
   };
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     TcpServerThreadForTesting::PickListenPortOnce(&desired_listen_port_);
   }
 

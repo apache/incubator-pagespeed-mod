@@ -71,7 +71,7 @@ class MemLockManager : public NamedLockManager {
   typedef std::map<StringPiece, MemLockState*> MemLockStateMap;
 
   // Helper methods accessed by MemLockState
-  void RemoveLockState(MemLockState* lock_state);
+  void RemoveLockState(MemLockState* name_state);
   void AddPendingLock(MemLock* lock);
   void RemovePendingLock(MemLock* lock);
 

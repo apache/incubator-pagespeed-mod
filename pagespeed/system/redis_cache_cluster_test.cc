@@ -82,7 +82,7 @@ class RedisCacheClusterTest : public CacheTestBase {
 
   // run_program_with_redis_cluster.sh should take care of this for us, but
   // leaving this here to make the test as hermetic as possible.
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     StringVector node_ids;
     std::vector<int> ports;
     ConnectionList connections;

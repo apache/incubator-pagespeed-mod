@@ -78,7 +78,7 @@ class AprMemCacheTest : public CacheTestBase {
     AprMemCache::InitStats(&statistics_);
   }
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     apr_initialize();
     atexit(apr_terminate);
     TcpServerThreadForTesting::PickListenPortOnce(&fake_memcache_listen_port_);
@@ -119,7 +119,7 @@ class AprMemCacheTest : public CacheTestBase {
         ::testing::UnitTest::GetInstance()->current_test_info();
     PosixTimer timer;
     const GoogleString memcache_prefix =
-        StrCat(test_info->test_case_name(), ".", test_info->name(), "_",
+        StrCat(test_info->test_suite_name(), ".", test_info->name(), "_",
                Integer64ToString(timer.NowUs()), "_");
     prefixed_memcache_ =
         std::make_unique<CacheKeyPrepender>(memcache_prefix, servers_.get());

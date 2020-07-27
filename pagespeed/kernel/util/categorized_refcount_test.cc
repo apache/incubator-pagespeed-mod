@@ -44,7 +44,7 @@ class Client {
 
   void LastRefRemoved() { last_ref_removed_called_ = true; }
 
-  StringPiece RefCategoryName(RefCategory cat) {
+  static StringPiece RefCategoryName(RefCategory cat) {
     switch (cat) {
       case kRewrites:
         return "Rewrites";

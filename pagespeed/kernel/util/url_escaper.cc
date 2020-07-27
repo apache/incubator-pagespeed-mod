@@ -57,7 +57,7 @@ bool ReplaceSubstring(const StringPiece& search, const char* replacement,
 
 void UrlEscaper::EncodeToUrlSegment(const StringPiece& in,
                                     GoogleString* url_segment) {
-  for (StringPiece src = in; src.size() != 0;) {
+  for (StringPiece src = in; !src.empty();) {
     char c = src[0];
     src.remove_prefix(1);
     // TODO(jmarantz): put these in a static table, to make it
@@ -98,7 +98,7 @@ void UrlEscaper::EncodeToUrlSegment(const StringPiece& in,
         }
         break;
       default:
-        if (isalnum(c) || (strchr(kPassThroughChars, c) != nullptr)) {
+        if ((isalnum(c) != 0) || (strchr(kPassThroughChars, c) != nullptr)) {
           url_segment->push_back(c);
         } else {
           absl::StrAppendFormat(url_segment, ",%02X",
@@ -130,7 +130,7 @@ bool UrlEscaper::DecodeFromUrlSegment(const StringPiece& url_segment,
   size_t size = url_segment.size();
   for (size_t i = 0; i < size; ++i) {
     char c = url_segment[i];
-    if (isalnum(c) || (strchr(kPassThroughChars, c) != nullptr)) {
+    if ((isalnum(c) != 0) || (strchr(kPassThroughChars, c) != nullptr)) {
       out->push_back(c);
       continue;
     }

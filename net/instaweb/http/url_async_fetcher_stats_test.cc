@@ -91,17 +91,17 @@ class UrlAsyncFetcherStatsTest : public testing::Test {
   // We use per-fixture (rather than per-test) setup and teardown to
   // manage the stats to better model their real-life use and better cover
   // ::Initialize.
-  static void SetUpTestCase() {
-    testing::Test::SetUpTestCase();
+  static void SetUpTestSuite() {
+    testing::Test::SetUpTestSuite();
     stats_maker_ = new StatsMaker();
     stats_ = stats_maker_->stats();
   }
 
-  static void TearDownTestCase() {
+  static void TearDownTestSuite() {
     delete stats_maker_;
     stats_maker_ = nullptr;
     stats_ = nullptr;
-    testing::Test::TearDownTestCase();
+    testing::Test::TearDownTestSuite();
   }
 
   static StatsMaker* stats_maker_;

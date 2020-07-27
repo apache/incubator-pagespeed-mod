@@ -3343,8 +3343,8 @@ class RewriteOptions {
   // inserting. The folding Equal struct is required for looking up. Damned
   // if I know why one needs to specify both.
   typedef rde::hash_map<StringPiece, const PropertyBase*,
-                        CaseFoldStringPieceHash, /* TLoadFactor4 = */ 6,
-                        CaseFoldStringPieceEqual>
+                        CaseFoldStringPieceHash,
+                        /* TLoadFactor4 = */ 6, CaseFoldStringPieceEqual>
       PropertyNameMap;
 
   // Private methods to help add properties to

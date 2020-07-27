@@ -165,8 +165,8 @@ class InPlaceRewriteContextTest : public RewriteTestBase {
                 start_time_ms(), ttl_ms_, "", /* Vary: */ "*", kNoWriteToCache,
                 kTransform);
     AddResponse(cache_jpg_vary_ua_url_, kContentTypeJpeg, cache_body_,
-                start_time_ms(), ttl_ms_, "", /* Vary: */ "User-Agent",
-                kNoWriteToCache, kTransform);
+                start_time_ms(), ttl_ms_, "",
+                /* Vary: */ "User-Agent", kNoWriteToCache, kTransform);
     AddResponse(cache_jpg_vary_origin_url_, kContentTypeJpeg, cache_body_,
                 start_time_ms(), ttl_ms_, "", /* Vary: */ "Origin",
                 kNoWriteToCache, kTransform);

@@ -1,10 +1,21 @@
 {
-    "configurations": [
-      {
-        "name": "WSL",
-        "intelliSenseMode": "clang-x64",
-        "compilerPath": "/usr/bin/clang-8",
-        "includePath": [
+  "configurations": [
+    {
+      "name": "WSL",
+      "intelliSenseMode": "clang-x64",
+      "compilerPath": "/usr/lib/llvm-10/bin/clang-10",
+      "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}//bazel-incubator-pagespeed-mod/**",
+        "/usr/include/x86_64-linux-gnu/5/include",
+        "/usr/local/include",
+        "/usr/include/x86_64-linux-gnu/5/include-fixed",
+        "/usr/include/x86_64-linux-gnu",
+        "/usr/include"
+      ],
+      "defines": [],
+      "browse": {
+        "path": [
           "${workspaceFolder}",
           "${workspaceFolder}//bazel-incubator-pagespeed-mod/**",
           "/usr/include/x86_64-linux-gnu/5/include",
@@ -13,23 +24,13 @@
           "/usr/include/x86_64-linux-gnu",
           "/usr/include"
         ],
-        "defines": [],
-        "browse": {
-          "path": [
-            "${workspaceFolder}",
-            "${workspaceFolder}//bazel-incubator-pagespeed-mod/**",
-            "/usr/include/x86_64-linux-gnu/5/include",
-            "/usr/local/include",
-            "/usr/include/x86_64-linux-gnu/5/include-fixed",
-            "/usr/include/x86_64-linux-gnu",
-            "/usr/include"
-          ],
-          "limitSymbolsToIncludedHeaders": true,
-          "databaseFilename": ""
-        },
-        "cStandard": "c11",
-        "cppStandard": "c++14"
-      }
-    ],
-    "version": 4
-  }
+        "limitSymbolsToIncludedHeaders": true,
+        "databaseFilename": "compile_commands.json"
+      },
+      "cStandard": "c11",
+      "cppStandard": "c++17",
+      "compileCommands": "${workspaceFolder}/compile_commands.json"
+    }
+  ],
+  "version": 4
+}

@@ -33,7 +33,7 @@ class UrlToFilenameEncoderTest : public ::testing::Test {
  protected:
   UrlToFilenameEncoderTest() : escape_(1, UrlToFilenameEncoder::kEscapeChar) {}
 
-  void CheckSegmentLength(const StringPiece& escaped_word) {
+  static void CheckSegmentLength(const StringPiece& escaped_word) {
     StringPieceVector components;
     SplitStringPieceToVector(escaped_word, "/", &components, false);
     for (size_t i = 0; i < components.size(); ++i) {
@@ -42,7 +42,7 @@ class UrlToFilenameEncoderTest : public ::testing::Test {
     }
   }
 
-  void CheckValidChars(const StringPiece& escaped_word) {
+  static void CheckValidChars(const StringPiece& escaped_word) {
     // These characters are invalid in Windows.  We add in ', as that's pretty
     // inconvenient in a Unix filename.
     //
@@ -57,7 +57,9 @@ class UrlToFilenameEncoderTest : public ::testing::Test {
   }
 
   void Validate(const GoogleString& in_word, const GoogleString& gold_word) {
-    GoogleString escaped_word, url;
+    GoogleString escaped_word;
+
+    GoogleString url;
     UrlToFilenameEncoder::EncodeSegment("", in_word, '/', &escaped_word);
     EXPECT_EQ(gold_word, escaped_word);
     CheckSegmentLength(escaped_word);
@@ -67,7 +69,9 @@ class UrlToFilenameEncoderTest : public ::testing::Test {
   }
 
   void ValidateAllSegmentsSmall(const GoogleString& in_word) {
-    GoogleString escaped_word, url;
+    GoogleString escaped_word;
+
+    GoogleString url;
     UrlToFilenameEncoder::EncodeSegment("", in_word, '/', &escaped_word);
     CheckSegmentLength(escaped_word);
     CheckValidChars(escaped_word);
