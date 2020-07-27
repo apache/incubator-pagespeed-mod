@@ -28,6 +28,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/util/simple_random.h"
+#include "url/gurl.h"
 
 namespace {
 
@@ -688,7 +689,8 @@ TEST_F(GoogleUrlTest, Sanitize) {
 }
 
 TEST_F(GoogleUrlTest, DefaultPortForScheme) {
-  EXPECT_EQ(url::PORT_UNSPECIFIED, GoogleUrl::DefaultPortForScheme("chipmunk"));
+  EXPECT_TRUE(GoogleUrl::isPortGurlUnspecified(
+      GoogleUrl::DefaultPortForScheme("chipmunk")));
   EXPECT_EQ(80, GoogleUrl::DefaultPortForScheme("http"));
   EXPECT_EQ(443, GoogleUrl::DefaultPortForScheme("https"));
   EXPECT_EQ(80, GoogleUrl::DefaultPortForScheme("ws"));
