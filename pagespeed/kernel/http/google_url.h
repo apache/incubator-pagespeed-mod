@@ -258,7 +258,7 @@ class GoogleUrl {
 
   // Resolves a URL against a base. Returns whether the resolution worked.
   inline bool ResolveHelper(const GURL& base, const std::string& path_and_leaf);
-  void deleteGurlInternal();
+  void setGurlInternal(GURL* gurl);
 
   GURL* gurl_{nullptr};
   bool is_web_valid_{false};

@@ -29,10 +29,6 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/response_headers.h"
 
-namespace {
-const int kMaxSize = 100;
-}
-
 namespace net_instaweb {
 
 class HTTPValueTest : public testing::Test {

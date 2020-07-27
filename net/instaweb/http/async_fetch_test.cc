@@ -31,8 +31,6 @@
 namespace net_instaweb {
 namespace {
 
-const char kUrl[] = "http://www.example.com/";
-
 class TestSharedAsyncFetch : public SharedAsyncFetch {
  public:
   explicit TestSharedAsyncFetch(AsyncFetch* base_fetch)

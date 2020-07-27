@@ -63,7 +63,7 @@ GoogleUrl::GoogleUrl(const GoogleUrl& base, const char* str) {
   Reset(base, str);
 }
 
-GoogleUrl::~GoogleUrl() { deleteGurlInternal(); }
+GoogleUrl::~GoogleUrl() { setGurlInternal(nullptr); }
 
 void GoogleUrl::Swap(GoogleUrl* google_url) {
   gurl_->Swap(google_url->gurl_);
@@ -82,15 +82,18 @@ void GoogleUrl::Init() {
 }
 
 bool GoogleUrl::ResolveHelper(const GURL& base, const std::string& url) {
-  deleteGurlInternal();
-  gurl_ = new GURL(base.Resolve(url));
-  Init();
+  setGurlInternal(new GURL(base.Resolve(url)));
   return gurl_->is_valid();
 }
 
-void GoogleUrl::deleteGurlInternal() {
+void GoogleUrl::setGurlInternal(GURL* gurl) {
   if (gurl_ != nullptr) {
     delete gurl_;
+  }
+  if (gurl != nullptr) {
+    gurl_ = gurl;
+    Init();
+  } else {
     gurl_ = nullptr;
     is_web_valid_ = false;
     is_web_or_data_valid_ = false;
@@ -110,24 +113,16 @@ bool GoogleUrl::Reset(const GoogleUrl& base, const char* str) {
 }
 
 bool GoogleUrl::Reset(StringPiece new_value) {
-  deleteGurlInternal();
-  gurl_ = new GURL(new_value.as_string());
-  Init();
+  setGurlInternal(new GURL(new_value.as_string()));
   return gurl_->is_valid();
 }
 
 bool GoogleUrl::Reset(const GoogleUrl& new_value) {
-  deleteGurlInternal();
-  gurl_ = new GURL(*new_value.gurl_);
-  Init();
+  setGurlInternal(new GURL(*new_value.gurl_));
   return gurl_->is_valid();
 }
 
-void GoogleUrl::Clear() {
-  deleteGurlInternal();
-  gurl_ = new GURL();
-  Init();
-}
+void GoogleUrl::Clear() { setGurlInternal(new GURL()); }
 
 bool GoogleUrl::IsWebValid() const {
   DCHECK(is_web_valid_ ==

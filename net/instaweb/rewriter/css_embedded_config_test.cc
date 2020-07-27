@@ -32,7 +32,6 @@
 
 namespace {
 
-const char kBikePngFile[] = "BikeCrashIcn.png";
 const char kCuppaPngFile[] = "Cuppa.png";
 const char kDummyContent[] = "Invalid PNG but it does not matter for this test";
 const char kPuzzleJpgFile[] = "Puzzle.jpg";
