@@ -19,7 +19,6 @@
 
 #include "net/instaweb/http/public/async_fetch.h"
 
-
 #include "net/instaweb/http/public/request_context.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -37,11 +36,9 @@ const char kUrl[] = "http://www.example.com/";
 class TestSharedAsyncFetch : public SharedAsyncFetch {
  public:
   explicit TestSharedAsyncFetch(AsyncFetch* base_fetch)
-      : SharedAsyncFetch(base_fetch) {
-  }
+      : SharedAsyncFetch(base_fetch) {}
 
-  virtual ~TestSharedAsyncFetch() {
-  }
+  ~TestSharedAsyncFetch() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TestSharedAsyncFetch);
@@ -51,11 +48,10 @@ class TestSharedAsyncFetch : public SharedAsyncFetch {
 class AsyncFetchTest : public testing::Test {
  protected:
   AsyncFetchTest()
-      : request_context_(new RequestContext(
-            kDefaultHttpOptionsForTests, new NullMutex, NULL)),
+      : request_context_(new RequestContext(kDefaultHttpOptionsForTests,
+                                            new NullMutex, nullptr)),
         string_fetch_(request_context_),
-        handler_(new NullMutex) {
-  }
+        handler_(new NullMutex) {}
 
   bool CheckCacheControlPublicWithVia(const char* via) {
     StringAsyncFetch fetch(request_context_);
@@ -64,8 +60,8 @@ class AsyncFetchTest : public testing::Test {
       fetch.request_headers()->Add(HttpAttributes::kVia, via);
     }
     fetch.FixCacheControlForGoogleCache();
-    return fetch.response_headers()->HasValue(
-        HttpAttributes::kCacheControl, "public");
+    return fetch.response_headers()->HasValue(HttpAttributes::kCacheControl,
+                                              "public");
   }
 
  protected:

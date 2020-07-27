@@ -54,10 +54,9 @@ const char kAsyncGlueInit[] =
     "} catch(err) {}"
     "</script>";
 
-
 class GoogleAnalyticsFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Setup the statistics.
     RewriteTestBase::SetUp();
 
@@ -77,15 +76,13 @@ class GoogleAnalyticsFilterTest : public RewriteTestBase {
   }
 
   // Create the expected html.
-  GoogleString GetAsyncLoadAndInit(
-      const StringPiece& load_prefix, const StringPiece& load_suffix) const {
-    return StrCat(
-        load_prefix,
-        kGaSnippetPrefix,  // from google_analytics_snippet.h
-        kAsyncGlueMethods,
-        kGaSnippetSuffix,  // from google_analytics_snippet.h
-        load_suffix,
-        kAsyncGlueInit);
+  GoogleString GetAsyncLoadAndInit(const StringPiece& load_prefix,
+                                   const StringPiece& load_suffix) const {
+    return StrCat(load_prefix,
+                  kGaSnippetPrefix,  // from google_analytics_snippet.h
+                  kAsyncGlueMethods,
+                  kGaSnippetSuffix,  // from google_analytics_snippet.h
+                  load_suffix, kAsyncGlueInit);
   }
 
   GoogleAnalyticsFilter* google_analytics_filter_;
@@ -94,34 +91,33 @@ class GoogleAnalyticsFilterTest : public RewriteTestBase {
 TEST_F(GoogleAnalyticsFilterTest, SyncScriptSrcMadeAsync) {
   GoogleString html_input = StrCat(
       "<script src=\"http://www.google-analytics.com/ga.js\""
-          " type=\"text/javascript\">\n"
+      " type=\"text/javascript\">\n"
       "</script>\n",
       kSyncInit);
   GoogleString expected_html = GetAsyncLoadAndInit(
       "<script type=\"text/javascript\">",
       "\n</script>\n");  // starting newline leftover from empty script
-  ValidateExpected("sync_script_src_made_async",
-                   html_input, expected_html);
+  ValidateExpected("sync_script_src_made_async", html_input, expected_html);
 }
 
 // Test the boundary case of load script without a characters node
 TEST_F(GoogleAnalyticsFilterTest, SyncScriptSrcNoCharactersNodeMadeAsync) {
   GoogleString html_input = StrCat(
       "<script src=\"http://www.google-analytics.com/ga.js\""
-          " type=\"text/javascript\"></script>\n",
+      " type=\"text/javascript\"></script>\n",
       kSyncInit);
-  GoogleString expected_html = GetAsyncLoadAndInit(
-      "<script type=\"text/javascript\">",
-      "</script>\n");  // no newline between script tags
-  ValidateExpected("sync_script_src_no_characters_node_made_async",
-                   html_input, expected_html);
+  GoogleString expected_html =
+      GetAsyncLoadAndInit("<script type=\"text/javascript\">",
+                          "</script>\n");  // no newline between script tags
+  ValidateExpected("sync_script_src_no_characters_node_made_async", html_input,
+                   expected_html);
 }
 
 TEST_F(GoogleAnalyticsFilterTest, SyncDocumentWriteMadeAsync) {
   GoogleString html_input = StrCat(
       "<script type='text/javascript'>\n"
       "var gaJsHost = ((\"https:\" == document.location.protocol) ? "
-          "\"https://ssl.\" : \"http://www.\");\n"
+      "\"https://ssl.\" : \"http://www.\");\n"
       "document.write(unescape(\"%3Cscript src=\" + gaJsHost + \"google-"
       "analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E\"));\n"
       "</script>\n",
@@ -129,10 +125,9 @@ TEST_F(GoogleAnalyticsFilterTest, SyncDocumentWriteMadeAsync) {
   GoogleString expected_html = GetAsyncLoadAndInit(
       "<script type='text/javascript'>\n"
       "var gaJsHost = ((\"https:\" == document.location.protocol) ? "
-          "\"https://ssl.\" : \"http://www.\");\n",
+      "\"https://ssl.\" : \"http://www.\");\n",
       "\n</script>\n");
-  ValidateExpected("sync_document_write_made_async",
-                   html_input, expected_html);
+  ValidateExpected("sync_document_write_made_async", html_input, expected_html);
 }
 
 // Test the boundary case of "document.write" at the first position
@@ -140,49 +135,45 @@ TEST_F(GoogleAnalyticsFilterTest, SyncDocumentWriteMadeAsync) {
 TEST_F(GoogleAnalyticsFilterTest, SyncDocumentWriteAtPositionZero) {
   GoogleString html_input = StrCat(
       "<script type='text/javascript'>document.write("
-          "unescape(\"%3Cscript src=\"http://www.google-analytics.com/ga.js' "
-          "type='text/javascript'%3E%3C/script%3E\"));\n"
+      "unescape(\"%3Cscript src=\"http://www.google-analytics.com/ga.js' "
+      "type='text/javascript'%3E%3C/script%3E\"));\n"
       "</script>\n",
       kSyncInit);
-  GoogleString expected_html = GetAsyncLoadAndInit(
-      "<script type='text/javascript'>",
-      "\n</script>\n");
-  ValidateExpected("sync_document_write_made_async",
-                   html_input, expected_html);
+  GoogleString expected_html =
+      GetAsyncLoadAndInit("<script type='text/javascript'>", "\n</script>\n");
+  ValidateExpected("sync_document_write_made_async", html_input, expected_html);
 }
 
 TEST_F(GoogleAnalyticsFilterTest, MultipleLoadReducedToSingle) {
   GoogleString html_input = StrCat(
       "<script type='text/javascript'>document.write("
-          "unescape(\"%3Cscript src=\"http://www.google-analytics.com/ga.js' "
-          "type='text/javascript'%3E%3C/script%3E\"));\n"
+      "unescape(\"%3Cscript src=\"http://www.google-analytics.com/ga.js' "
+      "type='text/javascript'%3E%3C/script%3E\"));\n"
       "</script>\n",
       kSyncInit,
       "<script type='text/javascript'>\n"
       "var gaJsHost = ((\"https:\" == document.location.protocol) ? "
-          "\"https://ssl.\" : \"http://www.\");\n"
+      "\"https://ssl.\" : \"http://www.\");\n"
       "document.write(unescape(\"%3Cscript src=\" + gaJsHost + \"google-"
       "analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E\"));\n"
       "</script>\n",
       kSyncInit,
       "<script src=\"http://www.google-analytics.com/ga.js\""
-          " type=\"text/javascript\"></script>",
+      " type=\"text/javascript\"></script>",
       kSyncInit);
   GoogleString expected_html = StrCat(
-      GetAsyncLoadAndInit(
-          "<script type='text/javascript'>",
-          "\n</script>\n"),
+      GetAsyncLoadAndInit("<script type='text/javascript'>", "\n</script>\n"),
       "<script type='text/javascript'>\n"
       "var gaJsHost = ((\"https:\" == document.location.protocol) ?"
-          " \"https://ssl.\" : \"http://www.\");\n"
+      " \"https://ssl.\" : \"http://www.\");\n"
       // The second load (document.write) is removed completely.
       "\n"
       "</script>\n",
       kAsyncGlueInit,
       // The third load (script src) is removed completely.
       kAsyncGlueInit);
-  ValidateExpected("multiple_load_reduced to_single",
-                   html_input, expected_html);
+  ValidateExpected("multiple_load_reduced to_single", html_input,
+                   expected_html);
 }
 
 TEST_F(GoogleAnalyticsFilterTest, AsyncGiveNoChanges) {
@@ -195,7 +186,7 @@ TEST_F(GoogleAnalyticsFilterTest, AsyncGiveNoChanges) {
       "  var ga = document.createElement('script');\n"
       "  ga.type = 'text/javascript'; ga.async = true;\n"
       "  ga.src = ('https:' == document.location.protocol ? 'https://ssl' : "
-          "'http://www') +\n"
+      "'http://www') +\n"
       "    '.google-analytics.com/ga.js';\n"
       "  var s = document.getElementsByTagName('script')[0]\n"
       "  s.parentNode.insertBefore(ga, s);\n"
@@ -219,7 +210,7 @@ TEST_F(GoogleAnalyticsFilterTest, NonstandardInitGiveNoChanges) {
 TEST_F(GoogleAnalyticsFilterTest, UnhandledCallCausesSkippedRewrite) {
   GoogleString html_input = StrCat(
       "<script src=\"http://www.google-analytics.com/ga.js\""
-          " type=\"text/javascript\"></script>\n",
+      " type=\"text/javascript\"></script>\n",
       kSyncInit,
       // _getLinkerUrl is listed as an unhandled call.
       "<script type=\"text/javascript\">pageTracker._getLinkerUrl ();\n"
@@ -230,17 +221,15 @@ TEST_F(GoogleAnalyticsFilterTest, UnhandledCallCausesSkippedRewrite) {
 TEST_F(GoogleAnalyticsFilterTest, UnknownCallStillAllowsRewrite) {
   GoogleString html_input = StrCat(
       "<script src=\"http://www.google-analytics.com/ga.js\""
-          " type=\"text/javascript\"></script>\n",
+      " type=\"text/javascript\"></script>\n",
       kSyncInit,
       // _getFoo is not explicitly listed as an unhandled call.
       "<script type=\"text/javascript\">pageTracker._getFoo();</script>\n");
   GoogleString expected_html = StrCat(
-      GetAsyncLoadAndInit(
-          "<script type=\"text/javascript\">",
-          "</script>\n"),
+      GetAsyncLoadAndInit("<script type=\"text/javascript\">", "</script>\n"),
       "<script type=\"text/javascript\">pageTracker._getFoo();</script>\n");
-  ValidateExpected("unknown_call_still_allows_rewrite",
-                   html_input, expected_html);
+  ValidateExpected("unknown_call_still_allows_rewrite", html_input,
+                   expected_html);
 }
 
 }  // namespace

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include <algorithm>
 #include <memory>
 
@@ -41,7 +40,8 @@ constexpr char kCuppaPngFile[] = "Cuppa.png";
 constexpr char kPuzzleJpgFile[] = "Puzzle.jpg";
 constexpr char kChefGifFile[] = "IronChef2.gif";
 
-constexpr char kHtmlTemplate3Divs[] = "<head><style>"
+constexpr char kHtmlTemplate3Divs[] =
+    "<head><style>"
     "#div1{background:url(%s) 0 0;width:10px;height:10px}"
     "#div2{background:url(%s) 0 %s;width:%s;height:10px}"
     "#div3{background:url(%s) 0 %s;width:10px;height:10px}"
@@ -50,7 +50,7 @@ constexpr char kHtmlTemplate3Divs[] = "<head><style>"
 // Image spriting tests.
 class CssImageCombineTest : public CssRewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We setup the options before the upcall so that the
     // CSS filter is created aware of these.
     options()->EnableFilter(RewriteOptions::kSpriteImages);
@@ -71,33 +71,35 @@ class CssImageCombineTest : public CssRewriteTestBase {
         Encode("", "is", "0", MultiUrl(kCuppaPngFile, kBikePngFile), "png");
     const char* sprite = sprite_string.c_str();
     // The JPEG will not be included in the sprite because we only handle PNGs.
-    constexpr char* html = "<head><style>"
+    constexpr char* html =
+        "<head><style>"
         "#div1{background-image:url(%s);"
         "background-position:0 0;width:10px;height:10px}"
         "#div2{background:transparent url(%s);"
         "background-position:%s;width:10px;height:10px}"
         "#div3{background-image:url(%s);width:10px;height:10px}"
         "</style></head>";
-    GoogleString before = absl::StrFormat(
-        html, kCuppaPngFile, kBikePngFile, bike_position, kPuzzleJpgFile);
-    GoogleString after = absl::StrFormat(
-        html, sprite, sprite, expected_position, kPuzzleJpgFile);
+    GoogleString before = absl::StrFormat(html, kCuppaPngFile, kBikePngFile,
+                                          bike_position, kPuzzleJpgFile);
+    GoogleString after = absl::StrFormat(html, sprite, sprite,
+                                         expected_position, kPuzzleJpgFile);
 
     ValidateExpected("sprites_images", before, should_sprite ? after : before);
 
     // Try it again, this time using the background shorthand with a couple
     // different orderings
-    constexpr char html2[] = "<head><style>"
+    constexpr char html2[] =
+        "<head><style>"
         "#div1{background:0 0 url(%s) no-repeat transparent scroll;"
         "width:10px;height:10px}"
         "#div2{background:url(%s) %s repeat fixed;width:10px;height:10px}"
         "#div3{background-image:url(%s);width:10px;height:10px}"
         "</style></head>";
 
-    before = absl::StrFormat(
-        html2, kCuppaPngFile, kBikePngFile, bike_position, kPuzzleJpgFile);
-    after = absl::StrFormat(
-        html2, sprite, sprite, expected_position, kPuzzleJpgFile);
+    before = absl::StrFormat(html2, kCuppaPngFile, kBikePngFile, bike_position,
+                             kPuzzleJpgFile);
+    after = absl::StrFormat(html2, sprite, sprite, expected_position,
+                            kPuzzleJpgFile);
 
     ValidateExpected("sprites_images", before, should_sprite ? after : before);
   }
@@ -142,7 +144,7 @@ TEST_F(CssImageCombineTest, SpritesImages) {
 // Image spriting tests with debug enabled.
 class CssImageCombineUnauthorizedTest : public CssRewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kDebug);
     options()->EnableFilter(RewriteOptions::kSpriteImages);
     CssRewriteTestBase::SetUp();
@@ -162,17 +164,18 @@ TEST_F(CssImageCombineTest, UnauthorizedDomain) {
   options()->EnableFilter(RewriteOptions::kDebug);
   options()->ComputeSignature();
 
-  const GoogleString kDebugMessage = StrCat(
-      "<!--Flattening failed: Cannot rewrite ", bike_path,
-      " as it is on an unauthorized domain-->");
+  const GoogleString kDebugMessage =
+      StrCat("<!--Flattening failed: Cannot rewrite ", bike_path,
+             " as it is on an unauthorized domain-->");
   constexpr char kDebugStatistics[] = "";
-  constexpr char html[] = "<head><style>"
+  constexpr char html[] =
+      "<head><style>"
       "#div2{background:transparent url(%s);"
       "background-position:0 0;width:10px;height:10px}"
       "</style>%s</head>%s";
   GoogleString before = absl::StrFormat(html, bike_path.c_str(), "", "");
   GoogleString after = absl::StrFormat(html, bike_path.c_str(),
-                                    kDebugMessage.c_str(), kDebugStatistics);
+                                       kDebugMessage.c_str(), kDebugStatistics);
 
   ValidateExpected("unauthorized_domain", before, after);
 }
@@ -180,7 +183,8 @@ TEST_F(CssImageCombineTest, UnauthorizedDomain) {
 TEST_F(CssImageCombineTest, DontLeak) {
   // Regression test for a leak: we had trouble when a single position was
   // merely "0%".
-  constexpr char kHtml[] = "<style>"
+  constexpr char kHtml[] =
+      "<style>"
       "#div2{background:transparent url(Cuppa.png) no-repeat scroll 0%;"
       "background-position:0 0;width:10px;height:10px}"
       "</style>";
@@ -192,30 +196,30 @@ class CssImageCombineTestCustomOptions : public CssImageCombineTest {
  protected:
   // Derived classes should set their options and then call
   // CssImageCombineTest::SetUp().
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(CssImageCombineTest, SpritesMultiple) {
   GoogleString before, after, sprite;
   // With the same image present 3 times, there should be no sprite.
-  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                        kBikePngFile, "0", "10px", kBikePngFile, "0");
+  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, "0",
+                           "10px", kBikePngFile, "0");
   ValidateNoChanges("no_sprite_3_bikes", before);
 
   // With 2 of the same and 1 different, there should be a sprite without
   // duplication.
-  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                        kBikePngFile, "0", "10px", kCuppaPngFile, "0");
-  sprite = Encode("", "is", "0",
-                  MultiUrl(kBikePngFile, kCuppaPngFile), "png").c_str();
-  after = absl::StrFormat(kHtmlTemplate3Divs, sprite.c_str(),
-                       sprite.c_str(), "0", "10px", sprite.c_str(), "-100px");
+  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, "0",
+                           "10px", kCuppaPngFile, "0");
+  sprite = Encode("", "is", "0", MultiUrl(kBikePngFile, kCuppaPngFile), "png")
+               .c_str();
+  after = absl::StrFormat(kHtmlTemplate3Divs, sprite.c_str(), sprite.c_str(),
+                          "0", "10px", sprite.c_str(), "-100px");
   ValidateExpected("sprite_2_bikes_1_cuppa", before, after);
 
   // If the second occurrence of the image is unspriteable (e.g. if the div is
   // larger than the image), then don't sprite anything.
-  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                        kBikePngFile, "0", "999px", kCuppaPngFile, "0");
+  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, "0",
+                           "999px", kCuppaPngFile, "0");
   ValidateNoChanges("sprite_none_dimensions", before);
 }
 
@@ -224,8 +228,8 @@ TEST_F(CssImageCombineTest, NoSpritesMultiple) {
   // If the second occurrence of the image is unspriteable (e.g. if the div is
   // larger than the image), then don't sprite anything.
   GoogleString in_text =
-      absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                   kBikePngFile, "0", "999px", kCuppaPngFile, "0");
+      absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, "0",
+                      "999px", kCuppaPngFile, "0");
   ValidateNoChanges("no_sprite", in_text);
 }
 
@@ -235,10 +239,10 @@ TEST_F(CssImageCombineTest, NoCrashUnknownType) {
   SetDefaultLongCacheHeaders(&kContentTypePng, &response_headers);
   response_headers.Replace(HttpAttributes::kContentType, "image/x-bewq");
   response_headers.ComputeCaching();
-  SetFetchResponse(StrCat(kTestDomain, "bar.bewq"),
-                   response_headers, "unused payload");
-  SetResponseWithDefaultHeaders("foo.png", kContentTypePng,
-                                "unused payload", 100);
+  SetFetchResponse(StrCat(kTestDomain, "bar.bewq"), response_headers,
+                   "unused payload");
+  SetResponseWithDefaultHeaders("foo.png", kContentTypePng, "unused payload",
+                                100);
 
   const GoogleString before =
       "<head><style>"
@@ -253,11 +257,14 @@ TEST_F(CssImageCombineTest, NoCrashUnknownType) {
 TEST_F(CssImageCombineTest, SpritesImagesExternal) {
   SetupWaitFetcher();
 
-  const GoogleString beforeCss = StrCat(" "  // extra whitespace allows rewrite
-      "#div1{background-image:url(", kCuppaPngFile, ");"
+  const GoogleString beforeCss = StrCat(
+      " "  // extra whitespace allows rewrite
+      "#div1{background-image:url(",
+      kCuppaPngFile,
+      ");"
       "width:10px;height:10px}"
-      "#div2{background:transparent url(", kBikePngFile,
-                                        ");width:10px;height:10px}");
+      "#div2{background:transparent url(",
+      kBikePngFile, ");width:10px;height:10px}");
   GoogleString cssUrl(kTestDomain);
   cssUrl += "style.css";
   // At first try, not even the CSS gets loaded, so nothing gets
@@ -271,12 +278,13 @@ TEST_F(CssImageCombineTest, SpritesImagesExternal) {
   // On the second run, we get spriting.
   const GoogleString sprite =
       Encode("", "is", "0", MultiUrl(kCuppaPngFile, kBikePngFile), "png");
-  const GoogleString spriteCss = StrCat(
-      "#div1{background-image:url(", sprite, ");"
-      "width:10px;height:10px;"
-      "background-position:0 0}"
-      "#div2{background:transparent url(", sprite,
-      ");width:10px;height:10px;background-position:0 -70px}");
+  const GoogleString spriteCss =
+      StrCat("#div1{background-image:url(", sprite,
+             ");"
+             "width:10px;height:10px;"
+             "background-position:0 0}"
+             "#div2{background:transparent url(",
+             sprite, ");width:10px;height:10px;background-position:0 -70px}");
   // kNoStatCheck because ImageCombineFilter uses different stats.
   ValidateRewriteExternalCss("wip", beforeCss, spriteCss,
                              kExpectSuccess | kNoClearFetcher | kNoStatCheck);
@@ -291,7 +299,8 @@ TEST_F(CssImageCombineTest, SpritesOkAfter404) {
                        kContentTypePng, 100);
   SetFetchResponse404("404.png");
 
-  const char kHtmlTemplate[] = "<head><style>"
+  const char kHtmlTemplate[] =
+      "<head><style>"
       "#div1{background:url(%s);width:10px;height:10px}"
       "#div2{background:url(%s);width:10px;height:10px}"
       "#div3{background:url(%s);width:10px;height:10px}"
@@ -299,19 +308,15 @@ TEST_F(CssImageCombineTest, SpritesOkAfter404) {
       "#div5{background:url(%s);width:10px;height:10px}"
       "</style></head>";
 
-  GoogleString html = absl::StrFormat(kHtmlTemplate,
-                                   kBikePngFile,
-                                   kCuppaPngFile,
-                                   "404.png",
-                                   "bike2.png",
-                                   "bike3.png");
+  GoogleString html =
+      absl::StrFormat(kHtmlTemplate, kBikePngFile, kCuppaPngFile, "404.png",
+                      "bike2.png", "bike3.png");
   Parse("sprite_with_404", html);  // Parse
   EXPECT_NE(GoogleString::npos,
-            output_buffer_.find(
-                Encode("", "is", "0",
-                       MultiUrl(kBikePngFile, kCuppaPngFile,
-                                "bike2.png", "bike3.png"),
-                       "png")));
+            output_buffer_.find(Encode(
+                "", "is", "0",
+                MultiUrl(kBikePngFile, kCuppaPngFile, "bike2.png", "bike3.png"),
+                "png")));
 }
 
 TEST_F(CssImageCombineTest, SpritesMultiSite) {
@@ -322,11 +327,12 @@ TEST_F(CssImageCombineTest, SpritesMultiSite) {
   AddDomain(kAltDomain);
 
   AddFileToMockFetcher(StrCat(kAltDomain, kBikePngFile), kBikePngFile,
-                        kContentTypePng, 100);
+                       kContentTypePng, 100);
   AddFileToMockFetcher(StrCat(kAltDomain, kCuppaPngFile), kCuppaPngFile,
-                        kContentTypePng, 100);
+                       kContentTypePng, 100);
 
-  const char kHtmlTemplate[] = "<head><style>"
+  const char kHtmlTemplate[] =
+      "<head><style>"
       "#div1{background:url(%s);width:10px;height:10px%s}"
       "#div2{background:url(%s);width:10px;height:10px%s}"
       "#div3{background:url(%s);width:10px;height:10px%s}"
@@ -342,33 +348,27 @@ TEST_F(CssImageCombineTest, SpritesMultiSite) {
   GoogleString alt_sprite = Encode(
       kAltDomain, "is", "0", MultiUrl(kBikePngFile, kCuppaPngFile), "png");
 
-  GoogleString before = absl::StrFormat(kHtmlTemplate,
-                                     test_bike.c_str(), "",
-                                     alt_bike.c_str(), "",
-                                     test_cup.c_str(), "",
-                                     alt_cup.c_str(), "");
+  GoogleString before =
+      absl::StrFormat(kHtmlTemplate, test_bike.c_str(), "", alt_bike.c_str(),
+                      "", test_cup.c_str(), "", alt_cup.c_str(), "");
 
   GoogleString after = absl::StrFormat(
-      kHtmlTemplate,
-      test_sprite.c_str(), ";background-position:0 0",
-      alt_sprite.c_str(), ";background-position:0 0",
-      test_sprite.c_str(), ";background-position:0 -100px",
-      alt_sprite.c_str(), ";background-position:0 -100px");
+      kHtmlTemplate, test_sprite.c_str(), ";background-position:0 0",
+      alt_sprite.c_str(), ";background-position:0 0", test_sprite.c_str(),
+      ";background-position:0 -100px", alt_sprite.c_str(),
+      ";background-position:0 -100px");
   ValidateExpected("multi_site", before, after);
 
   // For this test, a partition should get created for the alt_bike image,
   // but it should end up getting canceled and deleted since the partition
   // will have only one image in it.
-  before = absl::StrFormat(kHtmlTemplate,
-                        alt_bike.c_str(), "",
-                        test_bike.c_str(), "",
-                        test_cup.c_str(), "",
-                        test_bike.c_str(), "");
-  after = absl::StrFormat(kHtmlTemplate,
-                       alt_bike.c_str(), "",
-                       test_sprite.c_str(), ";background-position:0 0",
-                       test_sprite.c_str(), ";background-position:0 -100px",
-                       test_sprite.c_str(), ";background-position:0 0");
+  before =
+      absl::StrFormat(kHtmlTemplate, alt_bike.c_str(), "", test_bike.c_str(),
+                      "", test_cup.c_str(), "", test_bike.c_str(), "");
+  after = absl::StrFormat(kHtmlTemplate, alt_bike.c_str(), "",
+                          test_sprite.c_str(), ";background-position:0 0",
+                          test_sprite.c_str(), ";background-position:0 -100px",
+                          test_sprite.c_str(), ";background-position:0 0");
   ValidateExpected("multi_site_one_sprite", before, after);
 }
 
@@ -377,9 +377,8 @@ TEST_F(CssImageCombineTest, SpritesMultiSite) {
 // .pagespeed.* parts) is larger than RewriteOptions::kDefaultMaxUrlSegmentSize
 // (1024).
 TEST_F(CssImageCombineTest, ServeFiles) {
-  GoogleString sprite_str =
-      Encode(kTestDomain, "is", "0",
-             MultiUrl(kCuppaPngFile, kBikePngFile), "png");
+  GoogleString sprite_str = Encode(
+      kTestDomain, "is", "0", MultiUrl(kCuppaPngFile, kBikePngFile), "png");
   GoogleString output;
   EXPECT_TRUE(FetchResourceUrl(sprite_str, &output));
   ServeResourceFromManyContexts(sprite_str, output);
@@ -393,11 +392,12 @@ TEST_F(CssImageCombineTest, CombineManyFiles) {
   const int kImagesInCombination = 47;
   GoogleString html = "<head><style>";
   for (int i = 0; i < kNumImages; ++i) {
-    GoogleString url = absl::StrFormat("%s%02d%s", kTestDomain, i, kBikePngFile);
+    GoogleString url =
+        absl::StrFormat("%s%02d%s", kTestDomain, i, kBikePngFile);
     AddFileToMockFetcher(url, kBikePngFile, kContentTypePng, 100);
-    html.append (absl::StrFormat(
-        "#div%d{background:url(%s) 0 0;width:10px;height:10px}",
-        i, url.c_str()));
+    html.append(
+        absl::StrFormat("#div%d{background:url(%s) 0 0;width:10px;height:10px}",
+                        i, url.c_str()));
   }
   html.append("</style></head>");
 
@@ -409,7 +409,7 @@ TEST_F(CssImageCombineTest, CombineManyFiles) {
     int end_index = std::min(image_index + kImagesInCombination, kNumImages);
     while (image_index < end_index) {
       // fmt::sprintf wants '%02d%s' instead of '%.02d%s'
-      combo.push_back (absl::StrFormat("%02d%s", image_index, kBikePngFile));
+      combo.push_back(absl::StrFormat("%02d%s", image_index, kBikePngFile));
       ++image_index;
     }
     // Original URL is absolute, so rewritten one is as well.
@@ -429,9 +429,9 @@ TEST_F(CssImageCombineTest, CombineManyFiles) {
       offset_str = absl::StrFormat("%dpx", offset);
     }
 
-    result.append (absl::StrFormat(
-        "#div%d{background:url(%s) 0 %s;width:10px;height:10px}",
-        image_index, combinations[combo_index].c_str(), offset_str.c_str()));
+    result.append(absl::StrFormat(
+        "#div%d{background:url(%s) 0 %s;width:10px;height:10px}", image_index,
+        combinations[combo_index].c_str(), offset_str.c_str()));
     ++image_index;
     if (image_index % kImagesInCombination == 0) {
       ++combo_index;
@@ -447,15 +447,15 @@ TEST_F(CssImageCombineTest, SpritesBrokenUp) {
   // un-spritable images in between.
   GoogleString before, after;
 
-  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                        kPuzzleJpgFile, "0", "10px", kCuppaPngFile, "0");
+  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kPuzzleJpgFile,
+                           "0", "10px", kCuppaPngFile, "0");
 
   const GoogleString sprite_string =
       Encode("", "is", "0", MultiUrl(kBikePngFile, kCuppaPngFile), "png");
   const char* sprite = sprite_string.c_str();
 
-  after = absl::StrFormat(kHtmlTemplate3Divs, sprite,
-                       kPuzzleJpgFile, "0", "10px", sprite, "-100px");
+  after = absl::StrFormat(kHtmlTemplate3Divs, sprite, kPuzzleJpgFile, "0",
+                          "10px", sprite, "-100px");
   ValidateExpected("sprite_broken_up", before, after);
 }
 
@@ -464,8 +464,8 @@ TEST_F(CssImageCombineTest, SpritesGifsWithPngs) {
   // un-spritable images in between.
   GoogleString before, after;
 
-  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                        kChefGifFile, "0", "10px", kCuppaPngFile, "0");
+  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kChefGifFile, "0",
+                           "10px", kCuppaPngFile, "0");
 
   const GoogleString sprite_string =
       Encode("", "is", "0", MultiUrl(kBikePngFile, kChefGifFile, kCuppaPngFile),
@@ -475,8 +475,8 @@ TEST_F(CssImageCombineTest, SpritesGifsWithPngs) {
   // The BikePng is 100px tall, the ChefGif is 256px tall, so we
   // expect the Chef to be offset by -100, and the CuppaPng to be
   // offset by -356.
-  after = absl::StrFormat(kHtmlTemplate3Divs, sprite,
-                       sprite, "-100px", "10px", sprite, "-356px");
+  after = absl::StrFormat(kHtmlTemplate3Divs, sprite, sprite, "-100px", "10px",
+                          sprite, "-356px");
   ValidateExpected("sprite_with_gif", before, after);
 }
 
@@ -487,20 +487,19 @@ TEST_F(CssImageCombineTest, SpriteWrongMime) {
   GoogleString wrong_cuppa = StrCat(kTestDomain, "w", kCuppaPngFile);
 
   AddFileToMockFetcher(wrong_bike, kBikePngFile, kContentTypeJpeg, 100);
-  AddFileToMockFetcher(wrong_cuppa, kCuppaPngFile,
-                       kContentTypeJpeg, 100);
+  AddFileToMockFetcher(wrong_cuppa, kCuppaPngFile, kContentTypeJpeg, 100);
 
   GoogleString rel_sprite =
       Encode("", "is", "0",
-             MultiUrl(StrCat("w", kBikePngFile),
-                      StrCat("w", kCuppaPngFile),
+             MultiUrl(StrCat("w", kBikePngFile), StrCat("w", kCuppaPngFile),
                       kCuppaPngFile),
              "png");
   GoogleString abs_sprite = StrCat(kTestDomain, rel_sprite);
 
   GoogleString before, after;
-  before = absl::StrFormat(kHtmlTemplate3Divs, wrong_bike.c_str(),
-                        wrong_cuppa.c_str(), "0", "10px", kCuppaPngFile, "0");
+  before =
+      absl::StrFormat(kHtmlTemplate3Divs, wrong_bike.c_str(),
+                      wrong_cuppa.c_str(), "0", "10px", kCuppaPngFile, "0");
 
   // The BikePng is 100px tall, the cuppa is 70px tall, so we
   // expect the cuppa to be offset by -100, and the right-path cuppa to be
@@ -508,15 +507,15 @@ TEST_F(CssImageCombineTest, SpriteWrongMime) {
   //
   // First 2 original URLs were absolute, so rewritten ones are as well.
   // Last was relative, so it is preserved as relative.
-  after = absl::StrFormat(kHtmlTemplate3Divs,
-                       abs_sprite.c_str(), abs_sprite.c_str(), "-100px", "10px",
-                       rel_sprite.c_str(), "-170px");
+  after = absl::StrFormat(kHtmlTemplate3Divs, abs_sprite.c_str(),
+                          abs_sprite.c_str(), "-100px", "10px",
+                          rel_sprite.c_str(), "-170px");
   ValidateExpected("wrong_mime", before, after);
 }
 
 class CssImageMultiFilterTest : public CssImageCombineTest {
   // Users must call CssImageCombineTest::SetUp().
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(CssImageMultiFilterTest, SpritesAndNonSprites) {
@@ -527,30 +526,30 @@ TEST_F(CssImageMultiFilterTest, SpritesAndNonSprites) {
 
   GoogleString before, after, encoded, cuppa_encoded, sprite;
   // With the same image present 3 times, there should be no sprite.
-  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                        kBikePngFile, "0", "10px", kBikePngFile, "0");
+  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, "0",
+                           "10px", kBikePngFile, "0");
   encoded = Encode("", "ce", "0", kBikePngFile, "png");
-  after = absl::StrFormat(kHtmlTemplate3Divs, encoded.c_str(),
-                       encoded.c_str(), "0", "10px", encoded.c_str(), "0");
+  after = absl::StrFormat(kHtmlTemplate3Divs, encoded.c_str(), encoded.c_str(),
+                          "0", "10px", encoded.c_str(), "0");
   ValidateExpected("no_sprite_3_bikes", before, after);
 
   // With 2 of the same and 1 different, there should be a sprite without
   // duplication.
-  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                        kBikePngFile, "0", "10px", kCuppaPngFile, "0");
-  sprite = Encode("", "is", "0",
-                  MultiUrl(kBikePngFile, kCuppaPngFile), "png").c_str();
-  after = absl::StrFormat(kHtmlTemplate3Divs, sprite.c_str(),
-                       sprite.c_str(), "0", "10px", sprite.c_str(), "-100px");
+  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, "0",
+                           "10px", kCuppaPngFile, "0");
+  sprite = Encode("", "is", "0", MultiUrl(kBikePngFile, kCuppaPngFile), "png")
+               .c_str();
+  after = absl::StrFormat(kHtmlTemplate3Divs, sprite.c_str(), sprite.c_str(),
+                          "0", "10px", sprite.c_str(), "-100px");
   ValidateExpected("sprite_2_bikes_1_cuppa", before, after);
 
   // If the second occurrence of the image is unspriteable (e.g. if the div is
   // larger than the image), we shouldn't sprite any of them.
-  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile,
-                        kBikePngFile, "0", "999px", kCuppaPngFile, "0");
+  before = absl::StrFormat(kHtmlTemplate3Divs, kBikePngFile, kBikePngFile, "0",
+                           "999px", kCuppaPngFile, "0");
   cuppa_encoded = Encode("", "ce", "0", kCuppaPngFile, "png");
   after = absl::StrFormat(kHtmlTemplate3Divs, encoded.c_str(), encoded.c_str(),
-                       "0", "999px", cuppa_encoded.c_str(), "0");
+                          "0", "999px", cuppa_encoded.c_str(), "0");
   ValidateExpected("sprite_none_dimmensions", before, after);
 }
 
@@ -560,15 +559,15 @@ TEST_F(CssImageMultiFilterTest, SpritesAndNonSprites) {
 TEST_F(CssImageCombineTest, CssDifferentBase) {
   // Set up resources.
   AddFileToMockFetcher("subdir/Cuppa.png", kCuppaPngFile, kContentTypePng, 100);
-  AddFileToMockFetcher("subdir/BikeCrashIcn.png", kBikePngFile,
-                       kContentTypePng, 100);
+  AddFileToMockFetcher("subdir/BikeCrashIcn.png", kBikePngFile, kContentTypePng,
+                       100);
   GoogleString css_before =
       ".a {background: 0 0 url(Cuppa.png) no-repeat;"
       " width:10px; height:10px}"
       ".b {background: 0 0 url(BikeCrashIcn.png) no-repeat;"
       " width:10px; height:10px}";
-  SetResponseWithDefaultHeaders("subdir/foo.css", kContentTypeCss,
-                                css_before, 100);
+  SetResponseWithDefaultHeaders("subdir/foo.css", kContentTypeCss, css_before,
+                                100);
 
   GoogleString expected_css_after =
       ".a{background:0 0"
@@ -579,13 +578,12 @@ TEST_F(CssImageCombineTest, CssDifferentBase) {
       " no-repeat;width:10px;height:10px}";
 
   GoogleString rewritten_url = Encode("subdir/", "cf", "0", "foo.css", "css");
-  ValidateExpected("diff_base",
-                   CssLinkHref("subdir/foo.css"),
+  ValidateExpected("diff_base", CssLinkHref("subdir/foo.css"),
                    CssLinkHref(rewritten_url));
 
   GoogleString actual_css_after;
-  ASSERT_TRUE(FetchResourceUrl(StrCat(kTestDomain, rewritten_url),
-                               &actual_css_after));
+  ASSERT_TRUE(
+      FetchResourceUrl(StrCat(kTestDomain, rewritten_url), &actual_css_after));
   EXPECT_EQ(expected_css_after, actual_css_after);
 }
 
@@ -596,8 +594,8 @@ TEST_F(CssImageMultiFilterTest, WithFlattening) {
   CssImageCombineTest::SetUp();
 
   AddFileToMockFetcher("dir/Cuppa.png", kCuppaPngFile, kContentTypePng, 100);
-  AddFileToMockFetcher("dir/BikeCrashIcn.png", kBikePngFile,
-                       kContentTypePng, 100);
+  AddFileToMockFetcher("dir/BikeCrashIcn.png", kBikePngFile, kContentTypePng,
+                       100);
 
   const char kLeafCss[] =
       ".a {background: 0 0 url(Cuppa.png) no-repeat;"

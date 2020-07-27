@@ -19,6 +19,8 @@
 
 #include "pagespeed/controller/named_lock_schedule_rewrite_controller.h"
 
+#include <memory>
+
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_timer.h"
@@ -41,10 +43,10 @@ class TrackCallsFunction : public Function {
   TrackCallsFunction() : run_called_(false), cancel_called_(false) {
     set_delete_after_callback(false);
   }
-  virtual ~TrackCallsFunction() { }
+  ~TrackCallsFunction() override {}
 
-  virtual void Run() { run_called_ = true; }
-  virtual void Cancel() { cancel_called_ = true; }
+  void Run() override { run_called_ = true; }
+  void Cancel() override { cancel_called_ = true; }
 
   bool run_called_;
   bool cancel_called_;
@@ -59,8 +61,8 @@ class NamedLockScheduleRewriteControllerTest : public testing::Test {
         lock_tester_(thread_system_.get()),
         lock_manager_(&timer_) {
     NamedLockScheduleRewriteController::InitStats(&stats_);
-    controller_.reset(new NamedLockScheduleRewriteController(
-        &lock_manager_, thread_system_.get(), &stats_));
+    controller_ = std::make_unique<NamedLockScheduleRewriteController>(
+        &lock_manager_, thread_system_.get(), &stats_);
   }
 
  protected:
@@ -80,11 +82,11 @@ class NamedLockScheduleRewriteControllerTest : public testing::Test {
         expected_num_released_unheld,
         TimedVariableTotal(
             NamedLockScheduleRewriteController::kLocksReleasedWhenNotHeld));
-    EXPECT_EQ(
-        expected_currently_held,
-        stats_.GetUpDownCounter(
-                  NamedLockScheduleRewriteController::kLocksCurrentlyHeld)
-            ->Get());
+    EXPECT_EQ(expected_currently_held,
+              stats_
+                  .GetUpDownCounter(
+                      NamedLockScheduleRewriteController::kLocksCurrentlyHeld)
+                  ->Get());
   }
 
   int64 TimedVariableTotal(const GoogleString& name) {

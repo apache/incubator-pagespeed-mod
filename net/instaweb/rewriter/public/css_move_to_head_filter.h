@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_MOVE_TO_HEAD_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_MOVE_TO_HEAD_FILTER_H_
 
@@ -36,15 +35,15 @@ class Variable;
 class CssMoveToHeadFilter : public CommonFilter {
  public:
   explicit CssMoveToHeadFilter(RewriteDriver* driver);
-  virtual ~CssMoveToHeadFilter();
+  ~CssMoveToHeadFilter() override;
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "CssMoveToHead"; }
+  const char* Name() const override { return "CssMoveToHead"; }
 
  private:
   // Should we move CSS into head? If not, we just move it above scripts.

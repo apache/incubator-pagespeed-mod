@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_DEFER_DISABLED_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_DEFER_DISABLED_FILTER_H_
 
@@ -39,10 +38,10 @@ class Statistics;
 class JsDeferDisabledFilter : public CommonFilter {
  public:
   explicit JsDeferDisabledFilter(RewriteDriver* driver);
-  virtual ~JsDeferDisabledFilter();
+  ~JsDeferDisabledFilter() override;
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
-  virtual const char* Name() const { return "JsDeferDisabledFilter"; }
+  void DetermineEnabled(GoogleString* disabled_reason) override;
+  const char* Name() const override { return "JsDeferDisabledFilter"; }
 
   static void InitStats(Statistics* statistics);
   static void Terminate();
@@ -54,11 +53,11 @@ class JsDeferDisabledFilter : public CommonFilter {
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:
-  virtual void EndDocument();
+  void EndDocument() override;
 
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
 
   void InsertJsDeferCode();
 

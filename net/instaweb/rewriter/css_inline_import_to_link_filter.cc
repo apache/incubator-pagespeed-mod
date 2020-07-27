@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_inline_import_to_link_filter.h"
 
 #include <algorithm>
@@ -50,8 +49,7 @@ const char kCssImportsToLinks[] = "css_imports_to_links";
 
 CssInlineImportToLinkFilter::CssInlineImportToLinkFilter(RewriteDriver* driver,
                                                          Statistics* statistics)
-    : driver_(driver),
-      counter_(statistics->GetVariable(kCssImportsToLinks)) {
+    : driver_(driver), counter_(statistics->GetVariable(kCssImportsToLinks)) {
   ResetState();
 }
 
@@ -61,23 +59,19 @@ void CssInlineImportToLinkFilter::InitStats(Statistics* statistics) {
   statistics->AddVariable(kCssImportsToLinks);
 }
 
-void CssInlineImportToLinkFilter::StartDocument() {
-  ResetState();
-}
+void CssInlineImportToLinkFilter::StartDocument() { ResetState(); }
 
-void CssInlineImportToLinkFilter::EndDocument() {
-  ResetState();
-}
+void CssInlineImportToLinkFilter::EndDocument() { ResetState(); }
 
 void CssInlineImportToLinkFilter::StartElement(HtmlElement* element) {
-  DCHECK(style_element_ == NULL);  // HTML Parser guarantees this.
-  if (style_element_ == NULL && element->keyword() == HtmlName::kStyle) {
+  DCHECK(style_element_ == nullptr);  // HTML Parser guarantees this.
+  if (style_element_ == nullptr && element->keyword() == HtmlName::kStyle) {
     // The contents are ok to rewrite iff its type is text/css or it has none.
     // See http://www.w3.org/TR/html5/semantics.html#the-style-element
     const char* type = element->AttributeValue(HtmlName::kType);
-    if (type == NULL || strcmp(type, kContentTypeCss.mime_type()) == 0) {
+    if (type == nullptr || strcmp(type, kContentTypeCss.mime_type()) == 0) {
       style_element_ = element;
-      style_characters_ = NULL;
+      style_characters_ = nullptr;
     }
   }
 }
@@ -90,22 +84,22 @@ void CssInlineImportToLinkFilter::EndElement(HtmlElement* element) {
 }
 
 void CssInlineImportToLinkFilter::Characters(HtmlCharactersNode* characters) {
-  if (style_element_ != NULL) {
-    DCHECK(style_characters_ == NULL);  // HTML Parser guarantees this.
+  if (style_element_ != nullptr) {
+    DCHECK(style_characters_ == nullptr);  // HTML Parser guarantees this.
     style_characters_ = characters;
   }
 }
 
 void CssInlineImportToLinkFilter::Flush() {
   // If we were flushed in a style element, we cannot rewrite it.
-  if (style_element_ != NULL) {
+  if (style_element_ != nullptr) {
     ResetState();
   }
 }
 
 void CssInlineImportToLinkFilter::ResetState() {
-  style_element_ = NULL;
-  style_characters_ = NULL;
+  style_element_ = nullptr;
+  style_characters_ = nullptr;
 }
 
 namespace {
@@ -115,9 +109,9 @@ bool ExtractMediaFromStyle(const HtmlElement* style_element,
                            GoogleString* media_attribute) {
   const HtmlElement::Attribute* styles_media =
       style_element->FindAttribute(HtmlName::kMedia);
-  if (styles_media!= NULL) {
+  if (styles_media != nullptr) {
     const char* decoded_value = styles_media->DecodedValueOrNull();
-    if (decoded_value == NULL) {
+    if (decoded_value == nullptr) {
       return false;
     } else {
       media_attribute->assign(decoded_value);
@@ -169,8 +163,8 @@ bool CheckConversionOfImportToLink(const Css::Import* import,
     // If the style has media then the @import may specify no media or the
     // same media; if the style has no media use the @import's, if any.
     StringVector import_media;
-    if (css_util::ConvertMediaQueriesToStringVector(
-            import->media_queries(), &import_media)) {
+    if (css_util::ConvertMediaQueriesToStringVector(import->media_queries(),
+                                                    &import_media)) {
       if (!media_attribute.empty()) {
         if (!*style_media_is_determined) {
           css_util::VectorizeMediaAttribute(media_attribute, style_media);
@@ -209,11 +203,10 @@ void CssInlineImportToLinkFilter::InlineImportToLinkStyle() {
   // * It begins with one or more valid @import statement.
   // * Each @import actually imports something (the url isn't empty).
   // * Each @import's media, if any, are the same as style's, if any.
-  if (style_characters_ != NULL &&
-      driver_->IsRewritable(style_element_) &&
-      style_element_->FindAttribute(HtmlName::kHref) == NULL &&
-      style_element_->FindAttribute(HtmlName::kRel) == NULL &&
-      style_element_->FindAttribute(HtmlName::kScoped) == NULL) {
+  if (style_characters_ != nullptr && driver_->IsRewritable(style_element_) &&
+      style_element_->FindAttribute(HtmlName::kHref) == nullptr &&
+      style_element_->FindAttribute(HtmlName::kRel) == nullptr &&
+      style_element_->FindAttribute(HtmlName::kScoped) == nullptr) {
     // Parse imports until we hit the end of them; if there's anything else
     // in the CSS we leave that in the inline style.
     Css::Parser parser(style_characters_->contents());
@@ -232,7 +225,7 @@ void CssInlineImportToLinkFilter::InlineImportToLinkStyle() {
     bool style_media_is_determined = false;
 
     // Check each import in turn, failing if any of them have a problem.
-    while (ok && (import = parser.ParseNextImport()) != NULL) {
+    while (ok && (import = parser.ParseNextImport()) != nullptr) {
       imports.push_back(import);
       // Default the media for the link to the style's media attribute;
       // CheckConversion... overrides that if the @import has its own media.

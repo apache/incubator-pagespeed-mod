@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_INSTAWEB_CONTEXT_H_
 #define PAGESPEED_APACHE_INSTAWEB_CONTEXT_H_
 
@@ -71,16 +70,14 @@ class InstawebContext {
   enum ContentDetectionState { kStart, kHtml, kNotHtml };
 
   // Takes ownership of request_headers.
-  InstawebContext(request_rec* request,
-                  RequestHeaders* request_headers,
+  InstawebContext(request_rec* request, RequestHeaders* request_headers,
                   const ContentType& content_type,
                   ApacheServerContext* server_context,
                   const GoogleString& base_url,
                   const RequestContextPtr& request_context,
                   const QueryParams& pagespeed_query_params,
                   const QueryParams& pagespeed_option_cookies,
-                  bool use_custom_options,
-                  const RewriteOptions& options);
+                  bool use_custom_options, const RewriteOptions& options);
   ~InstawebContext();
 
   void Rewrite(const char* input, int size);
@@ -88,15 +85,13 @@ class InstawebContext {
   void Finish();
 
   apr_bucket_brigade* bucket_brigade() const { return bucket_brigade_; }
-  ContentEncoding content_encoding() const { return  content_encoding_; }
+  ContentEncoding content_encoding() const { return content_encoding_; }
   ApacheServerContext* apache_server_context() { return server_context_; }
   const GoogleString& output() { return output_; }
   bool empty() const { return output_.empty(); }
   void clear() { output_.clear(); }  // TODO(jmarantz): needed?
 
-  ResponseHeaders* response_headers() {
-    return response_headers_.get();
-  }
+  ResponseHeaders* response_headers() { return response_headers_.get(); }
 
   bool sent_headers() { return sent_headers_; }
   void set_sent_headers(bool sent) { sent_headers_ = sent; }

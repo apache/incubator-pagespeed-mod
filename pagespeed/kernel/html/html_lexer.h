@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_HTML_LEXER_H_
 #define PAGESPEED_KERNEL_HTML_HTML_LEXER_H_
 
@@ -168,7 +167,7 @@ class HtmlLexer {
   // Minimal i18n analysis.  With utf-8 and gb2312 we can do this
   // context-free, and thus the method can be static.  If we add
   // more encodings we may need to turn this into a non-static method.
-  static inline bool IsI18nChar(char c) {return (((c) & 0x80) != 0); }
+  static inline bool IsI18nChar(char c) { return (((c)&0x80) != 0); }
 
   // Determines whether a character can be used in a tag name as first char ...
   static inline bool IsLegalTagFirstChar(char c);
@@ -186,53 +185,53 @@ class HtmlLexer {
   // a few more explicit states.
   enum State {
     START,
-    TAG,                   // "<"
-    TAG_CLOSE_NO_NAME,     // "</"
-    TAG_CLOSE,             // "</x"
-    TAG_CLOSE_TERMINATE,   // "</x "
-    TAG_OPEN,              // "<x"
-    TAG_BRIEF_CLOSE,       // "<x/" or "<x /" or "<x y/" etc
-    COMMENT_START1,        // "<!"
-    COMMENT_START2,        // "<!-"
-    COMMENT_BODY,          // "<!--"
-    COMMENT_END1,          // "-"
-    COMMENT_END2,          // "--"
-    CDATA_START1,          // "<!["
-    CDATA_START2,          // "<![C"
-    CDATA_START3,          // "<![CD"
-    CDATA_START4,          // "<![CDA"
-    CDATA_START5,          // "<![CDAT"
-    CDATA_START6,          // "<![CDATA"
-    CDATA_BODY,            // "<![CDATA["
-    CDATA_END1,            // "]"
-    CDATA_END2,            // "]]"
-    TAG_ATTRIBUTE,         // "<x "
-    TAG_ATTR_NAME,         // "<x y"
-    TAG_ATTR_NAME_SPACE,   // "<x y "
-    TAG_ATTR_EQ,           // "<x y="
-    TAG_ATTR_VAL,          // "<x y=x" value terminated by whitespace or >
-    TAG_ATTR_VALDQ,        // '<x y="' value terminated by double-quote
-    TAG_ATTR_VALSQ,        // "<x y='" value terminated by single-quote
-    LITERAL_TAG,           // "<style " or "<iframe ", etc.
-    SCRIPT_TAG,            // "<script "
-    DIRECTIVE,             // "<!x"
-    BOGUS_COMMENT,         // "<?foo>" or "</?foo>"
+    TAG,                  // "<"
+    TAG_CLOSE_NO_NAME,    // "</"
+    TAG_CLOSE,            // "</x"
+    TAG_CLOSE_TERMINATE,  // "</x "
+    TAG_OPEN,             // "<x"
+    TAG_BRIEF_CLOSE,      // "<x/" or "<x /" or "<x y/" etc
+    COMMENT_START1,       // "<!"
+    COMMENT_START2,       // "<!-"
+    COMMENT_BODY,         // "<!--"
+    COMMENT_END1,         // "-"
+    COMMENT_END2,         // "--"
+    CDATA_START1,         // "<!["
+    CDATA_START2,         // "<![C"
+    CDATA_START3,         // "<![CD"
+    CDATA_START4,         // "<![CDA"
+    CDATA_START5,         // "<![CDAT"
+    CDATA_START6,         // "<![CDATA"
+    CDATA_BODY,           // "<![CDATA["
+    CDATA_END1,           // "]"
+    CDATA_END2,           // "]]"
+    TAG_ATTRIBUTE,        // "<x "
+    TAG_ATTR_NAME,        // "<x y"
+    TAG_ATTR_NAME_SPACE,  // "<x y "
+    TAG_ATTR_EQ,          // "<x y="
+    TAG_ATTR_VAL,         // "<x y=x" value terminated by whitespace or >
+    TAG_ATTR_VALDQ,       // '<x y="' value terminated by double-quote
+    TAG_ATTR_VALSQ,       // "<x y='" value terminated by single-quote
+    LITERAL_TAG,          // "<style " or "<iframe ", etc.
+    SCRIPT_TAG,           // "<script "
+    DIRECTIVE,            // "<!x"
+    BOGUS_COMMENT,        // "<?foo>" or "</?foo>"
   };
 
   HtmlParse* html_parse_;
   State state_;
-  GoogleString token_;       // accumulates tag names and comments
-  GoogleString literal_;     // accumulates raw text to pass through
-  GoogleString attr_name_;   // accumulates attribute name
-  GoogleString attr_value_;  // accumulates attribute value
+  GoogleString token_;                  // accumulates tag names and comments
+  GoogleString literal_;                // accumulates raw text to pass through
+  GoogleString attr_name_;              // accumulates attribute name
+  GoogleString attr_value_;             // accumulates attribute value
   HtmlElement::QuoteStyle attr_quote_;  // quote used to delimit attribute
-  bool has_attr_value_;     // distinguishes <a n=> from <a n>
-  HtmlElement* element_;    // current element; used to collect attributes
+  bool has_attr_value_;                 // distinguishes <a n=> from <a n>
+  HtmlElement* element_;  // current element; used to collect attributes
   int line_;
-  int tag_start_line_;      // line at which we last transitioned to TAG state
+  int tag_start_line_;  // line at which we last transitioned to TAG state
   GoogleString id_;
-  GoogleString literal_close_;  // specific tag go close, e.g </script>
-  bool script_html_comment_;   // inside <script> <!--
+  GoogleString literal_close_;       // specific tag go close, e.g </script>
+  bool script_html_comment_;         // inside <script> <!--
   bool script_html_comment_script_;  // inside <script> <!-- <script>
   // in some cases we have to drop what looks like attributes on a closing
   // tag as part of error recovery.

@@ -19,6 +19,7 @@
 
 #include "pagespeed/controller/queued_expensive_operation_controller.h"
 
+#include <memory>
 #include <vector>
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -36,10 +37,10 @@ class TrackCallsFunction : public Function {
   TrackCallsFunction() : run_called_(false), cancel_called_(false) {
     set_delete_after_callback(false);
   }
-  virtual ~TrackCallsFunction() { }
+  ~TrackCallsFunction() override {}
 
-  virtual void Run() { run_called_ = true; }
-  virtual void Cancel() { cancel_called_ = true; }
+  void Run() override { run_called_ = true; }
+  void Cancel() override { cancel_called_ = true; }
 
   bool run_called_;
   bool cancel_called_;
@@ -55,8 +56,8 @@ class QueuedExpensiveOperationTest : public testing::Test {
   }
 
   void InitQueueWithSize(int size) {
-    controller_.reset(new QueuedExpensiveOperationController(
-        size, thread_system_.get(), &stats_));
+    controller_ = std::make_unique<QueuedExpensiveOperationController>(
+        size, thread_system_.get(), &stats_);
   }
 
   int64 active_operations() {

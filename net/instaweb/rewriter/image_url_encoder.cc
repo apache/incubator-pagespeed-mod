@@ -53,8 +53,7 @@ const char kSaveDataKey[] = "d";
 const char kSmallScreenKey[] = "ss";
 
 bool IsValidCode(char code) {
-  return ((code == kCodeSeparator) ||
-          (code == kCodeWebpLossy) ||
+  return ((code == kCodeSeparator) || (code == kCodeWebpLossy) ||
           (code == kCodeWebpLossyLosslessAlpha) ||
           (code == kCodeMobileUserAgent));
 }
@@ -87,14 +86,14 @@ uint32 DecodeDimension(StringPiece* in, bool* ok, bool* has_dimension) {
 
 }  // namespace
 
-ImageUrlEncoder::~ImageUrlEncoder() { }
+ImageUrlEncoder::~ImageUrlEncoder() {}
 
 void ImageUrlEncoder::Encode(const StringVector& urls,
                              const ResourceContext* data,
                              GoogleString* rewritten_url) const {
-  DCHECK(data != NULL) << "null data passed to ImageUrlEncoder::Encode";
+  DCHECK(data != nullptr) << "null data passed to ImageUrlEncoder::Encode";
   DCHECK_EQ(1U, urls.size());
-  if (data != NULL) {
+  if (data != nullptr) {
     if (HasDimension(*data)) {
       const ImageDim& dims = data->desired_image_dims();
       if (dims.has_width()) {
@@ -103,12 +102,10 @@ void ImageUrlEncoder::Encode(const StringVector& urls,
         rewritten_url->push_back(kMissingDimension);
       }
       if (dims.has_height()) {
-        StrAppend(rewritten_url,
-                  StringPiece(&kCodeSeparator, 1),
+        StrAppend(rewritten_url, StringPiece(&kCodeSeparator, 1),
                   IntegerToString(dims.height()));
       } else {
-        StrAppend(rewritten_url,
-                  StringPiece(&kCodeSeparator, 1),
+        StrAppend(rewritten_url, StringPiece(&kCodeSeparator, 1),
                   StringPiece(&kMissingDimension, 1));
       }
     }
@@ -131,7 +128,7 @@ bool DecodeImageDimensions(StringPiece* remaining, ImageDim* dims) {
   }
   bool ok, has_width, has_height;
   uint32 width = DecodeDimension(remaining, &ok, &has_width);
-  if (!ok || ((*remaining)[0] != kCodeSeparator)) {   // And check the separator
+  if (!ok || ((*remaining)[0] != kCodeSeparator)) {  // And check the separator
     return false;
   }
 
@@ -165,8 +162,7 @@ bool DecodeImageDimensions(StringPiece* remaining, ImageDim* dims) {
 // RewriteContext and/or RewriteDriver can decode any
 // ResourceNamer::name() field and find the set of URLs that are
 // referenced.
-bool ImageUrlEncoder::Decode(const StringPiece& encoded,
-                             StringVector* urls,
+bool ImageUrlEncoder::Decode(const StringPiece& encoded, StringVector* urls,
                              ResourceContext* data,
                              MessageHandler* handler) const {
   if (encoded.empty()) {
@@ -233,8 +229,7 @@ bool ImageUrlEncoder::Decode(const StringPiece& encoded,
 }
 
 void ImageUrlEncoder::SetLibWebpLevel(
-    const RewriteOptions& options,
-    const RequestProperties& request_properties,
+    const RewriteOptions& options, const RequestProperties& request_properties,
     ResourceContext* resource_context) {
   ResourceContext::LibWebpLevel libwebp_level = ResourceContext::LIBWEBP_NONE;
   // We do enabled checks before Setting the Webp Level, since it avoids writing
@@ -275,18 +270,18 @@ bool ImageUrlEncoder::IsWebpRewrittenUrl(const GoogleUrl& gurl) {
   return namer.ext() == webp_extension_with_dot.substr(1);
 }
 
-void ImageUrlEncoder::SetWebpAndMobileUserAgent(
-    const RewriteDriver& driver,
-    ResourceContext* context) {
+void ImageUrlEncoder::SetWebpAndMobileUserAgent(const RewriteDriver& driver,
+                                                ResourceContext* context) {
   const RewriteOptions* options = driver.options();
-  if (context == NULL) {
+  if (context == nullptr) {
     return;
   }
 
   if (driver.options()->serve_rewritten_webp_urls_to_any_agent() &&
       !driver.fetch_url().empty() &&
       IsWebpRewrittenUrl(driver.decoded_base_url())) {
-    // See https://developers.google.com/speed/webp/faq#which_web_browsers_natively_support_webp
+    // See
+    // https://developers.google.com/speed/webp/faq#which_web_browsers_natively_support_webp
     // which indicates that the latest versions of all browsers that support
     // webp, support webp lossless as well.
     context->set_libwebp_level(ResourceContext::LIBWEBP_LOSSY_LOSSLESS_ALPHA);
@@ -302,7 +297,7 @@ void ImageUrlEncoder::SetWebpAndMobileUserAgent(
 }
 
 void ImageUrlEncoder::SetSmallScreen(const RewriteDriver& driver,
-    ResourceContext* context) {
+                                     ResourceContext* context) {
   // We used to do checking based on screen resolution, but we actually care
   // about is physically small screens even if they're high-density.
   context->set_may_use_small_screen_quality(

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/device_properties.h"
 
 #include "base/logging.h"
@@ -48,11 +47,9 @@ DeviceProperties::DeviceProperties(UserAgentMatcher* matcher)
       supports_flush_early_(kNotSet),
       device_type_set_(kNotSet),
       device_type_(UserAgentMatcher::kDesktop),
-      has_via_header_(kNotSet) {
-}
+      has_via_header_(kNotSet) {}
 
-DeviceProperties::~DeviceProperties() {
-}
+DeviceProperties::~DeviceProperties() {}
 
 void DeviceProperties::SetUserAgent(const StringPiece& user_agent_string) {
   user_agent_string.CopyToString(&user_agent_);
@@ -74,14 +71,14 @@ void DeviceProperties::SetUserAgent(const StringPiece& user_agent_string) {
 void DeviceProperties::ParseRequestHeaders(
     const RequestHeaders& request_headers) {
   DCHECK_EQ(kNotSet, accepts_webp_) << "Double call to ParseRequestHeaders";
-  accepts_webp_ =
-      request_headers.HasValue(HttpAttributes::kAccept,
-                               kContentTypeWebp.mime_type()) ?
-      kTrue : kFalse;
-  accepts_gzip_ =
-      request_headers.HasValue(HttpAttributes::kAcceptEncoding,
-                               HttpAttributes::kGzip) ?
-      kTrue : kFalse;
+  accepts_webp_ = request_headers.HasValue(HttpAttributes::kAccept,
+                                           kContentTypeWebp.mime_type())
+                      ? kTrue
+                      : kFalse;
+  accepts_gzip_ = request_headers.HasValue(HttpAttributes::kAcceptEncoding,
+                                           HttpAttributes::kGzip)
+                      ? kTrue
+                      : kFalse;
 
   const char* save_data_header =
       request_headers.Lookup1(HttpAttributes::kSaveData);
@@ -91,9 +88,7 @@ void DeviceProperties::ParseRequestHeaders(
     requests_save_data_ = kFalse;
   }
 
-  has_via_header_ =
-      request_headers.Has(HttpAttributes::kVia) ?
-      kTrue : kFalse;
+  has_via_header_ = request_headers.Has(HttpAttributes::kVia) ? kTrue : kFalse;
 }
 
 bool DeviceProperties::AcceptsGzip() const {
@@ -115,8 +110,8 @@ bool DeviceProperties::SupportsImageInlining() const {
 bool DeviceProperties::SupportsLazyloadImages() const {
   if (supports_lazyload_images_ == kNotSet) {
     supports_lazyload_images_ =
-        (!IsBot() && ua_matcher_->SupportsLazyloadImages(user_agent_)) ?
-        kTrue : kFalse;
+        (!IsBot() && ua_matcher_->SupportsLazyloadImages(user_agent_)) ? kTrue
+                                                                       : kFalse;
   }
   return (supports_lazyload_images_ == kTrue);
 }
@@ -147,9 +142,9 @@ bool DeviceProperties::SupportsCriticalImagesBeacon() const {
 // value for allow_mobile.
 bool DeviceProperties::SupportsJsDefer(bool allow_mobile) const {
   if (supports_js_defer_ == kNotSet) {
-    supports_js_defer_ =
-        ua_matcher_->SupportsJsDefer(user_agent_, allow_mobile) ?
-        kTrue : kFalse;
+    supports_js_defer_ = ua_matcher_->SupportsJsDefer(user_agent_, allow_mobile)
+                             ? kTrue
+                             : kFalse;
   }
   return (supports_js_defer_ == kTrue);
 }

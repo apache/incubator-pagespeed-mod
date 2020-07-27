@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_COLLAPSE_WHITESPACE_FILTER_H_
 #define PAGESPEED_KERNEL_HTML_COLLAPSE_WHITESPACE_FILTER_H_
 
@@ -44,13 +43,13 @@ class HtmlCharactersNode;
 class CollapseWhitespaceFilter : public EmptyHtmlFilter {
  public:
   explicit CollapseWhitespaceFilter(HtmlParse* html_parse);
-  virtual ~CollapseWhitespaceFilter();
+  ~CollapseWhitespaceFilter() override;
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual const char* Name() const { return "CollapseWhitespace"; }
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  const char* Name() const override { return "CollapseWhitespace"; }
 
  private:
   HtmlParse* html_parse_;

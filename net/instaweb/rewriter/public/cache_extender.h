@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CACHE_EXTENDER_H_
 
@@ -54,16 +53,16 @@ class CacheExtender : public RewriteFilter {
   static const char kNotCacheable[];
 
   explicit CacheExtender(RewriteDriver* driver);
-  virtual ~CacheExtender();
+  ~CacheExtender() override;
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocumentImpl() {}
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element) {}
+  void StartDocumentImpl() override {}
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override {}
 
-  virtual const char* Name() const { return "CacheExtender"; }
-  virtual const char* id() const { return RewriteOptions::kCacheExtenderId; }
+  const char* Name() const override { return "CacheExtender"; }
+  const char* id() const override { return RewriteOptions::kCacheExtenderId; }
 
   // Creates a nested rewrite for given parent and slot, and returns it.
   // The result is not registered with the parent.
@@ -71,8 +70,8 @@ class CacheExtender : public RewriteFilter {
                                     const ResourceSlotPtr& slot);
 
  protected:
-  virtual bool ComputeOnTheFly() const;
-  virtual RewriteContext* MakeRewriteContext();
+  bool ComputeOnTheFly() const override;
+  RewriteContext* MakeRewriteContext() override;
 
  private:
   class Context;
@@ -82,10 +81,10 @@ class CacheExtender : public RewriteFilter {
                                       const OutputResourcePtr& output_resource,
                                       CachedResult* result);
 
-  bool ShouldRewriteResource(
-      const ResponseHeaders* headers, int64 now_ms,
-      const ResourcePtr& input_resource, const StringPiece& url,
-      CachedResult* result) const;
+  bool ShouldRewriteResource(const ResponseHeaders* headers, int64 now_ms,
+                             const ResourcePtr& input_resource,
+                             const StringPiece& url,
+                             CachedResult* result) const;
 
   Variable* extension_count_;
   Variable* not_cacheable_count_;

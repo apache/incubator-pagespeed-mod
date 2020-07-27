@@ -67,7 +67,6 @@ class Signature {
   DISALLOW_COPY_AND_ASSIGN(Signature);
 };
 
-} // namespace net_instaweb
-
+}  // namespace net_instaweb
 
 #endif  // PAGESPEED_KERNEL_BASE_SIGNATURE_H_

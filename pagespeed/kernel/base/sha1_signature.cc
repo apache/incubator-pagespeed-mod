@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/sha1_signature.h"
 
 #include <algorithm>
@@ -48,8 +47,8 @@ SHA1Signature::SHA1Signature(int signature_size)
 SHA1Signature::~SHA1Signature() {}
 
 GoogleString SHA1Signature::RawSign(StringPiece key, StringPiece data) const {
-unsigned char hmac[EVP_MAX_MD_SIZE];
-unsigned int signature_length;
+  unsigned char hmac[EVP_MAX_MD_SIZE];
+  unsigned int signature_length;
 
 #if ENABLE_URL_SIGNATURES
   unsigned char* md = HMAC(EVP_sha1(), key.data(), key.size(),
@@ -66,15 +65,12 @@ unsigned int signature_length;
   return signature;
 }
 
-int SHA1Signature::RawSignatureSizeInBytes() const {
-  return kSHA1NumBytes;
-}
+int SHA1Signature::RawSignatureSizeInBytes() const { return kSHA1NumBytes; }
 
 int SHA1Signature::SignatureSizeInChars() const {
   int max_length = ComputeSizeFromNumberOfBytes(RawSignatureSizeInBytes());
   return std::min(max_length, max_chars_);
 }
-
 
 int SHA1Signature::ComputeSizeFromNumberOfBytes(int num_bytes) {
   return CeilDivide(num_bytes * 4, 3);

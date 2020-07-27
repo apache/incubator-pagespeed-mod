@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/named_lock_manager.h"
 
 namespace net_instaweb {
 
-NamedLock::~NamedLock() { }
+NamedLock::~NamedLock() {}
 
-NamedLockManager::~NamedLockManager() { }
+NamedLockManager::~NamedLockManager() {}
 
 }  // namespace net_instaweb

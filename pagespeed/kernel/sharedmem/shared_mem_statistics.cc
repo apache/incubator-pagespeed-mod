@@ -17,13 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/sharedmem/shared_mem_statistics.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <memory>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -60,15 +60,13 @@ const char kTimestampVariable[] = "timestamp_";
 
 // Our shared memory storage format is an array of (mutex, int64).
 SharedMemVariable::SharedMemVariable(StringPiece name, Statistics* stats)
-    : name_(name.as_string()),
-      value_ptr_(NULL) {
-}
+    : name_(name.as_string()), value_ptr_(nullptr) {}
 
 SharedMemStatistics::Var* SharedMemStatistics::NewVariable(StringPiece name) {
   if (frozen_) {
     LOG(ERROR) << "Cannot add variable " << name
                << " after SharedMemStatistics is frozen!";
-    return NULL;
+    return nullptr;
   }
   return new Var(name, this);
 }
@@ -78,24 +76,21 @@ SharedMemStatistics::UpDown* SharedMemStatistics::NewUpDownCounter(
   if (frozen_) {
     LOG(ERROR) << "Cannot add up/down counter " << name
                << " after SharedMemStatistics is frozen!";
-    return NULL;
+    return nullptr;
   }
   return new UpDown(name, this);
 }
 
-SharedMemStatistics::Hist* SharedMemStatistics::NewHistogram(
-    StringPiece name) {
+SharedMemStatistics::Hist* SharedMemStatistics::NewHistogram(StringPiece name) {
   if (frozen_) {
     LOG(ERROR) << "Cannot add histogram " << name
                << " after SharedMemStatistics is frozen!";
-    return NULL;
+    return nullptr;
   }
   return new Hist(name, this);
 }
 
-int64 SharedMemVariable::GetLockHeld() const {
-  return *value_ptr_;
-}
+int64 SharedMemVariable::GetLockHeld() const { return *value_ptr_; }
 
 int64 SharedMemVariable::SetReturningPreviousValueLockHeld(int64 new_value) {
   int64 previous_value = *value_ptr_;
@@ -103,38 +98,32 @@ int64 SharedMemVariable::SetReturningPreviousValueLockHeld(int64 new_value) {
   return previous_value;
 }
 
-void SharedMemVariable::AttachTo(
-    AbstractSharedMemSegment* segment, size_t offset,
-    MessageHandler* message_handler) {
+void SharedMemVariable::AttachTo(AbstractSharedMemSegment* segment,
+                                 size_t offset,
+                                 MessageHandler* message_handler) {
   mutex_.reset(segment->AttachToSharedMutex(offset));
-  if (mutex_.get() == NULL) {
+  if (mutex_.get() == nullptr) {
     message_handler->Message(
         kError, "Unable to attach to mutex for statistics variable %s",
         name_.c_str());
   }
 
-  value_ptr_ = reinterpret_cast<volatile int64*>(
-      segment->Base() + offset + segment->SharedMutexSize());
+  value_ptr_ = reinterpret_cast<volatile int64*>(segment->Base() + offset +
+                                                 segment->SharedMutexSize());
 }
 
-void SharedMemVariable::Reset() {
-  mutex_.reset();
-}
+void SharedMemVariable::Reset() { mutex_.reset(); }
 
-AbstractMutex* SharedMemVariable::mutex() const {
-  return mutex_.get();
-}
+AbstractMutex* SharedMemVariable::mutex() const { return mutex_.get(); }
 
 SharedMemHistogram::SharedMemHistogram(StringPiece name, Statistics* stats)
     : num_buckets_(kDefaultNumBuckets + kOutOfBoundsCatcherBuckets),
-      buffer_(NULL) {
-}
+      buffer_(nullptr) {}
 
-SharedMemHistogram::~SharedMemHistogram() {
-}
+SharedMemHistogram::~SharedMemHistogram() {}
 
 void SharedMemHistogram::Init() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return;
   }
 
@@ -149,27 +138,27 @@ void SharedMemHistogram::DCheckRanges() const {
   DCHECK_LT(buffer_->min_value_, buffer_->max_value_);
 }
 
-void SharedMemHistogram::AttachTo(
-    AbstractSharedMemSegment* segment, size_t offset,
-    MessageHandler* message_handler) {
+void SharedMemHistogram::AttachTo(AbstractSharedMemSegment* segment,
+                                  size_t offset,
+                                  MessageHandler* message_handler) {
   mutex_.reset(segment->AttachToSharedMutex(offset));
-  if (mutex_.get() == NULL) {
+  if (mutex_.get() == nullptr) {
     message_handler->Message(
         kError, "Unable to attach to mutex for statistics histogram");
     Reset();
     return;
   }
-  buffer_ = reinterpret_cast<HistogramBody*>(const_cast<char*>(
-      segment->Base() + offset + segment->SharedMutexSize()));
+  buffer_ = reinterpret_cast<HistogramBody*>(
+      const_cast<char*>(segment->Base() + offset + segment->SharedMutexSize()));
 }
 
 void SharedMemHistogram::Reset() {
-  mutex_.reset(new NullMutex);
-  buffer_ = NULL;
+  mutex_ = std::make_unique<NullMutex>();
+  buffer_ = nullptr;
 }
 
 int SharedMemHistogram::FindBucket(double value) {
-  DCHECK(buffer_ != NULL);
+  DCHECK(buffer_ != nullptr);
   // We add +1 in most of these case here to skip the leftmost catcher bucket.
   // (The one exception is when using index_zero, which already included the
   //  offset).
@@ -190,7 +179,7 @@ int SharedMemHistogram::FindBucket(double value) {
 }
 
 void SharedMemHistogram::Add(double value) {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return;
   }
   ScopedMutex hold_lock(mutex_.get());
@@ -238,7 +227,7 @@ void SharedMemHistogram::Add(double value) {
 }
 
 void SharedMemHistogram::Clear() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return;
   }
 
@@ -258,16 +247,14 @@ void SharedMemHistogram::ClearInternal() {
   }
 }
 
-int SharedMemHistogram::NumBuckets() {
-  return num_buckets_;
-}
+int SharedMemHistogram::NumBuckets() { return num_buckets_; }
 
 void SharedMemHistogram::EnableNegativeBuckets() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return;
   }
   DCHECK_EQ(0, buffer_->min_value_) << "Cannot call EnableNegativeBuckets and"
-                                        "SetMinValue on the same histogram.";
+                                       "SetMinValue on the same histogram.";
 
   ScopedMutex hold_lock(mutex_.get());
   if (!buffer_->enable_negative_) {
@@ -277,13 +264,15 @@ void SharedMemHistogram::EnableNegativeBuckets() {
 }
 
 void SharedMemHistogram::SetMinValue(double value) {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return;
   }
-  DCHECK_EQ(false, buffer_->enable_negative_) << "Cannot call"
-      "EnableNegativeBuckets and SetMinValue on the same histogram.";
-  DCHECK_LT(value, buffer_->max_value_) << "Lower-bound of a histogram "
-      "should be smaller than its upper-bound.";
+  DCHECK_EQ(false, buffer_->enable_negative_)
+      << "Cannot call"
+         "EnableNegativeBuckets and SetMinValue on the same histogram.";
+  DCHECK_LT(value, buffer_->max_value_)
+      << "Lower-bound of a histogram "
+         "should be smaller than its upper-bound.";
 
   ScopedMutex hold_lock(mutex_.get());
   if (buffer_->min_value_ != value) {
@@ -293,12 +282,12 @@ void SharedMemHistogram::SetMinValue(double value) {
 }
 
 void SharedMemHistogram::SetMaxValue(double value) {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return;
   }
   DCHECK_LT(0, value) << "Upper-bound of a histogram should be larger than 0.";
   DCHECK_LT(buffer_->min_value_, value) << "Upper-bound of a histogram should "
-      "be larger than its lower-bound.";
+                                           "be larger than its lower-bound.";
   ScopedMutex hold_lock(mutex_.get());
   if (buffer_->max_value_ != value) {
     buffer_->max_value_ = value;
@@ -312,7 +301,7 @@ void SharedMemHistogram::SetSuggestedNumBuckets(int i) {
 }
 
 double SharedMemHistogram::AverageInternal() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
   if (buffer_->count_ == 0) {
@@ -325,7 +314,7 @@ double SharedMemHistogram::AverageInternal() {
 // e.g. Percentile(50) is the median. Percentile(99) is the value larger than
 // 99% of the data.
 double SharedMemHistogram::PercentileInternal(const double perc) {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
   if (buffer_->count_ == 0 || perc < 0) {
@@ -344,7 +333,7 @@ double SharedMemHistogram::PercentileInternal(const double perc) {
       if (count == count_below) {
         // The first number in (i+1)th bucket is the number we want. Its
         // estimated value is the lower-bound of (i+1)th bucket.
-        return BucketStart(i+1);
+        return BucketStart(i + 1);
       }
     } else {
       break;
@@ -360,14 +349,14 @@ double SharedMemHistogram::PercentileInternal(const double perc) {
 }
 
 double SharedMemHistogram::StandardDeviationInternal() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
   if (buffer_->count_ == 0) {
     return 0.0;
   }
   const double v = (buffer_->sum_of_squares_ * buffer_->count_ -
-                   buffer_->sum_ * buffer_->sum_) /
+                    buffer_->sum_ * buffer_->sum_) /
                    (buffer_->count_ * buffer_->count_);
   if (v < buffer_->sum_of_squares_ * std::numeric_limits<double>::epsilon()) {
     return 0.0;
@@ -376,32 +365,32 @@ double SharedMemHistogram::StandardDeviationInternal() {
 }
 
 double SharedMemHistogram::CountInternal() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
   return buffer_->count_;
 }
 
 double SharedMemHistogram::MaximumInternal() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
   return buffer_->max_;
 }
 
 double SharedMemHistogram::MinimumInternal() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
   return buffer_->min_;
 }
 
 double SharedMemHistogram::BucketStart(int index) {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
-  DCHECK(index >= 0 && index <= num_buckets_) <<
-      "Queried index is out of boundary.";
+  DCHECK(index >= 0 && index <= num_buckets_)
+      << "Queried index is out of boundary.";
   if (index == num_buckets_) {
     // BucketLimit(i) = BucketStart(i+1).
     // Bucket index goes from 0 to num_buckets -1.
@@ -425,7 +414,7 @@ double SharedMemHistogram::BucketStart(int index) {
 }
 
 double SharedMemHistogram::BucketCount(int index) {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
 
@@ -436,7 +425,7 @@ double SharedMemHistogram::BucketCount(int index) {
 }
 
 double SharedMemHistogram::BucketWidth() {
-  if (buffer_ == NULL) {
+  if (buffer_ == nullptr) {
     return -1.0;
   }
   double max = buffer_->max_value_;
@@ -457,25 +446,26 @@ SharedMemStatistics::SharedMemStatistics(
     const StringPiece& logging_file, bool logging,
     const GoogleString& filename_prefix, AbstractSharedMem* shm_runtime,
     MessageHandler* message_handler, FileSystem* file_system, Timer* timer)
-    : shm_runtime_(shm_runtime), filename_prefix_(filename_prefix),
+    : shm_runtime_(shm_runtime),
+      filename_prefix_(filename_prefix),
       frozen_(false) {
   if (logging) {
     if (logging_file.size() > 0) {
       SharedMemVariable* timestamp_impl =
           AddVariable(kTimestampVariable)->impl();
-      console_logger_.reset(new StatisticsLogger(
+      console_logger_ = std::make_unique<StatisticsLogger>(
           logging_interval_ms, max_logfile_size_kb, logging_file,
-          timestamp_impl, message_handler, this, file_system, timer));
+          timestamp_impl, message_handler, this, file_system, timer);
     } else {
-      message_handler->Message(kError,
+      message_handler->Message(
+          kError,
           "Error: ModPagespeedStatisticsLoggingFile is required if "
           "ModPagespeedStatisticsLogging is enabled.");
     }
   }
 }
 
-SharedMemStatistics::~SharedMemStatistics() {
-}
+SharedMemStatistics::~SharedMemStatistics() {}
 
 bool SharedMemStatistics::InitMutexes(size_t per_var,
                                       MessageHandler* message_handler) {
@@ -512,8 +502,7 @@ bool SharedMemStatistics::InitMutexes(size_t per_var,
   return true;
 }
 
-bool SharedMemStatistics::Init(bool parent,
-                               MessageHandler* message_handler) {
+bool SharedMemStatistics::Init(bool parent, MessageHandler* message_handler) {
   frozen_ = true;
 
   // Compute size of shared memory
@@ -528,7 +517,7 @@ bool SharedMemStatistics::Init(bool parent,
     // In root process -> initialize shared memory.
     segment_.reset(
         shm_runtime_->CreateSegment(SegmentName(), total, message_handler));
-    ok = (segment_.get() != NULL);
+    ok = (segment_.get() != nullptr);
 
     // Init the locks
     if (ok) {
@@ -537,7 +526,7 @@ bool SharedMemStatistics::Init(bool parent,
         // we can't predict what would happen if the child process tried
         // to touch messed up mutexes. Accordingly, we blow away the
         // segment.
-        segment_.reset(NULL);
+        segment_.reset(nullptr);
         shm_runtime_->DestroySegment(SegmentName(), message_handler);
       }
     }
@@ -545,13 +534,13 @@ bool SharedMemStatistics::Init(bool parent,
     // Child -> attach to existing segment
     segment_.reset(
         shm_runtime_->AttachToSegment(SegmentName(), total, message_handler));
-    ok = (segment_.get() != NULL);
+    ok = (segment_.get() != nullptr);
   }
 
   if (!ok) {
-    message_handler->Message(
-        kWarning, "Problem during shared memory setup; "
-                  "statistics functionality unavailable.");
+    message_handler->Message(kWarning,
+                             "Problem during shared memory setup; "
+                             "statistics functionality unavailable.");
   }
 
   // Now make the variable objects actually point to the right things.
@@ -590,7 +579,7 @@ bool SharedMemStatistics::Init(bool parent,
     i++;
   }
 
-  if (console_logger_.get() != NULL) {
+  if (console_logger_.get() != nullptr) {
     console_logger_->Init();
   }
 
@@ -598,7 +587,7 @@ bool SharedMemStatistics::Init(bool parent,
 }
 
 void SharedMemStatistics::GlobalCleanup(MessageHandler* message_handler) {
-  if (segment_.get() != NULL) {
+  if (segment_.get() != nullptr) {
     shm_runtime_->DestroySegment(SegmentName(), message_handler);
   }
 }

@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/usage_data_reporter.h"
 
 namespace net_instaweb {
 
-UsageDataReporter::~UsageDataReporter() {
-}
+UsageDataReporter::~UsageDataReporter() {}
 
 }  // namespace net_instaweb

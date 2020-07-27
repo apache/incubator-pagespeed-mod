@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_SYSTEM_CACHES_H_
 #define PAGESPEED_SYSTEM_SYSTEM_CACHES_H_
 
@@ -83,8 +82,7 @@ class SystemCaches {
 
   // thread_limit is an estimate of number of threads that may access the
   // cache at the same time. Does not take ownership of shm_runtime.
-  SystemCaches(RewriteDriverFactory* factory,
-               AbstractSharedMem* shm_runtime,
+  SystemCaches(RewriteDriverFactory* factory, AbstractSharedMem* shm_runtime,
                int thread_limit);
 
   // Note that you must call ShutDown() before this is deleted.
@@ -115,8 +113,8 @@ class SystemCaches {
   //
   // Returns whether successful or not, and if not, *error_msg will contain
   // an error message.  Meant to be called from config parsing.
-  bool CreateShmMetadataCache(
-      StringPiece name, int64 size_kb, GoogleString* error_msg);
+  bool CreateShmMetadataCache(StringPiece name, int64 size_kb,
+                              GoogleString* error_msg);
 
   // Returns, perhaps creating it, an appropriate named manager for this config
   // (potentially sharing with others as appropriate).

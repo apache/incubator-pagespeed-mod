@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_COMMON_FILTER_H_
 
@@ -52,7 +51,7 @@ class CommonFilter : public EmptyHtmlFilter {
   static const char kCreateResourceFailedDebugMsg[];
 
   explicit CommonFilter(RewriteDriver* driver);
-  virtual ~CommonFilter();
+  ~CommonFilter() override;
 
   // Getters
 
@@ -82,14 +81,14 @@ class CommonFilter : public EmptyHtmlFilter {
   void InsertNodeAtBodyEnd(HtmlNode* data);
 
   // Note: Don't overload these methods, overload the implementers instead!
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
 
   // If a subclass overloads this function and wishes to use
   // InsertNodeAtBodyEnd(), it needs to make an upcall to this implementation
   // for InsertNodeAtBodyEnd() to work correctly.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
   // Creates an input resource with the url evaluated based on input_url
   // which may need to be absolutified relative to base_url(). Returns NULL
@@ -163,7 +162,9 @@ class CommonFilter : public EmptyHtmlFilter {
   // directive to be optimized. Filters that end up inlining content onto the
   // HTML are almost the only ones that can safely do this.
   virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const { return RewriteDriver::kInlineOnlyAuthorizedResources; }
+      const {
+    return RewriteDriver::kInlineOnlyAuthorizedResources;
+  }
 
   // Returns true if the filter intends to inline the resource it fetches.  This
   // is to support AllowWhenInlining.  Unlike AllowUnauthorizedDomain() this

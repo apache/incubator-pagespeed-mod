@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/dom_stats_filter.h"
 
 #include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
@@ -25,16 +24,16 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_parse_test_base.h"
-#include "gtest/gtest.h"
 
 namespace net_instaweb {
 
 class DomStatsFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->EnableFilter(RewriteOptions::kComputeStatistics);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();
@@ -80,8 +79,7 @@ TEST_F(DomStatsFilterTest, NumScriptsTest) {
 TEST_F(DomStatsFilterTest, CriticalImagesUsedTest) {
   const GoogleString input_html =
       "<html><body><img src='a'><img src='a'><img src='b'></body></html>";
-  MockCriticalImagesFinder* finder =
-      new MockCriticalImagesFinder(statistics());
+  MockCriticalImagesFinder* finder = new MockCriticalImagesFinder(statistics());
   server_context()->set_critical_images_finder(finder);
   StringSet* critical_images = new StringSet;
   critical_images->insert(StrCat(kTestDomain, "a"));

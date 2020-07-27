@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_NULL_RW_LOCK_H_
 #define PAGESPEED_KERNEL_BASE_NULL_RW_LOCK_H_
 
@@ -31,14 +30,14 @@ namespace net_instaweb {
 class LOCKABLE NullRWLock : public ThreadSystem::RWLock {
  public:
   NullRWLock() {}
-  virtual ~NullRWLock();
-  virtual bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true);
-  virtual void Lock() EXCLUSIVE_LOCK_FUNCTION();
-  virtual void Unlock() UNLOCK_FUNCTION();
-  virtual bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true);
-  virtual void ReaderLock() SHARED_LOCK_FUNCTION();
-  virtual void ReaderUnlock() UNLOCK_FUNCTION();
-  virtual void DCheckReaderLocked();
+  ~NullRWLock() override;
+  bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) override;
+  void Lock() EXCLUSIVE_LOCK_FUNCTION() override;
+  void Unlock() UNLOCK_FUNCTION() override;
+  bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true) override;
+  void ReaderLock() SHARED_LOCK_FUNCTION() override;
+  void ReaderUnlock() UNLOCK_FUNCTION() override;
+  void DCheckReaderLocked() override;
 };
 
 }  // namespace net_instaweb

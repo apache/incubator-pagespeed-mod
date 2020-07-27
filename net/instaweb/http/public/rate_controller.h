@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_RATE_CONTROLLER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_RATE_CONTROLLER_H_
 
@@ -62,8 +61,7 @@ class RateController {
   RateController(int max_global_queue_size,
                  int per_host_outgoing_request_threshold,
                  int per_host_queued_request_threshold,
-                 ThreadSystem* thread_system,
-                 Statistics* statistics);
+                 ThreadSystem* thread_system, Statistics* statistics);
 
   virtual ~RateController();
 
@@ -73,10 +71,8 @@ class RateController {
 
   // Applies our shaping policies, and either (eventually) asks fetcher to
   // fetch the given URL or drops it.
-  void Fetch(UrlAsyncFetcher* fetcher,
-             const GoogleString& url,
-             MessageHandler* message_handler,
-             AsyncFetch* fetch);
+  void Fetch(UrlAsyncFetcher* fetcher, const GoogleString& url,
+             MessageHandler* message_handler, AsyncFetch* fetch);
 
   // Initializes statistics variables associated with this class.
   static void InitStats(Statistics* statistics);

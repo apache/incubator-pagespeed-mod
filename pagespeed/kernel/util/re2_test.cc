@@ -17,15 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/re2.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 
-class Re2Test : public testing::Test {
-};
+class Re2Test : public testing::Test {};
 
 TEST_F(Re2Test, FullMatch) {
   EXPECT_FALSE(RE2::FullMatch("helo", "h.*oo"));

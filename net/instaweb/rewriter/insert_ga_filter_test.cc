@@ -152,7 +152,7 @@ constexpr char kAsyncGAPart2[] =
 constexpr char kAsyncGAPart3[] = "</script>";
 
 constexpr char kAnalyticsJS[] =
-   "%s"
+    "%s"
     "<script>"
     "(function(i,s,o,g,r,a,m){"
     "  i['GoogleAnalyticsObject']=r;"
@@ -168,7 +168,7 @@ constexpr char kAnalyticsJS[] =
     "</script>";
 
 constexpr char kAnalyticsJSNoCreate[] =
-   "%s"
+    "%s"
     "<script>"
     "(function(i,s,o,g,r,a,m){"
     "  i['GoogleAnalyticsObject']=r;"
@@ -184,7 +184,7 @@ constexpr char kAnalyticsJSNoCreate[] =
     "</script>";
 
 constexpr char kAnalyticsJSInvalid[] =
-   "%s"
+    "%s"
     "<script>"
     "(functioni,s,o,g,r,a,m){"
     "  i['GoogleAnalyticsObject']=r;"
@@ -200,45 +200,41 @@ constexpr char kAnalyticsJSInvalid[] =
     "</script>";
 
 constexpr char* const kSendPageviews[] = {
-  "ga('send', 'pageview');",
-  "ga(\"send\", \"pageview\");",
-  "ga   (   'send'    ,        'pageview'    )    ;",
-  "ga(\n'send',\n'pageview'\n);",
-  "ga('MyTracker.send','pageview', 'foo', 'bar');" };
+    "ga('send', 'pageview');", "ga(\"send\", \"pageview\");",
+    "ga   (   'send'    ,        'pageview'    )    ;",
+    "ga(\n'send',\n'pageview'\n);",
+    "ga('MyTracker.send','pageview', 'foo', 'bar');"};
 
 constexpr char* const kNotSendPageviews[] = {
-  "ga('sendpageview');",
-  "ga('send''pageview');",
-  "ga('send' 'pageview');",
-  "a('send', 'pageview');",
-  "ga('send', 'pageview'[1]);",
-  "ga('send', 'event', 'link', 'click');" };
+    "ga('sendpageview');",        "ga('send''pageview');",
+    "ga('send' 'pageview');",     "a('send', 'pageview');",
+    "ga('send', 'pageview'[1]);", "ga('send', 'event', 'link', 'click');"};
 
 constexpr char* const kNoFieldObjectGaCreates[] = {
-  "ga('create', '%s', 'auto'%s);",
-  "ga(\"create\", \"%s\", \"auto\"%s);",
-  "ga('create','%s','auto'%s);",
-  "ga    (    'create'    ,    '%s'    ,    'auto'     %s);",
-  "ga(\n'create'\n,\n'%s'\n,\n'auto'\n%s);",
-  "ga('create', '%s'%s);",
-  "ga('create','%s','example.com', 'myTracker'%s);" };
+    "ga('create', '%s', 'auto'%s);",
+    "ga(\"create\", \"%s\", \"auto\"%s);",
+    "ga('create','%s','auto'%s);",
+    "ga    (    'create'    ,    '%s'    ,    'auto'     %s);",
+    "ga(\n'create'\n,\n'%s'\n,\n'auto'\n%s);",
+    "ga('create', '%s'%s);",
+    "ga('create','%s','example.com', 'myTracker'%s);"};
 
 constexpr char* const kYesFieldObjectGaCreates[] = {
-  "ga('create', '%s', {%stransport: 'beacon'});",
-  "ga('create', '%s', {%stransport: \"beacon\"});",
-  "ga('create', '%s', {%stransport: 'beacon', cookieDomain: 'auto'});",
-  "ga('create','%s',{%stransport:'beacon'});",
-  "ga( 'create' , '%s' , {   %stransport   : 'beacon'  }  );",
-  "ga('create', {%2$strackingId: '%1$s'});",
-  "ga('create', '%s', 'auto', 'foo', {%stransport: 'beacon'});"};
+    "ga('create', '%s', {%stransport: 'beacon'});",
+    "ga('create', '%s', {%stransport: \"beacon\"});",
+    "ga('create', '%s', {%stransport: 'beacon', cookieDomain: 'auto'});",
+    "ga('create','%s',{%stransport:'beacon'});",
+    "ga( 'create' , '%s' , {   %stransport   : 'beacon'  }  );",
+    "ga('create', {%2$strackingId: '%1$s'});",
+    "ga('create', '%s', 'auto', 'foo', {%stransport: 'beacon'});"};
 
 constexpr char* const kGaNoCreates[] = {
-  "ga('create \"%s\" auto');",
-  "ga('create, \"%s\", auto');",
-  "ga[0]('create', '%s', 'auto');",
-  "ga('create', ('%s', 'auto'));",
-  "ga('create'('%s', 'auto'));",
-  "ga('create, \"%s\", auto, {transport: \\'beacon\\'}');"};
+    "ga('create \"%s\" auto');",
+    "ga('create, \"%s\", auto');",
+    "ga[0]('create', '%s', 'auto');",
+    "ga('create', ('%s', 'auto'));",
+    "ga('create'('%s', 'auto'));",
+    "ga('create, \"%s\", auto, {transport: \\'beacon\\'}');"};
 
 // We don't handle:
 //
@@ -257,7 +253,7 @@ constexpr char* const kGaNoCreates[] = {
 // Test fixture for InsertGAFilter unit tests.
 class InsertGAFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->set_ga_id(kGaId);
     options()->EnableFilter(RewriteOptions::kInsertGA);
     RewriteTestBase::SetUp();
@@ -269,8 +265,8 @@ class InsertGAFilterTest : public RewriteTestBase {
     RewriteOptions* options = rewrite_driver()->options()->Clone();
     options->set_use_analytics_js(use_analytics_js);
     options->set_running_experiment(true);
-    ASSERT_TRUE(options->AddExperimentSpec("id=2;percent=10;slot=4;",
-                                           &handler));
+    ASSERT_TRUE(
+        options->AddExperimentSpec("id=2;percent=10;slot=4;", &handler));
     ASSERT_TRUE(options->AddExperimentSpec(
         "id=7;percent=10;level=CoreFilters;slot=4;", &handler));
     options->SetExperimentState(2);
@@ -293,14 +289,17 @@ class InsertGAFilterTest : public RewriteTestBase {
     RewriteOptions* options = rewrite_driver()->options()->Clone();
     options->set_use_analytics_js(use_analytics_js);
     options->set_running_experiment(true);
-    ASSERT_TRUE(options->AddExperimentSpec(absl::StrFormat(
-        "id=2;percent=10;slot=4;options="
-        "ContentExperimentID=123,"
-        "ContentExperimentVariantID=%s", variant_id.c_str()), &handler));
+    ASSERT_TRUE(options->AddExperimentSpec(
+        absl::StrFormat("id=2;percent=10;slot=4;options="
+                        "ContentExperimentID=123,"
+                        "ContentExperimentVariantID=%s",
+                        variant_id.c_str()),
+        &handler));
     ASSERT_TRUE(options->AddExperimentSpec(
         "id=7;percent=10;level=CoreFilters;slot=4;options="
         "ContentExperimentID=123,"
-        "ContentExperimentVariantID=789", &handler));
+        "ContentExperimentVariantID=789",
+        &handler));
     options->SetExperimentState(2);  // Expecting cxid=123, cxvid=variant_id.
 
     // Setting up experiments automatically enables AddInstrumentation.
@@ -311,27 +310,21 @@ class InsertGAFilterTest : public RewriteTestBase {
   }
 };
 
-GoogleString GenerateExpectedHtml(GoogleString domain_name,
-                                  int experiment_var,
+GoogleString GenerateExpectedHtml(GoogleString domain_name, int experiment_var,
                                   GoogleString experiment_state,
                                   bool include_speed_tracking) {
   GoogleString speed_tracking = include_speed_tracking ? kGASpeedTracking : "";
 
   GoogleString snippet_addition;
   if (experiment_var != -1 && !experiment_state.empty()) {
-    snippet_addition = absl::StrFormat(kGAExperimentSnippet,
-                                    "" /* speed tracking added below */,
-                                    experiment_var,
-                                    experiment_state.c_str());
+    snippet_addition = absl::StrFormat(
+        kGAExperimentSnippet, "" /* speed tracking added below */,
+        experiment_var, experiment_state.c_str());
   }
-  GoogleString analytics_js = absl::StrFormat(kGAJsSnippet,
-                                           kGaId,
-                                           domain_name.c_str(),
-                                           speed_tracking.c_str());
-  GoogleString output = absl::StrFormat(kHtmlOutputFormat,
-                                     "",
-                                     snippet_addition.c_str(),
-                                     analytics_js.c_str());
+  GoogleString analytics_js = absl::StrFormat(
+      kGAJsSnippet, kGaId, domain_name.c_str(), speed_tracking.c_str());
+  GoogleString output = absl::StrFormat(
+      kHtmlOutputFormat, "", snippet_addition.c_str(), analytics_js.c_str());
   return output;
 }
 
@@ -343,8 +336,7 @@ TEST_F(InsertGAFilterTest, SimpleInsertGaJs) {
   ValidateExpected("simple_addition", kHtmlInput, output);
 
   output = GenerateExpectedHtml("www.test1.com", -1, "", true);
-  ValidateExpectedUrl("https://www.test1.com/index.html", kHtmlInput,
-                      output);
+  ValidateExpectedUrl("https://www.test1.com/index.html", kHtmlInput, output);
 }
 
 TEST_F(InsertGAFilterTest, SimpleInsertGaJsIdUnset) {
@@ -358,13 +350,11 @@ TEST_F(InsertGAFilterTest, SimpleInsertGaJsIdUnset) {
 TEST_F(InsertGAFilterTest, SimpleInsertAnalyticsJs) {
   // Show that we can insert analytics.js.
   rewrite_driver()->AddFilters();
-  GoogleString output = absl::StrFormat(
-      kHtmlOutputFormat,
-      "", "",
-      absl::StrFormat(kAnalyticsJsSnippet,
-                   kGaId,
-                   kAnalyticsJsIncreaseSiteSpeedTracking,
-                   "").c_str());
+  GoogleString output =
+      absl::StrFormat(kHtmlOutputFormat, "", "",
+                      absl::StrFormat(kAnalyticsJsSnippet, kGaId,
+                                      kAnalyticsJsIncreaseSiteSpeedTracking, "")
+                          .c_str());
   ValidateExpected("simple_addition", kHtmlInput, output);
 }
 
@@ -383,12 +373,8 @@ TEST_F(InsertGAFilterTest, AnalyticsJsNoIncreasedSpeed) {
   options()->set_increase_speed_tracking(false);
   rewrite_driver()->AddFilters();
   GoogleString output = absl::StrFormat(
-      kHtmlOutputFormat,
-      "", "",
-      absl::StrFormat(kAnalyticsJsSnippet,
-                   kGaId,
-                   "",
-                   "").c_str());
+      kHtmlOutputFormat, "", "",
+      absl::StrFormat(kAnalyticsJsSnippet, kGaId, "", "").c_str());
   ValidateExpected("simple_addition", kHtmlInput, output);
 }
 
@@ -397,8 +383,8 @@ TEST_F(InsertGAFilterTest, ExperimentGaJsCv) {
   // tracking.
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
-  GoogleString output = GenerateExpectedHtml(
-      "test.com", 4, experiment_string, true);
+  GoogleString output =
+      GenerateExpectedHtml("test.com", 4, experiment_string, true);
   ValidateExpected("ga.js cv experiment", kHtmlInput, output);
 }
 
@@ -406,16 +392,15 @@ TEST_F(InsertGAFilterTest, ExperimentGaJsCx) {
   // Show that we can insert a ga.js snippet that includes content experiment
   // tracking.
   SetUpContentExperiment(false);
-  GoogleString output =  absl::StrFormat(
+  GoogleString output = absl::StrFormat(
       kHtmlOutputFormat,
-      StrCat("<script src=\"",
-             kContentExperimentsJsClientUrl,
-             "\"></script>").c_str(),
+      StrCat("<script src=\"", kContentExperimentsJsClientUrl, "\"></script>")
+          .c_str(),
       "",
-      StrCat(absl::StrFormat(kContentExperimentsSetChosenVariationSnippet,
-                          456, "123"),
-             absl::StrFormat(kGAJsSnippet, kGaId, "test.com",
-                          kGASpeedTracking)).c_str());
+      StrCat(absl::StrFormat(kContentExperimentsSetChosenVariationSnippet, 456,
+                             "123"),
+             absl::StrFormat(kGAJsSnippet, kGaId, "test.com", kGASpeedTracking))
+          .c_str());
   ValidateExpected("ga.js cx experiment", kHtmlInput, output);
 }
 
@@ -426,14 +411,13 @@ TEST_F(InsertGAFilterTest, ExperimentGaJsCxString) {
   SetUpContentExperiment(false, kVariantText);
   GoogleString output = absl::StrFormat(
       kHtmlOutputFormat,
-      StrCat("<script src=\"",
-             kContentExperimentsJsClientUrl,
-             "\"></script>").c_str(),
+      StrCat("<script src=\"", kContentExperimentsJsClientUrl, "\"></script>")
+          .c_str(),
       "",
       StrCat(absl::StrFormat(kContentExperimentsNonNumericVariantComment,
-                          kVariantText.c_str()),
-             absl::StrFormat(kGAJsSnippet, kGaId, "test.com",
-                          kGASpeedTracking)).c_str());
+                             kVariantText.c_str()),
+             absl::StrFormat(kGAJsSnippet, kGaId, "test.com", kGASpeedTracking))
+          .c_str());
   ValidateExpected("ga.js cx experiment", kHtmlInput, output);
 }
 
@@ -443,12 +427,11 @@ TEST_F(InsertGAFilterTest, ExperimentAnalyticsJsCv) {
   // can't log the experiment, but we can still insert the snippet.
   GoogleString experiment_string;
   SetUpCustomVarExperiment(true, &experiment_string);
-  GoogleString output =  absl::StrFormat(
-      kHtmlOutputFormat, "", "", absl::StrFormat(
-          kAnalyticsJsSnippet,
-          kGaId,
-          kAnalyticsJsIncreaseSiteSpeedTracking,
-          "").c_str());
+  GoogleString output =
+      absl::StrFormat(kHtmlOutputFormat, "", "",
+                      absl::StrFormat(kAnalyticsJsSnippet, kGaId,
+                                      kAnalyticsJsIncreaseSiteSpeedTracking, "")
+                          .c_str());
   ValidateExpected("analytics.js cx experiment", kHtmlInput, output);
 }
 
@@ -456,13 +439,14 @@ TEST_F(InsertGAFilterTest, ExperimentAnalyticsJsCx) {
   // Show that we can insert an anlytics.js snippet that includes content
   // experiment tracking.
   SetUpContentExperiment(true);
-  GoogleString output =  absl::StrFormat(
-      kHtmlOutputFormat, "", "", absl::StrFormat(
-          kAnalyticsJsSnippet,
-          kGaId,
-          kAnalyticsJsIncreaseSiteSpeedTracking,
-          absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet,
-                       "123", "456").c_str()).c_str());
+  GoogleString output = absl::StrFormat(
+      kHtmlOutputFormat, "", "",
+      absl::StrFormat(
+          kAnalyticsJsSnippet, kGaId, kAnalyticsJsIncreaseSiteSpeedTracking,
+          absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet, "123",
+                          "456")
+              .c_str())
+          .c_str());
   ValidateExpected("analytics.js cx experiment", kHtmlInput, output);
 }
 
@@ -471,13 +455,14 @@ TEST_F(InsertGAFilterTest, ExperimentAnalyticsJsCxString) {
   // experiment tracking where the variant is a string.
   const GoogleString& kVariantText("StringVariant");
   SetUpContentExperiment(true, kVariantText);
-  GoogleString output =  absl::StrFormat(
-      kHtmlOutputFormat, "", "", absl::StrFormat(
-          kAnalyticsJsSnippet,
-          kGaId,
-          kAnalyticsJsIncreaseSiteSpeedTracking,
-          absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet,
-                       "123", kVariantText.c_str()).c_str()).c_str());
+  GoogleString output = absl::StrFormat(
+      kHtmlOutputFormat, "", "",
+      absl::StrFormat(
+          kAnalyticsJsSnippet, kGaId, kAnalyticsJsIncreaseSiteSpeedTracking,
+          absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet, "123",
+                          kVariantText.c_str())
+              .c_str())
+          .c_str());
   ValidateExpected("analytics.js cx experiment", kHtmlInput, output);
 }
 
@@ -491,12 +476,12 @@ TEST_F(InsertGAFilterTest, ExperimentNoDouble) {
   // Input already has a GA js snippet.
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
-  GoogleString analytics_js = absl::StrFormat(kGAJsSnippet, kGaId, "test.com", "");
-  GoogleString input = absl::StrFormat(kHtmlInputWithGASnippetFormat,
-                                     analytics_js.c_str());
-  GoogleString experiment_snippet =
-      absl::StrFormat(kGAExperimentSnippet, kGASpeedTracking,
-                   4, experiment_string.c_str());
+  GoogleString analytics_js =
+      absl::StrFormat(kGAJsSnippet, kGaId, "test.com", "");
+  GoogleString input =
+      absl::StrFormat(kHtmlInputWithGASnippetFormat, analytics_js.c_str());
+  GoogleString experiment_snippet = absl::StrFormat(
+      kGAExperimentSnippet, kGASpeedTracking, 4, experiment_string.c_str());
   // The output should still have the original GA snippet as well as an inserted
   // experiment snippet.
   GoogleString output = absl::StrFormat(
@@ -509,19 +494,20 @@ TEST_F(InsertGAFilterTest, ManyHeadsAndBodies) {
   // Make sure we only add the GA snippet in one place.
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
-  constexpr char* kHeadsFmt = "<head></head><head></head><head></head></head>"
+  constexpr char kHeadsFmt[] =
+      "<head></head><head></head><head></head></head>"
       "<body></body><body>%s</body>";
   GoogleString input = absl::StrFormat(kHeadsFmt, "");
   GoogleString experiment_snippet =
       absl::StrFormat(kGAExperimentSnippet, "" /* speed tracking added below */,
-                   4, experiment_string.c_str());
-  GoogleString analytics_js = absl::StrFormat(
-      kGAJsSnippet, kGaId, "test.com", kGASpeedTracking);
+                      4, experiment_string.c_str());
+  GoogleString analytics_js =
+      absl::StrFormat(kGAJsSnippet, kGaId, "test.com", kGASpeedTracking);
 
-  GoogleString output = absl::StrFormat(kHeadsFmt,
-                                     StrCat("<script>",
-                                            experiment_snippet, analytics_js,
-                                            "</script>").c_str());
+  GoogleString output = absl::StrFormat(
+      kHeadsFmt,
+      StrCat("<script>", experiment_snippet, analytics_js, "</script>")
+          .c_str());
   ValidateExpected("many_heads_and_bodies", input, output);
 }
 
@@ -579,9 +565,12 @@ TEST_F(InsertGAFilterTest, SynchronousGACustomVarExperiment) {
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
   GoogleString input = absl::StrFormat(kSynchronousGA, "", "", kGaId);
-  GoogleString output = absl::StrFormat(kSynchronousGA, "<head/>", absl::StrFormat(
-      kGAExperimentSnippet, kGASpeedTracking, 4,
-      experiment_string.c_str()).c_str(), kGaId);
+  GoogleString output =
+      absl::StrFormat(kSynchronousGA, "<head/>",
+                      absl::StrFormat(kGAExperimentSnippet, kGASpeedTracking, 4,
+                                      experiment_string.c_str())
+                          .c_str(),
+                      kGaId);
   ValidateExpected("extend sync ga.js for cv experiment", input, output);
 }
 
@@ -590,9 +579,12 @@ TEST_F(InsertGAFilterTest, SynchronousDCCustomVarExperiment) {
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
   GoogleString input = absl::StrFormat(kSynchronousDC, "", "", kGaId);
-  GoogleString output = absl::StrFormat(kSynchronousDC, "<head/>", absl::StrFormat(
-      kGAExperimentSnippet, kGASpeedTracking, 4,
-      experiment_string.c_str()).c_str(), kGaId);
+  GoogleString output =
+      absl::StrFormat(kSynchronousDC, "<head/>",
+                      absl::StrFormat(kGAExperimentSnippet, kGASpeedTracking, 4,
+                                      experiment_string.c_str())
+                          .c_str(),
+                      kGaId);
   ValidateExpected("extend sync dc.js for cv experiment", input, output);
 }
 
@@ -601,17 +593,14 @@ TEST_F(InsertGAFilterTest, SynchronousGAContentExperiment) {
   // ga.js usage.
   SetUpContentExperiment(false);
   GoogleString input = absl::StrFormat(kSynchronousGA, "", "", kGaId);
-  GoogleString output =
-      absl::StrFormat(kSynchronousGA,
-                   "<head/>",
-                   StrCat(
-                       "</script><script src=\"",
-                       kContentExperimentsJsClientUrl,
-                       "\"></script><script>",
-                       absl::StrFormat(
-                           kContentExperimentsSetChosenVariationSnippet,
-                           456, "123")).c_str(),
-                   kGaId);
+  GoogleString output = absl::StrFormat(
+      kSynchronousGA, "<head/>",
+      StrCat("</script><script src=\"", kContentExperimentsJsClientUrl,
+             "\"></script><script>",
+             absl::StrFormat(kContentExperimentsSetChosenVariationSnippet, 456,
+                             "123"))
+          .c_str(),
+      kGaId);
   ValidateExpected("extend sync ga.js for content experiment", input, output);
 }
 
@@ -629,9 +618,12 @@ TEST_F(InsertGAFilterTest, AsynchronousGACustomVarExperiment) {
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
   GoogleString input = absl::StrFormat(kAsyncGA, "", "", kGaId);
-  GoogleString output = absl::StrFormat(kAsyncGA, "<head/>", absl::StrFormat(
-      kGAExperimentSnippet, kGASpeedTracking, 4,
-      experiment_string.c_str()).c_str(), kGaId);
+  GoogleString output =
+      absl::StrFormat(kAsyncGA, "<head/>",
+                      absl::StrFormat(kGAExperimentSnippet, kGASpeedTracking, 4,
+                                      experiment_string.c_str())
+                          .c_str(),
+                      kGaId);
   ValidateExpected("extend async ga.js for cv experiment", input, output);
 }
 
@@ -640,9 +632,12 @@ TEST_F(InsertGAFilterTest, AsynchronousDCCustomVarExperiment) {
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
   GoogleString input = absl::StrFormat(kAsyncDC, "", "", kGaId);
-  GoogleString output = absl::StrFormat(kAsyncDC, "<head/>", absl::StrFormat(
-      kGAExperimentSnippet, kGASpeedTracking, 4,
-      experiment_string.c_str()).c_str(), kGaId);
+  GoogleString output =
+      absl::StrFormat(kAsyncDC, "<head/>",
+                      absl::StrFormat(kGAExperimentSnippet, kGASpeedTracking, 4,
+                                      experiment_string.c_str())
+                          .c_str(),
+                      kGaId);
   ValidateExpected("extend async dc.js for cv experiment", input, output);
 }
 
@@ -651,17 +646,14 @@ TEST_F(InsertGAFilterTest, AsynchronousGAContentExperiment) {
   // usage.
   SetUpContentExperiment(false);
   GoogleString input = absl::StrFormat(kAsyncGA, "", "", kGaId);
-  GoogleString output =
-      absl::StrFormat(kAsyncGA,
-                   "<head/>",
-                   StrCat(
-                       "</script><script src=\"",
-                       kContentExperimentsJsClientUrl,
-                       "\"></script><script>",
-                       absl::StrFormat(
-                           kContentExperimentsSetChosenVariationSnippet,
-                           456, "123")).c_str(),
-                   kGaId);
+  GoogleString output = absl::StrFormat(
+      kAsyncGA, "<head/>",
+      StrCat("</script><script src=\"", kContentExperimentsJsClientUrl,
+             "\"></script><script>",
+             absl::StrFormat(kContentExperimentsSetChosenVariationSnippet, 456,
+                             "123"))
+          .c_str(),
+      kGaId);
   ValidateExpected("extend async ga.js for content experiment", input, output);
 }
 
@@ -669,9 +661,9 @@ TEST_F(InsertGAFilterTest, AnalyticsJSNoExperiment) {
   // If experiments are off and there's already a snippet we should no nothing
   // at all.
   rewrite_driver()->AddFilters();
-  ValidateNoChanges("analytics.js no experiment",
-                    absl::StrFormat(kAnalyticsJS, "", kGaId, "", "",
-                                 kSendPageviews[0]));
+  ValidateNoChanges(
+      "analytics.js no experiment",
+      absl::StrFormat(kAnalyticsJS, "", kGaId, "", "", kSendPageviews[0]));
 }
 
 TEST_F(InsertGAFilterTest, AnalyticsJSNoCustomVarExperiment) {
@@ -679,10 +671,10 @@ TEST_F(InsertGAFilterTest, AnalyticsJSNoCustomVarExperiment) {
   // variables.  Analytics doesn't support these, so we should do nothing.
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
-  GoogleString input = absl::StrFormat(
-      kAnalyticsJS, "", kGaId, "", "", kSendPageviews[0]);
-  GoogleString output = absl::StrFormat(
-      kAnalyticsJS, "<head/>", kGaId, "", "", kSendPageviews[0]);
+  GoogleString input =
+      absl::StrFormat(kAnalyticsJS, "", kGaId, "", "", kSendPageviews[0]);
+  GoogleString output = absl::StrFormat(kAnalyticsJS, "<head/>", kGaId, "", "",
+                                        kSendPageviews[0]);
   ValidateExpected("analytics.js with cv experiment", input, output);
 }
 
@@ -691,19 +683,20 @@ TEST_F(InsertGAFilterTest, AnalyticsJSContentExperiment) {
   // make changes when they're valid.
   SetUpContentExperiment(false);
   GoogleString input, output;
-  GoogleString experiment_snippet = absl::StrFormat(
-      kContentExperimentsSetExpAndVariantSnippet, "123", "456");
+  GoogleString experiment_snippet =
+      absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet, "123", "456");
   for (int i = 0; i < arraysize(kSendPageviews); ++i) {
     input = absl::StrFormat(kAnalyticsJS, "", kGaId, "", "", kSendPageviews[i]);
     output = absl::StrFormat(kAnalyticsJS, "<head/>", kGaId,
-                          kAnalyticsJsIncreaseSiteSpeedTracking,
-                          experiment_snippet.c_str(), kSendPageviews[i]);
+                             kAnalyticsJsIncreaseSiteSpeedTracking,
+                             experiment_snippet.c_str(), kSendPageviews[i]);
     ValidateExpected("analytics.js cx insertion", input, output);
   }
   for (int i = 0; i < arraysize(kNotSendPageviews); ++i) {
-    input = absl::StrFormat(kAnalyticsJS, "", kGaId, "", "", kNotSendPageviews[i]);
-    output = absl::StrFormat(
-        kAnalyticsJS, "<head/>", kGaId, "", "", kNotSendPageviews[i]);
+    input =
+        absl::StrFormat(kAnalyticsJS, "", kGaId, "", "", kNotSendPageviews[i]);
+    output = absl::StrFormat(kAnalyticsJS, "<head/>", kGaId, "", "",
+                             kNotSendPageviews[i]);
     ValidateExpected("analytics.js cx non-insertion", input, output);
   }
 }
@@ -714,7 +707,7 @@ TEST_F(InsertGAFilterTest, AnalyticsJSInvalidNoExperiment) {
   rewrite_driver()->AddFilters();
   ValidateNoChanges("analytics.js no experiment",
                     absl::StrFormat(kAnalyticsJSInvalid, "", kGaId, "", "",
-                                 kSendPageviews[0]));
+                                    kSendPageviews[0]));
 }
 
 TEST_F(InsertGAFilterTest, AnalyticsJSInvalidNoCustomVarExperiment) {
@@ -723,10 +716,10 @@ TEST_F(InsertGAFilterTest, AnalyticsJSInvalidNoCustomVarExperiment) {
   // if the snippet isn't valid js.
   GoogleString experiment_string;
   SetUpCustomVarExperiment(false, &experiment_string);
-  GoogleString input = absl::StrFormat(
-      kAnalyticsJSInvalid, "", kGaId, "", "", kSendPageviews[0]);
-  GoogleString output = absl::StrFormat(
-      kAnalyticsJSInvalid, "<head/>", kGaId, "", "", kSendPageviews[0]);
+  GoogleString input = absl::StrFormat(kAnalyticsJSInvalid, "", kGaId, "", "",
+                                       kSendPageviews[0]);
+  GoogleString output = absl::StrFormat(kAnalyticsJSInvalid, "<head/>", kGaId,
+                                        "", "", kSendPageviews[0]);
   ValidateExpected("analytics.js with cv experiment", input, output);
 }
 
@@ -735,20 +728,20 @@ TEST_F(InsertGAFilterTest, AnalyticsJSInvalidContentExperiment) {
   // snippet isn't valid js we don't make changes.
   SetUpContentExperiment(false);
   GoogleString input, output;
-  GoogleString experiment_snippet = absl::StrFormat(
-      kContentExperimentsSetExpAndVariantSnippet, "123", "456");
+  GoogleString experiment_snippet =
+      absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet, "123", "456");
   for (int i = 0; i < arraysize(kSendPageviews); ++i) {
     input = absl::StrFormat(kAnalyticsJSInvalid, "", kGaId, "", "",
-                         kSendPageviews[i]);
+                            kSendPageviews[i]);
     output = absl::StrFormat(kAnalyticsJSInvalid, "<head/>", kGaId, "", "",
-                          kSendPageviews[i]);
+                             kSendPageviews[i]);
     ValidateExpected("analytics.js cx insertion", input, output);
   }
   for (int i = 0; i < arraysize(kNotSendPageviews); ++i) {
     input = absl::StrFormat(kAnalyticsJSInvalid, "", kGaId, "", "",
-                         kNotSendPageviews[i]);
+                            kNotSendPageviews[i]);
     output = absl::StrFormat(kAnalyticsJSInvalid, "<head/>", kGaId, "", "",
-                          kNotSendPageviews[i]);
+                             kNotSendPageviews[i]);
     ValidateExpected("analytics.js cx non-insertion", input, output);
   }
 }
@@ -758,31 +751,41 @@ TEST_F(InsertGAFilterTest, AnalyticsJSContentExperimentSpeedTracking) {
   // make changes when they're valid.
   SetUpContentExperiment(false);
   GoogleString input, output;
-  GoogleString experiment_snippet = absl::StrFormat(
-      kContentExperimentsSetExpAndVariantSnippet, "123", "456");
+  GoogleString experiment_snippet =
+      absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet, "123", "456");
 
   // These ones don't already have a field object.
   for (int i = 0; i < arraysize(kNoFieldObjectGaCreates); ++i) {
     input = absl::StrFormat(kAnalyticsJSNoCreate, "",
-                         absl::StrFormat(*absl::ParsedFormat<'s','s'>::New(kNoFieldObjectGaCreates[i]),
-                                      kGaId, "").c_str(), "");
+                            absl::StrFormat(*absl::ParsedFormat<'s', 's'>::New(
+                                                kNoFieldObjectGaCreates[i]),
+                                            kGaId, "")
+                                .c_str(),
+                            "");
     output = absl::StrFormat(
         kAnalyticsJSNoCreate, "<head/>",
-        absl::StrFormat(*absl::ParsedFormat<'s','s'>::New(kNoFieldObjectGaCreates[i]), kGaId,
-                     kAnalyticsJsIncreaseSiteSpeedTracking).c_str(),
+        absl::StrFormat(
+            *absl::ParsedFormat<'s', 's'>::New(kNoFieldObjectGaCreates[i]),
+            kGaId, kAnalyticsJsIncreaseSiteSpeedTracking)
+            .c_str(),
         experiment_snippet.c_str());
     ValidateExpected("analytics.js cx insertion speed tracking", input, output);
   }
 
   // These ones do already have a field object.
   for (int i = 0; i < arraysize(kYesFieldObjectGaCreates); ++i) {
-     input = absl::StrFormat(kAnalyticsJSNoCreate, "",
-                         absl::StrFormat(*absl::ParsedFormat<'s','s'>::New(kYesFieldObjectGaCreates[i]),
-                                      kGaId, "").c_str(), "");
-   output = absl::StrFormat(
+    input = absl::StrFormat(kAnalyticsJSNoCreate, "",
+                            absl::StrFormat(*absl::ParsedFormat<'s', 's'>::New(
+                                                kYesFieldObjectGaCreates[i]),
+                                            kGaId, "")
+                                .c_str(),
+                            "");
+    output = absl::StrFormat(
         kAnalyticsJSNoCreate, "<head/>",
-        absl::StrFormat(*absl::ParsedFormat<'s','s'>::New(kYesFieldObjectGaCreates[i]), kGaId,
-                     kAnalyticsJsIncreaseSiteSpeedTrackingMinimal).c_str(),
+        absl::StrFormat(
+            *absl::ParsedFormat<'s', 's'>::New(kYesFieldObjectGaCreates[i]),
+            kGaId, kAnalyticsJsIncreaseSiteSpeedTrackingMinimal)
+            .c_str(),
         experiment_snippet.c_str());
     ValidateExpected("analytics.js cx insertion field object speed tracking",
                      input, output);
@@ -790,13 +793,18 @@ TEST_F(InsertGAFilterTest, AnalyticsJSContentExperimentSpeedTracking) {
 
   // These ones are invalid or we can't insert for some other reason.
   for (int i = 0; i < arraysize(kGaNoCreates); ++i) {
-    input = absl::StrFormat(kAnalyticsJSNoCreate, "",
-                         absl::StrFormat(*absl::ParsedFormat<'s'>::New(kGaNoCreates[i]), kGaId).c_str(), "");
-    output = absl::StrFormat(kAnalyticsJSNoCreate, "<head/>",
-                          absl::StrFormat(*absl::ParsedFormat<'s'>::New(kGaNoCreates[i]), kGaId).c_str(),
-                          experiment_snippet.c_str());
-    ValidateExpected("analytics.js cx non-insertion speed tracking",
-                     input, output);
+    input = absl::StrFormat(
+        kAnalyticsJSNoCreate, "",
+        absl::StrFormat(*absl::ParsedFormat<'s'>::New(kGaNoCreates[i]), kGaId)
+            .c_str(),
+        "");
+    output = absl::StrFormat(
+        kAnalyticsJSNoCreate, "<head/>",
+        absl::StrFormat(*absl::ParsedFormat<'s'>::New(kGaNoCreates[i]), kGaId)
+            .c_str(),
+        experiment_snippet.c_str());
+    ValidateExpected("analytics.js cx non-insertion speed tracking", input,
+                     output);
   }
 }
 
@@ -807,13 +815,13 @@ TEST_F(InsertGAFilterTest, AnalyticsJSContentExperimentNoIncreaseSpeed) {
   SetUpContentExperiment(false);
   GoogleString input =
       absl::StrFormat(kAnalyticsJS, "", kGaId, "", "", kSendPageviews[0]);
-  GoogleString experiment_snippet = absl::StrFormat(
-      kContentExperimentsSetExpAndVariantSnippet, "123", "456");
+  GoogleString experiment_snippet =
+      absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet, "123", "456");
   GoogleString output =
       absl::StrFormat(kAnalyticsJS, "<head/>", kGaId, "",
-                   experiment_snippet.c_str(), kSendPageviews[0]);
-  ValidateExpected("analytics.js cx insertion, no increased speed",
-                   input, output);
+                      experiment_snippet.c_str(), kSendPageviews[0]);
+  ValidateExpected("analytics.js cx insertion, no increased speed", input,
+                   output);
 }
 
 TEST_F(InsertGAFilterTest, AnalyticsJSNoCloseBody) {
@@ -821,17 +829,19 @@ TEST_F(InsertGAFilterTest, AnalyticsJSNoCloseBody) {
   // even if there's no </body> tag.
   SetUpContentExperiment(true);
   GoogleString input = absl::StrFormat(kHtmlNoCloseBody, "");
-  GoogleString output = absl::StrFormat(kHtmlNoCloseBody, StrCat(
-      "<script>",
-      absl::StrFormat(kAnalyticsJsSnippet,
-                   kGaId,
-                   kAnalyticsJsIncreaseSiteSpeedTracking,
-                   absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet,
-                                "123", "456").c_str()),
-      "</script>").c_str());
+  GoogleString output = absl::StrFormat(
+      kHtmlNoCloseBody,
+      StrCat(
+          "<script>",
+          absl::StrFormat(
+              kAnalyticsJsSnippet, kGaId, kAnalyticsJsIncreaseSiteSpeedTracking,
+              absl::StrFormat(kContentExperimentsSetExpAndVariantSnippet, "123",
+                              "456")
+                  .c_str()),
+          "</script>")
+          .c_str());
   ValidateExpected("no close body", input, output);
 }
-
 
 // TODO(jefftk): this test fails, but it's pretty weird.  Is that a problem?
 #if 0
@@ -869,17 +879,14 @@ TEST_F(InsertGAFilterTest, AsynchronousGAContentExperimentFlush) {
   // usage even if there are flushes.
   SetUpContentExperiment(false);
 
-  GoogleString output =
-      absl::StrFormat(kAsyncGA,
-                   "<html><head/>",
-                   StrCat(
-                       "</script><script src=\"",
-                       kContentExperimentsJsClientUrl,
-                       "\"></script><script>",
-                       absl::StrFormat(
-                           kContentExperimentsSetChosenVariationSnippet,
-                           456, "123")).c_str(),
-                   kGaId);
+  GoogleString output = absl::StrFormat(
+      kAsyncGA, "<html><head/>",
+      StrCat("</script><script src=\"", kContentExperimentsJsClientUrl,
+             "\"></script><script>",
+             absl::StrFormat(kContentExperimentsSetChosenVariationSnippet, 456,
+                             "123"))
+          .c_str(),
+      kGaId);
 
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);

@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
-#include "pagespeed/kernel/base/message_handler_test_base.h"
+#include "pagespeed/kernel/base/message_handler.h"
 
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/message_handler.h"
+#include "pagespeed/kernel/base/message_handler_test_base.h"
 
 namespace net_instaweb {
 
@@ -29,13 +28,10 @@ namespace {
 
 class MessageHandlerTest : public testing::Test {
  protected:
-  const StringVector& messages() {
-    return handler_.messages();
-  }
+  const StringVector& messages() { return handler_.messages(); }
 
   TestMessageHandler handler_;
 };
-
 
 TEST_F(MessageHandlerTest, Simple) {
   handler_.Message(kWarning, "here is a message");

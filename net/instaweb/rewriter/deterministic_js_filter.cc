@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/deterministic_js_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -30,15 +29,11 @@
 namespace net_instaweb {
 
 DeterministicJsFilter::DeterministicJsFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
-      found_head_(false) {
-}
+    : CommonFilter(driver), found_head_(false) {}
 
 DeterministicJsFilter::~DeterministicJsFilter() {}
 
-void DeterministicJsFilter::StartDocumentImpl() {
-  found_head_ = false;
-}
+void DeterministicJsFilter::StartDocumentImpl() { found_head_ = false; }
 
 void DeterministicJsFilter::StartElementImpl(HtmlElement* element) {
   if (!found_head_ && element->keyword() == HtmlName::kHead) {
@@ -47,9 +42,8 @@ void DeterministicJsFilter::StartElementImpl(HtmlElement* element) {
     driver()->InsertNodeAfterCurrent(script);
     StaticAssetManager* static_asset_manager =
         driver()->server_context()->static_asset_manager();
-    StringPiece deterministic_js =
-        static_asset_manager->GetAsset(
-            StaticAssetEnum::DETERMINISTIC_JS, driver()->options());
+    StringPiece deterministic_js = static_asset_manager->GetAsset(
+        StaticAssetEnum::DETERMINISTIC_JS, driver()->options());
     AddJsToElement(deterministic_js, script);
     driver()->AddAttribute(script, HtmlName::kDataPagespeedNoDefer,
                            StringPiece());

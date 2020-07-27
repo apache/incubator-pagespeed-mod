@@ -21,13 +21,15 @@
 
 #include <cstddef>
 
-#include "pagespeed/opt/ads/ads_attribute.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
+#include "pagespeed/opt/ads/ads_attribute.h"
 
 // Separator used in publisher code.
-namespace { const char kAdsPublisherCodeSeparator[] = "-"; }
+namespace {
+const char kAdsPublisherCodeSeparator[] = "-";
+}
 
 namespace net_instaweb {
 
@@ -46,16 +48,15 @@ const char kShowAdsApiCallJSSrc[] =
 StringPiece GetPublisherIdWithoutProductPrefix(StringPiece publisher_code) {
   // TODO(chenyu): Modify this search to support Direct publishers
   // ("partner-aol-in" is a valid Direct AFS property code).
-  stringpiece_ssize_type last_separator_pos = publisher_code.find_last_of(
-      kAdsPublisherCodeSeparator);
+  stringpiece_ssize_type last_separator_pos =
+      publisher_code.find_last_of(kAdsPublisherCodeSeparator);
   if (last_separator_pos != StringPiece::npos) {
     publisher_code.remove_prefix(last_separator_pos + 1);
   }
   return publisher_code;
 }
 
-bool IsValidAdsByGoogle(
-    const HtmlElement& element, StringPiece publisher_id) {
+bool IsValidAdsByGoogle(const HtmlElement& element, StringPiece publisher_id) {
   // An adsbygoogle element must be an <Ins> element.
   if (element.keyword() != HtmlName::kIns) {
     return false;
@@ -71,18 +72,17 @@ bool IsValidAdsByGoogle(
   // 'kDataAdClient' attribute containing 'publisher_id'.
   const HtmlElement::Attribute* ad_client_attribute =
       element.FindAttribute(ads_attribute::kDataAdClient);
-  if (ad_client_attribute == NULL ||
-      FindIgnoreCase(
-          ad_client_attribute->DecodedValueOrNull(),
-          publisher_id) == StringPiece::npos) {
+  if (ad_client_attribute == nullptr ||
+      FindIgnoreCase(ad_client_attribute->DecodedValueOrNull(), publisher_id) ==
+          StringPiece::npos) {
     return false;
   }
 
   // An adsbygoogle element must have 'kDataAdSlot' attribute.
   const HtmlElement::Attribute* ad_slot_attribute =
       element.FindAttribute(ads_attribute::kDataAdSlot);
-  if (ad_slot_attribute == NULL ||
-      ad_slot_attribute->DecodedValueOrNull() == NULL) {
+  if (ad_slot_attribute == nullptr ||
+      ad_slot_attribute->DecodedValueOrNull() == nullptr) {
     return false;
   }
 

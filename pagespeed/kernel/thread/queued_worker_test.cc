@@ -30,7 +30,7 @@
 namespace net_instaweb {
 namespace {
 
-class QueuedWorkerTest: public WorkerTestBase {
+class QueuedWorkerTest : public WorkerTestBase {
  public:
   QueuedWorkerTest()
       : worker_(new QueuedWorker("queued_worker_test", thread_runtime_.get())) {
@@ -48,12 +48,9 @@ class QueuedWorkerTest: public WorkerTestBase {
 class ChainedTask : public Function {
  public:
   ChainedTask(int* count, QueuedWorker* worker, WorkerTestBase::SyncPoint* sync)
-      : count_(count),
-        worker_(worker),
-        sync_(sync) {
-  }
+      : count_(count), worker_(worker), sync_(sync) {}
 
-  virtual void Run() {
+  void Run() override {
     --*count_;
     if (*count_ > 0) {
       worker_->RunInWorkThread(new ChainedTask(count_, worker_, sync_));

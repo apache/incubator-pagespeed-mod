@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_BASE_TAG_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_BASE_TAG_FILTER_H_
 
@@ -34,16 +33,13 @@ class RewriteDriver;
 class BaseTagFilter : public EmptyHtmlFilter {
  public:
   explicit BaseTagFilter(RewriteDriver* driver)
-      : added_base_tag_(false),
-        driver_(driver) {}
+      : added_base_tag_(false), driver_(driver) {}
 
-  virtual ~BaseTagFilter();
+  ~BaseTagFilter() override;
 
-  virtual void StartDocument() {
-    added_base_tag_ = false;
-  }
-  virtual void StartElement(HtmlElement* element);
-  virtual const char* Name() const { return "BaseTag"; }
+  void StartDocument() override { added_base_tag_ = false; }
+  void StartElement(HtmlElement* element) override;
+  const char* Name() const override { return "BaseTag"; }
 
  private:
   bool added_base_tag_;

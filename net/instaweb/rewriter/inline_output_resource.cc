@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/inline_output_resource.h"
 
 #include "base/logging.h"
@@ -41,10 +40,7 @@ InlineOutputResource::InlineOutputResource(const RewriteDriver* driver,
                      // not depend upon having these dummy fields.
                      "dummy:/" /* resolved_base */,
                      "dummy:/" /* unmapped_base */,
-                     "dummy:/" /* original_base */,
-                     namer,
-                     kInlineResource) {
-}
+                     "dummy:/" /* original_base */, namer, kInlineResource) {}
 
 GoogleString InlineOutputResource::url() const {
   LOG(DFATAL) << "Attempt to check inline resource URL.";

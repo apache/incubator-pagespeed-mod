@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/sharedmem/shared_mem_lock_manager_test_base.h"
 
 #include "pagespeed/kernel/base/function.h"
@@ -48,8 +47,7 @@ SharedMemLockManagerTestBase::SharedMemLockManagerTestBase(
       thread_system_(Platform::CreateThreadSystem()),
       timer_(thread_system_->NewMutex(), 0),
       handler_(thread_system_->NewMutex()),
-      scheduler_(thread_system_.get(), &timer_) {
-}
+      scheduler_(thread_system_.get(), &timer_) {}
 
 void SharedMemLockManagerTestBase::SetUp() {
   root_lock_manager_.reset(CreateLockManager());
@@ -75,21 +73,21 @@ SharedMemLockManager* SharedMemLockManagerTestBase::AttachDefault() {
   SharedMemLockManager* lock_man = CreateLockManager();
   if (!lock_man->Attach()) {
     delete lock_man;
-    lock_man = NULL;
+    lock_man = nullptr;
   }
   return lock_man;
 }
 
 void SharedMemLockManagerTestBase::TestBasic() {
   std::unique_ptr<SharedMemLockManager> lock_manager(AttachDefault());
-  ASSERT_TRUE(lock_manager.get() != NULL);
+  ASSERT_TRUE(lock_manager.get() != nullptr);
   std::unique_ptr<SchedulerBasedAbstractLock> lock_a(
       lock_manager->CreateNamedLock(kLockA));
   std::unique_ptr<SchedulerBasedAbstractLock> lock_b(
       lock_manager->CreateNamedLock(kLockB));
 
-  ASSERT_TRUE(lock_a.get() != NULL);
-  ASSERT_TRUE(lock_b.get() != NULL);
+  ASSERT_TRUE(lock_a.get() != nullptr);
+  ASSERT_TRUE(lock_b.get() != nullptr);
 
   EXPECT_FALSE(lock_a->Held());
   EXPECT_FALSE(lock_b->Held());
@@ -129,7 +127,7 @@ void SharedMemLockManagerTestBase::TestBasicChild() {
   std::unique_ptr<SchedulerBasedAbstractLock> lock_b(
       lock_manager->CreateNamedLock(kLockB));
 
-  if (lock_a.get() == NULL || lock_b.get() == NULL) {
+  if (lock_a.get() == nullptr || lock_b.get() == nullptr) {
     test_env_->ChildFailed();
   }
 
@@ -150,7 +148,7 @@ void SharedMemLockManagerTestBase::TestDestructorUnlock() {
   // Standalone test for destructors cleaning up. It is covered by the
   // above, but this does it single-threaded, without weird things.
   std::unique_ptr<SharedMemLockManager> lock_manager(AttachDefault());
-  ASSERT_TRUE(lock_manager.get() != NULL);
+  ASSERT_TRUE(lock_manager.get() != nullptr);
 
   {
     std::unique_ptr<SchedulerBasedAbstractLock> lock_a(
@@ -167,7 +165,7 @@ void SharedMemLockManagerTestBase::TestDestructorUnlock() {
 
 void SharedMemLockManagerTestBase::TestSteal() {
   std::unique_ptr<SharedMemLockManager> lock_manager(AttachDefault());
-  ASSERT_TRUE(lock_manager.get() != NULL);
+  ASSERT_TRUE(lock_manager.get() != nullptr);
   std::unique_ptr<SchedulerBasedAbstractLock> lock_a(
       lock_manager->CreateNamedLock(kLockA));
   EXPECT_TRUE(lock_a->TryLock());
@@ -180,7 +178,7 @@ void SharedMemLockManagerTestBase::TestStealChild() {
   const int kStealTimeMs = 1000;
 
   std::unique_ptr<SharedMemLockManager> lock_manager(AttachDefault());
-  ASSERT_TRUE(lock_manager.get() != NULL);
+  ASSERT_TRUE(lock_manager.get() != nullptr);
   std::unique_ptr<SchedulerBasedAbstractLock> lock_a(
       lock_manager->CreateNamedLock(kLockA));
 

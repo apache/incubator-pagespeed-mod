@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SCRIPT_TAG_SCANNER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SCRIPT_TAG_SCANNER_H_
 
@@ -31,11 +30,7 @@ class HtmlParse;
 
 class ScriptTagScanner {
  public:
-  enum ScriptClassification {
-    kNonScript,
-    kUnknownScript,
-    kJavaScript
-  };
+  enum ScriptClassification { kNonScript, kUnknownScript, kJavaScript };
 
   // Bit flags that specify when the script is to be run
   enum ExecutionModeFlags {

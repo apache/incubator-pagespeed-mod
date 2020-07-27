@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_KEY_VALUE_CODEC_H_
 #define PAGESPEED_KERNEL_CACHE_KEY_VALUE_CODEC_H_
 

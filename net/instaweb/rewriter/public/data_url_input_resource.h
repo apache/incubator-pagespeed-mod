@@ -58,26 +58,25 @@ class DataUrlInputResource : public Resource {
     return resource;
   }
 
-  virtual ~DataUrlInputResource();
+  ~DataUrlInputResource() override;
 
-  virtual bool IsValidAndCacheable() const;
+  bool IsValidAndCacheable() const override;
 
   // Set OutputPartition's input info used for expiration validation.
-  virtual void FillInPartitionInputInfo(HashHint include_content_hash,
-                                        InputInfo* input);
+  void FillInPartitionInputInfo(HashHint include_content_hash,
+                                InputInfo* input) override;
 
-  virtual GoogleString url() const { return *url_.get(); }
+  GoogleString url() const override { return *url_.get(); }
 
-  virtual bool UseHttpCache() const { return false; }
+  bool UseHttpCache() const override { return false; }
 
  protected:
-  virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback);
+  void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
+                       const RequestContextPtr& request_context,
+                       AsyncCallback* callback) override;
 
  private:
-  DataUrlInputResource(const GoogleString* url,
-                       Encoding encoding,
+  DataUrlInputResource(const GoogleString* url, Encoding encoding,
                        const ContentType* type,
                        const StringPiece& encoded_contents,
                        const RewriteDriver* driver);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include <cstddef>
 
 #include "net/instaweb/rewriter/public/css_rewrite_test_base.h"
@@ -52,7 +51,7 @@ namespace net_instaweb {
 // different bits on different platforms.
 class CssEmbeddedConfigTest : public CssRewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Don't call CssRewriteTestBase::SetUp() here because that calls AddFilter
     // and makes it inconvenient for us to add more.  Instead each test method
     // should call AddFilterAndSetup.
@@ -121,8 +120,7 @@ class CssEmbeddedConfigTest : public CssRewriteTestBase {
     CssRewriteTestBase::SetUp();
   }
 
-  GoogleString EncodedImageUrl(StringPiece image_name,
-                               StringPiece ext,
+  GoogleString EncodedImageUrl(StringPiece image_name, StringPiece ext,
                                StringPiece option_segment) {
     GoogleString image_url = Encode("", "ic", "0", image_name, ext);
     return AddOptionsToEncodedUrl(image_url, option_segment);
@@ -156,8 +154,7 @@ TEST_F(CssEmbeddedConfigTest, RewriteJpeg) {
   GoogleString css_link = RewriteImageInCss(kPuzzleJpgFile);
   EXPECT_STREQ(EncodedCssUrl("rj+iq=81"), css_link);
   GoogleString image_url = ExtractImageFromCssFilename(css_link);
-  EXPECT_STREQ(EncodedImageUrl(kPuzzleJpgFile, "jpg", "rj+iq=81"),
-               image_url);
+  EXPECT_STREQ(EncodedImageUrl(kPuzzleJpgFile, "jpg", "rj+iq=81"), image_url);
   EXPECT_GE(103704, FetchImageFromCache(StrCat(kTestDomain, image_url)).size());
 }
 

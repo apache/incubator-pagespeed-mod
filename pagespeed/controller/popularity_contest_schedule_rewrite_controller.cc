@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/popularity_contest_schedule_rewrite_controller.h"
 
 #include <unordered_map>
@@ -26,9 +25,9 @@
 #include "base/logging.h"
 #include "pagespeed/controller/priority_queue.h"
 #include "pagespeed/kernel/base/function.h"
+#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/thread_system.h"
 
 namespace net_instaweb {
@@ -180,8 +179,8 @@ void PopularityContestScheduleRewriteController::NotifyRewriteComplete(
   num_rewrites_succeeded_->IncBy(1);
 
   Rewrite* rewrite = GetRewrite(key);
-  CHECK(rewrite != nullptr) << "NotifyRewriteComplete called for unknown key: "
-                            << key;
+  CHECK(rewrite != nullptr)
+      << "NotifyRewriteComplete called for unknown key: " << key;
   CHECK_EQ(rewrite->state, RUNNING) << "NotifyRewriteComplete called for key '"
                                     << key << "' that isn't currently running";
   StopRewrite(rewrite);
@@ -200,8 +199,8 @@ void PopularityContestScheduleRewriteController::NotifyRewriteFailed(
   num_rewrites_failed_->IncBy(1);
 
   Rewrite* rewrite = GetRewrite(key);
-  CHECK(rewrite != nullptr) << "NotifyRewriteFailed called for unknown key: "
-                             << key;
+  CHECK(rewrite != nullptr)
+      << "NotifyRewriteFailed called for unknown key: " << key;
   CHECK_EQ(rewrite->state, RUNNING) << "NotifyRewriteFailed called for key '"
                                     << key << "' that isn't currently running";
   // Mark the rewrite as stopped but don't delete it. This ensures
@@ -246,8 +245,7 @@ Function* PopularityContestScheduleRewriteController::StartRewrite(
   return callback;
 }
 
-void PopularityContestScheduleRewriteController::StopRewrite(
-    Rewrite* rewrite) {
+void PopularityContestScheduleRewriteController::StopRewrite(Rewrite* rewrite) {
   DCHECK_EQ(rewrite->state, RUNNING);
   rewrite->state = STOPPED;
   --running_rewrites_;

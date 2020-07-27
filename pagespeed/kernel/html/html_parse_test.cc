@@ -17,15 +17,16 @@
  * under the License.
  */
 
-
 // Unit-test the html reader/writer to ensure that a few tricky
 // constructs come through without corruption.
+
+#include "pagespeed/kernel/html/html_parse.h"
 
 #include <vector>
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/gmock.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -40,7 +41,6 @@
 #include "pagespeed/kernel/html/html_filter.h"
 #include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/kernel/html/html_node.h"
-#include "pagespeed/kernel/html/html_parse.h"
 #include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/html/html_testing_peer.h"
 #include "pagespeed/kernel/html/html_writer_filter.h"
@@ -60,25 +60,21 @@ class HtmlParseTest : public HtmlParseTestBase {
   // of tag2 to automatically close tag1.
   void ExpectAutoClose(const char* tag1, const char* tag2) {
     GoogleString test_case = StrCat("auto_close_", tag1, "_", tag2);
-    ValidateExpected(
-        test_case,
-        Div(StrCat("<", tag1, ">x<", tag2, ">y")),
-        Div(StrCat("<", tag1, ">x</", tag1, "><",
-                   StrCat(tag2, ">y</", tag2, ">"))));
+    ValidateExpected(test_case, Div(StrCat("<", tag1, ">x<", tag2, ">y")),
+                     Div(StrCat("<", tag1, ">x</", tag1, "><",
+                                StrCat(tag2, ">y</", tag2, ">"))));
   }
 
   // For 2 tags that do not have a specified auto-close relationship,
   // we expect the appearance of tag2 to nest inside tag1.
   void ExpectNoAutoClose(const char* tag1, const char* tag2) {
     GoogleString test_case = StrCat("no_auto_close_", tag1, "_", tag2);
-    ValidateExpected(
-        test_case,
-        Div(StrCat("<", tag1, ">x<", tag2, ">y")),
-        Div(StrCat("<", tag1, ">x<", tag2, ">y</",
-                   StrCat(tag2, "></", tag1, ">"))));
+    ValidateExpected(test_case, Div(StrCat("<", tag1, ">x<", tag2, ">y")),
+                     Div(StrCat("<", tag1, ">x<", tag2, ">y</",
+                                StrCat(tag2, "></", tag1, ">"))));
   }
 
-  virtual bool AddBody() const { return true; }
+  bool AddBody() const override { return true; }
 
   // Sends the input through the HtmlParse filter chain, flushing
   // at flush_index.  Leaves resulting output in output_buffer_.
@@ -94,28 +90,30 @@ class HtmlParseTest : public HtmlParseTestBase {
 };
 
 class HtmlParseTestNoBody : public HtmlParseTestBase {
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 };
 
 TEST_F(HtmlParseTest, AvoidFalseXmlComment) {
   ValidateNoChanges("avoid_false_xml_comment",
-     "<script type=\"text/javascript\">\n"
-     "// <!-- this looks like a comment but is not\n"
-     "</script>");
+                    "<script type=\"text/javascript\">\n"
+                    "// <!-- this looks like a comment but is not\n"
+                    "</script>");
 }
 
 TEST_F(HtmlParseTest, RetainBogusEndTag) {
-  ValidateNoChanges("bogus_end_tag",
-     "<script language=\"JavaScript\" type=\"text/javascript\">\n"
-     "<!--\n"
-     "var s = \"</retain_bogus_end_tag>\";\n"
-     "// -->\n"
-     "</script>");
+  ValidateNoChanges(
+      "bogus_end_tag",
+      "<script language=\"JavaScript\" type=\"text/javascript\">\n"
+      "<!--\n"
+      "var s = \"</retain_bogus_end_tag>\";\n"
+      "// -->\n"
+      "</script>");
 }
 
 TEST_F(HtmlParseTest, AmpersandInHref) {
   // Note that we will escape the "&" in the href.
-  ValidateNoChanges("ampersand_in_href",
+  ValidateNoChanges(
+      "ampersand_in_href",
       "<a href=\"http://myhost.com/path?arg1=val1&arg2=val2\">Hello</a>");
 }
 
@@ -123,14 +121,13 @@ TEST_F(HtmlParseTest, BooleanSpaceCloseInTag) {
   ValidateExpected("bool_space_close", "<a b >foo</a>", "<a b>foo</a>");
   ValidateNoChanges("bool_close", "<a b>foo</a>");
   ValidateExpected("space_close_sq", "<a b='c' >foo</a>", "<a b='c'>foo</a>");
-  ValidateExpected("space_close_dq",
-                   "<a b=\"c\" >foo</a>", "<a b=\"c\">foo</a>");
+  ValidateExpected("space_close_dq", "<a b=\"c\" >foo</a>",
+                   "<a b=\"c\">foo</a>");
   ValidateExpected("space_close_nq", "<a b=c >foo</a>", "<a b=c>foo</a>");
   // Distilled from http://www.gougou.com/
   // Unclear exactly what we should do here, maybe leave it as it was without
   // the space?
-  ValidateExpected("allow_semicolon",
-                   "<a onclick='return m(this)'; >foo</a>",
+  ValidateExpected("allow_semicolon", "<a onclick='return m(this)'; >foo</a>",
                    "<a onclick='return m(this)' ;>foo</a>");
 }
 
@@ -141,22 +138,21 @@ TEST_F(HtmlParseTest, EmbeddedNuls) {
 
   const char kHtml2[] = "<script\0y></script>";
   // Note: STATIC_STRLEN won't stop at embedded null.
-  ValidateNoChanges("inner_mess2",
-                    GoogleString(kHtml2, STATIC_STRLEN(kHtml2)));
+  ValidateNoChanges("inner_mess2", GoogleString(kHtml2, STATIC_STRLEN(kHtml2)));
 }
 
 class AttrValuesSaverFilter : public EmptyHtmlFilter {
  public:
-  AttrValuesSaverFilter() { }
+  AttrValuesSaverFilter() {}
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     const HtmlElement::AttributeList& attrs = element->attributes();
-    for (HtmlElement::AttributeConstIterator i(attrs.begin());
-         i != attrs.end(); ++i) {
+    for (HtmlElement::AttributeConstIterator i(attrs.begin()); i != attrs.end();
+         ++i) {
       const char* value = i->DecodedValueOrNull();
       if (i->decoding_error()) {
         value_ += "<ERROR>";
-      } else if (value == NULL) {
+      } else if (value == nullptr) {
         value_ += "(null)";
       } else {
         value_ += value;
@@ -165,7 +161,7 @@ class AttrValuesSaverFilter : public EmptyHtmlFilter {
   }
 
   const GoogleString& value() { return value_; }
-  virtual const char* Name() const { return "attr_saver"; }
+  const char* Name() const override { return "attr_saver"; }
 
  private:
   GoogleString value_;
@@ -176,8 +172,7 @@ class AttrValuesSaverFilter : public EmptyHtmlFilter {
 TEST_F(HtmlParseTest, EscapedSingleQuote) {
   AttrValuesSaverFilter attr_saver;
   html_parse_.AddFilter(&attr_saver);
-  Parse("escaped_single_quote",
-        "<img src='my&#39;single_quoted_image.jpg'/>");
+  Parse("escaped_single_quote", "<img src='my&#39;single_quoted_image.jpg'/>");
   EXPECT_EQ("my'single_quoted_image.jpg", attr_saver.value());
 }
 
@@ -195,18 +190,18 @@ TEST_F(HtmlParseTest, UnclosedQuote) {
   // and does not crash.
   //
   // TODO(jmarantz): test error reporting.
-  ValidateNoChanges("unclosed_quote",
-     "<div>\n"
-     "  <a href=\"http://myhost.com/path?arg1=val1&arg2=val2>Hello</a>\n"
-     "</div>\n"
-     "<p>next token</p>"
-     "</body></html>\n"
-     "\"></a></div>");
+  ValidateNoChanges(
+      "unclosed_quote",
+      "<div>\n"
+      "  <a href=\"http://myhost.com/path?arg1=val1&arg2=val2>Hello</a>\n"
+      "</div>\n"
+      "<p>next token</p>"
+      "</body></html>\n"
+      "\"></a></div>");
 }
 
 TEST_F(HtmlParseTest, NestedDivInBr) {
-  ValidateNoChanges("nested_div_in_br",
-     "<br><div>hello</div></br>");
+  ValidateNoChanges("nested_div_in_br", "<br><div>hello</div></br>");
 }
 
 // bug 2465145 - Sequential defaulted attribute tags lost
@@ -214,7 +209,8 @@ TEST_F(HtmlParseTest, SequentialDefaultedTagsLost) {
   // This test cannot work with libxml, but since we use our own
   // parser we can make it work.  See
   // https://bugzilla.gnome.org/show_bug.cgi?id=611655
-  ValidateNoChanges("sequential_defaulted_attribute_tags_lost",
+  ValidateNoChanges(
+      "sequential_defaulted_attribute_tags_lost",
       "<select>\n"
       "  <option value=\"&amp;cat=244\">Other option</option>\n"
       "  <option value selected style=\"color: #ccc;\">Default option"
@@ -224,18 +220,16 @@ TEST_F(HtmlParseTest, SequentialDefaultedTagsLost) {
   // Illegal attribute "http://www.yahoo.com", per HTML5, is two attributes:
   // http: and "yahoo.com", with the slashes going into the ether.
   // (This is also how Chrome and Firefox parse it.)
-  ValidateExpected(
-      "yahoo",
-      "<a href=\"#\" http://www.yahoo.com class=\"a b\">yahoo</a>",
-      "<a href=\"#\" http: www.yahoo.com class=\"a b\">yahoo</a>");
+  ValidateExpected("yahoo",
+                   "<a href=\"#\" http://www.yahoo.com class=\"a b\">yahoo</a>",
+                   "<a href=\"#\" http: www.yahoo.com class=\"a b\">yahoo</a>");
 
   // Here's another interesting thing from the bug testcase.
   // Specifying a literal "&" without a recognized sequence
   // following it gets parsed correctly by libxml2, and then
   // re-encoded by our writer as &amp;.  That's fine; let's
   // make sure that doesn't change.
-  ValidateNoChanges("amp_cat",
-      "<option value=\"&cat=244\">other</option>");
+  ValidateNoChanges("amp_cat", "<option value=\"&cat=244\">other</option>");
 }
 
 // bug 2465201 : some html constructs do not need ';' termination.
@@ -243,17 +237,19 @@ TEST_F(HtmlParseTest, SequentialDefaultedTagsLost) {
 TEST_F(HtmlParseTest, UnterminatedTokens) {
   // the termination semicolons should be added in the output.
   ValidateNoChanges("unterminated_tokens",
-      "<p>Look at the non breaking space: \"&nbsp\"</p>");
+                    "<p>Look at the non breaking space: \"&nbsp\"</p>");
 }
 
 // bug 2467040 : keep ampersands and quotes encoded
 TEST_F(HtmlParseTest, EncodeAmpersandsAndQuotes) {
-  ValidateNoChanges("ampersands_in_text",
+  ValidateNoChanges(
+      "ampersands_in_text",
       "<p>This should be a string '&amp;amp;' not a single ampersand.</p>");
   ValidateNoChanges("ampersands_in_values",
-      "<img alt=\"This should be a string '&amp;amp;' "
-      "not a single ampersand.\"/>");
-  ValidateNoChanges("quotes",
+                    "<img alt=\"This should be a string '&amp;amp;' "
+                    "not a single ampersand.\"/>");
+  ValidateNoChanges(
+      "quotes",
       "<p>Clicking <a href=\"javascript: alert(&quot;Alert works!&quot;);\">"
       "here</a> should pop up an alert box.</p>");
 }
@@ -261,9 +257,9 @@ TEST_F(HtmlParseTest, EncodeAmpersandsAndQuotes) {
 // bug 2508334 : encoding unicode in general
 TEST_F(HtmlParseTest, EncodeUnicode) {
   ValidateNoChanges("unicode_in_text",
-      "<p>Non-breaking space: '&nbsp;'</p>\n"
-      "<p>Alpha: '&alpha;'</p>\n"
-      "<p>Unicode #54321: '&#54321;'</p>\n");
+                    "<p>Non-breaking space: '&nbsp;'</p>\n"
+                    "<p>Alpha: '&alpha;'</p>\n"
+                    "<p>Unicode #54321: '&#54321;'</p>\n");
 }
 
 TEST_F(HtmlParseTest, ImplicitExplicitClose) {
@@ -273,8 +269,8 @@ TEST_F(HtmlParseTest, ImplicitExplicitClose) {
   // TODO(jmarantz): But we can have a rewrite pass that eliminates
   // the superfluous "/>".
   ValidateNoChanges("one_brief_one_implicit_input",
-      "<input type=\"text\" name=\"username\">"
-      "<input type=\"password\" name=\"password\"/>");
+                    "<input type=\"text\" name=\"username\">"
+                    "<input type=\"password\" name=\"password\"/>");
 }
 
 TEST_F(HtmlParseTest, OpenBracketAfterQuote) {
@@ -286,7 +282,7 @@ TEST_F(HtmlParseTest, OpenBracketAfterQuote) {
   const char expected[] =
       "<input type=\"text\" name=\"username\""
       " <input type=\"password\" name=\"password\"/>";
-      // Extra space 'between' attributes'
+  // Extra space 'between' attributes'
   ValidateExpected("open_bracket_after_quote", input, expected);
 }
 
@@ -318,10 +314,9 @@ TEST_F(HtmlParseTest, OpenBracketAfterName) {
 
 class HtmlParseTestNoBodyNoHtml : public HtmlParseTestNoBody {
  protected:
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 
-  void CheckOutput(int start_index, int end_index,
-                   const GoogleString& input,
+  void CheckOutput(int start_index, int end_index, const GoogleString& input,
                    const GoogleString& expected_output) {
     for (int i = start_index; i < end_index; ++i) {
       SetupWriter();
@@ -342,22 +337,20 @@ class HtmlParseTestNoBodyNoHtml : public HtmlParseTestNoBody {
 
 TEST_F(HtmlParseTestNoBodyNoHtml, SizeLimit) {
   static const char input[] =
-      "<html>"  // 6 chars
-      "<input type=\"text\"/>"  // 20 chars
+      "<html>"                                                   // 6 chars
+      "<input type=\"text\"/>"                                   // 20 chars
       "<script type=\"text/javascript\">alert('123');</script>"  // 53 chars
-      "<!--[if IE]>...<![endif]-->"  // 27 chars
-      "<table><tr><td>blah</td></tr></table>"  // 37 chars
-      "</html>";  // 7 chars
+      "<!--[if IE]>...<![endif]-->"                              // 27 chars
+      "<table><tr><td>blah</td></tr></table>"                    // 37 chars
+      "</html>";                                                 // 7 chars
   ValidateNoChanges("no_limit", input);
 
-  static const char output_when_break_in_html[] =
-      "<html></html>";
+  static const char output_when_break_in_html[] = "<html></html>";
 
   for (int i = 1; i < 150; ++i) {
     // With no flushes, the output is just <html></html>
     html_parse_.set_size_limit(i);
-    ValidateExpected("break_in_input", input,
-                     output_when_break_in_html);
+    ValidateExpected("break_in_input", input, output_when_break_in_html);
   }
 
   // Now test with flushes injected.
@@ -483,7 +476,6 @@ TEST_F(HtmlParseTest, AutoClose) {
 
   // http://www.w3.org/TR/html5/the-end.html#misnested-tags:-b-i-b-i
 
-
   // TODO(jmarantz): add more tests related to formatting keywords.
 }
 
@@ -499,48 +491,60 @@ namespace {
 class AnnotatingHtmlFilter : public EmptyHtmlFilter {
  public:
   AnnotatingHtmlFilter() : annotate_flush_(false) {}
-  virtual ~AnnotatingHtmlFilter() {}
+  ~AnnotatingHtmlFilter() override {}
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     StrAppend(&buffer_, (buffer_.empty() ? "+" : " +"), element->name_str());
 
     bool first = true;
     const HtmlElement::AttributeList& attrs = element->attributes();
-    for (HtmlElement::AttributeConstIterator i(attrs.begin());
-         i != attrs.end(); ++i) {
+    for (HtmlElement::AttributeConstIterator i(attrs.begin()); i != attrs.end();
+         ++i) {
       const HtmlElement::Attribute& attr = *i;
       StrAppend(&buffer_, (first ? ":" : ","), attr.name_str());
       const char* value = attr.DecodedValueOrNull();
       if (attr.decoding_error()) {
         StrAppend(&buffer_, "=<ERROR>");
-      } else if (value != NULL) {
+      } else if (value != nullptr) {
         StrAppend(&buffer_, "=", attr.quote_str(), value, attr.quote_str());
       }
       first = false;
     }
   }
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     StrAppend(&buffer_, " -", element->name_str());
     switch (element->style()) {
-      case HtmlElement::AUTO_CLOSE:      buffer_ += "(a)"; break;
-      case HtmlElement::IMPLICIT_CLOSE:  buffer_ += "(i)"; break;
-      case HtmlElement::EXPLICIT_CLOSE:  buffer_ += "(e)"; break;
-      case HtmlElement::BRIEF_CLOSE:     buffer_ += "(b)"; break;
-      case HtmlElement::UNCLOSED:        buffer_ += "(u)"; break;
-      case HtmlElement::INVISIBLE:       buffer_ += "(I)"; break;
+      case HtmlElement::AUTO_CLOSE:
+        buffer_ += "(a)";
+        break;
+      case HtmlElement::IMPLICIT_CLOSE:
+        buffer_ += "(i)";
+        break;
+      case HtmlElement::EXPLICIT_CLOSE:
+        buffer_ += "(e)";
+        break;
+      case HtmlElement::BRIEF_CLOSE:
+        buffer_ += "(b)";
+        break;
+      case HtmlElement::UNCLOSED:
+        buffer_ += "(u)";
+        break;
+      case HtmlElement::INVISIBLE:
+        buffer_ += "(I)";
+        break;
     }
   }
-  virtual void Characters(HtmlCharactersNode* characters) {
+  void Characters(HtmlCharactersNode* characters) override {
     StrAppend(&buffer_, (buffer_.empty() ? "'" : " '"), characters->contents(),
               "'");
   }
 
-  virtual const char* Name() const { return "AnnotatingHtmlFilter"; }
+  const char* Name() const override { return "AnnotatingHtmlFilter"; }
 
   const GoogleString& buffer() const { return buffer_; }
   void Clear() { buffer_.clear(); }
 
-  virtual void Flush() {
+  void Flush() override {
     if (annotate_flush_) {
       buffer_ += "[F]";
     }
@@ -557,14 +561,14 @@ class AnnotatingHtmlFilter : public EmptyHtmlFilter {
 
 class HtmlAnnotationTest : public HtmlParseTestNoBody {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     HtmlParseTestNoBody::SetUp();
     html_parse_.AddFilter(&annotation_);
   }
 
   const GoogleString& annotation() { return annotation_.buffer(); }
   void ResetAnnotation() { annotation_.Clear(); }
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddHtmlTags() const override { return false; }
 
  protected:
   AnnotatingHtmlFilter annotation_;
@@ -587,13 +591,12 @@ TEST_F(HtmlAnnotationTest, CorrectTaggify) {
   EXPECT_EQ("+p '☃<☕' -p(e)", annotation());
   ResetAnnotation();
 
-  ValidateExpected("letter",
-                   "<p>x<y</p>", "<p>x<y< p>");  // lost the / since 'p' is attr.
+  ValidateExpected("letter", "<p>x<y</p>",
+                   "<p>x<y< p>");  // lost the / since 'p' is attr.
   EXPECT_EQ("+p 'x' +y<:p -y<(u) -p(u)", annotation());
   ResetAnnotation();
 
-  ValidateExpected("taggify_letter+digit",
-                   "<p>x1<y2</p>", "<p>x1<y2< p>");
+  ValidateExpected("taggify_letter+digit", "<p>x1<y2</p>", "<p>x1<y2< p>");
   EXPECT_EQ("+p 'x1' +y2<:p -y2<(u) -p(u)", annotation());
   ResetAnnotation();
 
@@ -656,14 +659,14 @@ TEST_F(HtmlAnnotationTest, UnbalancedMarkup) {
 
   // We use this (hopefully) self-explanatory annotation format to indicate
   // what's going on in the parse.
-  EXPECT_EQ("+font -font(a) +tr +i +font -font(u) -i(e) '</font>' -tr(a) +tr "
-            "'</font>' -tr(u)",
-            annotation());
+  EXPECT_EQ(
+      "+font -font(a) +tr +i +font -font(u) -i(e) '</font>' -tr(a) +tr "
+      "'</font>' -tr(u)",
+      annotation());
 }
 
 TEST_F(HtmlAnnotationTest, StrayCloseTr) {
-  ValidateNoChanges("stray_tr",
-                    "<table><tr><table></tr></table></tr></table>");
+  ValidateNoChanges("stray_tr", "<table><tr><table></tr></table></tr></table>");
 
   // We use this (hopefully) self-explanatory annotation format to indicate
   // what's going on in the parse.
@@ -761,8 +764,10 @@ TEST_F(HtmlAnnotationTest, BNotClosedByTable) {
 TEST_F(HtmlAnnotationTest, StrayCloseTrInTable) {
   ValidateNoChanges("stray_close_tr",
                     "<div><table><tbody><td>1</td></tr></tbody></table></div>");
-  EXPECT_EQ("+div +table +tbody +td '1' -td(e) '</tr>' -tbody(e) -table(e) "
-            "-div(e)", annotation());
+  EXPECT_EQ(
+      "+div +table +tbody +td '1' -td(e) '</tr>' -tbody(e) -table(e) "
+      "-div(e)",
+      annotation());
 }
 
 TEST_F(HtmlAnnotationTest, StrayCloseTrInTableWithUnclosedTd) {
@@ -836,18 +841,20 @@ TEST_F(HtmlAnnotationTest, WeirdAttrQuotes) {
   //
   // TODO(jmarantz): check in Chrome.
   ValidateExpected("weird_attr_quotes",
-                    "<DIV STYLE=\"top:214px; left:139px;\""
-                    "position:absolute; font-size:26px;\">"
-                    "<NOBR><SPAN STYLE=\"font-family:\"Wingdings 2\";\">"
+                   "<DIV STYLE=\"top:214px; left:139px;\""
+                   "position:absolute; font-size:26px;\">"
+                   "<NOBR><SPAN STYLE=\"font-family:\"Wingdings 2\";\">"
                    "</SPAN></NOBR></DIV>",
                    "<DIV STYLE=\"top:214px; left:139px;\" "
                    "position:absolute; font-size:26px;\">"
                    "<NOBR><SPAN STYLE=\"font-family:\" Wingdings 2\";\">"
                    "</SPAN></NOBR></DIV>");
-  EXPECT_EQ("+DIV:STYLE=\"top:214px; left:139px;\",position:absolute;,"
-            "font-size:26px;\" +NOBR "
-            "+SPAN:STYLE=\"font-family:\",Wingdings,2\";\" "
-            "-SPAN(e) -NOBR(e) -DIV(e)", annotation());
+  EXPECT_EQ(
+      "+DIV:STYLE=\"top:214px; left:139px;\",position:absolute;,"
+      "font-size:26px;\" +NOBR "
+      "+SPAN:STYLE=\"font-family:\",Wingdings,2\";\" "
+      "-SPAN(e) -NOBR(e) -DIV(e)",
+      annotation());
 }
 
 TEST_F(HtmlAnnotationTest, Misc) {
@@ -867,7 +874,8 @@ TEST_F(HtmlAnnotationTest, Misc) {
   //     <p>lazy</strong> dog.</p>
   // 15. <p> paragraph <h1> heading </h1>
   // 16. <a href="h">1<a>2</a></a>
-  ValidateNoChanges("quote_balance", "<img title=\"><script>alert('foo')"
+  ValidateNoChanges("quote_balance",
+                    "<img title=\"><script>alert('foo')"
                     "</script>\">");
   EXPECT_EQ("+img:title=\"><script>alert('foo')</script>\" -img(i)",
             annotation());
@@ -906,18 +914,21 @@ TEST_F(HtmlAnnotationTest, AttrEqEndsWithSlash) {
 
 TEST_F(HtmlAnnotationTest, TableForm) {
   ValidateNoChanges("table_form", "<table><form><input></table><input></form>");
-  EXPECT_EQ("+table +form +input -input(i) -form(u) -table(e)"
-            " +input -input(i) '</form>'",
-            annotation());
+  EXPECT_EQ(
+      "+table +form +input -input(i) -form(u) -table(e)"
+      " +input -input(i) '</form>'",
+      annotation());
 }
 
 TEST_F(HtmlAnnotationTest, ComplexQuotedAttribute) {
   ValidateNoChanges("complex_quoted_attr",
                     "<div x='\\'><img onload=alert(42)"
                     "src=http://json.org/img/json160.gif>'></div>");
-  EXPECT_EQ("+div:x='\\' "
-            "+img:onload=alert(42)src=http://json.org/img/json160.gif "
-            "-img(i) ''>' -div(e)", annotation());
+  EXPECT_EQ(
+      "+div:x='\\' "
+      "+img:onload=alert(42)src=http://json.org/img/json160.gif "
+      "-img(i) ''>' -div(e)",
+      annotation());
 }
 
 TEST_F(HtmlAnnotationTest, DivNbsp) {
@@ -925,9 +936,10 @@ TEST_F(HtmlAnnotationTest, DivNbsp) {
                     "<div&nbsp &nbsp style=\\-\\mo\\z\\-b\\i\\nd\\in\\g:\\url("
                     "//business\\i\\nfo.co.uk\\/labs\\/xbl\\/xbl\\.xml\\#xss)"
                     ">");
-  EXPECT_EQ("'<div&nbsp &nbsp style=\\-\\mo\\z\\-b\\i\\nd\\in\\g:\\"
-            "url(//business\\i\\nfo.co.uk\\/labs\\/xbl\\/xbl\\.xml\\#xss)>'",
-            annotation());
+  EXPECT_EQ(
+      "'<div&nbsp &nbsp style=\\-\\mo\\z\\-b\\i\\nd\\in\\g:\\"
+      "url(//business\\i\\nfo.co.uk\\/labs\\/xbl\\/xbl\\.xml\\#xss)>'",
+      annotation());
 }
 
 TEST_F(HtmlAnnotationTest, ExtraQuote) {
@@ -954,13 +966,11 @@ TEST_F(HtmlAnnotationTest, ScriptQuirkBasic) {
   EXPECT_EQ("+script '<!--<script></script>a' -script(e) 'b'", annotation());
 
   ResetAnnotation();
-  ValidateNoChanges("script_quirk_2",
-                    "<script><!--</script>a</script>b");
+  ValidateNoChanges("script_quirk_2", "<script><!--</script>a</script>b");
   EXPECT_EQ("+script '<!--' -script(e) 'a</script>b'", annotation());
 
   ResetAnnotation();
-  ValidateNoChanges("script_quirk_3",
-                    "<script><script></script>a</script>b");
+  ValidateNoChanges("script_quirk_3", "<script><script></script>a</script>b");
   EXPECT_EQ("+script '<script>' -script(e) 'a</script>b'", annotation());
 
   ResetAnnotation();
@@ -972,8 +982,7 @@ TEST_F(HtmlAnnotationTest, ScriptQuirkBasic) {
 TEST_F(HtmlAnnotationTest, ScriptQuirkCloseAttr) {
   // HTML5 script parsing is weird in that </script> actually gets attribute
   // parsing.
-  ValidateExpected("script_quirk_close",
-                   "<script></script a=\"foo>\">Bar",
+  ValidateExpected("script_quirk_close", "<script></script a=\"foo>\">Bar",
                    "<script></script>Bar");
   EXPECT_EQ("+script -script(e) 'Bar'", annotation());
 
@@ -983,24 +992,20 @@ TEST_F(HtmlAnnotationTest, ScriptQuirkCloseAttr) {
                    "<script></script>Bar");
   EXPECT_EQ("+script -script(e) 'Bar'", annotation());
 
-
   ResetAnnotation();
   ValidateExpected("script_quirk_close_slash",
-                   "<script></script a=\"foo>\"/>Bar",
-                   "<script></script>Bar");
+                   "<script></script a=\"foo>\"/>Bar", "<script></script>Bar");
   EXPECT_EQ("+script -script(e) 'Bar'", annotation());
 }
 
 TEST_F(HtmlAnnotationTest, ScriptQuirkBriefClose) {
   // HTML5 script parsing --- closing </style />
-  ValidateExpected("script_quirk_close_brief",
-                   "<script></script/>Bar",
+  ValidateExpected("script_quirk_close_brief", "<script></script/>Bar",
                    "<script></script>Bar");
   EXPECT_EQ("+script -script(e) 'Bar'", annotation());
 
   ResetAnnotation();
-  ValidateExpected("script_quirk_close_brief",
-                   "<script></script /foo>Bar",
+  ValidateExpected("script_quirk_close_brief", "<script></script /foo>Bar",
                    "<script></script>Bar");
   EXPECT_EQ("+script -script(e) 'Bar'", annotation());
 }
@@ -1046,9 +1051,10 @@ TEST_F(HtmlAnnotationTest, FlushDoesNotBreakScriptTag) {
   html_parse_.ParseText("g=h;");
   // No explicit </script> but the lexer will help us close it.
   html_parse_.FinishParse();
-  EXPECT_STREQ("[F][F][F][F] +script 'a=b;c=d;' -script(e)[F][F]"
-               " +script 'e=f;g=h;' -script(u)[F]",  // "(u)" for unclosed.
-               annotation());
+  EXPECT_STREQ(
+      "[F][F][F][F] +script 'a=b;c=d;' -script(e)[F][F]"
+      " +script 'e=f;g=h;' -script(u)[F]",  // "(u)" for unclosed.
+      annotation());
 }
 
 TEST_F(HtmlAnnotationTest, FlushDoesNotBreakScriptTagWithComment) {
@@ -1093,9 +1099,9 @@ TEST_F(HtmlAnnotationTest, UnclosedScriptOnly) {
   html_parse_.ParseText("<script>");
   html_parse_.FinishParse();
 
-  // Note that we will get an EndElement callback.  See -script(u) in annotation.
-  // However we will not insert a </script> in the output, since there was none
-  // in the input.
+  // Note that we will get an EndElement callback.  See -script(u) in
+  // annotation. However we will not insert a </script> in the output, since
+  // there was none in the input.
   EXPECT_STREQ("+script -script(u)[F]", annotation());
   EXPECT_STREQ("<script>", output_buffer_);
 }
@@ -1108,9 +1114,9 @@ TEST_F(HtmlAnnotationTest, UnclosedScriptOnlyWithFlush) {
   html_parse_.Flush();
   html_parse_.FinishParse();
 
-  // Note that we will get an EndElement callback.  See -script(u) in annotation.
-  // However we will not insert a </script> in the output, since there was none
-  // in the input.
+  // Note that we will get an EndElement callback.  See -script(u) in
+  // annotation. However we will not insert a </script> in the output, since
+  // there was none in the input.
   EXPECT_STREQ("[F] +script -script(u)[F]", annotation());
   EXPECT_STREQ("<script>", output_buffer_);
 }
@@ -1181,7 +1187,8 @@ TEST_F(HtmlParseTestNoBody, NoscriptInHead) {
   // Some real websites (ex: google.com) have <noscript> in the <head> even
   // though this is technically illegal according to the HTML4 spec.
   // We should support the case in use.
-  ValidateNoChanges("noscript_in_head",
+  ValidateNoChanges(
+      "noscript_in_head",
       "<head><noscript><title>You don't have JS enabled :(</title>"
       "</noscript></head>");
 }
@@ -1223,38 +1230,34 @@ class HandlerCalledFilter : public HtmlFilter {
  public:
   HandlerCalledFilter() : enabled_value_(true) {}
 
-  virtual void StartDocument() { called_start_document_ = true; }
-  virtual void EndDocument() { called_end_document_ = true;}
-  virtual void StartElement(HtmlElement* element) {
+  void StartDocument() override { called_start_document_ = true; }
+  void EndDocument() override { called_end_document_ = true; }
+  void StartElement(HtmlElement* element) override {
     called_start_element_ = true;
   }
-  virtual void EndElement(HtmlElement* element) {
-    called_end_element_ = true;
-  }
-  virtual void Cdata(HtmlCdataNode* cdata) { called_cdata_ = true; }
-  virtual void Comment(HtmlCommentNode* comment) { called_comment_ = true; }
-  virtual void IEDirective(HtmlIEDirectiveNode* directive) {
+  void EndElement(HtmlElement* element) override { called_end_element_ = true; }
+  void Cdata(HtmlCdataNode* cdata) override { called_cdata_ = true; }
+  void Comment(HtmlCommentNode* comment) override { called_comment_ = true; }
+  void IEDirective(HtmlIEDirectiveNode* directive) override {
     called_ie_directive_ = true;
   }
-  virtual void Characters(HtmlCharactersNode* characters) {
+  void Characters(HtmlCharactersNode* characters) override {
     called_characters_ = true;
   }
-  virtual void Directive(HtmlDirectiveNode* directive) {
+  void Directive(HtmlDirectiveNode* directive) override {
     called_directive_ = true;
   }
-  virtual void Flush() { called_flush_ = true; }
+  void Flush() override { called_flush_ = true; }
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason) {
+  void DetermineEnabled(GoogleString* disabled_reason) override {
     set_is_enabled(enabled_value_);
   }
 
-  virtual bool CanModifyUrls() { return false; }
+  bool CanModifyUrls() override { return false; }
   ScriptUsage GetScriptUsage() const override { return kNeverInjectsScripts; }
 
-  void SetEnabled(bool enabled_value) {
-    enabled_value_  = enabled_value;
-  }
-  virtual const char* Name() const { return "HandlerCalled"; }
+  void SetEnabled(bool enabled_value) { enabled_value_ = enabled_value; }
+  const char* Name() const override { return "HandlerCalled"; }
 
   Bool called_start_document_;
   Bool called_end_document_;
@@ -1414,21 +1417,21 @@ TEST_F(HandlerCalledTest, IEDirectiveCalledRevealedClose) {
 // event-list manipulation methods and make sure they render as expected.
 class EventListManipulationTest : public HtmlParseTest {
  protected:
-  EventListManipulationTest() { }
+  EventListManipulationTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     HtmlParseTest::SetUp();
     static const char kUrl[] = "http://html.parse.test/event_list_test.html";
     ASSERT_TRUE(html_parse_.StartParse(kUrl));
-    node1_ = html_parse_.NewCharactersNode(NULL, "1");
+    node1_ = html_parse_.NewCharactersNode(nullptr, "1");
     HtmlTestingPeer::AddEvent(&html_parse_,
                               new HtmlCharactersEvent(node1_, -1));
-    node2_ = html_parse_.NewCharactersNode(NULL, "2");
-    node3_ = html_parse_.NewCharactersNode(NULL, "3");
+    node2_ = html_parse_.NewCharactersNode(nullptr, "2");
+    node3_ = html_parse_.NewCharactersNode(nullptr, "3");
     // Note: the last 2 are not added in SetUp.
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     html_parse_.FinishParse();
     HtmlParseTest::TearDown();
   }
@@ -1533,7 +1536,7 @@ TEST_F(EventListManipulationTest, TestAddParentToSequence) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node3_, div));
   CheckExpected("<div>123</div>");
 
@@ -1544,14 +1547,14 @@ TEST_F(EventListManipulationTest, TestAddParentToSequence) {
 
   // Next, add an HTML block above the div.  Note that we pass 'div' in as
   // both 'first' and 'last'.
-  HtmlElement* html = html_parse_.NewElement(NULL, HtmlName::kHtml);
+  HtmlElement* html = html_parse_.NewElement(nullptr, HtmlName::kHtml);
   EXPECT_TRUE(html_parse_.AddParentToSequence(div, div, html));
   CheckExpected("<html><div><span>12</span>3</div></html>");
 }
 
 TEST_F(EventListManipulationTest, TestPrependChild) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.InsertNodeBeforeCurrent(div);
   CheckExpected("1<div></div>");
 
@@ -1565,7 +1568,7 @@ TEST_F(EventListManipulationTest, TestPrependChild) {
 
 TEST_F(EventListManipulationTest, TestAppendChild) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.InsertNodeBeforeCurrent(div);
   CheckExpected("1<div></div>");
 
@@ -1580,7 +1583,7 @@ TEST_F(EventListManipulationTest, TestAppendChild) {
 TEST_F(EventListManipulationTest, TestAddParentToSequenceDifferentParents) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   CheckExpected("<div>12</div>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
@@ -1590,7 +1593,7 @@ TEST_F(EventListManipulationTest, TestAddParentToSequenceDifferentParents) {
 
 TEST_F(EventListManipulationTest, TestDeleteGroup) {
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   CheckExpected("<div>12</div>");
   html_parse_.DeleteNode(div);
@@ -1598,11 +1601,11 @@ TEST_F(EventListManipulationTest, TestDeleteGroup) {
 }
 
 TEST_F(EventListManipulationTest, TestMoveElementIntoParent1) {
-  HtmlElement* head = html_parse_.NewElement(NULL, HtmlName::kHead);
+  HtmlElement* head = html_parse_.NewElement(nullptr, HtmlName::kHead);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node1_, head));
   CheckExpected("<head>1</head>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node2_, node2_, div));
   CheckExpected("<head>1</head><div>2</div>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
@@ -1614,13 +1617,13 @@ TEST_F(EventListManipulationTest, TestMoveElementIntoParent1) {
 
 TEST_F(EventListManipulationTest, TestMoveElementIntoParent2) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* head = html_parse_.NewElement(NULL, HtmlName::kHead);
+  HtmlElement* head = html_parse_.NewElement(nullptr, HtmlName::kHead);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node1_, head));
   CheckExpected("<head>1</head>");
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
   CheckExpected("<head>1</head>23");
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node3_, node3_, div));
   CheckExpected("<head>1</head>2<div>3</div>");
   HtmlTestingPeer::SetCurrent(&html_parse_, div);
@@ -1634,7 +1637,7 @@ TEST_F(EventListManipulationTest, TestMoveElementIntoParent2) {
 
 TEST_F(EventListManipulationTest, TestDeleteSavingChildrenEnd) {
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node1_, div));
   CheckExpected("<div>1</div>");
   EXPECT_TRUE(html_parse_.DeleteSavingChildren(div));
@@ -1645,7 +1648,7 @@ TEST_F(EventListManipulationTest, TestMoveCurrentBefore) {
   // Setup events.
   HtmlTestingPeer::set_coalesce_characters(&html_parse_, false);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   EXPECT_TRUE(html_parse_.AddParentToSequence(node1_, node2_, div));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node3_, -1));
   CheckExpected("<div>12</div>3");
@@ -1664,7 +1667,7 @@ TEST_F(EventListManipulationTest, TestMoveCurrentBefore) {
 #endif
 
   // Test that current_ pointing to a containing object will not work.
-  HtmlElement* span = html_parse_.NewElement(NULL, HtmlName::kSpan);
+  HtmlElement* span = html_parse_.NewElement(nullptr, HtmlName::kSpan);
   EXPECT_TRUE(html_parse_.AddParentToSequence(div, div, span));
   CheckExpected("<span><div>132</div></span>");
   HtmlTestingPeer::SetCurrent(&html_parse_, span);
@@ -1687,7 +1690,7 @@ TEST_F(EventListManipulationTest, TestCoalesceOnAdd) {
 
 TEST_F(EventListManipulationTest, TestCoalesceOnDelete) {
   CheckExpected("1");
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
   HtmlTestingPeer testing_peer;
@@ -1708,7 +1711,7 @@ TEST_F(EventListManipulationTest, TestCoalesceOnDelete) {
 
 TEST_F(EventListManipulationTest, TestHasChildren) {
   CheckExpected("1");
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   EXPECT_FALSE(html_parse_.HasChildrenInFlushWindow(div));
   HtmlTestingPeer::AddEvent(&html_parse_, new HtmlCharactersEvent(node2_, -1));
@@ -1736,7 +1739,7 @@ TEST_F(EventListManipulationTest, AppendCommentWithEscaping) {
 }
 
 TEST_F(EventListManipulationTest, CommentBeforeDiv1) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   html_parse_.InsertComment("hello");
   html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
@@ -1744,7 +1747,7 @@ TEST_F(EventListManipulationTest, CommentBeforeDiv1) {
 }
 
 TEST_F(EventListManipulationTest, CommentBeforeDiv2) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.InsertComment("hello");
   html_parse_.AddElement(div, -1);
   html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
@@ -1752,7 +1755,7 @@ TEST_F(EventListManipulationTest, CommentBeforeDiv2) {
 }
 
 TEST_F(EventListManipulationTest, CommentAfterDiv) {
-  HtmlElement* div = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div, -1);
   html_parse_.CloseElement(div, HtmlElement::EXPLICIT_CLOSE, -1);
   html_parse_.InsertComment("hello");
@@ -1760,10 +1763,10 @@ TEST_F(EventListManipulationTest, CommentAfterDiv) {
 }
 
 TEST_F(EventListManipulationTest, CommentAfterFirstDiv) {
-  HtmlElement* div1 = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div1 = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div1, -1);
   html_parse_.CloseElement(div1, HtmlElement::EXPLICIT_CLOSE, -1);
-  HtmlElement* div2 = html_parse_.NewElement(NULL, HtmlName::kDiv);
+  HtmlElement* div2 = html_parse_.NewElement(nullptr, HtmlName::kDiv);
   html_parse_.AddElement(div2, -1);
   html_parse_.CloseElement(div2, HtmlElement::EXPLICIT_CLOSE, -1);
   HtmlTestingPeer::SetCurrent(&html_parse_, div1);
@@ -1774,15 +1777,12 @@ TEST_F(EventListManipulationTest, CommentAfterFirstDiv) {
 class InsertCommentOnFirstDivFilter : public EmptyHtmlFilter {
  public:
   InsertCommentOnFirstDivFilter(bool at_start, HtmlParse* parse)
-      : html_parse_(parse),
-        at_start_(at_start),
-        first_(true) {
-  }
+      : html_parse_(parse), at_start_(at_start), first_(true) {}
 
-  virtual void StartDocument() { first_ = true; }
-  virtual void StartElement(HtmlElement* element) { Insert(true, element); }
-  virtual void EndElement(HtmlElement* element) { Insert(false, element); }
-  virtual const char* Name() const { return "InsertCommentOnFirstDivFilter"; }
+  void StartDocument() override { first_ = true; }
+  void StartElement(HtmlElement* element) override { Insert(true, element); }
+  void EndElement(HtmlElement* element) override { Insert(false, element); }
+  const char* Name() const override { return "InsertCommentOnFirstDivFilter"; }
 
  private:
   void Insert(bool at_start, HtmlElement* element) {
@@ -1792,7 +1792,6 @@ class InsertCommentOnFirstDivFilter : public EmptyHtmlFilter {
       first_ = false;
     }
   }
-
 
  private:
   HtmlParse* html_parse_;
@@ -1806,8 +1805,7 @@ TEST_F(HtmlParseTestNoBody, CommentInsideFirstDiv) {
   InsertCommentOnFirstDivFilter insert_at_first_div(true, &html_parse_);
   html_parse_.AddFilter(&insert_at_first_div);
   SetupWriter();
-  ValidateExpected("comment_inside_first_div",
-                   "1<div>2</div>3<div>4</div>5",
+  ValidateExpected("comment_inside_first_div", "1<div>2</div>3<div>4</div>5",
                    "1<!--hello--><div>2</div>3<div>4</div>5");
 }
 
@@ -1815,8 +1813,7 @@ TEST_F(HtmlParseTestNoBody, CommentAfterFirstDiv) {
   InsertCommentOnFirstDivFilter insert_at_first_div(false, &html_parse_);
   html_parse_.AddFilter(&insert_at_first_div);
   SetupWriter();
-  ValidateExpected("comment_inside_first_div",
-                   "1<div>2</div>3<div>4</div>5",
+  ValidateExpected("comment_inside_first_div", "1<div>2</div>3<div>4</div>5",
                    "1<div>2</div><!--hello-->3<div>4</div>5");
 }
 
@@ -1845,9 +1842,10 @@ TEST_F(HtmlParseTestNoBody, InsertCommentFromFlushInLargeCharactersBlock) {
   EXPECT_TRUE(html_parse_.InsertComment("FLUSH3"));
   html_parse_.FinishParse();
 
-  EXPECT_EQ("<!--FLUSH1--><style>bytes::more::still more::final bytes:</style>"
-            "<!--FLUSH3-->",
-            output_buffer_);
+  EXPECT_EQ(
+      "<!--FLUSH1--><style>bytes::more::still more::final bytes:</style>"
+      "<!--FLUSH3-->",
+      output_buffer_);
 }
 
 TEST_F(HtmlParseTestNoBody, InsertCommentFromFlushInEmptyCharactersBlock) {
@@ -1871,14 +1869,14 @@ TEST_F(HtmlParseTestNoBody, InsertCommentFromFlushInEmptyCharactersBlock) {
 // while manipulating attribute values.
 class AttributeManipulationTest : public HtmlParseTest {
  protected:
-  AttributeManipulationTest() { }
+  AttributeManipulationTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     HtmlParseTest::SetUp();
     static const char kUrl[] =
         "http://html.parse.test/attribute_manipulation_test.html";
     ASSERT_TRUE(html_parse_.StartParse(kUrl));
-    node_ = html_parse_.NewElement(NULL, HtmlName::kA);
+    node_ = html_parse_.NewElement(nullptr, HtmlName::kA);
     html_parse_.AddElement(node_, 0);
     html_parse_.AddAttribute(node_, HtmlName::kHref, "http://www.google.com/");
     node_->AddAttribute(html_parse_.MakeName(HtmlName::kId), "37",
@@ -1891,7 +1889,7 @@ class AttributeManipulationTest : public HtmlParseTest {
     html_parse_.CloseElement(node_, HtmlElement::BRIEF_CLOSE, 0);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     html_parse_.FinishParse();
     HtmlParseTest::TearDown();
   }
@@ -1905,8 +1903,8 @@ class AttributeManipulationTest : public HtmlParseTest {
   int NumAttributes(HtmlElement* element) {
     int size = 0;
     const HtmlElement::AttributeList& attrs = element->attributes();
-    for (HtmlElement::AttributeConstIterator i(attrs.begin());
-         i != attrs.end(); ++i) {
+    for (HtmlElement::AttributeConstIterator i(attrs.begin()); i != attrs.end();
+         ++i) {
       ++size;
     }
 
@@ -1916,14 +1914,14 @@ class AttributeManipulationTest : public HtmlParseTest {
   HtmlElement::Attribute* AttributeAt(HtmlElement* element, int index) {
     int pos = 0;
     HtmlElement::AttributeList* attrs = element->mutable_attributes();
-    for (HtmlElement::AttributeIterator i(attrs->begin());
-         i != attrs->end(); ++i) {
+    for (HtmlElement::AttributeIterator i(attrs->begin()); i != attrs->end();
+         ++i) {
       if (pos == index) {
         return i.Get();
       }
       ++pos;
     }
-    return NULL;
+    return nullptr;
   }
 
   HtmlElement* node_;
@@ -1941,43 +1939,45 @@ TEST_F(AttributeManipulationTest, PropertiesAndDeserialize) {
   EXPECT_EQ(number37, node_->AttributeValue(HtmlName::kId));
   EXPECT_EQ(search, node_->AttributeValue(HtmlName::kClass));
   // Returns NULL for attributes that do not exist ...
-  EXPECT_TRUE(NULL == node_->AttributeValue(HtmlName::kNotAKeyword));
+  EXPECT_TRUE(nullptr == node_->AttributeValue(HtmlName::kNotAKeyword));
   // ... and for attributes which have no value.
-  EXPECT_TRUE(NULL == node_->AttributeValue(HtmlName::kSelected));
+  EXPECT_TRUE(nullptr == node_->AttributeValue(HtmlName::kSelected));
   // Returns NULL for attributes that do not exist.
-  EXPECT_TRUE(NULL == node_->FindAttribute(HtmlName::kNotAKeyword));
+  EXPECT_TRUE(nullptr == node_->FindAttribute(HtmlName::kNotAKeyword));
   // Returns an attribute reference for attributes without values.
   HtmlElement::Attribute* selected = node_->FindAttribute(HtmlName::kSelected);
-  EXPECT_TRUE(NULL != selected);
-  EXPECT_TRUE(NULL == selected->DecodedValueOrNull());
+  EXPECT_TRUE(nullptr != selected);
+  EXPECT_TRUE(nullptr == selected->DecodedValueOrNull());
   EXPECT_EQ(google, node_->AttributeValue(HtmlName::kHref));
   EXPECT_EQ(number37, node_->AttributeValue(HtmlName::kId));
   EXPECT_EQ(search, node_->AttributeValue(HtmlName::kClass));
   EXPECT_EQ(google, node_->FindAttribute(HtmlName::kHref)->escaped_value());
   EXPECT_EQ(number37, node_->FindAttribute(HtmlName::kId)->escaped_value());
   EXPECT_EQ(search, node_->FindAttribute(HtmlName::kClass)->escaped_value());
-  CheckExpected("<a href=\"http://www.google.com/\" id=37 class='search!'"
-                " selected />");
+  CheckExpected(
+      "<a href=\"http://www.google.com/\" id=37 class='search!'"
+      " selected />");
 }
 
 TEST_F(AttributeManipulationTest, AddAttribute) {
   html_parse_.AddAttribute(node_, HtmlName::kLang, "ENG-US");
-  CheckExpected("<a href=\"http://www.google.com/\" id=37 class='search!'"
-                " selected lang=\"ENG-US\"/>");
+  CheckExpected(
+      "<a href=\"http://www.google.com/\" id=37 class='search!'"
+      " selected lang=\"ENG-US\"/>");
 }
 
 TEST_F(AttributeManipulationTest, DeleteAttribute) {
   node_->DeleteAttribute(HtmlName::kId);
-  CheckExpected("<a href=\"http://www.google.com/\" class='search!'"
-                " selected />");
+  CheckExpected(
+      "<a href=\"http://www.google.com/\" class='search!'"
+      " selected />");
   node_->DeleteAttribute(HtmlName::kSelected);
   CheckExpected("<a href=\"http://www.google.com/\" class='search!'/>");
 }
 
 TEST_F(AttributeManipulationTest, ModifyAttribute) {
-  HtmlElement::Attribute* href =
-      node_->FindAttribute(HtmlName::kHref);
-  EXPECT_TRUE(href != NULL);
+  HtmlElement::Attribute* href = node_->FindAttribute(HtmlName::kHref);
+  EXPECT_TRUE(href != nullptr);
   href->SetValue("google");
   href->set_quote_style(HtmlElement::SINGLE_QUOTE);
   html_parse_.SetAttributeName(href, HtmlName::kSrc);
@@ -1985,15 +1985,15 @@ TEST_F(AttributeManipulationTest, ModifyAttribute) {
 }
 
 TEST_F(AttributeManipulationTest, ModifyKeepAttribute) {
-  HtmlElement::Attribute* href =
-      node_->FindAttribute(HtmlName::kHref);
-  EXPECT_TRUE(href != NULL);
+  HtmlElement::Attribute* href = node_->FindAttribute(HtmlName::kHref);
+  EXPECT_TRUE(href != nullptr);
   // This apparently do-nothing call to SetValue exposed an allocation bug.
   href->SetValue(href->DecodedValueOrNull());
   href->set_quote_style(href->quote_style());
   href->set_name(href->name());
-  CheckExpected("<a href=\"http://www.google.com/\" id=37 class='search!'"
-                " selected />");
+  CheckExpected(
+      "<a href=\"http://www.google.com/\" id=37 class='search!'"
+      " selected />");
 }
 
 TEST_F(AttributeManipulationTest, BadUrl) {
@@ -2019,22 +2019,24 @@ TEST_F(AttributeManipulationTest, CloneElement) {
   EXPECT_EQ(HtmlName::kClass, AttributeAt(clone, 2)->keyword());
   EXPECT_STREQ("search!", AttributeAt(clone, 2)->DecodedValueOrNull());
   EXPECT_EQ(HtmlName::kSelected, AttributeAt(clone, 3)->keyword());
-  EXPECT_EQ(NULL, AttributeAt(clone, 3)->DecodedValueOrNull());
+  EXPECT_EQ(nullptr, AttributeAt(clone, 3)->DecodedValueOrNull());
 
   HtmlElement::Attribute* id = clone->FindAttribute(HtmlName::kId);
-  ASSERT_TRUE(id != NULL);
+  ASSERT_TRUE(id != nullptr);
   id->SetValue("38");
 
   // Clone is not added initially, and the original is not touched.
-  CheckExpected("<a href=\"http://www.google.com/\" id=37 class='search!'"
-                " selected />");
+  CheckExpected(
+      "<a href=\"http://www.google.com/\" id=37 class='search!'"
+      " selected />");
 
   // Looks sane when added.
   html_parse_.InsertNodeBeforeNode(node_, clone);
-  CheckExpected("<a href=\"http://www.google.com/\" id=38 class='search!'"
-                " selected />"
-                "<a href=\"http://www.google.com/\" id=37 class='search!'"
-                " selected />");
+  CheckExpected(
+      "<a href=\"http://www.google.com/\" id=38 class='search!'"
+      " selected />"
+      "<a href=\"http://www.google.com/\" id=37 class='search!'"
+      " selected />");
 }
 
 TEST_F(HtmlParseTest, NoDisabledFilter) {
@@ -2097,19 +2099,16 @@ TEST_F(HtmlParseTest, DisabledFilterWithReason) {
 
 class DisableFilterOnBody : public EmptyHtmlFilter {
  public:
-  DisableFilterOnBody(HtmlFilter* filter_to_disable,
-                      HtmlParse* parse)
-      : filter_to_disable_(filter_to_disable),
-        html_parse_(parse) {
-  }
+  DisableFilterOnBody(HtmlFilter* filter_to_disable, HtmlParse* parse)
+      : filter_to_disable_(filter_to_disable), html_parse_(parse) {}
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     if (element->keyword() == HtmlName::kBody) {
       filter_to_disable_->set_is_enabled(false);
       HtmlTestingPeer::set_buffer_events(html_parse_, false);
     }
   }
-  virtual const char* Name() const { return "DisableFilterOnBody"; }
+  const char* Name() const override { return "DisableFilterOnBody"; }
 
  private:
   HtmlFilter* filter_to_disable_;
@@ -2119,34 +2118,27 @@ class DisableFilterOnBody : public EmptyHtmlFilter {
 class CountingCallbacksFilter : public EmptyHtmlFilter {
  public:
   CountingCallbacksFilter()
-      : num_start_elements_(0),
-        num_end_elements_(0),
-        num_char_elements_(0) {
-  }
+      : num_start_elements_(0), num_end_elements_(0), num_char_elements_(0) {}
   int num_start_elements() const { return num_start_elements_; }
   int num_end_elements() const { return num_end_elements_; }
   int num_char_elements() const { return num_char_elements_; }
 
  protected:
-  virtual void StartDocument() {
+  void StartDocument() override {
     num_start_elements_ = 0;
     num_end_elements_ = 0;
     num_char_elements_ = 0;
   }
 
-  virtual void StartElement(HtmlElement* element) {
-    ++num_start_elements_;
-  }
+  void StartElement(HtmlElement* element) override { ++num_start_elements_; }
 
-  virtual void EndElement(HtmlElement* element) {
-    ++num_end_elements_;
-  }
+  void EndElement(HtmlElement* element) override { ++num_end_elements_; }
 
-  virtual void Characters(HtmlCharactersNode* characters) {
+  void Characters(HtmlCharactersNode* characters) override {
     ++num_char_elements_;
   }
 
-  virtual const char* Name() const { return "CountingCallbacksFilter"; }
+  const char* Name() const override { return "CountingCallbacksFilter"; }
 
  private:
   int num_start_elements_;
@@ -2161,14 +2153,15 @@ TEST_F(HtmlParseTest, BufferEventsOnEventListener) {
   CountingCallbacksFilter counter_to_disable;
   html_parse_.AddFilter(&counter_that_stays_enabled);
   html_parse_.AddFilter(&counter_to_disable);
-  html_parse_.add_event_listener(new DisableFilterOnBody(
-      &counter_to_disable, &html_parse_));
+  html_parse_.add_event_listener(
+      new DisableFilterOnBody(&counter_to_disable, &html_parse_));
   static const char kInput[] =
       "<html><head><title>foo</title><body>hello, world</body></html>";
   const StringPiece kInputPiece(kInput, STATIC_STRLEN(kInput));
   for (int i = 0, n = STATIC_STRLEN(kInput); i < n; ++i) {
     counter_to_disable.set_is_enabled(true);
-    html_parse_.StartParse (absl::StrFormat("http://example.com/doc_%d.html", i));
+    html_parse_.StartParse(
+        absl::StrFormat("http://example.com/doc_%d.html", i));
     HtmlTestingPeer::set_buffer_events(&html_parse_, true);
     html_parse_.ParseText(kInputPiece.substr(0, i));
     html_parse_.Flush();
@@ -2200,8 +2193,7 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
         save_children_(true),
         make_invisible_(false),
         num_deleted_elements_(0),
-        flushes_preventing_delete_(0) {
-  }
+        flushes_preventing_delete_(0) {}
 
   void set_delete_node_type(HtmlName::Keyword keyword) {
     delete_node_type_ = keyword;
@@ -2222,7 +2214,7 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
   int flushes_preventing_delete() const { return flushes_preventing_delete_; }
 
  protected:
-  virtual void StartDocument() {
+  void StartDocument() override {
     pending_deletes_.clear();
     num_deleted_elements_ = 0;
     flushes_preventing_delete_ = 0;
@@ -2231,7 +2223,7 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
     // windows.
   }
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     CountingCallbacksFilter::StartElement(element);
     if (element->keyword() == delete_node_type_) {
       pending_deletes_.push_back(element);
@@ -2241,14 +2233,14 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
     }
   }
 
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     CountingCallbacksFilter::EndElement(element);
     if (!delete_on_open_tag_ && element->keyword() == delete_from_type_) {
       DeleteElements();
     }
   }
 
-  virtual void Flush() {
+  void Flush() override {
     // We can't delete an element that has been flushed.
     for (int i = 0, n = pending_deletes_.size(); i < n; ++i) {
       ++flushes_preventing_delete_;
@@ -2256,17 +2248,17 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
     pending_deletes_.clear();
   }
 
-  virtual const char* Name() const { return "DeleteNodesFilter"; }
+  const char* Name() const override { return "DeleteNodesFilter"; }
 
  private:
   void DeleteElements() {
     for (int i = 0, n = pending_deletes_.size(); i < n; ++i) {
       HtmlElement* element = pending_deletes_[i];
-      bool success = make_invisible_
-          ? html_parse_->MakeElementInvisible(element)
-          : (save_children_
-             ? html_parse_->DeleteSavingChildren(element)
-             : html_parse_->DeleteNode(element));
+      bool success =
+          make_invisible_
+              ? html_parse_->MakeElementInvisible(element)
+              : (save_children_ ? html_parse_->DeleteSavingChildren(element)
+                                : html_parse_->DeleteNode(element));
       if (success) {
         ++num_deleted_elements_;
       }
@@ -2290,9 +2282,7 @@ class DeleteNodesFilter : public CountingCallbacksFilter {
 class HtmlParseDeleteTest : public HtmlParseTest {
  protected:
   HtmlParseDeleteTest()
-      : delete_filter_(html_parse()),
-        total_successes_(0),
-        total_failures_(0) {
+      : delete_filter_(html_parse()), total_successes_(0), total_failures_(0) {
     html_parse()->AddFilter(&delete_filter_);
     SetupWriter();
   }
@@ -2302,8 +2292,8 @@ class HtmlParseDeleteTest : public HtmlParseTest {
     for (int i = 0, n = input.size(); i < n; ++i) {
       ParseWithFlush(input, i);
       if (delete_filter_.num_deleted_elements() != 0) {
-        EXPECT_STREQ(expected_output_if_deletes_worked,
-                     output_buffer_) << " flush " << i;
+        EXPECT_STREQ(expected_output_if_deletes_worked, output_buffer_)
+            << " flush " << i;
         ++total_successes_;
       } else {
         EXPECT_STREQ(input, output_buffer_) << " flush " << i;
@@ -2387,13 +2377,12 @@ TEST_F(HtmlParseDeleteTest, InvisibleAtEnd) {
 
 class EventListOrderTest : public HtmlParseTest {
  protected:
-  EventListOrderTest()
-      : delete_nodes_filter_(&html_parse_) {
+  EventListOrderTest() : delete_nodes_filter_(&html_parse_) {
     html_parse_.AddFilter(&delete_nodes_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddBody() const override { return false; }
+  bool AddHtmlTags() const override { return false; }
 
   DeleteNodesFilter delete_nodes_filter_;
 
@@ -2512,8 +2501,7 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
       : html_parse_(html_parse),
         outstanding_deferred_elements_(0),
         num_deletes_(0),
-        restore_on_open_(false) {
-  }
+        restore_on_open_(false) {}
 
   // Establishes the ID or text of an element to defer, and the ID of an
   // element to move after.
@@ -2521,13 +2509,9 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
     remove_map_[id_or_text] = restore_point;
   }
 
-  void DeleteOnStart(const char* id_or_text) {
-    delete_set_.insert(id_or_text);
-  }
+  void DeleteOnStart(const char* id_or_text) { delete_set_.insert(id_or_text); }
 
-  void set_restore_on_open(bool restore) {
-    restore_on_open_ = restore;
-  }
+  void set_restore_on_open(bool restore) { restore_on_open_ = restore; }
 
   // Returns the number of nodes that have been deferred, but not yet restored.
   bool AllRestored() const { return restore_map_.empty(); }
@@ -2537,26 +2521,25 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
   int num_deletes() const { return num_deletes_; }
 
  protected:
-  virtual void StartDocument() {
+  void StartDocument() override {
     CountingCallbacksFilter::StartDocument();
     restore_map_.clear();
     outstanding_deferred_elements_ = 0;
     num_deletes_ = 0;
   }
 
-  virtual void Characters(HtmlCharactersNode* node) {
+  void Characters(HtmlCharactersNode* node) override {
     CountingCallbacksFilter::Characters(node);
     const GoogleString& text = node->contents();
-    if (!MaybeRemoveNode(text, node) &&
-        !MaybeDeleteNode(text, node)) {
+    if (!MaybeRemoveNode(text, node) && !MaybeDeleteNode(text, node)) {
       MaybeRestoreNode(text);
     }
   }
 
-  virtual void StartElement(HtmlElement* element) {
+  void StartElement(HtmlElement* element) override {
     CountingCallbacksFilter::StartElement(element);
     const char* id = FindId(element);
-    if (id != NULL) {
+    if (id != nullptr) {
       if (!MaybeRemoveNode(id, element)) {
         MaybeDeleteNode(id, element);
       }
@@ -2566,22 +2549,22 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
     }
   }
 
-  virtual void EndElement(HtmlElement* element) {
+  void EndElement(HtmlElement* element) override {
     CountingCallbacksFilter::EndElement(element);
     const char* id = FindId(element);
-    if (id != NULL && !restore_on_open_) {
+    if (id != nullptr && !restore_on_open_) {
       MaybeRestoreNode(id);
     }
   }
-  virtual const char* Name() const { return "RestoreNodesFilter"; }
+  const char* Name() const override { return "RestoreNodesFilter"; }
 
  private:
   typedef std::map<GoogleString, HtmlNode*> RestoreMap;
 
   const char* FindId(HtmlElement* element) {
     const HtmlElement::Attribute* attr = element->FindAttribute("id");
-    if (attr == NULL) {
-      return NULL;
+    if (attr == nullptr) {
+      return nullptr;
     }
     return attr->DecodedValueOrNull();
   }
@@ -2590,10 +2573,10 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
     StringStringMap::iterator p = remove_map_.find(id);
     if (p != remove_map_.end()) {
       const GoogleString& restore_id = p->second;
-      EXPECT_TRUE(restore_map_[restore_id] == NULL);
+      EXPECT_TRUE(restore_map_[restore_id] == nullptr);
       restore_map_[restore_id] = node;
       html_parse_->DeferCurrentNode();
-      if (dynamic_cast<HtmlElement*>(node) != NULL) {
+      if (dynamic_cast<HtmlElement*>(node) != nullptr) {
         ++outstanding_deferred_elements_;
       }
       return true;
@@ -2616,7 +2599,7 @@ class RestoreNodesFilter : public CountingCallbacksFilter {
       HtmlNode* restore_node = p->second;
       html_parse_->RestoreDeferredNode(restore_node);
       restore_map_.erase(p);
-      if (dynamic_cast<HtmlElement*>(restore_node) != NULL) {
+      if (dynamic_cast<HtmlElement*>(restore_node) != nullptr) {
         --outstanding_deferred_elements_;
       }
     }
@@ -2655,8 +2638,8 @@ class HtmlRestoreTest : public HtmlParseTest {
     html_parse_.AddFilter(&post_counts_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
-  virtual bool AddHtmlTags() const { return false; }
+  bool AddBody() const override { return false; }
+  bool AddHtmlTags() const override { return false; }
 
   // Runs a test like ValidateExpected, but puts one or two Flush
   // calls at aribtrary points in the text, covering all n^2 places
@@ -2665,8 +2648,7 @@ class HtmlRestoreTest : public HtmlParseTest {
   // Don't call this with an especially large 'before', otherwise the
   // time taken will grow quadratically.  Calling this with 70 byte
   // inputs appears to be OK, taking <300ms to run even in a debug build.
-  void RunTestsWithManyFlushWindows(StringPiece before,
-                                    StringPiece expected) {
+  void RunTestsWithManyFlushWindows(StringPiece before, StringPiece expected) {
     SetupWriter();
     int before_size = before.size();
     for (int flush1 = 0; flush1 < before_size; ++flush1) {
@@ -2698,35 +2680,41 @@ class HtmlRestoreTest : public HtmlParseTest {
           EXPECT_TRUE(restore_nodes_filter_.AllRestored()) << this_id;
           if (restore_nodes_filter_.num_deletes() == 0) {
             ASSERT_EQ(pre_counts_filter_.num_start_elements(),
-                      restore_nodes_filter_.num_start_elements()) << this_id;
+                      restore_nodes_filter_.num_start_elements())
+                << this_id;
             ASSERT_EQ(pre_counts_filter_.num_end_elements(),
-                      restore_nodes_filter_.num_end_elements()) << this_id;
+                      restore_nodes_filter_.num_end_elements())
+                << this_id;
             ASSERT_EQ(pre_counts_filter_.num_start_elements(),
-                      post_counts_filter_.num_start_elements()) << this_id;
+                      post_counts_filter_.num_start_elements())
+                << this_id;
             ASSERT_EQ(pre_counts_filter_.num_end_elements(),
-                      post_counts_filter_.num_end_elements()) << this_id;
+                      post_counts_filter_.num_end_elements())
+                << this_id;
           }
           ASSERT_EQ(pre_counts_filter_.num_char_elements(),
-                    restore_nodes_filter_.num_char_elements()) << this_id;
+                    restore_nodes_filter_.num_char_elements())
+              << this_id;
 
           // We use ASSERT_GE here because some of the tests will result in
           // characters being coalesced on the defer or on the restore.
           ASSERT_GE(pre_counts_filter_.num_char_elements(),
-                    post_counts_filter_.num_char_elements()) << this_id;
+                    post_counts_filter_.num_char_elements())
+              << this_id;
 
           // Of course, start and end element count must be balanced,
           // as long as all deferred nodes were restored.
           ASSERT_EQ(restore_nodes_filter_.num_start_elements(),
                     (restore_nodes_filter_.num_end_elements() +
-                     restore_nodes_filter_.num_deletes())) << this_id;
+                     restore_nodes_filter_.num_deletes()))
+              << this_id;
         } else {
           // Otherwise there will be an extra Start tag for every
           // unrestored element.
           EXPECT_FALSE(restore_nodes_filter_.AllRestored()) << this_id;
-          ASSERT_EQ(
-              restore_nodes_filter_.num_start_elements(),
-              (restore_nodes_filter_.num_end_elements() +
-               restore_nodes_filter_.outstanding_deferred_elements()))
+          ASSERT_EQ(restore_nodes_filter_.num_start_elements(),
+                    (restore_nodes_filter_.num_end_elements() +
+                     restore_nodes_filter_.outstanding_deferred_elements()))
               << this_id;
         }
 
@@ -2734,23 +2722,23 @@ class HtmlRestoreTest : public HtmlParseTest {
         // start/end callback-counts.  Filters running before or after that one
         // see a balanced set of callbacks.
         ASSERT_EQ(pre_counts_filter_.num_start_elements(),
-                  pre_counts_filter_.num_end_elements()) << this_id;
+                  pre_counts_filter_.num_end_elements())
+            << this_id;
         ASSERT_EQ(post_counts_filter_.num_start_elements(),
-                  post_counts_filter_.num_end_elements()) << this_id;
+                  post_counts_filter_.num_end_elements())
+            << this_id;
       }
     }
   }
 
-  void TestTwoFilters(const char* src1, const char* dest1,
-                      const char* src2, const char* dest2,
-                      const char* node_to_delete,
-                      StringPiece input,
-                      StringPiece expected) {
+  void TestTwoFilters(const char* src1, const char* dest1, const char* src2,
+                      const char* dest2, const char* node_to_delete,
+                      StringPiece input, StringPiece expected) {
     RestoreNodesFilter restore_nodes_filter2(&html_parse_);
     html_parse_.AddFilter(&restore_nodes_filter2);
     SetupWriter();
     restore_nodes_filter_.MoveOnStart(src1, dest1);
-    if (node_to_delete != NULL) {
+    if (node_to_delete != nullptr) {
       restore_nodes_filter_.DeleteOnStart(node_to_delete);
     }
     restore_nodes_filter2.MoveOnStart(src2, dest2);
@@ -2771,11 +2759,10 @@ class HtmlRestoreTest : public HtmlParseTest {
 
 TEST_F(HtmlRestoreTest, MoveAAfterB) {
   restore_nodes_filter_.MoveOnStart("a", "b");  // moves div 'a' after div 'b'
-  RunTestsWithManyFlushWindows(
-      ("0<div id=a>1<span>2</span>3</div>"
-       "4<div id=b>5<span>6</span></div>7"),
-      ("04<div id=b>5<span>6</span></div>"
-       "<div id=a>1<span>2</span>3</div>7"));
+  RunTestsWithManyFlushWindows(("0<div id=a>1<span>2</span>3</div>"
+                                "4<div id=b>5<span>6</span></div>7"),
+                               ("04<div id=b>5<span>6</span></div>"
+                                "<div id=a>1<span>2</span>3</div>7"));
 }
 
 TEST_F(HtmlRestoreTest, MoveAAfterBUnclosed) {
@@ -2789,34 +2776,29 @@ TEST_F(HtmlRestoreTest, MoveAAfterBUnclosed) {
 
 TEST_F(HtmlRestoreTest, MoveAAfterNestedB) {
   restore_nodes_filter_.MoveOnStart("a", "b");  // moves div 'a' after div 'b'
-  RunTestsWithManyFlushWindows(
-      ("0<div id=a>1<span>2</span>3</div>"
-       "4<div><div id=b>5<span>6</span></div>7</div>"),
-      ("04<div><div id=b>5<span>6</span></div>"
-       "<div id=a>1<span>2</span>3</div>7</div>"));
+  RunTestsWithManyFlushWindows(("0<div id=a>1<span>2</span>3</div>"
+                                "4<div><div id=b>5<span>6</span></div>7</div>"),
+                               ("04<div><div id=b>5<span>6</span></div>"
+                                "<div id=a>1<span>2</span>3</div>7</div>"));
 }
-
 
 TEST_F(HtmlRestoreTest, MoveABAfterC) {
   restore_nodes_filter_.MoveOnStart("a", "c");
   restore_nodes_filter_.MoveOnStart("b", "a");
-  RunTestsWithManyFlushWindows(
-      "0<img id=a />1<img id=b />2<img id=c />3",
-      "012<img id=c /><img id=a /><img id=b />3");
+  RunTestsWithManyFlushWindows("0<img id=a />1<img id=b />2<img id=c />3",
+                               "012<img id=c /><img id=a /><img id=b />3");
 }
 
 TEST_F(HtmlRestoreTest, MoveTextAfterDiv) {
   restore_nodes_filter_.MoveOnStart("start", "a");
-  RunTestsWithManyFlushWindows(
-      "start<div id=a></div>",
-      "<div id=a></div>start");
+  RunTestsWithManyFlushWindows("start<div id=a></div>",
+                               "<div id=a></div>start");
 }
 
 TEST_F(HtmlRestoreTest, MoveDivAfterText) {
   restore_nodes_filter_.MoveOnStart("a", "hello");
-  RunTestsWithManyFlushWindows(
-      "<div id=a></div>hello",
-      "hello<div id=a></div>");
+  RunTestsWithManyFlushWindows("<div id=a></div>hello",
+                               "hello<div id=a></div>");
 }
 
 TEST_F(HtmlRestoreTest, MoveTextfterText) {
@@ -2872,55 +2854,46 @@ TEST_F(HtmlRestoreTest, RestoreOnOpenTag) {
 // node first, and then, before restoring first deferred node, another
 // filter defers a different node.
 TEST_F(HtmlRestoreTest, TwoDeferringFilters) {
-  TestTwoFilters(
-      "b", "c",
-      "a", "d",
-      NULL,  // Node to delete
-      "<img id=a /><img id=b /><img id=c /><img id=d />",
-      "<img id=c /><img id=b /><img id=d /><img id=a />");
+  TestTwoFilters("b", "c", "a", "d",
+                 nullptr,  // Node to delete
+                 "<img id=a /><img id=b /><img id=c /><img id=d />",
+                 "<img id=c /><img id=b /><img id=d /><img id=a />");
 }
 
 TEST_F(HtmlRestoreTest, TwoDeferringFiltersWithDelete) {
-  TestTwoFilters(
-      "b", "c",  // In first filter, mov div b to after to div c.
-      "a", "d",  // In second filter, move div a to after div d.
-      "a",       // In first filter, delete node "a"
-      "<img id=a /><img id=b /><img id=c /><img id=d />",
-      "<img id=c /><img id=b /><img id=d />");
+  TestTwoFilters("b", "c",  // In first filter, mov div b to after to div c.
+                 "a", "d",  // In second filter, move div a to after div d.
+                 "a",       // In first filter, delete node "a"
+                 "<img id=a /><img id=b /><img id=c /><img id=d />",
+                 "<img id=c /><img id=b /><img id=d />");
 }
 
 TEST_F(HtmlRestoreTest, TwoDeferringFiltersNestingOuterFirst) {
   TestTwoFilters(
-      "a", "d",
-      "b", "c",
-      NULL,  // Node to delete
+      "a", "d", "b", "c",
+      nullptr,  // Node to delete
       "<div id=a><div id=b></div><div id=c></div></div><div id=d></div>",
       "<div id=d></div><div id=a><div id=c></div><div id=b></div></div>");
 }
 
 TEST_F(HtmlRestoreTest, TwoDeferringFiltersNestingOuterFirstWithDelete) {
   TestTwoFilters(
-      "a", "d",
-      "b", "c",
-      "b",
+      "a", "d", "b", "c", "b",
       "<div id=a><div id=b></div><div id=c></div></div><div id=d></div>",
       "<div id=d></div><div id=a><div id=c></div></div>");
 }
 
 TEST_F(HtmlRestoreTest, TwoDeferringFiltersNestingInnerFirst) {
   TestTwoFilters(
-      "b", "c",
-      "a", "d",
-      NULL,  // Node to delete
+      "b", "c", "a", "d",
+      nullptr,  // Node to delete
       "<div id=a><div id=b></div><div id=c></div></div><div id=d></div>",
       "<div id=d></div><div id=a><div id=c></div><div id=b></div></div>");
 }
 
 TEST_F(HtmlRestoreTest, TwoDeferringFiltersNestingInnerFirstWithDelete) {
   TestTwoFilters(
-      "b", "c",
-      "a", "d",
-      "a",
+      "b", "c", "a", "d", "a",
       "<div id=a><div id=b></div><div id=c></div></div><div id=d></div>",
       "<div id=d></div>");
 }
@@ -2928,7 +2901,7 @@ TEST_F(HtmlRestoreTest, TwoDeferringFiltersNestingInnerFirstWithDelete) {
 TEST_F(HtmlRestoreTest, DeferringAndDeletingFilters) {
   DeleteNodesFilter delete_nodes_filter(&html_parse_);
   RestoreNodesFilter restore_nodes_filter2(&html_parse_);
-  html_parse_.AddFilter(&delete_nodes_filter);  // Upstream
+  html_parse_.AddFilter(&delete_nodes_filter);    // Upstream
   html_parse_.AddFilter(&restore_nodes_filter2);  // Downstream
   SetupWriter();
   // Don't do anything with restore_nodes_filter_
@@ -2966,7 +2939,7 @@ TEST_F(HtmlRestoreTest, DeferringAndDeletingFilters) {
 TEST_F(HtmlRestoreTest, DeleteDeferredNode) {
   DeleteNodesFilter delete_nodes_filter(&html_parse_);
   RestoreNodesFilter restore_nodes_filter2(&html_parse_);
-  html_parse_.AddFilter(&delete_nodes_filter);  // Upstream
+  html_parse_.AddFilter(&delete_nodes_filter);    // Upstream
   html_parse_.AddFilter(&restore_nodes_filter2);  // Downstream
   SetupWriter();
   // Don't do anything with restore_nodes_filter_
@@ -3019,7 +2992,8 @@ TEST_F(HtmlRestoreTest, CoalesceCharsAfterRestore) {
     // After the restore, the Characters nodes may be coalesced,
     // depending on the flush window.
     EXPECT_TRUE((post_counts_filter_.num_char_elements() == 1) ||
-                (post_counts_filter_.num_char_elements() == 2)) << i;
+                (post_counts_filter_.num_char_elements() == 2))
+        << i;
     if (post_counts_filter_.num_char_elements() == 1) {
       ++num_times_chars_are_coalesced;
     } else {
@@ -3053,7 +3027,8 @@ TEST_F(HtmlRestoreTest, CoalesceCharsOnDefer) {
     // After the deferral, the Characters nodes may be coalesced,
     // depending on the flush window.
     EXPECT_TRUE((post_counts_filter_.num_char_elements() == 1) ||
-                (post_counts_filter_.num_char_elements() == 2)) << i;
+                (post_counts_filter_.num_char_elements() == 2))
+        << i;
     if (post_counts_filter_.num_char_elements() == 1) {
       ++num_times_chars_are_coalesced;
     } else {
@@ -3084,17 +3059,16 @@ class InsertScriptsFilter : public EmptyHtmlFilter {
       : html_parse_(parse),
         at_start_(false),
         before_(false),
-        external_(false) {
-  }
+        external_(false) {}
 
   void set_insert_before(bool before) { before_ = before; }
   void set_at_start(bool at_start) { at_start_ = at_start; }
   void set_external(bool external) { external_ = external; }
 
  protected:
-  virtual void StartElement(HtmlElement* element) { Insert(true, element); }
-  virtual void EndElement(HtmlElement* element) { Insert(false, element); }
-  virtual const char* Name() const { return "InsertScriptsFilter"; }
+  void StartElement(HtmlElement* element) override { Insert(true, element); }
+  void EndElement(HtmlElement* element) override { Insert(false, element); }
+  const char* Name() const override { return "InsertScriptsFilter"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:
@@ -3126,8 +3100,7 @@ TEST_F(HtmlParseTestNoBody, InsertInlineScriptAfterStartOfHead) {
   insert_scripts.set_external(false);
   html_parse_.AddFilter(&insert_scripts);
   SetupWriter();
-  ValidateExpected("1",
-                   "<head>text</head>",
+  ValidateExpected("1", "<head>text</head>",
                    "<head><script>inserted</script>text</head>");
 }
 
@@ -3138,8 +3111,7 @@ TEST_F(HtmlParseTestNoBody, InsertInlineScriptBeforeEndOfHead) {
   insert_scripts.set_external(false);
   html_parse_.AddFilter(&insert_scripts);
   SetupWriter();
-  ValidateExpected("1",
-                   "<head>text</head>",
+  ValidateExpected("1", "<head>text</head>",
                    "<head>text<script>inserted</script></head>");
 }
 
@@ -3150,8 +3122,7 @@ TEST_F(HtmlParseTestNoBody, InsertInlineScriptBeforeStartOfHead) {
   insert_scripts.set_external(false);
   html_parse_.AddFilter(&insert_scripts);
   SetupWriter();
-  ValidateExpected("1",
-                   "<head>text</head>",
+  ValidateExpected("1", "<head>text</head>",
                    "<script>inserted</script><head>text</head>");
 }
 
@@ -3162,8 +3133,7 @@ TEST_F(HtmlParseTestNoBody, InsertInlineScriptAfterEndOfHead) {
   insert_scripts.set_external(false);
   html_parse_.AddFilter(&insert_scripts);
   SetupWriter();
-  ValidateExpected("1",
-                   "<head>text</head>",
+  ValidateExpected("1", "<head>text</head>",
                    "<head>text</head><script>inserted</script>");
 }
 
@@ -3174,8 +3144,7 @@ TEST_F(HtmlParseTestNoBody, InsertExternalScriptAfterStartOfHead) {
   insert_scripts.set_external(true);
   html_parse_.AddFilter(&insert_scripts);
   SetupWriter();
-  ValidateExpected("1",
-                   "<head>text</head>",
+  ValidateExpected("1", "<head>text</head>",
                    "<head><script src=\"inserted\"></script>text</head>");
 }
 
@@ -3186,8 +3155,7 @@ TEST_F(HtmlParseTestNoBody, InsertExternalScriptBeforeEndOfHead) {
   insert_scripts.set_external(true);
   html_parse_.AddFilter(&insert_scripts);
   SetupWriter();
-  ValidateExpected("1",
-                   "<head>text</head>",
+  ValidateExpected("1", "<head>text</head>",
                    "<head>text<script src=\"inserted\"></script></head>");
 }
 
@@ -3198,8 +3166,7 @@ TEST_F(HtmlParseTestNoBody, InsertExternalScriptBeforeStartOfHead) {
   insert_scripts.set_external(true);
   html_parse_.AddFilter(&insert_scripts);
   SetupWriter();
-  ValidateExpected("1",
-                   "<head>text</head>",
+  ValidateExpected("1", "<head>text</head>",
                    "<script src=\"inserted\"></script><head>text</head>");
 }
 
@@ -3210,10 +3177,8 @@ TEST_F(HtmlParseTestNoBody, InsertExternalScriptAfterEndOfHead) {
   insert_scripts.set_external(true);
   html_parse_.AddFilter(&insert_scripts);
   SetupWriter();
-  ValidateExpected("1",
-                   "<head>text</head>",
+  ValidateExpected("1", "<head>text</head>",
                    "<head>text</head><script src=\"inserted\"></script>");
 }
-
 
 }  // namespace net_instaweb

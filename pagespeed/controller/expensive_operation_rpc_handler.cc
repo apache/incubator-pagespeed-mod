@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/expensive_operation_rpc_handler.h"
 
 namespace net_instaweb {

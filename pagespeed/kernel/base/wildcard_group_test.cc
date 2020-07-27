@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/wildcard_group.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -26,7 +25,7 @@ namespace net_instaweb {
 
 class WildcardGroupTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     group_.Allow("*.cc");
     group_.Allow("*.h");
     group_.Disallow("a*.h");
@@ -52,9 +51,7 @@ class WildcardGroupTest : public testing::Test {
   WildcardGroup group_;
 };
 
-TEST_F(WildcardGroupTest, Sequence) {
-  TestGroup(group_);
-}
+TEST_F(WildcardGroupTest, Sequence) { TestGroup(group_); }
 
 TEST_F(WildcardGroupTest, CopySequence) {
   WildcardGroup copy;

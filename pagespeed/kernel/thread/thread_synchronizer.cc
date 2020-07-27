@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Thread-synchronization utility class for reproducing races in unit tests.
 
 #include "pagespeed/kernel/thread/thread_synchronizer.h"
@@ -40,8 +39,7 @@ class ThreadSynchronizer::SyncPoint {
         condvar_(mutex_->NewCondvar()),
         signal_count_(0),
         key_(key),
-        allow_sloppy_(false) {
-  }
+        allow_sloppy_(false) {}
 
   ~SyncPoint() {
     // TODO(jmarantz): This highlights that further generality is
@@ -101,18 +99,15 @@ ThreadSynchronizer::ThreadSynchronizer(ThreadSystem* thread_system)
     : enabled_(false),
       thread_system_(thread_system),
       map_mutex_(thread_system->NewMutex()),
-      timer_(thread_system->NewTimer()) {
-}
+      timer_(thread_system->NewTimer()) {}
 
-ThreadSynchronizer::~ThreadSynchronizer() {
-  STLDeleteValues(&sync_map_);
-}
+ThreadSynchronizer::~ThreadSynchronizer() { STLDeleteValues(&sync_map_); }
 
 ThreadSynchronizer::SyncPoint* ThreadSynchronizer::GetSyncPoint(
     const GoogleString& key) {
   ScopedMutex lock(map_mutex_.get());
   SyncPoint* sync_point = sync_map_[key];
-  if (sync_point == NULL) {
+  if (sync_point == nullptr) {
     sync_point = new SyncPoint(thread_system_, key);
     sync_map_[key] = sync_point;
   }

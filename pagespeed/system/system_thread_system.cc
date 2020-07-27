@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/system_thread_system.h"
 
-#include "base/logging.h"
-
 #include "apr_thread_proc.h"  // NOLINT
+#include "base/logging.h"
 
 namespace net_instaweb {
 

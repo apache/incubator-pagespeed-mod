@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_ADD_HEADERS_FETCHER_H_
 #define PAGESPEED_SYSTEM_ADD_HEADERS_FETCHER_H_
 
@@ -39,15 +38,14 @@ class AddHeadersFetcher : public UrlAsyncFetcher {
   // Caller keeps ownership of backend_fetcher.
   AddHeadersFetcher(const RewriteOptions* options,
                     UrlAsyncFetcher* backend_fetcher);
-  virtual ~AddHeadersFetcher();
+  ~AddHeadersFetcher() override;
 
-  virtual bool SupportsHttps() const {
+  bool SupportsHttps() const override {
     return backend_fetcher_->SupportsHttps();
   }
 
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* callback);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* callback) override;
 
  private:
   const RewriteOptions* const options_;
@@ -59,4 +57,3 @@ class AddHeadersFetcher : public UrlAsyncFetcher {
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_SYSTEM_ADD_HEADERS_FETCHER_H_
-

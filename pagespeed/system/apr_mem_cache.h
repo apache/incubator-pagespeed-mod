@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_APR_MEM_CACHE_H_
 #define PAGESPEED_SYSTEM_APR_MEM_CACHE_H_
 
@@ -74,17 +73,17 @@ class AprMemCache : public CacheInterface {
   AprMemCache(const ExternalClusterSpec& cluster, int thread_limit,
               Hasher* hasher, Statistics* statistics, Timer* timer,
               MessageHandler* handler);
-  ~AprMemCache();
+  ~AprMemCache() override;
 
   static void InitStats(Statistics* statistics);
 
   const ExternalClusterSpec& cluster_spec() const { return cluster_spec_; }
 
   // As mentioned above, Get and MultiGet are blocking in this implementation.
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
-  virtual void MultiGet(MultiGetRequest* request);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
+  void MultiGet(MultiGetRequest* request) override;
 
   // Connects to the server, returning whether the connection was
   // successful or not.
@@ -97,9 +96,9 @@ class AprMemCache : public CacheInterface {
   bool GetStatus(GoogleString* status_string);
 
   static GoogleString FormatName() { return "AprMemCache"; }
-  virtual GoogleString Name() const { return FormatName(); }
+  GoogleString Name() const override { return FormatName(); }
 
-  virtual bool IsBlocking() const { return true; }
+  bool IsBlocking() const override { return true; }
 
   // Records in statistics that a system error occurred, helping it detect
   // when it's unhealthy if they are too frequent.
@@ -110,23 +109,24 @@ class AprMemCache : public CacheInterface {
   // some of which are healthy and some not, we don't currently track
   // errors on a per-shard basis, so we effectively declare all the
   // memcached instances unhealthy if any of them are.
-  virtual bool IsHealthy() const;
+  bool IsHealthy() const override;
 
   // Close down the connection to the memcached servers.
-  virtual void ShutDown();
+  void ShutDown() override;
 
-  virtual bool MustEncodeKeyInValueOnPut() const { return true; }
-  virtual void PutWithKeyInValue(const GoogleString& key,
-                                 const SharedString& key_and_value);
+  bool MustEncodeKeyInValueOnPut() const override { return true; }
+  void PutWithKeyInValue(const GoogleString& key,
+                         const SharedString& key_and_value) override;
 
   // Sets the I/O timeout in microseconds.  This should be called at
   // setup time and not while there are operations in flight.
   void set_timeout_us(int timeout_us);
 
  private:
-  void DecodeValueMatchingKeyAndCallCallback(
-      const GoogleString& key, const char* data, size_t data_len,
-      const char* calling_method, Callback* callback);
+  void DecodeValueMatchingKeyAndCallCallback(const GoogleString& key,
+                                             const char* data, size_t data_len,
+                                             const char* calling_method,
+                                             Callback* callback);
 
   // Puts a value that's already encoded with the key into the cache, without
   // checking health first.  This is meant to be called from Put and

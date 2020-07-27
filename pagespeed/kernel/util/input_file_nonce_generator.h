@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_UTIL_INPUT_FILE_NONCE_GENERATOR_H_
 #define PAGESPEED_KERNEL_UTIL_INPUT_FILE_NONCE_GENERATOR_H_
 
@@ -38,12 +36,14 @@ class InputFileNonceGenerator : public NonceGenerator {
   // Takes ownership of file and mutex, but not of handler or file_system.
   InputFileNonceGenerator(FileSystem::InputFile* file, FileSystem* file_system,
                           AbstractMutex* mutex, MessageHandler* handler)
-      : NonceGenerator(mutex), file_(file),
-        file_system_(file_system), handler_(handler) { }
-  virtual ~InputFileNonceGenerator();
+      : NonceGenerator(mutex),
+        file_(file),
+        file_system_(file_system),
+        handler_(handler) {}
+  ~InputFileNonceGenerator() override;
 
  protected:
-  virtual uint64 NewNonceImpl();
+  uint64 NewNonceImpl() override;
 
  private:
   FileSystem::InputFile* file_;

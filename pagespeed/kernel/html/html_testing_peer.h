@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_HTML_TESTING_PEER_H_
 #define PAGESPEED_KERNEL_HTML_HTML_TESTING_PEER_H_
 
@@ -34,7 +33,7 @@ class HtmlEvent;
 
 class HtmlTestingPeer {
  public:
-  HtmlTestingPeer() { }
+  HtmlTestingPeer() {}
 
   static void SetNodeParent(HtmlNode* node, HtmlElement* parent) {
     node->set_parent(parent);

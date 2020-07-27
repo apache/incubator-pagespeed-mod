@@ -46,6 +46,4 @@ int SetupRedisCluster() {
 }  // namespace
 }  // namespace net_instaweb
 
-int main(int argc, char** argv) {
-  return net_instaweb::SetupRedisCluster();
-}
+int main(int argc, char** argv) { return net_instaweb::SetupRedisCluster(); }

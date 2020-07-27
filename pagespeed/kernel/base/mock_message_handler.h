@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MOCK_MESSAGE_HANDLER_H_
 #define PAGESPEED_KERNEL_BASE_MOCK_MESSAGE_HANDLER_H_
 
@@ -43,7 +42,7 @@ class MockMessageHandler : public MessageHandler {
   // Takes ownership of the mutex.
   explicit MockMessageHandler(AbstractMutex* mutex);
 
-  virtual ~MockMessageHandler();
+  ~MockMessageHandler() override;
 
   // Returns number of messages of given type issued
   int MessagesOfType(MessageType type) const;
@@ -68,13 +67,13 @@ class MockMessageHandler : public MessageHandler {
   void AddPatternToSkipPrinting(const char* pattern);
 
   // Dumps contents of String Buffer.
-  virtual bool Dump(Writer* writer);
+  bool Dump(Writer* writer) override;
 
  protected:
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageSImpl(MessageType type, const char* filename, int line,
+                        const GoogleString& message) override;
 
  private:
   // Returns whether the message should be printed.
@@ -85,8 +84,7 @@ class MockMessageHandler : public MessageHandler {
 
   // The Impl versions don't grab the lock themselves
   int TotalMessagesImpl(const MessageCountMap& counts) const;
-  int MessagesOfTypeImpl(const MessageCountMap& counts,
-                         MessageType type) const;
+  int MessagesOfTypeImpl(const MessageCountMap& counts, MessageType type) const;
 
   std::unique_ptr<AbstractMutex> mutex_;
   MessageCountMap message_counts_;

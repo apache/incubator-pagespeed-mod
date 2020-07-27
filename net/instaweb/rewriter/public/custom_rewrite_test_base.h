@@ -32,7 +32,7 @@
 
 namespace net_instaweb {
 
-template<class OptionsClass>
+template <class OptionsClass>
 class CustomRewriteTestBase : public RewriteTestBase {
  public:
   class CustomTestRewriteDriverFactory : public TestRewriteDriverFactory {
@@ -43,20 +43,17 @@ class CustomRewriteTestBase : public RewriteTestBase {
       InitializeDefaultOptions();
     }
 
-    virtual OptionsClass* NewRewriteOptions() {
+    OptionsClass* NewRewriteOptions() override {
       return new OptionsClass(thread_system());
     }
   };
 
   CustomRewriteTestBase()
-      : RewriteTestBase(MakeFactories(&mock_url_fetcher_)) {
-  }
+      : RewriteTestBase(MakeFactories(&mock_url_fetcher_)) {}
 
-  virtual ~CustomRewriteTestBase() {
-    OptionsClass::Terminate();
-  }
+  ~CustomRewriteTestBase() override { OptionsClass::Terminate(); }
 
-  virtual TestRewriteDriverFactory* MakeTestFactory() {
+  TestRewriteDriverFactory* MakeTestFactory() override {
     return new CustomTestRewriteDriverFactory(&mock_url_fetcher_);
   }
 
@@ -71,12 +68,11 @@ class CustomRewriteTestBase : public RewriteTestBase {
   // We must call the static Initialize method on the options class before
   // we construct a factory, which will 'new' the OptionsClass.
   static std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*>
-      MakeFactories(MockUrlFetcher* mock_fetcher) {
+  MakeFactories(MockUrlFetcher* mock_fetcher) {
     OptionsClass::Initialize();
 
-    return make_pair(
-        new CustomTestRewriteDriverFactory(mock_fetcher),
-        new CustomTestRewriteDriverFactory(mock_fetcher));
+    return make_pair(new CustomTestRewriteDriverFactory(mock_fetcher),
+                     new CustomTestRewriteDriverFactory(mock_fetcher));
   }
 };
 

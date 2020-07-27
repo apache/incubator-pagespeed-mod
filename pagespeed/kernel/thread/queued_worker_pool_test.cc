@@ -31,12 +31,11 @@
 namespace net_instaweb {
 namespace {
 
-class QueuedWorkerPoolTest: public WorkerTestBase {
+class QueuedWorkerPoolTest : public WorkerTestBase {
  public:
   QueuedWorkerPoolTest()
       : worker_(new QueuedWorkerPool(2, "queued_worker_pool_test",
-                                     thread_runtime_.get())) {
-  }
+                                     thread_runtime_.get())) {}
 
  protected:
   std::unique_ptr<QueuedWorkerPool> worker_;
@@ -59,16 +58,14 @@ class QueuedWorkerPoolTest: public WorkerTestBase {
 class Increment : public Function {
  public:
   Increment(int expected_value, int* count)
-      : expected_value_(expected_value),
-        count_(count) {
-  }
+      : expected_value_(expected_value), count_(count) {}
 
  protected:
-  virtual void Run() {
+  void Run() override {
     ++*count_;
     EXPECT_EQ(expected_value_, *count_);
   }
-  virtual void Cancel() {
+  void Cancel() override {
     *count_ -= 100;
     EXPECT_EQ(expected_value_, *count_);
   }
@@ -106,12 +103,12 @@ TEST_F(QueuedWorkerPoolTest, AddFunctionTest) {
 
   QueuedWorkerPool::Sequence* sequence = worker_->NewSequence();
   for (int i = 0; i < kBound; ++i) {
-    QueuedWorkerPool::Sequence::AddFunction
-        add(sequence, new Increment(i + 1, &count1));
+    QueuedWorkerPool::Sequence::AddFunction add(sequence,
+                                                new Increment(i + 1, &count1));
     add.set_delete_after_callback(false);
     add.CallRun();
-    QueuedWorkerPool::Sequence::AddFunction
-        cancel(sequence, new Increment(-100 * (i + 1), &count2));
+    QueuedWorkerPool::Sequence::AddFunction cancel(
+        sequence, new Increment(-100 * (i + 1), &count2));
     cancel.set_delete_after_callback(false);
     cancel.CallCancel();
   }
@@ -154,15 +151,11 @@ TEST_F(QueuedWorkerPoolTest, SlowAndFastSequences) {
 
 class MakeNewSequence : public Function {
  public:
-  MakeNewSequence(WorkerTestBase::SyncPoint* sync,
-                  QueuedWorkerPool* pool,
+  MakeNewSequence(WorkerTestBase::SyncPoint* sync, QueuedWorkerPool* pool,
                   QueuedWorkerPool::Sequence* sequence)
-      : sync_(sync),
-        pool_(pool),
-        sequence_(sequence) {
-  }
+      : sync_(sync), pool_(pool), sequence_(sequence) {}
 
-  virtual void Run() {
+  void Run() override {
     pool_->FreeSequence(sequence_);
     pool_->NewSequence()->Add(new WorkerTestBase::NotifyRunFunction(sync_));
   }
@@ -188,14 +181,14 @@ class LogOpsFunction : public Function {
   LogOpsFunction() : run_called_(false), cancel_called_(false) {
     set_delete_after_callback(false);
   }
-  virtual ~LogOpsFunction() {}
+  ~LogOpsFunction() override {}
 
   bool run_called() const { return run_called_; }
   bool cancel_called() const { return cancel_called_; }
 
  protected:
-  virtual void Run() { run_called_ = true; }
-  virtual void Cancel() { cancel_called_ = true; }
+  void Run() override { run_called_ = true; }
+  void Cancel() override { cancel_called_ = true; }
 
  private:
   bool run_called_;
@@ -209,7 +202,7 @@ TEST_F(QueuedWorkerPoolTest, AddAfterShutDown) {
   worker_->ShutDown();
   LogOpsFunction f;
   sequence->Add(&f);
-  worker_.reset(NULL);
+  worker_.reset(nullptr);
   EXPECT_TRUE(f.cancel_called());
   EXPECT_FALSE(f.run_called());
 }
@@ -276,18 +269,14 @@ class NotifyAndWait : public Function {
  public:
   NotifyAndWait(WorkerTestBase::SyncPoint* notify,
                 WorkerTestBase::SyncPoint* wait)
-      : notify_(notify),
-        wait_(wait) {
-  }
+      : notify_(notify), wait_(wait) {}
 
-  virtual void Run() {
+  void Run() override {
     notify_->Notify();
     wait_->Wait();
   }
 
-  virtual void Cancel() {
-    CHECK(false);
-  }
+  void Cancel() override { CHECK(false); }
 
  private:
   WorkerTestBase::SyncPoint* notify_;
@@ -307,7 +296,7 @@ TEST_F(QueuedWorkerPoolTest, MaxQueueSize) {
   sequence->Add(new Increment(-99, &count));   // will be run: +1 == -99.
   sequence->Add(new Increment(-98, &count));   // will be run: +1 == -98.
   sequence->Add(new NotifyRunFunction(&done));
-  sequence->Add(new Increment(-97, &count));   // Cancels first increment.
+  sequence->Add(new Increment(-97, &count));  // Cancels first increment.
   wait.Notify();
   done.Wait();
   WaitUntilSequenceCompletes(sequence);

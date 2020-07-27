@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MANUALLY_REF_COUNTED_H_
 #define PAGESPEED_KERNEL_BASE_MANUALLY_REF_COUNTED_H_
 
@@ -37,9 +36,7 @@ class ManuallyRefCounted {
   // Call this when duplicating a pointer to subclass instances:
   //   Example* e = other->GetExample();
   //   e->IncrementRefs();
-  void IncrementRefs() {
-    n_active.NoBarrierIncrement(1);
-  }
+  void IncrementRefs() { n_active.NoBarrierIncrement(1); }
 
   // Call this when finished with a pointer to a subclass instance:
   //   class ExampleHolder {
@@ -62,9 +59,7 @@ class ManuallyRefCounted {
   // The destructor isn't public because instances of ManuallyRefCounted
   // subclasses should not be directly deleted.  They should be released via
   // DecrementRefs().
-  virtual ~ManuallyRefCounted() {
-    DCHECK_EQ(0, n_active.value());
-  }
+  virtual ~ManuallyRefCounted() { DCHECK_EQ(0, n_active.value()); }
 
  private:
   AtomicInt32 n_active;
@@ -75,4 +70,3 @@ class ManuallyRefCounted {
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_KERNEL_BASE_MANUALLY_REF_COUNTED_H_
-

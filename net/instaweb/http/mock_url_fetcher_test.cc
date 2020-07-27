@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 
 #include "net/instaweb/http/public/async_fetch.h"
@@ -122,14 +121,12 @@ TEST_F(MockUrlFetcherTest, GetsCorrectMappedResponse) {
   // Check that we can fetch the same URL multiple times.
   TestResponse(url1, header1, body1);
 
-
   // Check that fetches fail after disabling the fetcher_.
   fetcher_.Disable();
   TestFetchFail(url1);
   // And then work again when re-enabled.
   fetcher_.Enable();
   TestResponse(url1, header1, body1);
-
 
   // Change the response. Test both editability and memory management.
   fetcher_.SetResponse(url1, header2, body2);
@@ -175,8 +172,7 @@ TEST_F(MockUrlFetcherTest, ConditionalFetchTest) {
   // But conditional GET with current time gets 304 Not Modified response.
   {
     MockFetchContainer fetch(&fetcher_, thread_system_.get());
-    fetch.request_headers_.Add(HttpAttributes::kIfModifiedSince,
-                               now_string);
+    fetch.request_headers_.Add(HttpAttributes::kIfModifiedSince, now_string);
     EXPECT_TRUE(fetch.Fetch(url));
     EXPECT_EQ(HttpStatus::kNotModified, fetch.response_headers_.status_code());
   }

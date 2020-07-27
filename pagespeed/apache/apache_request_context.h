@@ -38,15 +38,15 @@ class Timer;
 
 class ApacheRequestContext : public SystemRequestContext {
  public:
-  ApacheRequestContext(
-      AbstractMutex* logging_mutex, Timer* timer, request_rec* req);
+  ApacheRequestContext(AbstractMutex* logging_mutex, Timer* timer,
+                       request_rec* req);
 
   // Returns rc as an ApacheRequestContext* if it is one and CHECK
   // fails if it is not. Returns NULL if rc is NULL.
   static ApacheRequestContext* DynamicCast(RequestContext* rc);
 
  protected:
-  virtual ~ApacheRequestContext();
+  ~ApacheRequestContext() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ApacheRequestContext);

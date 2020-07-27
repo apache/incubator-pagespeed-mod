@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_LRU_CACHE_BASE_H_
 #define PAGESPEED_KERNEL_CACHE_LRU_CACHE_BASE_H_
 
@@ -32,7 +31,6 @@
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
 ////#include "strings/stringpiece_utils.h"
-
 
 namespace net_instaweb {
 
@@ -59,7 +57,7 @@ namespace net_instaweb {
 //                      const ValueType& new_value) const;
 //
 // ValueType must support copy-construction and assign-by-value.
-template<class ValueType, class ValueHelper>
+template <class ValueType, class ValueHelper>
 class LRUCacheBase {
   typedef std::pair<GoogleString, ValueType> KeyValuePair;
   typedef std::list<KeyValuePair*> EntryList;
@@ -72,8 +70,7 @@ class LRUCacheBase {
   class Iterator {
    public:
     explicit Iterator(const typename EntryList::const_reverse_iterator& iter)
-        : iter_(iter) {
-    }
+        : iter_(iter) {}
 
     void operator++() { ++iter_; }
     bool operator==(const Iterator& src) const { return iter_ == src.iter_; }
@@ -100,9 +97,7 @@ class LRUCacheBase {
         value_helper_(value_helper) {
     ClearStats();
   }
-  ~LRUCacheBase() {
-    Clear();
-  }
+  ~LRUCacheBase() { Clear(); }
 
   // Resets the max size in the cache.  This does not take effect immediately;
   // e.g. if you are shrinking the cache size, this call will not evict
@@ -284,7 +279,8 @@ class LRUCacheBase {
     // Walk backward through the list, making sure it's coherent as well.
     count = 0;
     for (typename EntryList::reverse_iterator cell = lru_ordered_list_.rbegin(),
-             e = lru_ordered_list_.rend(); cell != e; ++cell, ++count) {
+                                              e = lru_ordered_list_.rend();
+         cell != e; ++cell, ++count) {
     }
     CHECK_EQ(count, static_cast<size_t>(map_.size()));
   }
@@ -296,7 +292,7 @@ class LRUCacheBase {
 
     for (ListNode p = lru_ordered_list_.begin(), e = lru_ordered_list_.end();
          p != e; ++p) {
-      KeyValuePair* key_value  = *p;
+      KeyValuePair* key_value = *p;
       delete key_value;
     }
     lru_ordered_list_.clear();
@@ -326,8 +322,7 @@ class LRUCacheBase {
 
   ListNode Freshen(ListNode cell) {
     if (cell != lru_ordered_list_.begin()) {
-      lru_ordered_list_.splice(lru_ordered_list_.begin(),
-                               lru_ordered_list_,
+      lru_ordered_list_.splice(lru_ordered_list_.begin(), lru_ordered_list_,
                                cell);
     }
 

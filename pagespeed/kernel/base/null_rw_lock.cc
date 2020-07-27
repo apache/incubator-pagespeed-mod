@@ -17,35 +17,24 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/null_rw_lock.h"
 
 namespace net_instaweb {
 
-NullRWLock::~NullRWLock() {
-}
+NullRWLock::~NullRWLock() {}
 
-bool NullRWLock::TryLock() {
-  return true;
-}
+bool NullRWLock::TryLock() { return true; }
 
-void NullRWLock::Lock() {
-}
+void NullRWLock::Lock() {}
 
-void NullRWLock::Unlock() {
-}
+void NullRWLock::Unlock() {}
 
-bool NullRWLock::ReaderTryLock() {
-  return true;
-}
+bool NullRWLock::ReaderTryLock() { return true; }
 
-void NullRWLock::ReaderLock() {
-}
+void NullRWLock::ReaderLock() {}
 
-void NullRWLock::ReaderUnlock() {
-}
+void NullRWLock::ReaderUnlock() {}
 
-void NullRWLock::DCheckReaderLocked() {
-}
+void NullRWLock::DCheckReaderLocked() {}
 
 }  // namespace net_instaweb

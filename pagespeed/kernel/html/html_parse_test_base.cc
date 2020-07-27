@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_parse_test_base.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_parse.h"
-
 
 namespace net_instaweb {
 
@@ -33,8 +31,7 @@ const char HtmlParseTestBaseNoAlloc::kXhtmlDtd[] =
     "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" "
     "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">";
 
-HtmlParseTestBaseNoAlloc::~HtmlParseTestBaseNoAlloc() {
-}
+HtmlParseTestBaseNoAlloc::~HtmlParseTestBaseNoAlloc() {}
 
 void HtmlParseTestBaseNoAlloc::ParseUrl(StringPiece url,
                                         StringPiece html_input) {
@@ -57,8 +54,9 @@ bool HtmlParseTestBaseNoAlloc::ValidateExpected(StringPiece case_id,
   return success;
 }
 
-bool HtmlParseTestBaseNoAlloc::ValidateExpectedUrl(
-    StringPiece url, StringPiece html_input, StringPiece expected) {
+bool HtmlParseTestBaseNoAlloc::ValidateExpectedUrl(StringPiece url,
+                                                   StringPiece html_input,
+                                                   StringPiece expected) {
   ParseUrl(url, html_input);
   GoogleString xbody = doctype_string_ + AddHtmlBody(expected);
   EXPECT_EQ(xbody, output_buffer_) << "Test url:" << url;
@@ -67,8 +65,9 @@ bool HtmlParseTestBaseNoAlloc::ValidateExpectedUrl(
   return success;
 }
 
-void HtmlParseTestBaseNoAlloc::ValidateExpectedFail(
-    StringPiece case_id, StringPiece html_input, StringPiece expected) {
+void HtmlParseTestBaseNoAlloc::ValidateExpectedFail(StringPiece case_id,
+                                                    StringPiece html_input,
+                                                    StringPiece expected) {
   Parse(case_id, html_input);
   GoogleString xbody = AddHtmlBody(expected);
   EXPECT_NE(xbody, output_buffer_) << "Test id:" << case_id;

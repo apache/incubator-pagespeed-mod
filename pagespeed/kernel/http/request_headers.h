@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_HTTP_REQUEST_HEADERS_H_
 #define PAGESPEED_KERNEL_HTTP_REQUEST_HEADERS_H_
 
@@ -36,8 +34,19 @@ class Writer;
 // Read/write API for HTTP request (RequestHeaders is a misnomer).
 class RequestHeaders : public Headers<HttpRequestHeaders> {
  public:
-  enum Method { kOptions, kGet, kHead, kPost, kPut, kDelete, kTrace, kConnect,
-                kPatch, kPurge, kError };
+  enum Method {
+    kOptions,
+    kGet,
+    kHead,
+    kPost,
+    kPut,
+    kDelete,
+    kTrace,
+    kConnect,
+    kPatch,
+    kPurge,
+    kError
+  };
 
   // To compute cacheability, we have to know a few properties of the request
   // headers, potentially carrying them through cache lookups.  The request
@@ -46,8 +55,8 @@ class RequestHeaders : public Headers<HttpRequestHeaders> {
   // fact we can store the request properties we need in the space of a single
   // int (for now).
   struct Properties {
-    Properties()                 // The default constructor assumes all
-        : has_cookie(true),      // anti-caching signals are present.
+    Properties()             // The default constructor assumes all
+        : has_cookie(true),  // anti-caching signals are present.
           has_cookie2(true),
           has_authorization(false) {  // But we assume no authorization
                                       // unless populated.
@@ -55,8 +64,7 @@ class RequestHeaders : public Headers<HttpRequestHeaders> {
     Properties(bool cookie, bool cookie2, bool authorization)
         : has_cookie(cookie),
           has_cookie2(cookie2),
-          has_authorization(authorization) {
-    }
+          has_authorization(authorization) {}
     bool has_cookie;
     bool has_cookie2;
     bool has_authorization;
@@ -64,7 +72,7 @@ class RequestHeaders : public Headers<HttpRequestHeaders> {
 
   RequestHeaders();
 
-  virtual void Clear();
+  void Clear() override;
   void CopyFromProto(const HttpRequestHeaders& p);
   void CopyFrom(const RequestHeaders& other);
 

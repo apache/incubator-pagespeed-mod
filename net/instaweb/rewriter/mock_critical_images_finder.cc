@@ -19,9 +19,8 @@
 
 #include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
 
-
-#include <map>                          // for map<>::mapped_type
-#include <utility>                      // for make_pair
+#include <map>      // for map<>::mapped_type
+#include <utility>  // for make_pair
 
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -31,19 +30,19 @@ namespace net_instaweb {
 void MockCriticalImagesFinder::UpdateCriticalImagesSetInDriver(
     RewriteDriver* driver) {
   CriticalImagesInfo* info = new CriticalImagesInfo;
-  if (critical_images_ != NULL) {
+  if (critical_images_ != nullptr) {
     info->html_critical_images = *critical_images_;
   }
-  if (css_critical_images_ != NULL) {
+  if (css_critical_images_ != nullptr) {
     info->css_critical_images = *css_critical_images_;
   }
 
-  if (rendered_images_ != NULL) {
+  if (rendered_images_ != nullptr) {
     RenderedImageDimensionsMap map;
     for (int i = 0; i < rendered_images_->image_size(); ++i) {
       const RenderedImages_Image& images = rendered_images_->image(i);
-      map[images.src()] = std::make_pair(
-          images.rendered_width(), images.rendered_height());
+      map[images.src()] =
+          std::make_pair(images.rendered_width(), images.rendered_height());
     }
     info->rendered_images_map = map;
   }
@@ -54,10 +53,10 @@ void MockCriticalImagesFinder::UpdateCriticalImagesSetInDriver(
 RenderedImages*
 MockCriticalImagesFinder::ExtractRenderedImageDimensionsFromCache(
     RewriteDriver* driver) {
-  if (rendered_images_.get() != NULL) {
+  if (rendered_images_.get() != nullptr) {
     return new RenderedImages(*rendered_images_.get());
   }
-  return NULL;
+  return nullptr;
 }
 
 MockCriticalImagesFinder::~MockCriticalImagesFinder() {}

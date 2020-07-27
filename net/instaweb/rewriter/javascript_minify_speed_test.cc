@@ -63,8 +63,8 @@ void TestMinifyJavascript(bool use_experimental_minifier, int iters, int size) {
   pagespeed::js::JsTokenizerPatterns js_tokenizer_patterns;
   JavascriptLibraryIdentification js_lib_id;
   JavascriptRewriteConfig config(&stats, true /* minify */,
-                                 use_experimental_minifier,
-                                 &js_lib_id, &js_tokenizer_patterns);
+                                 use_experimental_minifier, &js_lib_id,
+                                 &js_tokenizer_patterns);
 
   NullMessageHandler handler;
   for (int i = 0; i < iters; ++i) {
@@ -76,12 +76,12 @@ void TestMinifyJavascript(bool use_experimental_minifier, int iters, int size) {
 static void BM_MinifyJavascriptNew(int iters, int size) {
   TestMinifyJavascript(true, iters, size);
 }
-BENCHMARK_RANGE(BM_MinifyJavascriptNew, 1<<6, 1<<18);
+BENCHMARK_RANGE(BM_MinifyJavascriptNew, 1 << 6, 1 << 18);
 
 static void BM_MinifyJavascriptOld(int iters, int size) {
   TestMinifyJavascript(false, iters, size);
 }
-BENCHMARK_RANGE(BM_MinifyJavascriptOld, 1<<6, 1<<18);
+BENCHMARK_RANGE(BM_MinifyJavascriptOld, 1 << 6, 1 << 18);
 
 }  // namespace
 

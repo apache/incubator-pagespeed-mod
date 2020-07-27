@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/mock_timer.h"
 
 #include "pagespeed/kernel/base/function.h"
@@ -71,7 +70,6 @@ TEST_F(MockTimerTest, SetTimeDelta) {
   EXPECT_EQ(4101, timer_.NowUs());
 }
 
-
 TEST_F(MockTimerTest, SetTimeDeltaWithCallback) {
   GoogleString str = "";
   timer_.SetTimeDeltaUs(2001);
@@ -80,30 +78,21 @@ TEST_F(MockTimerTest, SetTimeDeltaWithCallback) {
   // or its base class, MockTimerTest.
   timer_.SetTimeDeltaUsWithCallback(
       43,
-      MakeFunction<
-        MockTimerTest_SetTimeDeltaWithCallback_Test,
-        GoogleString*>(
-            this,
-            &MockTimerTest_SetTimeDeltaWithCallback_Test::
-            SampleCallback, &str));
+      MakeFunction<MockTimerTest_SetTimeDeltaWithCallback_Test, GoogleString*>(
+          this, &MockTimerTest_SetTimeDeltaWithCallback_Test::SampleCallback,
+          &str));
   timer_.SetTimeDeltaMs(2);
   timer_.SetTimeDeltaUsWithCallback(
       57,
-      MakeFunction<
-      MockTimerTest_SetTimeDeltaWithCallback_Test,
-      GoogleString*>(
-          this,
-          &MockTimerTest_SetTimeDeltaWithCallback_Test::
-          SampleCallback, &str));
+      MakeFunction<MockTimerTest_SetTimeDeltaWithCallback_Test, GoogleString*>(
+          this, &MockTimerTest_SetTimeDeltaWithCallback_Test::SampleCallback,
+          &str));
   // This callback never gets called but should get canceled:
   timer_.SetTimeDeltaUsWithCallback(
       103,
-      MakeFunction<
-      MockTimerTest_SetTimeDeltaWithCallback_Test,
-      GoogleString*>(
-          this,
-          &MockTimerTest_SetTimeDeltaWithCallback_Test::
-          SampleCallback, &str));
+      MakeFunction<MockTimerTest_SetTimeDeltaWithCallback_Test, GoogleString*>(
+          this, &MockTimerTest_SetTimeDeltaWithCallback_Test::SampleCallback,
+          &str));
 
   EXPECT_EQ("", str);
   EXPECT_EQ(2001, timer_.NowUs());

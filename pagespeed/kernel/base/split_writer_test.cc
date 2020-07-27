@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/split_writer.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -39,31 +38,29 @@ TEST(SplitWriterTest, SplitsWrite) {
   EXPECT_TRUE(str1.empty());
   EXPECT_TRUE(str2.empty());
 
-  EXPECT_TRUE(split_writer.Write("Hello, ", NULL));
+  EXPECT_TRUE(split_writer.Write("Hello, ", nullptr));
   EXPECT_EQ("Hello, ", str1);
   EXPECT_EQ("Hello, ", str2);
 
-  EXPECT_TRUE(writer1.Write("World!", NULL));
-  EXPECT_TRUE(writer2.Write("Nobody.", NULL));
+  EXPECT_TRUE(writer1.Write("World!", nullptr));
+  EXPECT_TRUE(writer2.Write("Nobody.", nullptr));
   EXPECT_EQ("Hello, World!", str1);
   EXPECT_EQ("Hello, Nobody.", str2);
 
-  EXPECT_TRUE(split_writer.Write(" Goodbye.", NULL));
+  EXPECT_TRUE(split_writer.Write(" Goodbye.", nullptr));
   EXPECT_EQ("Hello, World! Goodbye.", str1);
   EXPECT_EQ("Hello, Nobody. Goodbye.", str2);
 
-  EXPECT_TRUE(split_writer.Flush(NULL));
+  EXPECT_TRUE(split_writer.Flush(nullptr));
 }
 
 class FailWriter : public Writer {
  public:
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     return false;
   }
 
-  virtual bool Flush(MessageHandler* handler) {
-    return false;
-  }
+  bool Flush(MessageHandler* handler) override { return false; }
 };
 
 TEST(SplitWriterTest, WritesToBothEvenOnFailure) {
@@ -73,17 +70,17 @@ TEST(SplitWriterTest, WritesToBothEvenOnFailure) {
 
   SplitWriter split_fail_first(&fail_writer, &string_writer);
   EXPECT_TRUE(str.empty());
-  EXPECT_FALSE(split_fail_first.Write("Hello, World!", NULL));
+  EXPECT_FALSE(split_fail_first.Write("Hello, World!", nullptr));
   EXPECT_EQ("Hello, World!", str);
-  EXPECT_FALSE(split_fail_first.Flush(NULL));
+  EXPECT_FALSE(split_fail_first.Flush(nullptr));
 
   str.clear();
 
   SplitWriter split_fail_second(&string_writer, &fail_writer);
   EXPECT_TRUE(str.empty());
-  EXPECT_FALSE(split_fail_second.Write("Hello, World!", NULL));
+  EXPECT_FALSE(split_fail_second.Write("Hello, World!", nullptr));
   EXPECT_EQ("Hello, World!", str);
-  EXPECT_FALSE(split_fail_second.Flush(NULL));
+  EXPECT_FALSE(split_fail_second.Flush(nullptr));
 }
 
 }  // namespace

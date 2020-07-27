@@ -38,12 +38,10 @@ class BlockingCallback : public CacheInterface::Callback {
   CacheInterface::KeyState result() const { return result_; }
   GoogleString value() const { return value_; }
 
-  void Block() {
-    sync_.Wait();
-  }
+  void Block() { sync_.Wait(); }
 
  protected:
-  virtual void Done(CacheInterface::KeyState state) {
+  void Done(CacheInterface::KeyState state) override {
     result_ = state;
     CacheInterface::Callback::value().Value().CopyToString(&value_);
     sync_.Notify();

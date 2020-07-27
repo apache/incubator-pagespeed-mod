@@ -25,15 +25,13 @@
 #include "external/re2/util/benchmark.h"
 
 #undef BENCHMARK
-#define BENCHMARK(f) \
-    ::testing::Benchmark* _benchmark_##f = (new ::testing::Benchmark(#f, f))->\
-        ThreadRange(1, 1)
+#define BENCHMARK(f)                     \
+  ::testing::Benchmark* _benchmark_##f = \
+      (new ::testing::Benchmark(#f, f))->ThreadRange(1, 1)
 
 #undef BENCHMARK_RANGE
-#define BENCHMARK_RANGE(f, lo, hi) \
-    ::testing::Benchmark* _benchmark_##f = \
-        (new ::testing::Benchmark(#f, f, lo, hi))->ThreadRange(1, 1)
-
-
+#define BENCHMARK_RANGE(f, lo, hi)       \
+  ::testing::Benchmark* _benchmark_##f = \
+      (new ::testing::Benchmark(#f, f, lo, hi))->ThreadRange(1, 1)
 
 #endif  // PAGESPEED_KERNEL_BASE_BENCHMARK_H_

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Callbacks used for testing.
 
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_MOCK_CALLBACK_H_
@@ -38,11 +37,9 @@ class ExpectStringAsyncFetch : public StringAsyncFetch {
   ExpectStringAsyncFetch(bool expect_success,
                          const RequestContextPtr& request_context)
       : StringAsyncFetch(request_context), expect_success_(expect_success) {}
-  virtual ~ExpectStringAsyncFetch() {
-    EXPECT_TRUE(done());
-  }
+  ~ExpectStringAsyncFetch() override { EXPECT_TRUE(done()); }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     EXPECT_FALSE(done()) << "Already Done; perhaps you reused without Reset()";
     StringAsyncFetch::HandleDone(success);
     EXPECT_EQ(expect_success_, success);

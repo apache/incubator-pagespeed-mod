@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/log_message_handler.h"
 
 #include <unistd.h>
@@ -38,24 +37,24 @@
 
 namespace {
 
-apr_pool_t* log_pool = NULL;
+apr_pool_t* log_pool = nullptr;
 
 const int kMaxInt = std::numeric_limits<int>::max();
 int log_level_cutoff = kMaxInt;
-GoogleString* mod_pagespeed_version = NULL;
+GoogleString* mod_pagespeed_version = nullptr;
 
 int GetApacheLogLevel(int severity) {
   switch (severity) {
     case logging::LOG_INFO:
       // Note: ap_log_perror only prints NOTICE and higher messages.
       // TODO(sligocki): Find some way to print these as INFO if we can.
-      //return APLOG_INFO;
+      // return APLOG_INFO;
       return APLOG_NOTICE;
     case logging::LOG_WARNING:
       return APLOG_WARNING;
     case logging::LOG_ERROR:
       return APLOG_ERR;
-    //case logging::LOG_ERROR_REPORT:
+    // case logging::LOG_ERROR_REPORT:
     //  return APLOG_CRIT;
     case logging::LOG_FATAL:
       return APLOG_ALERT;
@@ -92,11 +91,10 @@ bool LogMessageHandler(int severity, const char* file, int line,
   if (this_log_level <= log_level_cutoff || log_level_cutoff == kMaxInt) {
     ap_log_perror(APLOG_MARK, this_log_level, APR_SUCCESS, log_pool,
                   "[mod_pagespeed %s @%ld] %s",
-                  (mod_pagespeed_version == NULL)
-                    ? ""
-                    : mod_pagespeed_version->c_str(),
-                  static_cast<long>(getpid()),
-                  message.c_str());
+                  (mod_pagespeed_version == nullptr)
+                      ? ""
+                      : mod_pagespeed_version->c_str(),
+                  static_cast<long>(getpid()), message.c_str());
   }
 
   if (severity == logging::LOG_FATAL) {
@@ -110,7 +108,6 @@ bool LogMessageHandler(int severity, const char* file, int line,
 
 }  // namespace
 
-
 namespace net_instaweb {
 
 namespace log_message_handler {
@@ -122,9 +119,9 @@ void Install(apr_pool_t* pool) {
 }
 
 void ShutDown() {
-  if (mod_pagespeed_version != NULL) {
+  if (mod_pagespeed_version != nullptr) {
     delete mod_pagespeed_version;
-    mod_pagespeed_version = NULL;
+    mod_pagespeed_version = nullptr;
   }
 }
 
@@ -150,16 +147,15 @@ void AddServerConfig(const server_rec* server, const StringPiece& version) {
 
   // Get VLOG(x) and above if LogLevel is set to Debug.
   if (log_level_cutoff >= APLOG_DEBUG) {
-      // XXX(oschaaf):
-      // logging::SetMinLogLevel(kDebugLogLevel);
+    // XXX(oschaaf):
+    // logging::SetMinLogLevel(kDebugLogLevel);
   }
-  if (mod_pagespeed_version == NULL) {
+  if (mod_pagespeed_version == nullptr) {
     mod_pagespeed_version = new GoogleString(version.as_string());
   } else {
     *mod_pagespeed_version = version.as_string();
   }
 }
-
 
 }  // namespace log_message_handler
 

@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef WEBUTIL_CSS_TOSTRING_H_
 #define WEBUTIL_CSS_TOSTRING_H_
 

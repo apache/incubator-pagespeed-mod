@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test base-class url naming.
 
 #include "net/instaweb/rewriter/public/measurement_proxy_url_namer.h"
@@ -47,7 +46,7 @@ TEST_F(MeasurementProxyUrlNamerTest, DecodePathDetails) {
 
   GoogleUrl url1("https://www.example.com/h/c1/s1/modpagespeed.com/a/b/c.d?e");
   EXPECT_TRUE(MeasurementProxyUrlNamer::DecodePathDetails(
-                  url1, &config, &config_domain, &password, &res_url));
+      url1, &config, &config_domain, &password, &res_url));
   EXPECT_EQ("c1", config);
   EXPECT_EQ("modpagespeed.com", config_domain);
   EXPECT_EQ("s1", password);
@@ -56,7 +55,7 @@ TEST_F(MeasurementProxyUrlNamerTest, DecodePathDetails) {
   GoogleUrl url2(
       "https://www.example.com/x/c2/s2/ngxpagespeed.com/foo.com/b/c.d?e");
   EXPECT_TRUE(MeasurementProxyUrlNamer::DecodePathDetails(
-                  url2, &config, &config_domain, &password, &res_url));
+      url2, &config, &config_domain, &password, &res_url));
   EXPECT_EQ("c2", config);
   EXPECT_EQ("ngxpagespeed.com", config_domain);
   EXPECT_EQ("s2", password);
@@ -64,64 +63,56 @@ TEST_F(MeasurementProxyUrlNamerTest, DecodePathDetails) {
 
   GoogleUrl url3("https://www.example.com/s/c3/s3/modpagespeed.com/b/");
   EXPECT_TRUE(MeasurementProxyUrlNamer::DecodePathDetails(
-                  url3, &config, &config_domain, &password, &res_url));
+      url3, &config, &config_domain, &password, &res_url));
   EXPECT_EQ("c3", config);
   EXPECT_EQ("modpagespeed.com", config_domain);
   EXPECT_EQ("s3", password);
   EXPECT_EQ("https://modpagespeed.com/b/", res_url);
 
-  GoogleUrl url4(
-      "https://www.example.com/t/c4/s4/ngxpagespeed.com/foo.com/b");
+  GoogleUrl url4("https://www.example.com/t/c4/s4/ngxpagespeed.com/foo.com/b");
   EXPECT_TRUE(MeasurementProxyUrlNamer::DecodePathDetails(
-                  url4, &config, &config_domain, &password, &res_url));
+      url4, &config, &config_domain, &password, &res_url));
   EXPECT_EQ("c4", config);
   EXPECT_EQ("ngxpagespeed.com", config_domain);
   EXPECT_EQ("s4", password);
   EXPECT_EQ("https://foo.com/b", res_url);
 
-  GoogleUrl url5(
-      "https://www.example.com/x/c5/s5/ngxpagespeed.com/foo.com/");
+  GoogleUrl url5("https://www.example.com/x/c5/s5/ngxpagespeed.com/foo.com/");
   EXPECT_TRUE(MeasurementProxyUrlNamer::DecodePathDetails(
-                  url5, &config, &config_domain, &password, &res_url));
+      url5, &config, &config_domain, &password, &res_url));
   EXPECT_EQ("c5", config);
   EXPECT_EQ("ngxpagespeed.com", config_domain);
   EXPECT_EQ("s5", password);
   EXPECT_EQ("http://foo.com/", res_url);
 
-  GoogleUrl url6(
-      "https://www.example.com/s/c6/s6/modpagespeed.com/");
+  GoogleUrl url6("https://www.example.com/s/c6/s6/modpagespeed.com/");
   EXPECT_TRUE(MeasurementProxyUrlNamer::DecodePathDetails(
-                  url6, &config, &config_domain, &password, &res_url));
+      url6, &config, &config_domain, &password, &res_url));
   EXPECT_EQ("c6", config);
   EXPECT_EQ("modpagespeed.com", config_domain);
   EXPECT_EQ("s6", password);
   EXPECT_EQ("https://modpagespeed.com/", res_url);
 
-  GoogleUrl url7(
-      "https://www.example.com/x/c6/s6/modpagespeed.com");
+  GoogleUrl url7("https://www.example.com/x/c6/s6/modpagespeed.com");
   EXPECT_FALSE(MeasurementProxyUrlNamer::DecodePathDetails(
-                   url7, &config, &config_domain, &password, &res_url));
+      url7, &config, &config_domain, &password, &res_url));
 
-  GoogleUrl url8(
-      "https://www.example.com/s/c6/s6//");
+  GoogleUrl url8("https://www.example.com/s/c6/s6//");
   EXPECT_FALSE(MeasurementProxyUrlNamer::DecodePathDetails(
-                   url8, &config, &config_domain, &password, &res_url));
+      url8, &config, &config_domain, &password, &res_url));
 
-  GoogleUrl url9(
-       "https://www.example.com/x/c6/s6/modpagespeed.com/");
+  GoogleUrl url9("https://www.example.com/x/c6/s6/modpagespeed.com/");
   EXPECT_FALSE(MeasurementProxyUrlNamer::DecodePathDetails(
-                   url9, &config, &config_domain, &password, &res_url));
+      url9, &config, &config_domain, &password, &res_url));
 
   // Wrong code.
-  GoogleUrl url10(
-      "https://www.example.com/q/c6/s6/modpagespeed.com/");
+  GoogleUrl url10("https://www.example.com/q/c6/s6/modpagespeed.com/");
   EXPECT_FALSE(MeasurementProxyUrlNamer::DecodePathDetails(
-                   url10, &config, &config_domain, &password, &res_url));
+      url10, &config, &config_domain, &password, &res_url));
 
-  GoogleUrl url11(
-      "https://www.example.com/s/c6/s6/");
+  GoogleUrl url11("https://www.example.com/s/c6/s6/");
   EXPECT_FALSE(MeasurementProxyUrlNamer::DecodePathDetails(
-                   url11, &config, &config_domain, &password, &res_url));
+      url11, &config, &config_domain, &password, &res_url));
 }
 
 TEST_F(MeasurementProxyUrlNamerTest, Decode) {
@@ -143,44 +134,31 @@ TEST_F(MeasurementProxyUrlNamerTest, Encode) {
   full_name.set_hash("0");
 
   OutputResourcePtr same_domain(new OutputResource(
-      rewrite_driver(),
-      "http://www.modpagespeed.com/",
-      "http://www.modpagespeed.com/",
-      "http://www.modpagespeed.com/",
-      full_name,
+      rewrite_driver(), "http://www.modpagespeed.com/",
+      "http://www.modpagespeed.com/", "http://www.modpagespeed.com/", full_name,
       kRewrittenResource));
   EXPECT_EQ("http://www.modpagespeed.com/foo.css.pagespeed.ce.0.css",
             namer_.Encode(options(), *same_domain.get(), UrlNamer::kSharded));
 
   OutputResourcePtr cross_domain(new OutputResource(
-      rewrite_driver(),
-      "http://cdn.modpagespeed.com/",
-      "http://cdn.modpagespeed.com/",
-      "http://www.modpagespeed.com/",
-      full_name,
+      rewrite_driver(), "http://cdn.modpagespeed.com/",
+      "http://cdn.modpagespeed.com/", "http://www.modpagespeed.com/", full_name,
       kRewrittenResource));
-  EXPECT_EQ(
-      "http://cdn.modpagespeed.com/foo.css.pagespeed.ce.0.css",
-      namer_.Encode(options(), *cross_domain.get(), UrlNamer::kSharded));
+  EXPECT_EQ("http://cdn.modpagespeed.com/foo.css.pagespeed.ce.0.css",
+            namer_.Encode(options(), *cross_domain.get(), UrlNamer::kSharded));
 
   OutputResourcePtr same_domain_ssl(new OutputResource(
-      rewrite_driver(),
-      "https://www.modpagespeed.com/",
-      "https://www.modpagespeed.com/",
-      "https://www.modpagespeed.com/",
-      full_name,
-      kRewrittenResource));
+      rewrite_driver(), "https://www.modpagespeed.com/",
+      "https://www.modpagespeed.com/", "https://www.modpagespeed.com/",
+      full_name, kRewrittenResource));
   EXPECT_EQ(
       "https://www.modpagespeed.com/foo.css.pagespeed.ce.0.css",
       namer_.Encode(options(), *same_domain_ssl.get(), UrlNamer::kSharded));
 
   OutputResourcePtr cross_domain_ssl(new OutputResource(
-      rewrite_driver(),
-      "https://cdn.modpagespeed.com/",
-      "https://cdn.modpagespeed.com/",
-      "http://www.modpagespeed.com/",
-      full_name,
-      kRewrittenResource));
+      rewrite_driver(), "https://cdn.modpagespeed.com/",
+      "https://cdn.modpagespeed.com/", "http://www.modpagespeed.com/",
+      full_name, kRewrittenResource));
   EXPECT_EQ(
       "https://cdn.modpagespeed.com/foo.css.pagespeed.ce.0.css",
       namer_.Encode(options(), *cross_domain_ssl.get(), UrlNamer::kSharded));
@@ -188,19 +166,18 @@ TEST_F(MeasurementProxyUrlNamerTest, Encode) {
 
 TEST_F(MeasurementProxyUrlNamerTest, IsProxyEncoded) {
   GoogleUrl good_url(
-    "https://www.example.com/h/c1/pwd/modpagespeed.com/a/b/c.d?e");
+      "https://www.example.com/h/c1/pwd/modpagespeed.com/a/b/c.d?e");
   EXPECT_TRUE(namer_.IsProxyEncoded(good_url));
 
   GoogleUrl almost_good_url1(
-    "https://www.example.com/h/c1/notpwd/modpagespeed.com/a/b/c.d?e");
+      "https://www.example.com/h/c1/notpwd/modpagespeed.com/a/b/c.d?e");
   EXPECT_FALSE(namer_.IsProxyEncoded(almost_good_url1));
 
   GoogleUrl almost_good_url2(
-    "http://www.example.com/h/c1/pwd/modpagespeed.com/a/b/c.d?e");
+      "http://www.example.com/h/c1/pwd/modpagespeed.com/a/b/c.d?e");
   EXPECT_FALSE(namer_.IsProxyEncoded(almost_good_url2));
 
-  GoogleUrl bad_url(
-    "https://www.example.com/sadly/wrong");
+  GoogleUrl bad_url("https://www.example.com/sadly/wrong");
   EXPECT_FALSE(namer_.IsProxyEncoded(bad_url));
 }
 

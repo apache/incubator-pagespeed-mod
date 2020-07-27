@@ -131,7 +131,6 @@ cc_library(
         "src/webutil/css/parser.h",
         "src/base/googleinit.h",
         "src/base/integral_types.h",
-        "src/testing/production_stub/public/gunit_prod.h",
         "src/util/utf8/public/unilib_utf8_utils.h",
     ] + glob(["src/util/gtl/*.h"]),
     copts = [
@@ -145,7 +144,7 @@ cc_library(
         ":utf",
         "@mod_pagespeed//base:log_shim",
         "@com_google_absl//absl/strings:str_format",
-        "@com_google_googletest//:gtest",  # for gtest_prod.h
+        "//pagespeed/kernel/base:gtest_prod",
         "//third_party/google-sparsehash:google_sparsehash_gen",
     ],
 )

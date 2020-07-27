@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/rewrite_stats.h"
 
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -53,10 +52,8 @@ const char kIproNotInCache[] = "ipro_not_in_cache";
 const char kIproNotRewritable[] = "ipro_not_rewritable";
 
 const char* kWaveFormCounters[RewriteDriverFactory::kNumWorkerPools] = {
-  "html-worker-queue-depth",
-  "rewrite-worker-queue-depth",
-  "low-priority-worked-queue-depth"
-};
+    "html-worker-queue-depth", "rewrite-worker-queue-depth",
+    "low-priority-worked-queue-depth"};
 
 // Variables for the beacon to increment.  These are currently handled in
 // mod_pagespeed_handler on apache.  The average load time in milliseconds is
@@ -139,14 +136,10 @@ void RewriteStats::InitStats(Statistics* statistics) {
   statistics->AddVariable(kIproNotRewritable);
   statistics->AddVariable(kDownstreamCachePurgeAttempts);
   statistics->AddVariable(kSuccessfulDownstreamCachePurges);
-  statistics->AddTimedVariable(kTotalFetchCount,
-                               Statistics::kDefaultGroup);
-  statistics->AddTimedVariable(kTotalRewriteCount,
-                               Statistics::kDefaultGroup);
-  statistics->AddTimedVariable(kRewritesExecuted,
-                               Statistics::kDefaultGroup);
-  statistics->AddTimedVariable(kRewritesDropped,
-                               Statistics::kDefaultGroup);
+  statistics->AddTimedVariable(kTotalFetchCount, Statistics::kDefaultGroup);
+  statistics->AddTimedVariable(kTotalRewriteCount, Statistics::kDefaultGroup);
+  statistics->AddTimedVariable(kRewritesExecuted, Statistics::kDefaultGroup);
+  statistics->AddTimedVariable(kRewritesDropped, Statistics::kDefaultGroup);
   statistics->AddVariable(kNumResourceFetchSuccesses);
   statistics->AddVariable(kNumResourceFetchFailures);
 
@@ -160,48 +153,36 @@ void RewriteStats::InitStats(Statistics* statistics) {
 //
 // Note that there are other statistics owned by filters and subsystems,
 // that must get the some treatment.
-RewriteStats::RewriteStats(bool has_waveforms,
-                           Statistics* stats,
-                           ThreadSystem* thread_system,
-                           Timer* timer)
-    : cached_output_hits_(
-        stats->GetVariable(kCachedOutputHits)),
+RewriteStats::RewriteStats(bool has_waveforms, Statistics* stats,
+                           ThreadSystem* thread_system, Timer* timer)
+    : cached_output_hits_(stats->GetVariable(kCachedOutputHits)),
       cached_output_missed_deadline_(
           stats->GetVariable(kCachedOutputMissedDeadline)),
-      cached_output_misses_(
-          stats->GetVariable(kCachedOutputMisses)),
-      cached_resource_fetches_(
-          stats->GetVariable(kResourceFetchesCached)),
+      cached_output_misses_(stats->GetVariable(kCachedOutputMisses)),
+      cached_resource_fetches_(stats->GetVariable(kResourceFetchesCached)),
       failed_filter_resource_fetches_(
           stats->GetVariable(kResourceFetchConstructFailures)),
       num_cache_control_rewritable_resources_(
           stats->GetVariable(kNumCacheControlRewritableResources)),
       num_cache_control_not_rewritable_resources_(
           stats->GetVariable(kNumCacheControlNotRewritableResources)),
-      num_flushes_(
-          stats->GetVariable(kNumFlushes)),
-      page_load_count_(
-          stats->GetVariable(kPageLoadCount)),
-      resource_404_count_(
-          stats->GetVariable(kInstawebResource404Count)),
+      num_flushes_(stats->GetVariable(kNumFlushes)),
+      page_load_count_(stats->GetVariable(kPageLoadCount)),
+      resource_404_count_(stats->GetVariable(kInstawebResource404Count)),
       resource_url_domain_acceptances_(
           stats->GetVariable(kResourceUrlDomainAcceptances)),
       resource_url_domain_rejections_(
           stats->GetVariable(kResourceUrlDomainRejections)),
-      slurp_404_count_(
-          stats->GetVariable(kInstawebSlurp404Count)),
+      slurp_404_count_(stats->GetVariable(kInstawebSlurp404Count)),
       succeeded_filter_resource_fetches_(
           stats->GetVariable(kResourceFetchConstructSuccesses)),
-      total_page_load_ms_(
-          stats->GetVariable(kTotalPageLoadMs)),
-      fallback_responses_served_(
-          stats->GetVariable(kFallbackResponsesServed)),
+      total_page_load_ms_(stats->GetVariable(kTotalPageLoadMs)),
+      fallback_responses_served_(stats->GetVariable(kFallbackResponsesServed)),
       num_proactively_freshen_user_facing_request_(
           stats->GetVariable(kProactivelyFreshenUserFacingRequest)),
       fallback_responses_served_while_revalidate_(
           stats->GetVariable(kFallbackResponsesServedWhileRevalidate)),
-      num_conditional_refreshes_(
-          stats->GetVariable(kNumConditionalRefreshes)),
+      num_conditional_refreshes_(stats->GetVariable(kNumConditionalRefreshes)),
       ipro_served_(stats->GetVariable(kIproServed)),
       ipro_not_in_cache_(stats->GetVariable(kIproNotInCache)),
       ipro_not_rewritable_(stats->GetVariable(kIproNotRewritable)),
@@ -211,12 +192,9 @@ RewriteStats::RewriteStats(bool has_waveforms,
           stats->GetVariable(kSuccessfulDownstreamCachePurges)),
       beacon_timings_ms_histogram_(
           stats->GetHistogram(kBeaconTimingsMsHistogram)),
-      fetch_latency_histogram_(
-          stats->GetHistogram(kFetchLatencyHistogram)),
-      rewrite_latency_histogram_(
-          stats->GetHistogram(kRewriteLatencyHistogram)),
-      backend_latency_histogram_(
-          stats->GetHistogram(kBackendLatencyHistogram)),
+      fetch_latency_histogram_(stats->GetHistogram(kFetchLatencyHistogram)),
+      rewrite_latency_histogram_(stats->GetHistogram(kRewriteLatencyHistogram)),
+      backend_latency_histogram_(stats->GetHistogram(kBackendLatencyHistogram)),
       total_fetch_count_(stats->GetTimedVariable(kTotalFetchCount)),
       total_rewrite_count_(stats->GetTimedVariable(kTotalRewriteCount)),
       num_rewrites_executed_(stats->GetTimedVariable(kRewritesExecuted)),
@@ -237,13 +215,11 @@ RewriteStats::RewriteStats(bool has_waveforms,
           new Waveform(thread_system, timer, kNumWaveformSamples,
                        stats->GetUpDownCounter(kWaveFormCounters[i])));
     } else {
-      thread_queue_depths_.push_back(NULL);
+      thread_queue_depths_.push_back(nullptr);
     }
   }
 }
 
-RewriteStats::~RewriteStats() {
-  STLDeleteElements(&thread_queue_depths_);
-}
+RewriteStats::~RewriteStats() { STLDeleteElements(&thread_queue_depths_); }
 
 }  // namespace net_instaweb

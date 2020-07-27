@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/insert_amp_link_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -49,7 +48,7 @@ GoogleString PathNoTrailingSlash(const GoogleUrl& google_url);
 GoogleString MaybeQuery(const GoogleUrl& google_url);
 GoogleString MaybeTrailingSlash(const GoogleUrl& google_url);
 void AppendUrlFragment(GoogleString* str, const GoogleUrl& google_url,
-                          const StringPiece fragment_name);
+                       const StringPiece fragment_name);
 
 }  // namespace
 
@@ -121,7 +120,7 @@ namespace {
 
 // Appends a fragment_name extracted from google_url to str.
 void AppendUrlFragment(GoogleString* str, const GoogleUrl& google_url,
-                          const StringPiece fragment_name) {
+                       const StringPiece fragment_name) {
   if (fragment_name == kUrlPattern) {
     StrAppend(str, google_url.Spec());
   } else if (fragment_name == kAllExceptQuery) {

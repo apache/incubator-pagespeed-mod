@@ -17,18 +17,15 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/request_trace.h"
 
 #include <cstdarg>
 
 namespace net_instaweb {
 
-RequestTrace::RequestTrace() : tracing_enabled_(false) {
-}
+RequestTrace::RequestTrace() : tracing_enabled_(false) {}
 
-RequestTrace::~RequestTrace() {
-}
+RequestTrace::~RequestTrace() {}
 
 void RequestTrace::TracePrintf(const char* fmt, ...) {
   if (!tracing_enabled_) {

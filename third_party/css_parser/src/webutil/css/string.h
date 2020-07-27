@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef WEBUTIL_CSS_STRING_H_
 #define WEBUTIL_CSS_STRING_H_
 

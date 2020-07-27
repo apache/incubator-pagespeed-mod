@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/key_value_codec.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -33,8 +32,8 @@ class KeyValueCodecTest : public testing::Test {
     ASSERT_TRUE(key_value_codec::Encode(key, val, &key_value_));
     EXPECT_EQ(val.data(), key_value_.data()) << "shared storage";
 
-    ASSERT_TRUE(key_value_codec::Decode(&key_value_, &decoded_key_,
-                                        &decoded_value_));
+    ASSERT_TRUE(
+        key_value_codec::Decode(&key_value_, &decoded_key_, &decoded_value_));
     EXPECT_EQ(key, decoded_key_);
     EXPECT_EQ(value, decoded_value_.Value());
     EXPECT_EQ(val.data(), key_value_.data()) << "shared storage";
@@ -46,9 +45,7 @@ class KeyValueCodecTest : public testing::Test {
   SharedString decoded_value_;
 };
 
-TEST_F(KeyValueCodecTest, SmallKey) {
-  CodecTest("key", "value");
-}
+TEST_F(KeyValueCodecTest, SmallKey) { CodecTest("key", "value"); }
 
 TEST_F(KeyValueCodecTest, TestLargeKey) {
   // This requires two bytes to represent the length of the key.
@@ -58,20 +55,18 @@ TEST_F(KeyValueCodecTest, TestLargeKey) {
 TEST_F(KeyValueCodecTest, TestHugeKey) {
   // This key's length won't fit in two bytes, so the encoding will not work.
   SharedString val("value"), key_value;
-  EXPECT_FALSE(key_value_codec::Encode(GoogleString(100000, 'a'), val,
-                                       &key_value));
+  EXPECT_FALSE(
+      key_value_codec::Encode(GoogleString(100000, 'a'), val, &key_value));
 }
 
 TEST_F(KeyValueCodecTest, TestKey65536) {  // one byte too big.
   // This key's length won't fit in two bytes, so the encoding will not work.
   SharedString val("value"), key_value;
-  EXPECT_FALSE(key_value_codec::Encode(GoogleString(65536, 'a'), val,
-                                       &key_value));
+  EXPECT_FALSE(
+      key_value_codec::Encode(GoogleString(65536, 'a'), val, &key_value));
 }
 
-TEST_F(KeyValueCodecTest, TestKey0) {
-  CodecTest("", "value");
-}
+TEST_F(KeyValueCodecTest, TestKey0) { CodecTest("", "value"); }
 
 TEST_F(KeyValueCodecTest, TestKey65534) {
   CodecTest(GoogleString(65534, 'a'), "value");
@@ -88,8 +83,8 @@ TEST_F(KeyValueCodecTest, TestKeyHighBitsInTwoSizeBytes) {
 TEST_F(KeyValueCodecTest, DecodeEmptyKeyValue) {
   GoogleString decoded_key;
   SharedString decoded_value;
-  EXPECT_FALSE(key_value_codec::Decode(&key_value_, &decoded_key,
-                                       &decoded_value));
+  EXPECT_FALSE(
+      key_value_codec::Decode(&key_value_, &decoded_key, &decoded_value));
 }
 
 TEST_F(KeyValueCodecTest, CorruptKeyValue) {
@@ -97,8 +92,8 @@ TEST_F(KeyValueCodecTest, CorruptKeyValue) {
   char big = 0xff;
   key_value_.Append(&big, 1);
   key_value_.Append(&big, 1);
-  EXPECT_FALSE(key_value_codec::Decode(&key_value_, &decoded_key_,
-                                       &decoded_value_));
+  EXPECT_FALSE(
+      key_value_codec::Decode(&key_value_, &decoded_key_, &decoded_value_));
 }
 
 }  // namespace net_instaweb

@@ -59,7 +59,7 @@ TEST(ExternalServerSpecTest, ToString) {
 
 class ExternalServerSpecTestInvalid : public ::testing::Test {
  protected:
-  void TestInvalidSpec(const GoogleString &value) {
+  void TestInvalidSpec(const GoogleString& value) {
     GoogleString msg;
     ExternalServerSpec spec("old.com", 4321);
     EXPECT_FALSE(spec.SetFromString(value, kDefaultPortForTesting, &msg));
@@ -81,9 +81,7 @@ TEST_F(ExternalServerSpecTestInvalid, InvalidPortNumber2) {
   TestInvalidSpec("host:100000");
 }
 
-TEST_F(ExternalServerSpecTestInvalid, Empty) {
-  TestInvalidSpec("");
-}
+TEST_F(ExternalServerSpecTestInvalid, Empty) { TestInvalidSpec(""); }
 
 TEST_F(ExternalServerSpecTestInvalid, EmptyHostAndPort) {
   TestInvalidSpec(":");

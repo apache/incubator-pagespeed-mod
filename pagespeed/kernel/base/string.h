@@ -21,6 +21,7 @@
 #define PAGESPEED_KERNEL_BASE_STRING_H_
 
 #include <string.h>
+
 #include <string>
 
 typedef std::string GoogleString;

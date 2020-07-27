@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/js_replacer.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -36,13 +35,9 @@ class JsReplacerTest : public testing::Test {
  public:
   JsReplacerTest() : replacer_(&patterns_) {}
 
-  void AppendTail(GoogleString* str) {
-    StrAppend(str, " with tail");
-  }
+  void AppendTail(GoogleString* str) { StrAppend(str, " with tail"); }
 
-  void AppendHead(GoogleString* str) {
-    *str = "head with " + *str;
-  }
+  void AppendHead(GoogleString* str) { *str = "head with " + *str; }
 
  protected:
   JsTokenizerPatterns patterns_;
@@ -88,8 +83,7 @@ TEST_F(JsReplacerTest, RedundantPattern) {
 
 TEST_F(JsReplacerTest, TwoPatterns) {
   // Test two different patterns.
-  const char kIn[] =
-      "a.b.c = \"42\"; document.domain = 'whatever.com';";
+  const char kIn[] = "a.b.c = \"42\"; document.domain = 'whatever.com';";
   const char kOut[] =
       "a.b.c = \"head with 42\"; document.domain = 'whatever.com with tail';";
   std::unique_ptr<JsReplacer::StringRewriter> rewriter(

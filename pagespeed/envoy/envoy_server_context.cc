@@ -17,24 +17,21 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/envoy/envoy_server_context.h"
 
+#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "pagespeed/envoy/envoy_message_handler.h"
 #include "pagespeed/envoy/envoy_rewrite_driver_factory.h"
 #include "pagespeed/envoy/envoy_rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "pagespeed/system/add_headers_fetcher.h"
 #include "pagespeed/system/loopback_route_fetcher.h"
 #include "pagespeed/system/system_request_context.h"
 
 namespace net_instaweb {
 
-EnvoyServerContext::EnvoyServerContext(
-    EnvoyRewriteDriverFactory* factory, StringPiece hostname, int port)
-    : SystemServerContext(factory, hostname, port) {
-}
+EnvoyServerContext::EnvoyServerContext(EnvoyRewriteDriverFactory* factory,
+                                       StringPiece hostname, int port)
+    : SystemServerContext(factory, hostname, port) {}
 
 EnvoyRewriteOptions* EnvoyServerContext::config() {
   return EnvoyRewriteOptions::DynamicCast(global_options());
@@ -42,14 +39,13 @@ EnvoyRewriteOptions* EnvoyServerContext::config() {
 
 SystemRequestContext* EnvoyServerContext::NewRequestContext() {
   SystemRequestContext* ctx = new SystemRequestContext(
-      thread_system()->NewMutex(), timer(),
-      "foohost", 80, "127.0.0.1");
+      thread_system()->NewMutex(), timer(), "foohost", 80, "127.0.0.1");
   ctx->set_using_http2(false);
   return ctx;
 }
 
 GoogleString EnvoyServerContext::FormatOption(StringPiece option_name,
-                                            StringPiece args) {
+                                              StringPiece args) {
   return StrCat("pagespeed ", option_name, " ", args, ";");
 }
 

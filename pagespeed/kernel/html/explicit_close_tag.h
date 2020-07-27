@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_EXPLICIT_CLOSE_TAG_H_
 #define PAGESPEED_KERNEL_HTML_EXPLICIT_CLOSE_TAG_H_
 
@@ -38,10 +37,10 @@ class HtmlElement;
 class ExplicitCloseTag : public EmptyHtmlFilter {
  public:
   ExplicitCloseTag() {}
-  virtual ~ExplicitCloseTag();
+  ~ExplicitCloseTag() override;
 
-  virtual void EndElement(HtmlElement* element);
-  virtual const char* Name() const { return "ExplicitCloseTag"; }
+  void EndElement(HtmlElement* element) override;
+  const char* Name() const override { return "ExplicitCloseTag"; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ExplicitCloseTag);

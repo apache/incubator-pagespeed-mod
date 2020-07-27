@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_CONFIG_REWRITE_OPTIONS_MANAGER_H_
 #define NET_INSTAWEB_CONFIG_REWRITE_OPTIONS_MANAGER_H_
 
@@ -27,7 +26,6 @@
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/opt/http/request_context.h"
-
 
 namespace net_instaweb {
 

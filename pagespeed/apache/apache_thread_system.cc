@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/apache_thread_system.h"
 
 #include "pagespeed/apache/apr_timer.h"
@@ -26,8 +25,6 @@ namespace net_instaweb {
 
 class Timer;
 
-Timer* ApacheThreadSystem::NewTimer() {
-  return new AprTimer;
-}
+Timer* ApacheThreadSystem::NewTimer() { return new AprTimer; }
 
 }  // namespace net_instaweb

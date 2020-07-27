@@ -25,12 +25,10 @@
 //    domains.
 // 3) The rewriting should be blocking.
 
-
 #ifndef NET_INSTAWEB_CONFIG_MEASUREMENT_PROXY_REWRITE_OPTIONS_MANAGER_H_
 #define NET_INSTAWEB_CONFIG_MEASUREMENT_PROXY_REWRITE_OPTIONS_MANAGER_H_
 
 #include "net/instaweb/rewriter/config/rewrite_options_manager.h"
-
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
@@ -49,8 +47,7 @@ class MeasurementProxyRewriteOptionsManager : public RewriteOptionsManager {
                                         const GoogleString& password);
   ~MeasurementProxyRewriteOptionsManager() override {}
 
-  void GetRewriteOptions(const GoogleUrl& url,
-                         const RequestHeaders& headers,
+  void GetRewriteOptions(const GoogleUrl& url, const RequestHeaders& headers,
                          OptionsCallback* done) override;
 
  private:

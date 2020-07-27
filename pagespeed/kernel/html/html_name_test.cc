@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the html name class, make sure we can do case
 // insensitive matching.
 

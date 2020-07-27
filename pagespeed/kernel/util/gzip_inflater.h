@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_GZIP_INFLATER_H_
 #define PAGESPEED_KERNEL_UTIL_GZIP_INFLATER_H_
 
 #include <cstddef>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -33,7 +33,7 @@ class Writer;
 
 class GzipInflater {
  public:
-  enum InflateType {kGzip, kDeflate};
+  enum InflateType { kGzip, kDeflate };
 
   explicit GzipInflater(InflateType type);
   ~GzipInflater();
@@ -54,13 +54,13 @@ class GzipInflater {
   // should not be called if HasUnconsumedInput() is true, and the
   // buffer passed into SetInput should not be modified by the caller
   // until HasUnconsumedInput() returns false.
-  bool SetInput(const void *in, size_t in_size);
+  bool SetInput(const void* in, size_t in_size);
 
   // Decompress the input passed in via SetInput. Should be called
   // until HasUnconsumedInput returns false. Returns the number of
   // bytes inflated, or -1 if an error was encountered while
   // inflating.
-  int InflateBytes(char *buf, size_t buf_size);
+  int InflateBytes(char* buf, size_t buf_size);
 
   // Has the entire input been inflated?
   bool finished() const { return finished_; }
@@ -90,13 +90,12 @@ class GzipInflater {
     FORMAT_RAW_INFLATE,  // RFC1951
   };
 
-  static bool GetWindowBitsForFormat(
-      StreamFormat format, int* out_window_bits);
+  static bool GetWindowBitsForFormat(StreamFormat format, int* out_window_bits);
   void Free();
-  void SetInputInternal(const void *in, size_t in_size);
+  void SetInputInternal(const void* in, size_t in_size);
   void SwitchToRawDeflateFormat();
 
-  z_stream *zlib_;
+  z_stream* zlib_;
   StreamFormat format_;
   bool finished_;
   bool error_;

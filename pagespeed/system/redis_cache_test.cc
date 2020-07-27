@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 
 // Unit-test the redis interface.
 
@@ -26,11 +25,11 @@
 
 #include "apr_network_io.h"  // NOLINT
 #include "base/logging.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gmock.h"
+#include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/mock_timer.h"
+#include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread.h"
@@ -45,13 +44,13 @@
 namespace net_instaweb {
 
 namespace {
-  static const int kReconnectionDelayMs = 10;
-  static const int kTimeoutUs = 100 * Timer::kMsUs;
-  static const int kDatabaseIndex[] = {0, 1};
-  static const int kTTLSec = -1;
-  static const char kSomeKey[] = "SomeKey";
-  static const char kSomeValue[] = "SomeValue";
-}
+static const int kReconnectionDelayMs = 10;
+static const int kTimeoutUs = 100 * Timer::kMsUs;
+static const int kDatabaseIndex[] = {0, 1};
+static const int kTTLSec = -1;
+static const char kSomeKey[] = "SomeKey";
+static const char kSomeValue[] = "SomeValue";
+}  // namespace
 
 using testing::HasSubstr;
 
@@ -92,17 +91,17 @@ class RedisCacheTest : public CacheTestBase {
 
   void InitRedisWithCustomDatabaseIndex(const int database_index) {
     cache_.emplace_back(new RedisCache("localhost", redis_port_env_,
-                            thread_system_.get(), &handler_, &timer_,
-                            kReconnectionDelayMs, kTimeoutUs, &statistics_,
-                            database_index, kTTLSec));
+                                       thread_system_.get(), &handler_, &timer_,
+                                       kReconnectionDelayMs, kTimeoutUs,
+                                       &statistics_, database_index, kTTLSec));
     cache_.back()->StartUp();
   }
 
   void InitRedisWithCustomServer() {
-    cache_.emplace_back(new RedisCache("localhost", custom_server_port_,
-                                thread_system_.get(), &handler_, &timer_,
-                                kReconnectionDelayMs, kTimeoutUs,
-                                &statistics_, kDatabaseIndex[0], kTTLSec));
+    cache_.emplace_back(
+        new RedisCache("localhost", custom_server_port_, thread_system_.get(),
+                       &handler_, &timer_, kReconnectionDelayMs, kTimeoutUs,
+                       &statistics_, kDatabaseIndex[0], kTTLSec));
   }
 
   void InitRedisWithUnreachableServer() {
@@ -110,9 +109,9 @@ class RedisCacheTest : public CacheTestBase {
     // 192.0.2.0/24 is reserved for documentation purposes in RFC5737 and no
     // machine should ever be routable in that subnet.
     cache_.emplace_back(new RedisCache("192.0.2.1", 12345, thread_system_.get(),
-                                &handler_, &timer_, kReconnectionDelayMs,
-                                kTimeoutUs, &statistics_, kDatabaseIndex[0],
-                                kTTLSec));
+                                       &handler_, &timer_, kReconnectionDelayMs,
+                                       kTimeoutUs, &statistics_,
+                                       kDatabaseIndex[0], kTTLSec));
   }
 
   static void SetUpTestCase() {
@@ -121,7 +120,7 @@ class RedisCacheTest : public CacheTestBase {
     CHECK_NE(custom_server_port_, 0);
   }
 
-  template<class ServerThread>
+  template <class ServerThread>
   bool StartCustomServer() {
     WaitForCustomServerShutdown();
     custom_server_.reset(
@@ -133,13 +132,9 @@ class RedisCacheTest : public CacheTestBase {
     return custom_server_->GetListeningPort() == custom_server_port_;
   }
 
-  void WaitForCustomServerShutdown() {
-    custom_server_.reset();
-  }
+  void WaitForCustomServerShutdown() { custom_server_.reset(); }
 
-  static void TearDownTestCase() {
-    apr_terminate();
-  }
+  static void TearDownTestCase() { apr_terminate(); }
 
   CacheInterface* Cache() override { return cache_[0].get(); }
 
@@ -324,7 +319,7 @@ class RedisGetRespondingServerThread : public TcpServerThreadForTesting {
         "$6\r\nSELECT\r\n"
         "$1\r\n0\r\n";
     static const char kSelectAnswer[] = "+OK\r\n";
-    apr_size_t answer_size_select  = STATIC_STRLEN(kSelectAnswer);
+    apr_size_t answer_size_select = STATIC_STRLEN(kSelectAnswer);
 
     char requestBuf[STATIC_STRLEN(kSelectRequest) + 1];
     apr_size_t recvSize = sizeof(requestBuf) - 1;
@@ -341,7 +336,7 @@ class RedisGetRespondingServerThread : public TcpServerThreadForTesting {
         "$3\r\nGET\r\n"
         "$7\r\nSomeKey\r\n";
     static const char kAnswer[] = "$9\r\nSomeValue\r\n";
-    apr_size_t answer_size  = STATIC_STRLEN(kAnswer);
+    apr_size_t answer_size = STATIC_STRLEN(kAnswer);
 
     char buf[STATIC_STRLEN(kRequest) + 1];
     apr_size_t size = sizeof(buf) - 1;
@@ -393,7 +388,7 @@ TEST_F(RedisCacheTest, ReconnectsUntilSuccessWithTimeout) {
 
   // Try to reconnect right away after failure.
   EXPECT_TRUE(Cache()->IsHealthy());  // Reconnection is allowed...
-  CheckNotFound(kSomeKey);  // ...but it fails.
+  CheckNotFound(kSomeKey);            // ...but it fails.
 
   // Second attempt, should not reconnect before timeout.
   ASSERT_TRUE(StartCustomServer<RedisGetRespondingServerThread>());
@@ -475,11 +470,11 @@ class RedisNotRespondingServerThread : public TcpServerThreadForTesting {
 // condition between server destruction and accepting connection (like in
 // ShutDownDuringConnection). Other servers do not do that because tests
 // actually rely on their answers to client.
-class RedisNotRespondingOperationTimeoutServerThread :
-    public TcpServerThreadForTesting {
+class RedisNotRespondingOperationTimeoutServerThread
+    : public TcpServerThreadForTesting {
  public:
   RedisNotRespondingOperationTimeoutServerThread(apr_port_t listen_port,
-                                 ThreadSystem* thread_system)
+                                                 ThreadSystem* thread_system)
       : TcpServerThreadForTesting(listen_port, "redis_not_responding_server",
                                   thread_system),
         connection_received_(thread_system) {}
@@ -500,7 +495,7 @@ class RedisNotRespondingOperationTimeoutServerThread :
         "$6\r\nSELECT\r\n"
         "$1\r\n0\r\n";
     static const char kSelectAnswer[] = "+OK\r\n";
-    apr_size_t answer_size_select  = STATIC_STRLEN(kSelectAnswer);
+    apr_size_t answer_size_select = STATIC_STRLEN(kSelectAnswer);
 
     char requestBuf[STATIC_STRLEN(kSelectRequest) + 1];
     apr_size_t recvSize = sizeof(requestBuf) - 1;
@@ -558,9 +553,7 @@ class GetRequestThread : public ThreadSystem::Thread {
         cache_(cache),
         check_called_(false) {}
 
-  void Run() override {
-    cache_->Get(kSomeKey, &callback_);
-  }
+  void Run() override { cache_->Get(kSomeKey, &callback_); }
 
   void CheckLookupResult(CacheInterface::KeyState expected_state) {
     check_called_ = true;
@@ -678,18 +671,12 @@ class RedisCacheOperationTimeoutTest : public RedisCacheTest {
   int64 started_at_us_;
 };
 
-TEST_F(RedisCacheOperationTimeoutTest, Get) {
-  CheckNotFound("Key");
-}
+TEST_F(RedisCacheOperationTimeoutTest, Get) { CheckNotFound("Key"); }
 
 // TODO(yeputons): test MultiGet when it's a single command, not sequenced GET()
 
-TEST_F(RedisCacheOperationTimeoutTest, Put) {
-  CheckPut("Key", "Value");
-}
+TEST_F(RedisCacheOperationTimeoutTest, Put) { CheckPut("Key", "Value"); }
 
-TEST_F(RedisCacheOperationTimeoutTest, Delete) {
-  CheckDelete("Key");
-}
+TEST_F(RedisCacheOperationTimeoutTest, Delete) { CheckDelete("Key"); }
 
 }  // namespace net_instaweb

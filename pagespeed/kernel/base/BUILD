@@ -100,6 +100,16 @@ cc_proto_library(
     deps = [":proto_matcher_test_proto"],
 )
 
+
+cc_library(
+    name = "gtest_prod",
+    hdrs = ["gtest_prod.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_googletest//:gtest"
+    ],
+)
+
 cc_library(
     name = "pagespeed_base",
     srcs = [
@@ -182,15 +192,14 @@ cc_library(
         "enum_set.h",
         "string_multi_map.h",
         "manually_ref_counted.h",
-        "gtest_prod.h", # hmm, is this right?
     ],
     visibility = ["//visibility:public"],
     deps = [
         ":pagespeed_base_core",
         "//third_party/base64:base64",
         "@jsoncpp//:jsoncpp",
-        "@com_google_googletest//:gtest",# for gtest_prod.h   
-        "@boringssl//:ssl",     
+        "@boringssl//:ssl",  
+        ":gtest_prod",
     ],
 )
 

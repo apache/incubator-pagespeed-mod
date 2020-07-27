@@ -17,9 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/queued_alarm.h"
 
+#include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
@@ -27,14 +27,10 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/thread/sequence.h"
 
-#include "base/logging.h"
-
 namespace net_instaweb {
 
-QueuedAlarm::QueuedAlarm(Scheduler* scheduler,
-                         Sequence* sequence,
-                         int64 wakeup_time_us,
-                         Function* callback)
+QueuedAlarm::QueuedAlarm(Scheduler* scheduler, Sequence* sequence,
+                         int64 wakeup_time_us, Function* callback)
     : mutex_(scheduler->thread_system()->NewMutex()),
       scheduler_(scheduler),
       sequence_(sequence),
@@ -46,7 +42,7 @@ QueuedAlarm::QueuedAlarm(Scheduler* scheduler,
 }
 
 QueuedAlarm::~QueuedAlarm() {
-  if (callback_ != NULL) {
+  if (callback_ != nullptr) {
     callback_->CallCancel();
   }
 }
@@ -68,7 +64,7 @@ void QueuedAlarm::CancelAlarm() {
   ScopedMutex hold_scheduler_mutex(scheduler_->mutex());
   if (scheduler_->CancelAlarm(alarm_)) {
     // Everything canceled nice and clean, so we can go home.
-    hold_our_mutex.Release();  // before deleting self
+    hold_our_mutex.Release();        // before deleting self
     hold_scheduler_mutex.Release();  // so we don't hold it during CallCancel
     delete this;
   } else {
@@ -87,8 +83,7 @@ void QueuedAlarm::Run() {
     delete this;
   } else {
     queued_sequence_portion_ = true;
-    sequence_->Add(MakeFunction(this,
-                                &QueuedAlarm::SequencePortionOfRun,
+    sequence_->Add(MakeFunction(this, &QueuedAlarm::SequencePortionOfRun,
                                 &QueuedAlarm::SequencePortionOfRunCancelled));
   }
 }
@@ -103,7 +98,7 @@ void QueuedAlarm::SequencePortionOfRun() {
 
   if (!canceled) {
     callback_->CallRun();
-    callback_ = NULL;  // so we don't do ->CallCancel in ~QueuedAlarm
+    callback_ = nullptr;  // so we don't do ->CallCancel in ~QueuedAlarm
   }
 
   delete this;

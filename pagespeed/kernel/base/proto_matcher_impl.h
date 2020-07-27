@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Do not use this file directly! Instead include proto_matcher.h
 
 #ifndef PAGESPEED_KERNEL_BASE_PROTO_MATCHER_IMPL_H_
@@ -26,16 +25,13 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "gmock/gmock-matchers.h"
+#include "google/protobuf/util/message_differencer.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/string.h"
 
-
-#include "gmock/gmock-matchers.h"
-#include "google/protobuf/util/message_differencer.h"
-
 using google::protobuf::util::MessageDifferencer;
-
 
 namespace net_instaweb {
 
@@ -65,8 +61,8 @@ class EqualsProtoMatcher {
   const GoogleString expected_proto_str_;
 };
 
-inline testing::PolymorphicMatcher<EqualsProtoMatcher>
-EqualsProto(const GoogleString& x) {
+inline testing::PolymorphicMatcher<EqualsProtoMatcher> EqualsProto(
+    const GoogleString& x) {
   return testing::MakePolymorphicMatcher(EqualsProtoMatcher(x));
 }
 

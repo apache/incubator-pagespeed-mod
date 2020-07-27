@@ -104,7 +104,6 @@ class DependencyTracker {
   DISALLOW_COPY_AND_ASSIGN(DependencyTracker);
 };
 
-
 // Compares two Dependency objects based on the order_key field.
 class DependencyOrderCompator {
  public:

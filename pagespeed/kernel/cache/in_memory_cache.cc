@@ -17,19 +17,17 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/cache/in_memory_cache.h"
 
 #include <map>
 #include <utility>
+
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
 
-InMemoryCache::InMemoryCache()
-    : is_shut_down_(false) {
-}
+InMemoryCache::InMemoryCache() : is_shut_down_(false) {}
 
 void InMemoryCache::Get(const GoogleString& key, Callback* callback) {
   if (is_shut_down_) {

@@ -17,11 +17,11 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/file_load_policy.h"
 
 #include <list>
 
 #include "net/instaweb/rewriter/public/file_load_mapping.h"
-#include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/file_load_rule.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -97,12 +97,12 @@ bool FileLoadPolicy::ShouldLoadFromFile(const GoogleUrl& url,
   // filter those out.  This also lets us limit to static resources, which are
   // the only content types we want to handle.
   const ContentType* content_type = NameExtensionToContentType(*filename);
-  return content_type != NULL && content_type->IsLikelyStaticResource();
+  return content_type != nullptr && content_type->IsLikelyStaticResource();
 }
 
 bool FileLoadPolicy::AddRule(const GoogleString& rule_str, bool is_regexp,
                              bool allow, GoogleString* error) {
-  FileLoadRule* rule = NULL;
+  FileLoadRule* rule = nullptr;
   if (is_regexp) {
     const RE2 re(rule_str);
     if (!re.ok()) {
@@ -126,8 +126,9 @@ bool FileLoadPolicy::AssociateRegexp(StringPiece url_regexp,
   filename_prefix.CopyToString(&filename_prefix_str);
 
   if (!url_regexp.starts_with("^")) {
-    error->assign("File mapping regular expression must match beginning "
-                  "of string. (Must start with '^'.)");
+    error->assign(
+        "File mapping regular expression must match beginning "
+        "of string. (Must start with '^'.)");
     return false;
   }
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_DYNAMIC_STRING_MAP_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_DYNAMIC_STRING_MAP_H_
 
@@ -51,8 +50,7 @@ class SharedDynamicStringMap {
   // Average string length should include terminating null character.
   // Map will be able to hold exactly number_of_strings * average_string_length
   // chars worth of string data.
-  SharedDynamicStringMap(size_t number_of_strings,
-                         size_t average_string_length,
+  SharedDynamicStringMap(size_t number_of_strings, size_t average_string_length,
                          AbstractSharedMem* shm_runtime,
                          const GoogleString& filename_prefix,
                          const GoogleString& filename_suffix);
@@ -113,8 +111,7 @@ class SharedDynamicStringMap {
   // the char space upon initialization.
   //   If 100% accurate lookup is needed then a new LookupElement method could
   // be added that calls FindEntry(lock = true).
-  int FindEntry(const StringPiece& string,
-                bool lock,
+  int FindEntry(const StringPiece& string, bool lock,
                 Entry** entry_pointer) const;
   Entry* GetEntry(size_t n) const;
   Entry* GetFirstEntry() const;

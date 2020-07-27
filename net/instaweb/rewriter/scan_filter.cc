@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/scan_filter.h"
 
 #include <memory>
@@ -42,12 +41,9 @@
 
 namespace net_instaweb {
 
-ScanFilter::ScanFilter(RewriteDriver* driver)
-    : driver_(driver) {
-}
+ScanFilter::ScanFilter(RewriteDriver* driver) : driver_(driver) {}
 
-ScanFilter::~ScanFilter() {
-}
+ScanFilter::~ScanFilter() {}
 
 void ScanFilter::StartDocument() {
   // TODO(jmarantz): consider having rewrite_driver access the url in this
@@ -60,8 +56,8 @@ void ScanFilter::StartDocument() {
   // Set the driver's containing charset to whatever the headers set it to; if
   // they don't set it to anything, blank the driver's so we know it's not set.
   const ResponseHeaders* headers = driver_->response_headers();
-  driver_->set_containing_charset(headers == NULL ? "" :
-                                  headers->DetermineCharset());
+  driver_->set_containing_charset(
+      headers == nullptr ? "" : headers->DetermineCharset());
 
   driver_->mutable_content_security_policy()->Clear();
   if (driver_->options()->honor_csp() && headers != nullptr) {
@@ -75,13 +71,9 @@ void ScanFilter::StartDocument() {
   }
 }
 
-void ScanFilter::Cdata(HtmlCdataNode* cdata) {
-  seen_any_nodes_ = true;
-}
+void ScanFilter::Cdata(HtmlCdataNode* cdata) { seen_any_nodes_ = true; }
 
-void ScanFilter::Comment(HtmlCommentNode* comment) {
-  seen_any_nodes_ = true;
-}
+void ScanFilter::Comment(HtmlCommentNode* comment) { seen_any_nodes_ = true; }
 
 void ScanFilter::IEDirective(HtmlIEDirectiveNode* directive) {
   seen_any_nodes_ = true;
@@ -132,7 +124,6 @@ void ScanFilter::StartElement(HtmlElement* element) {
         return;
       }
 
-
       // TODO(jmarantz): consider having rewrite_driver access the url in this
       // class, rather than poking it into rewrite_driver.
       GoogleString new_base = href->DecodedValueOrNull();
@@ -162,7 +153,8 @@ void ScanFilter::StartElement(HtmlElement* element) {
 
   if (driver_->options()->honor_csp() &&
       element->keyword() == HtmlName::kMeta) {
-    // Note: https://html.spec.whatwg.org/multipage/semantics.html#attr-meta-http-equiv-content-security-policy
+    // Note:
+    // https://html.spec.whatwg.org/multipage/semantics.html#attr-meta-http-equiv-content-security-policy
     // requires us to check whether the meta element is a child of a <head>.
     // We cannot do it reliably since we don't do full HTML5 parsing (complete
     // with inventing missing nodes), so we conservatively assume that the
@@ -191,12 +183,11 @@ void ScanFilter::StartElement(HtmlElement* element) {
   // 4. If there is a meta tag in the HTML, use the encoding specified if any.
   // 5. There are various other heuristics listed which are not implemented.
   // 6. Otherwise, use no charset or default to something "sensible".
-  if (!seen_meta_tag_charset_ &&
-      driver_->containing_charset().empty() &&
+  if (!seen_meta_tag_charset_ && driver_->containing_charset().empty() &&
       element->keyword() == HtmlName::kMeta) {
     GoogleString content, mime_type, charset;
-    if (CommonFilter::ExtractMetaTagDetails(*element, NULL,
-                                            &content, &mime_type, &charset)) {
+    if (CommonFilter::ExtractMetaTagDetails(*element, nullptr, &content,
+                                            &mime_type, &charset)) {
       if (!charset.empty()) {
         driver_->set_containing_charset(charset);
         seen_meta_tag_charset_ = true;
@@ -209,7 +200,7 @@ void ScanFilter::EndElement(HtmlElement* element) {
   if (element->keyword() == HtmlName::kBase &&
       !driver_->options()->domain_lawyer()->proxy_suffix().empty()) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
-    if (href != NULL) {
+    if (href != nullptr) {
       href->SetValue(driver_->base_url().AllExceptQuery());
     }
   }

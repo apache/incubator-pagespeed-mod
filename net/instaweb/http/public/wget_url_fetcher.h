@@ -33,14 +33,13 @@ namespace net_instaweb {
 class WgetUrlFetcher : public ExternalUrlFetcher {
  public:
   WgetUrlFetcher();
-  virtual ~WgetUrlFetcher() {}
+  ~WgetUrlFetcher() override {}
 
  private:
-  virtual GoogleString ConstructFetchCommand(
-      const GoogleString& escaped_url,
-      const char* user_agent,
-      const StringVector& escaped_headers);
-  virtual const char* GetFetchLabel();
+  GoogleString ConstructFetchCommand(
+      const GoogleString& escaped_url, const char* user_agent,
+      const StringVector& escaped_headers) override;
+  const char* GetFetchLabel() override;
 
   DISALLOW_COPY_AND_ASSIGN(WgetUrlFetcher);
 };

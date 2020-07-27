@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_URL_COUNTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_URL_COUNTER_H_
 
@@ -38,7 +37,7 @@ class CssUrlCounter : public CssTagScanner::Transformer {
   // base_url and handler must live longer than CssUrlCounter.
   CssUrlCounter(const GoogleUrl* base_url, MessageHandler* handler)
       : base_url_(base_url), handler_(handler) {}
-  virtual ~CssUrlCounter();
+  ~CssUrlCounter() override;
 
   // Record and count URLs in in_text. Does not reset url_counts_, so if you
   // call this multiple times it will accumulate url_counts_ over all inputs.
@@ -50,7 +49,7 @@ class CssUrlCounter : public CssTagScanner::Transformer {
 
  private:
   // CssTagScanner::Transform interface. Called indirectly by Count().
-  virtual TransformStatus Transform(GoogleString* str);
+  TransformStatus Transform(GoogleString* str) override;
 
   // Counts for how many times each URL was found in the CSS file.
   StringIntMap url_counts_;

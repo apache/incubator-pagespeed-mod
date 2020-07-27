@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_GRPC_H_
 #define PAGESPEED_KERNEL_UTIL_GRPC_H_
 

@@ -17,22 +17,21 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/defer_iframe_filter.h"
+
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-
-#include "gtest/gtest.h"
 
 namespace net_instaweb {
 
 class DeferIframeFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
     rewrite_driver_->AddOwnedPostRenderFilter(
@@ -40,10 +39,11 @@ class DeferIframeFilterTest : public RewriteTestBase {
   }
 
   GoogleString GeneratePagespeedIframeTag(const StringPiece& src) {
-    return StrCat("<pagespeed_iframe src=\"", src, "\">"
-        "<script type=\"text/javascript\">"
-        "\npagespeed.deferIframe.convertToIframe();"
-        "</script></pagespeed_iframe>");
+    return StrCat("<pagespeed_iframe src=\"", src,
+                  "\">"
+                  "<script type=\"text/javascript\">"
+                  "\npagespeed.deferIframe.convertToIframe();"
+                  "</script></pagespeed_iframe>");
   }
 };
 
@@ -51,19 +51,21 @@ TEST_F(DeferIframeFilterTest, TestDeferIframe) {
   StringPiece defer_iframe_js_code =
       server_context()->static_asset_manager()->GetAsset(
           StaticAssetEnum::DEFER_IFRAME, options());
-  GoogleString input_html = "<head></head>"
+  GoogleString input_html =
+      "<head></head>"
       "<body>"
       "<iframe src=\"http://test.com/1.html\"/>"
       "</body>";
-  GoogleString output_html = StrCat(
-      "<head></head><body><script type=\"text/javascript\">",
-      defer_iframe_js_code, "pagespeed.deferIframeInit();</script>",
-      GeneratePagespeedIframeTag("http://test.com/1.html"), "</body>");
+  GoogleString output_html =
+      StrCat("<head></head><body><script type=\"text/javascript\">",
+             defer_iframe_js_code, "pagespeed.deferIframeInit();</script>",
+             GeneratePagespeedIframeTag("http://test.com/1.html"), "</body>");
   ValidateExpected("defer_iframe", input_html, output_html);
 }
 
 TEST_F(DeferIframeFilterTest, TestNoIframePresent) {
-  GoogleString input_html = "<head></head>"
+  GoogleString input_html =
+      "<head></head>"
       "<body>"
       "<img src=\"http://test.com/1.jpeg\"/>"
       "</body>";
@@ -71,7 +73,8 @@ TEST_F(DeferIframeFilterTest, TestNoIframePresent) {
 }
 
 TEST_F(DeferIframeFilterTest, TestIframeInNoscript) {
-  GoogleString input_html = "<head></head>"
+  GoogleString input_html =
+      "<head></head>"
       "<body>"
       "<noscript>"
       "<iframe src=\"http://test.com/1.html\"/>"
@@ -84,16 +87,17 @@ TEST_F(DeferIframeFilterTest, TestMultipleIframePresent) {
   StringPiece defer_iframe_js_code =
       server_context()->static_asset_manager()->GetAsset(
           StaticAssetEnum::DEFER_IFRAME, options());
-  GoogleString input_html = "<head></head>"
+  GoogleString input_html =
+      "<head></head>"
       "<body>"
       "<iframe src=\"http://test.com/1.html\"/>"
       "<iframe src=\"http://test.com/2.html\"/>"
       "</body>";
-  GoogleString output_html = StrCat(
-      "<head></head><body><script type=\"text/javascript\">",
-      defer_iframe_js_code, "pagespeed.deferIframeInit();</script>",
-      GeneratePagespeedIframeTag("http://test.com/1.html"),
-      GeneratePagespeedIframeTag("http://test.com/2.html"), "</body>");
+  GoogleString output_html =
+      StrCat("<head></head><body><script type=\"text/javascript\">",
+             defer_iframe_js_code, "pagespeed.deferIframeInit();</script>",
+             GeneratePagespeedIframeTag("http://test.com/1.html"),
+             GeneratePagespeedIframeTag("http://test.com/2.html"), "</body>");
   ValidateExpected("defer_iframe", input_html, output_html);
 }
 

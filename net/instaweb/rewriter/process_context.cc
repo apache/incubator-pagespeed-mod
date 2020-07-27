@@ -17,16 +17,14 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/process_context.h"
 
 #include "base/logging.h"
+#include "google/protobuf/stubs/common.h"
 #include "pagespeed/kernel/html/html_keywords.h"
 #include "pagespeed/kernel/http/domain_registry.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/js/js_tokenizer.h"
-
-#include "google/protobuf/stubs/common.h"
 using namespace google;  // NOLINT
 
 namespace {

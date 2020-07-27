@@ -21,6 +21,8 @@
 #define PAGESPEED_KERNEL_BASE_SPARSE_HASH_SET_H_
 
 #include "google/sparse_hash_set"
-namespace net_instaweb { using google::sparse_hash_set; }
+namespace net_instaweb {
+using google::sparse_hash_set;
+}
 
 #endif  // PAGESPEED_KERNEL_BASE_SPARSE_HASH_SET_H_

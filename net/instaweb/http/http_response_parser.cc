@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/http_response_parser.h"
 
 #include <cstdio>
+
 #include "pagespeed/kernel/base/file_system.h"
 #include "pagespeed/kernel/base/stack_buffer.h"
 #include "pagespeed/kernel/base/string_util.h"

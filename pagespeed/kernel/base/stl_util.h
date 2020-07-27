@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_STL_UTIL_H_
 #define PAGESPEED_KERNEL_BASE_STL_UTIL_H_
 
@@ -33,14 +32,14 @@ void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
   }
 }
 
-template<class T>
+template <class T>
 bool STLFind(const T& collection, const typename T::value_type& value) {
   return std::find(collection.begin(), collection.end(), value) !=
-      collection.end();
+         collection.end();
 }
 
 template <class T>
-void STLDeleteElements(T *container) {
+void STLDeleteElements(T* container) {
   if (!container) return;
   STLDeleteContainerPointers(container->begin(), container->end());
   container->clear();
@@ -57,6 +56,5 @@ void STLDeleteValues(T* container) {
   }
   container->clear();
 }
-
 
 #endif  // PAGESPEED_KERNEL_BASE_STL_UTIL_H_

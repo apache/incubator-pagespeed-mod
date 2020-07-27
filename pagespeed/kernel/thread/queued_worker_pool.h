@@ -73,14 +73,12 @@ class QueuedWorkerPool {
     class AddFunction : public Function {
      public:
       AddFunction(net_instaweb::Sequence* sequence, Function* callback)
-          : sequence_(sequence), callback_(callback) { }
-      virtual ~AddFunction();
+          : sequence_(sequence), callback_(callback) {}
+      ~AddFunction() override;
 
      protected:
-      virtual void Run() {
-        sequence_->Add(callback_);
-      }
-      virtual void Cancel() {
+      void Run() override { sequence_->Add(callback_); }
+      void Cancel() override {
         sequence_->Add(MakeFunction(callback_, &Function::CallCancel));
       }
 
@@ -102,7 +100,7 @@ class QueuedWorkerPool {
     //
     // If the pool is being shut down at the time Add is being called,
     // this method will call function->Cancel().
-    void Add(Function* function) LOCKS_EXCLUDED(sequence_mutex_);
+    void Add(Function* function) override LOCKS_EXCLUDED(sequence_mutex_);
 
     void set_queue_size_stat(Waveform* x) { queue_size_ = x; }
 
@@ -119,7 +117,7 @@ class QueuedWorkerPool {
     Sequence(ThreadSystem* thread_system, QueuedWorkerPool* pool);
 
     // Free by calling QueuedWorkerPool::FreeSequence().
-    ~Sequence();
+    ~Sequence() override;
 
     // Resets a new or recycled Sequence to its original state.
     void Reset();

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_MOCK_RESOURCE_CALLBACK_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_MOCK_RESOURCE_CALLBACK_H_
 
@@ -38,10 +37,10 @@ class MockResourceCallback : public Resource::AsyncCallback {
         done_(false),
         notify_(thread_system) {
     CHECK(thread_system);
-}
-  virtual ~MockResourceCallback();
+  }
+  ~MockResourceCallback() override;
 
-  virtual void Done(bool lock_failure, bool resource_ok) {
+  void Done(bool lock_failure, bool resource_ok) override {
     CHECK(!lock_failure);
     success_ = resource_ok;
     done_ = true;
@@ -50,9 +49,7 @@ class MockResourceCallback : public Resource::AsyncCallback {
 
   bool success() const { return success_; }
   bool done() const { return done_; }
-  void Wait() {
-    notify_.Wait();
-  }
+  void Wait() { notify_.Wait(); }
 
  private:
   bool success_;

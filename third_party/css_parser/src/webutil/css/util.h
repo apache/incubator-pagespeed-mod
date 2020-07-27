@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef WEBUTIL_CSS_UTIL_H__
 #define WEBUTIL_CSS_UTIL_H__
 
@@ -38,7 +36,7 @@ class Value;
 
 namespace Util {
 
-enum COLOR_ATTR {ORIGINAL, TRANSPARENT, UNKNOWN, INHERIT};
+enum COLOR_ATTR { ORIGINAL, TRANSPARENT, UNKNOWN, INHERIT };
 
 // Parses CSS color value (may be a string, identifier or a color) into
 // HtmlColor. returns def if the color is invalid. set attr to one of the
@@ -54,9 +52,9 @@ HtmlColor GetCssColor(const Css::Value* val, const HtmlColor& def,
 // a number. It can also be invalid if can_negative is set and the value is
 // negative, can_unitless works similarly. Returns if parsing succeeds, and
 // if so, size stores the result.
-bool GetCssLength(const Css::Value* val, double parent_size,
-                  double font_size, double unit, bool can_negative,
-                  bool can_unitless, double* size);
+bool GetCssLength(const Css::Value* val, double parent_size, double font_size,
+                  double unit, bool can_negative, bool can_unitless,
+                  double* size);
 
 // Updates color with system color specified in colorstr. The change is only
 // done only when the conversion succeeds, indicated by the return value.

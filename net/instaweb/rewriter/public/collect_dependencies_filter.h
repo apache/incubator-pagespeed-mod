@@ -37,9 +37,7 @@ class CollectDependenciesFilter : public CommonFilter {
   void StartElementImpl(HtmlElement* element) override;
   void EndElementImpl(HtmlElement* element) override;
 
-  const char* Name() const override {
-    return "Collect Dependencies Filter";
-  }
+  const char* Name() const override { return "Collect Dependencies Filter"; }
 
  private:
   class Context;

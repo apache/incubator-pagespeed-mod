@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/opt/http/abstract_property_store_get_callback.h"
 
 namespace net_instaweb {
 
-AbstractPropertyStoreGetCallback::AbstractPropertyStoreGetCallback() {
-}
+AbstractPropertyStoreGetCallback::AbstractPropertyStoreGetCallback() {}
 
-AbstractPropertyStoreGetCallback::~AbstractPropertyStoreGetCallback() {
-}
+AbstractPropertyStoreGetCallback::~AbstractPropertyStoreGetCallback() {}
 
 }  // namespace net_instaweb

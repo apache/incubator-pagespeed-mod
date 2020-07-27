@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/sequence.h"
 
 namespace net_instaweb {
 
-Sequence::Sequence() {
-}
+Sequence::Sequence() {}
 
-Sequence::~Sequence() {
-}
+Sequence::~Sequence() {}
 
 }  // namespace net_instaweb

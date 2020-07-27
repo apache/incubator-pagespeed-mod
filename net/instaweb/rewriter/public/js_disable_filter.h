@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_DISABLE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_DISABLE_FILTER_H_
 
@@ -42,27 +41,25 @@ namespace net_instaweb {
 class JsDisableFilter : public CommonFilter {
  public:
   explicit JsDisableFilter(RewriteDriver* driver);
-  ~JsDisableFilter();
+  ~JsDisableFilter() override;
 
   static const char kEnableJsExperimental[];
   static const char kElementOnloadCode[];
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
-  virtual const char* Name() const {
-    return "JsDisableFilter";
-  }
+  const char* Name() const override { return "JsDisableFilter"; }
 
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
 
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
 
-  virtual void EndElementImpl(HtmlElement* element);
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual void EndDocument();
+  void EndDocument() override;
 
   // Inserts the experimental js enable/disable code.
   void InsertJsDeferExperimentalScript();

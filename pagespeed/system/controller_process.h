@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_CONTROLLER_PROCESS_H_
 #define PAGESPEED_SYSTEM_CONTROLLER_PROCESS_H_
 

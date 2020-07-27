@@ -27,8 +27,6 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-
-
 #include "url/gurl.h"
 #include "url/url_parse_internal.h"
 #include "url/url_util.h"
@@ -36,7 +34,6 @@
 namespace net_instaweb {
 
 // Prepare for flattening of the namespaces in newer Chromiums.
-
 
 enum UrlRelativity {
   kAbsoluteUrl,   // http://example.com/foo/bar/file.ext?k=v#f
@@ -85,8 +82,8 @@ class GoogleUrl {
                                   StringPiece unescaped_value) const;
   // Same as CopyAndAddQueryParam() but name and value must already be escaped.
   // Most users should use CopyAndAddQueryParam() instead for safety.
-  GoogleUrl* CopyAndAddEscapedQueryParam(
-      StringPiece escaped_name, StringPiece escaped_value) const;
+  GoogleUrl* CopyAndAddEscapedQueryParam(StringPiece escaped_name,
+                                         StringPiece escaped_value) const;
 
   // For "http://a.com/b/c/d?e=f/g#r" returns "http://a.com/b/c/d"
   // Returns a StringPiece, only valid for the lifetime of this object.
@@ -203,12 +200,8 @@ class GoogleUrl {
                          const GoogleUrl& base_url) const;
 
   // Defiant equality operator!
-  bool operator==(const GoogleUrl& other) const {
-    return gurl_ == other.gurl_;
-  }
-  bool operator!=(const GoogleUrl& other) const {
-    return gurl_ != other.gurl_;
-  }
+  bool operator==(const GoogleUrl& other) const { return gurl_ == other.gurl_; }
+  bool operator!=(const GoogleUrl& other) const { return gurl_ != other.gurl_; }
 
   // Unescape a query parameter, converting all %XX to the the actual char 0xXX.
   // This also converts '+' to ' ' which is valid only in query parameters.
@@ -277,6 +270,5 @@ class GoogleUrl {
 };  // class GoogleUrl
 
 }  // namespace net_instaweb
-
 
 #endif  // PAGESPEED_KERNEL_HTTP_GOOGLE_URL_H_

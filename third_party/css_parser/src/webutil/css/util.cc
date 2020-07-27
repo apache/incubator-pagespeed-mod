@@ -17,9 +17,8 @@
  * under the License.
  */
 
-
-
 #include "webutil/css/util.h"
+
 #include "strings/ascii_ctype.h"
 #include "strings/memutil.h"
 #include "strings/stringpiece_utils.h"
@@ -39,8 +38,7 @@ DEFINE_double(font_size_adjustment,
 namespace Css {
 namespace Util {
 
-HtmlColor GetCssColor(const Css::Value* val,
-                      const HtmlColor& def,
+HtmlColor GetCssColor(const Css::Value* val, const HtmlColor& def,
                       COLOR_ATTR* attr) {
   if (val) {
     switch (val->GetLexicalUnitType()) {
@@ -73,11 +71,10 @@ HtmlColor GetCssColor(const Css::Value* val,
   return def;
 }
 
-bool GetCssLength(const Css::Value* val, double parent_size,
-                  double font_size, double unit,
-                  bool can_negative, bool can_unitless,
+bool GetCssLength(const Css::Value* val, double parent_size, double font_size,
+                  double unit, bool can_negative, bool can_unitless,
                   double* size) {
-  if (val == NULL || val->GetLexicalUnitType() != Css::Value::NUMBER ||
+  if (val == nullptr || val->GetLexicalUnitType() != Css::Value::NUMBER ||
       (!can_negative && val->GetFloatValue() < 0))
     return false;
 
@@ -140,146 +137,146 @@ typedef struct RgbValue {
 // also change the GetKnownSystemColorValue function because
 // entire table is hardcoded into the function for efficiency
 static const RgbValue known_system_color_values[] = {
-/* 0 activeborder */{212, 208, 200},
-/* 1 activecaption */{  0,  84, 227},
-/* 2 appworkspace */{128, 128, 128},
-/* 3 background */{  0,  78, 152},
-/* 4 buttonface */{236, 233, 216},
-/* 5 buttonhighlight */{255, 255, 255},
-/* 6 buttonshadow */{172, 168, 153},
-/* 7 buttontext */{  0,   0,   0},
-/* 8 captiontext */{255, 255, 255},
-/* 9 graytext */{172, 168, 153},
-/*10 highlight */{ 49, 106, 197},
-/*11 highlighttext */{255, 255, 255},
-/*12 inactiveborder */{212, 208, 200},
-/*13 inactivecaption */{122, 150, 223},
-/*14 inactivecaptiontext */{216, 228, 248},
-/*15 infobackground */{255, 255, 225},
-/*16 infotext */{  0,   0,   0},
-/*17 menu */{255, 255, 255},
-/*18 menutext */{  0,   0,   0},
-/*19 scrollbar */{212, 208, 200},
-/*20 threeddarkshadow */{113, 111, 100},
-/*21 threedface */{236, 233, 216},
-/*22 threedhighlight */{255, 255, 255},
-/*23 threedlightshadow */{241, 239, 226},
-/*24 threedshadow */{172, 168, 153},
-/*25 window */{255, 255, 255},
-/*26 windowframe */{  0,   0,   0},
-/*27 windowtext */{  0,   0,   0},
+    /* 0 activeborder */ {212, 208, 200},
+    /* 1 activecaption */ {0, 84, 227},
+    /* 2 appworkspace */ {128, 128, 128},
+    /* 3 background */ {0, 78, 152},
+    /* 4 buttonface */ {236, 233, 216},
+    /* 5 buttonhighlight */ {255, 255, 255},
+    /* 6 buttonshadow */ {172, 168, 153},
+    /* 7 buttontext */ {0, 0, 0},
+    /* 8 captiontext */ {255, 255, 255},
+    /* 9 graytext */ {172, 168, 153},
+    /*10 highlight */ {49, 106, 197},
+    /*11 highlighttext */ {255, 255, 255},
+    /*12 inactiveborder */ {212, 208, 200},
+    /*13 inactivecaption */ {122, 150, 223},
+    /*14 inactivecaptiontext */ {216, 228, 248},
+    /*15 infobackground */ {255, 255, 225},
+    /*16 infotext */ {0, 0, 0},
+    /*17 menu */ {255, 255, 255},
+    /*18 menutext */ {0, 0, 0},
+    /*19 scrollbar */ {212, 208, 200},
+    /*20 threeddarkshadow */ {113, 111, 100},
+    /*21 threedface */ {236, 233, 216},
+    /*22 threedhighlight */ {255, 255, 255},
+    /*23 threedlightshadow */ {241, 239, 226},
+    /*24 threedshadow */ {172, 168, 153},
+    /*25 window */ {255, 255, 255},
+    /*26 windowframe */ {0, 0, 0},
+    /*27 windowtext */ {0, 0, 0},
 };
 
-const RgbValue* GetKnownSystemColorValue(const char *colorstr) {
+const RgbValue* GetKnownSystemColorValue(const char* colorstr) {
   switch (ascii_tolower(colorstr[0])) {
-  case 'a':
-    switch (ascii_tolower(colorstr[1])) {
-    case 'c':
-      // TODO(sligocki): Use a locale-independent function instead of
-      // strcasecmp so that this code is more portable.
-      if (!strcasecmp("activeborder", colorstr)) {
-        return &known_system_color_values[0];
-      } else if (!strcasecmp("activecaption", colorstr)) {
-        return &known_system_color_values[1];
-      }
-      return NULL;
-    case 'p':
-      if (!strcasecmp("appworkspace", colorstr)) {
-        return &known_system_color_values[2];
-      }
-      return NULL;
-    }
-    return NULL;
-  case 'b':
-    switch (ascii_tolower(colorstr[1])) {
     case 'a':
-      if (!strcasecmp("background", colorstr)) {
-        return &known_system_color_values[3];
+      switch (ascii_tolower(colorstr[1])) {
+        case 'c':
+          // TODO(sligocki): Use a locale-independent function instead of
+          // strcasecmp so that this code is more portable.
+          if (!strcasecmp("activeborder", colorstr)) {
+            return &known_system_color_values[0];
+          } else if (!strcasecmp("activecaption", colorstr)) {
+            return &known_system_color_values[1];
+          }
+          return nullptr;
+        case 'p':
+          if (!strcasecmp("appworkspace", colorstr)) {
+            return &known_system_color_values[2];
+          }
+          return nullptr;
       }
-      return NULL;
-    case 'u':
-      if (!strcasecmp("buttonface", colorstr)) {
-        return &known_system_color_values[4];
-      } else if (!strcasecmp("buttonhighlight", colorstr)) {
-        return &known_system_color_values[5];
-      } else if (!strcasecmp("buttonshadow", colorstr)) {
-        return &known_system_color_values[6];
-      } else if (!strcasecmp("buttontext", colorstr)) {
-        return &known_system_color_values[7];
+      return nullptr;
+    case 'b':
+      switch (ascii_tolower(colorstr[1])) {
+        case 'a':
+          if (!strcasecmp("background", colorstr)) {
+            return &known_system_color_values[3];
+          }
+          return nullptr;
+        case 'u':
+          if (!strcasecmp("buttonface", colorstr)) {
+            return &known_system_color_values[4];
+          } else if (!strcasecmp("buttonhighlight", colorstr)) {
+            return &known_system_color_values[5];
+          } else if (!strcasecmp("buttonshadow", colorstr)) {
+            return &known_system_color_values[6];
+          } else if (!strcasecmp("buttontext", colorstr)) {
+            return &known_system_color_values[7];
+          }
+          return nullptr;
       }
-      return NULL;
-    }
-    return NULL;
-  case 'c':
-    if (!strcasecmp("captiontext", colorstr)) {
-      return &known_system_color_values[8];
-    }
-    return NULL;
-  case 'g':
-    if (!strcasecmp("graytext", colorstr)) {
-      return &known_system_color_values[9];
-    }
-    return NULL;
-  case 'h':
-    if (!strcasecmp("highlight", colorstr)) {
-      return &known_system_color_values[10];
-    } else if (!strcasecmp("highlighttext", colorstr)) {
-      return &known_system_color_values[11];
-    }
-    return NULL;
-  case 'i':
-    if (!strcasecmp("inactiveborder", colorstr)) {
-      return &known_system_color_values[12];
-    } else if (!strcasecmp("inactivecaption", colorstr)) {
-      return &known_system_color_values[13];
-    } else if (!strcasecmp("inactivecaptiontext", colorstr)) {
-      return &known_system_color_values[14];
-    } else if (!strcasecmp("infobackground", colorstr)) {
-      return &known_system_color_values[15];
-    } else if (!strcasecmp("infotext", colorstr)) {
-      return &known_system_color_values[16];
-    }
-    return NULL;
-  case 'm':
-    if (!strcasecmp("menu", colorstr)) {
-      return &known_system_color_values[17];
-    } else if (!strcasecmp("menutext", colorstr)) {
-      return &known_system_color_values[18];
-    }
-    return NULL;
-  case 's':
-    if (!strcasecmp("scrollbar", colorstr)) {
-      return &known_system_color_values[19];
-    }
-    return NULL;
-  case 't':
-    if (!strcasecmp("threeddarkshadow", colorstr)) {
-      return &known_system_color_values[20];
-    } else if (!strcasecmp("threedface", colorstr)) {
-      return &known_system_color_values[21];
-    } else if (!strcasecmp("threedhighlight", colorstr)) {
-      return &known_system_color_values[22];
-    } else if (!strcasecmp("threedlightshadow", colorstr)) {
-      return &known_system_color_values[23];
-    } else if (!strcasecmp("threedshadow", colorstr)) {
-      return &known_system_color_values[24];
-    }
-    return NULL;
-  case 'w':
-    if (!strcasecmp("window", colorstr)) {
-      return &known_system_color_values[25];
-    } else if (!strcasecmp("windowframe", colorstr)) {
-      return &known_system_color_values[26];
-    } else if (!strcasecmp("windowtext", colorstr)) {
-      return &known_system_color_values[27];
-    }
-    return NULL;
+      return nullptr;
+    case 'c':
+      if (!strcasecmp("captiontext", colorstr)) {
+        return &known_system_color_values[8];
+      }
+      return nullptr;
+    case 'g':
+      if (!strcasecmp("graytext", colorstr)) {
+        return &known_system_color_values[9];
+      }
+      return nullptr;
+    case 'h':
+      if (!strcasecmp("highlight", colorstr)) {
+        return &known_system_color_values[10];
+      } else if (!strcasecmp("highlighttext", colorstr)) {
+        return &known_system_color_values[11];
+      }
+      return nullptr;
+    case 'i':
+      if (!strcasecmp("inactiveborder", colorstr)) {
+        return &known_system_color_values[12];
+      } else if (!strcasecmp("inactivecaption", colorstr)) {
+        return &known_system_color_values[13];
+      } else if (!strcasecmp("inactivecaptiontext", colorstr)) {
+        return &known_system_color_values[14];
+      } else if (!strcasecmp("infobackground", colorstr)) {
+        return &known_system_color_values[15];
+      } else if (!strcasecmp("infotext", colorstr)) {
+        return &known_system_color_values[16];
+      }
+      return nullptr;
+    case 'm':
+      if (!strcasecmp("menu", colorstr)) {
+        return &known_system_color_values[17];
+      } else if (!strcasecmp("menutext", colorstr)) {
+        return &known_system_color_values[18];
+      }
+      return nullptr;
+    case 's':
+      if (!strcasecmp("scrollbar", colorstr)) {
+        return &known_system_color_values[19];
+      }
+      return nullptr;
+    case 't':
+      if (!strcasecmp("threeddarkshadow", colorstr)) {
+        return &known_system_color_values[20];
+      } else if (!strcasecmp("threedface", colorstr)) {
+        return &known_system_color_values[21];
+      } else if (!strcasecmp("threedhighlight", colorstr)) {
+        return &known_system_color_values[22];
+      } else if (!strcasecmp("threedlightshadow", colorstr)) {
+        return &known_system_color_values[23];
+      } else if (!strcasecmp("threedshadow", colorstr)) {
+        return &known_system_color_values[24];
+      }
+      return nullptr;
+    case 'w':
+      if (!strcasecmp("window", colorstr)) {
+        return &known_system_color_values[25];
+      } else if (!strcasecmp("windowframe", colorstr)) {
+        return &known_system_color_values[26];
+      } else if (!strcasecmp("windowtext", colorstr)) {
+        return &known_system_color_values[27];
+      }
+      return nullptr;
   }
-  return NULL;
+  return nullptr;
 }
 
 bool GetSystemColor(const string& colorstr, HtmlColor* color) {
-  const RgbValue *p_rgb = GetKnownSystemColorValue(colorstr.c_str());
+  const RgbValue* p_rgb = GetKnownSystemColorValue(colorstr.c_str());
   if (p_rgb) {
     color->SetValueFromRGB(p_rgb->r_, p_rgb->g_, p_rgb->b_);
     return true;
@@ -309,8 +306,7 @@ bool MediaAppliesToScreen(const CssStringPiece& media) {
   for (std::vector<CssStringPiece>::iterator iter = values.begin();
        iter < values.end(); ++iter) {
     strings::RemoveWhitespaceContext(&(*iter));
-    if (MediumAppliesToScreen(*iter))
-      return true;
+    if (MediumAppliesToScreen(*iter)) return true;
   }
   return false;
 }
@@ -320,8 +316,7 @@ bool MediaAppliesToScreen(const std::vector<UnicodeText>& media) {
 
   for (std::vector<UnicodeText>::const_iterator iter = media.begin();
        iter < media.end(); ++iter) {
-    if (MediumAppliesToScreen(*iter))
-      return true;
+    if (MediumAppliesToScreen(*iter)) return true;
   }
   return false;
 }

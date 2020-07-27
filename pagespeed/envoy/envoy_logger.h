@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -30,10 +30,11 @@ static constexpr char logger_str[] = "main";
  * SinkDelegate that redirects logs to pagespeed message handler.
  */
 class PagespeedLogSink : public Envoy::Logger::SinkDelegate {
-public:
-  PagespeedLogSink(Envoy::Logger::DelegatingLogSinkSharedPtr log_sink, MessageHandler* handler);
+ public:
+  PagespeedLogSink(Envoy::Logger::DelegatingLogSinkSharedPtr log_sink,
+                   MessageHandler* handler);
 
-private:
+ private:
   int getPagespeedLogLevel(spdlog::level::level_enum log_level);
   void log(absl::string_view msg) override;
   void flush() override;
@@ -42,4 +43,4 @@ private:
   spdlog::level::level_enum log_level_;
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

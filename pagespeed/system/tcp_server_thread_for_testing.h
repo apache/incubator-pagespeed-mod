@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_TCP_SERVER_THREAD_FOR_TESTING_H_
 #define PAGESPEED_KERNEL_BASE_TCP_SERVER_THREAD_FOR_TESTING_H_
 
@@ -56,7 +55,7 @@ class TcpServerThreadForTesting : public ThreadSystem::Thread {
   // HandleClientConnection() in the server thread.
   void ShutDown();
 
-  virtual ~TcpServerThreadForTesting();
+  ~TcpServerThreadForTesting() override;
 
   // Wait for thread to successfully start listening and then return the actual
   // bound port number, which will be bound to IPv4 localhost.

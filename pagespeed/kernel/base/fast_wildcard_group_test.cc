@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
 
-#include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 namespace {
@@ -30,7 +29,7 @@ const char kInitialSignature[] = "*.ccA,*.hA,a*.hD,ab*.hA,c*.ccD,";
 
 class FastWildcardGroupTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     group_.Allow("*.cc");
     group_.Allow("*.h");
     group_.Disallow("a*.h");
@@ -63,8 +62,7 @@ class FastWildcardGroupTest : public testing::Test {
     EXPECT_TRUE(group.Match("ab.h", false));
   }
 
-  void TestDefaults(const FastWildcardGroup& group,
-                    bool default_to_pass,
+  void TestDefaults(const FastWildcardGroup& group, bool default_to_pass,
                     bool result_to_expect) {
     EXPECT_EQ(result_to_expect, group.Match("", default_to_pass));
     EXPECT_EQ(result_to_expect, group.Match("not a match", default_to_pass));
@@ -114,27 +112,21 @@ class FastWildcardGroupTest : public testing::Test {
   GoogleString signature_;
 };
 
-TEST_F(FastWildcardGroupTest, Sequence) {
-  Sequence();
-}
+TEST_F(FastWildcardGroupTest, Sequence) { Sequence(); }
 
 TEST_F(FastWildcardGroupTest, SequenceLarge) {
   MakeLarge();
   Sequence();
 }
 
-TEST_F(FastWildcardGroupTest, CopySequence) {
-  Copy();
-}
+TEST_F(FastWildcardGroupTest, CopySequence) { Copy(); }
 
 TEST_F(FastWildcardGroupTest, CopySequenceLarge) {
   MakeLarge();
   Copy();
 }
 
-TEST_F(FastWildcardGroupTest, AppendSequence) {
-  Append();
-}
+TEST_F(FastWildcardGroupTest, AppendSequence) { Append(); }
 
 TEST_F(FastWildcardGroupTest, AppendSequenceLarge) {
   MakeLarge();
@@ -189,9 +181,7 @@ TEST_F(FastWildcardGroupTest, AllowDisallowLargeWildcardOnly) {
   EXPECT_FALSE(group.Match("aaa", false));
 }
 
-TEST_F(FastWildcardGroupTest, HardCodedDefault) {
-  HardCodedDefault();
-}
+TEST_F(FastWildcardGroupTest, HardCodedDefault) { HardCodedDefault(); }
 
 TEST_F(FastWildcardGroupTest, HardCodedDefaultLarge) {
   MakeLarge();

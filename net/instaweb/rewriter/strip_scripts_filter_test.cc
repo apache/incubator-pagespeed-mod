@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/strip_scripts_filter.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -29,12 +28,11 @@ namespace net_instaweb {
 
 class StripScriptsFilterTest : public HtmlParseTestBase {
  protected:
-  StripScriptsFilterTest()
-      : strip_scripts_filter_(&html_parse_) {
+  StripScriptsFilterTest() : strip_scripts_filter_(&html_parse_) {
     html_parse_.AddFilter(&strip_scripts_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
  private:
   StripScriptsFilter strip_scripts_filter_;

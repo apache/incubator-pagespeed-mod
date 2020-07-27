@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_RESPONSE_PARSER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_RESPONSE_PARSER_H_
 
-#include <cstdio>                      // for FILE
+#include <cstdio>  // for FILE
+
 #include "pagespeed/kernel/base/basictypes.h"
 // TODO(sligocki): Find a way to forward declare FileSystem::InputFile.
 #include "pagespeed/kernel/base/file_system.h"
@@ -45,8 +45,7 @@ class HttpResponseParser {
         response_headers_(response_headers),
         writer_(writer),
         handler_(handler),
-        parser_(response_headers) {
-  }
+        parser_(response_headers) {}
 
   // Parse complete HTTP response from a file.
   bool ParseFile(FileSystem::InputFile* file);

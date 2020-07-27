@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_SCHEDULE_REWRITE_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_SCHEDULE_REWRITE_CONTROLLER_H_
 
@@ -33,7 +32,7 @@ namespace net_instaweb {
 
 class ScheduleRewriteController {
  public:
-  virtual ~ScheduleRewriteController() { }
+  virtual ~ScheduleRewriteController() {}
 
   // Run callback at an indeterminate time in the future when the rewrite
   // for the supplied key should be performed. Will call Cancel immediately
@@ -54,10 +53,10 @@ class ScheduleRewriteController {
   // ASAP, and configure the object to immediately reject new incoming ones.
   //
   // Default implementation does nothing.
-  virtual void ShutDown() { }
+  virtual void ShutDown() {}
 
  protected:
-  ScheduleRewriteController() { }
+  ScheduleRewriteController() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ScheduleRewriteController);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 
 #include "base/logging.h"
@@ -35,11 +34,9 @@ namespace net_instaweb {
 SingleRewriteContext::SingleRewriteContext(RewriteDriver* driver,
                                            RewriteContext* parent,
                                            ResourceContext* resource_context)
-    : RewriteContext(driver, parent, resource_context) {
-}
+    : RewriteContext(driver, parent, resource_context) {}
 
-SingleRewriteContext::~SingleRewriteContext() {
-}
+SingleRewriteContext::~SingleRewriteContext() {}
 
 bool SingleRewriteContext::Partition(OutputPartitions* partitions,
                                      OutputResourceVector* outputs) {
@@ -52,9 +49,9 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
       GoogleString failure_reason;
       OutputResourcePtr output_resource(
           Driver()->CreateOutputResourceFromResource(
-              id(), encoder(), resource_context(),
-              resource, kind(), &failure_reason));
-      if (output_resource.get() == NULL) {
+              id(), encoder(), resource_context(), resource, kind(),
+              &failure_reason));
+      if (output_resource.get() == nullptr) {
         partitions->add_debug_message(failure_reason);
       } else {
         CachedResult* partition = partitions->add_partition();
@@ -70,22 +67,21 @@ bool SingleRewriteContext::Partition(OutputPartitions* partitions,
   return ret;
 }
 
-void SingleRewriteContext::Rewrite(int partition_index,
-                                   CachedResult* partition,
+void SingleRewriteContext::Rewrite(int partition_index, CachedResult* partition,
                                    const OutputResourcePtr& output_resource) {
   CHECK_EQ(0, partition_index);
   ResourcePtr resource(slot(0)->resource());
-  CHECK(resource.get() != NULL);
+  CHECK(resource.get() != nullptr);
   CHECK(resource->loaded());
   CHECK(resource->HttpStatusOk());
-  if (output_resource.get() != NULL) {
+  if (output_resource.get() != nullptr) {
     DCHECK_EQ(output_resource->cached_result(), partition);
   }
   RewriteSingle(resource, output_resource);
 }
 
-void SingleRewriteContext::AddLinkRelCanonical(
-    const ResourcePtr& input, ResponseHeaders* output) {
+void SingleRewriteContext::AddLinkRelCanonical(const ResourcePtr& input,
+                                               ResponseHeaders* output) {
   if (output->HasLinkRelCanonical() ||
       input->response_headers()->HasLinkRelCanonical()) {
     return;
@@ -120,7 +116,7 @@ void SingleRewriteContext::AddLinkRelCanonicalForFallbackHeaders(
     return;
   }
   ResourcePtr resource(slot(0)->resource());
-  if (resource.get() == NULL || !resource->loaded()) {
+  if (resource.get() == nullptr || !resource->loaded()) {
     return;
   }
 

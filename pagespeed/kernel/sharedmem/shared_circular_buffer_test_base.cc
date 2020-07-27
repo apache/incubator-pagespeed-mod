@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/sharedmem/shared_circular_buffer_test_base.h"
 
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -26,7 +27,6 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/sharedmem/shared_circular_buffer.h"
-#include "pagespeed/kernel/sharedmem/shared_circular_buffer_test_base.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 #include "pagespeed/kernel/util/platform.h"
 
@@ -43,8 +43,7 @@ SharedCircularBufferTestBase::SharedCircularBufferTestBase(
     : test_env_(test_env),
       shmem_runtime_(test_env->CreateSharedMemRuntime()),
       thread_system_(Platform::CreateThreadSystem()),
-      handler_(thread_system_->NewMutex()) {
-}
+      handler_(thread_system_->NewMutex()) {}
 
 bool SharedCircularBufferTestBase::CreateChild(TestMethod method) {
   Function* callback =
@@ -53,17 +52,15 @@ bool SharedCircularBufferTestBase::CreateChild(TestMethod method) {
 }
 
 SharedCircularBuffer* SharedCircularBufferTestBase::ChildInit() {
-  SharedCircularBuffer* buff =
-      new SharedCircularBuffer(shmem_runtime_.get(), kBufferSize, kPrefix,
-                               kPostfix);
+  SharedCircularBuffer* buff = new SharedCircularBuffer(
+      shmem_runtime_.get(), kBufferSize, kPrefix, kPostfix);
   buff->InitSegment(false, &handler_);
   return buff;
 }
 
 SharedCircularBuffer* SharedCircularBufferTestBase::ParentInit() {
-  SharedCircularBuffer* buff =
-      new SharedCircularBuffer(shmem_runtime_.get(), kBufferSize, kPrefix,
-                               kPostfix);
+  SharedCircularBuffer* buff = new SharedCircularBuffer(
+      shmem_runtime_.get(), kBufferSize, kPrefix, kPostfix);
   buff->InitSegment(true, &handler_);
   return buff;
 }
@@ -153,8 +150,7 @@ void SharedCircularBufferTestBase::TestCircular() {
   EXPECT_EQ("012345", parent->ToString(&handler_));
   // Write in a child process.
   message_ = "67";
-  ASSERT_TRUE(CreateChild(
-      &SharedCircularBufferTestBase::TestChildWrite));
+  ASSERT_TRUE(CreateChild(&SharedCircularBufferTestBase::TestChildWrite));
   test_env_->WaitForChildren();
   EXPECT_EQ("01234567", parent->ToString(&handler_));
   // Write in parent process.
@@ -162,8 +158,7 @@ void SharedCircularBufferTestBase::TestCircular() {
   // Check buffer content in a child process.
   // Buffer size is 10. It should be filled exactly so far.
   expected_result_ = "0123456789";
-  ASSERT_TRUE(CreateChild(
-      &SharedCircularBufferTestBase::TestChildBuff));
+  ASSERT_TRUE(CreateChild(&SharedCircularBufferTestBase::TestChildBuff));
   test_env_->WaitForChildren();
   // Lose the first char.
   parent->Write("a", &null_handler_);

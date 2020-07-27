@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include <cstdlib>
 #include <iostream>
 
@@ -28,7 +27,6 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/util/gflags.h"
-
 
 namespace net_instaweb {
 
@@ -74,8 +72,7 @@ bool HttpValueExplorerMain(int argc, char** argv) {
 
 }  // namespace net_instaweb
 
-
 int main(int argc, char** argv) {
-  return net_instaweb::HttpValueExplorerMain(argc, argv)
-      ? EXIT_SUCCESS : EXIT_FAILURE;
+  return net_instaweb::HttpValueExplorerMain(argc, argv) ? EXIT_SUCCESS
+                                                         : EXIT_FAILURE;
 }

@@ -17,10 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/sha1_signature.h"
 
-#include "gtest/gtest.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {

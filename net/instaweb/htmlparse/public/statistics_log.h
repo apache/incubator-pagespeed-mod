@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTMLPARSE_PUBLIC_STATISTICS_LOG_H_
 #define NET_INSTAWEB_HTMLPARSE_PUBLIC_STATISTICS_LOG_H_
 
@@ -27,9 +26,9 @@ namespace net_instaweb {
 
 class StatisticsLog {
  public:
-  StatisticsLog() { }
+  StatisticsLog() {}
   virtual ~StatisticsLog();
-  virtual void LogStat(const char *statName, int value) = 0;
+  virtual void LogStat(const char* statName, int value) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StatisticsLog);

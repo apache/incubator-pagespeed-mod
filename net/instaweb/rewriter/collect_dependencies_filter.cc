@@ -57,16 +57,13 @@ class CollectDependenciesFilter::Context : public RewriteContext {
         mutex_(driver->server_context()->thread_system()->NewMutex()),
         reported_(false),
         dep_type_(type),
-        dep_id_(-1) {
-  }
+        dep_id_(-1) {}
 
   void Initiated() {
     dep_id_ = Driver()->dependency_tracker()->RegisterDependencyCandidate();
   }
 
-  ~Context() override {
-    CHECK(reported_ || dep_id_ == -1);
-  }
+  ~Context() override { CHECK(reported_ || dep_id_ == -1); }
 
   bool Partition(OutputPartitions* partitions,
                  OutputResourceVector* outputs) override {
@@ -76,8 +73,8 @@ class CollectDependenciesFilter::Context : public RewriteContext {
 
     ResourcePtr resource(slot(0)->resource());
     if (resource->loaded()) {
-      resource->AddInputInfoToPartition(
-          Resource::kIncludeInputHash, 0, partitions->mutable_partition(0));
+      resource->AddInputInfoToPartition(Resource::kIncludeInputHash, 0,
+                                        partitions->mutable_partition(0));
     }
     return true;
   }
@@ -85,8 +82,8 @@ class CollectDependenciesFilter::Context : public RewriteContext {
   static bool DefinitelyNeededToRender(
       const std::unique_ptr<Css::Import>& import) {
     StringVector media_types;
-    if (!css_util::ConvertMediaQueriesToStringVector(
-            import->media_queries(), &media_types)) {
+    if (!css_util::ConvertMediaQueriesToStringVector(import->media_queries(),
+                                                     &media_types)) {
       // Something we don't understand. This includes things specifying
       // media queries, which we can't evaluate, and therefore conservatively
       // assume to be potentially unneeded.
@@ -133,8 +130,8 @@ class CollectDependenciesFilter::Context : public RewriteContext {
       }
 
       if (DefinitelyNeededToRender(import)) {
-        GoogleString rel_url(
-            import->link().utf8_data(), import->link().utf8_length());
+        GoogleString rel_url(import->link().utf8_data(),
+                             import->link().utf8_length());
         GoogleUrl full_url(GoogleUrl(resource->url()), rel_url);
         if (full_url.IsWebValid()) {
           Dependency* dep = partition->add_collected_dependency();
@@ -146,8 +143,7 @@ class CollectDependenciesFilter::Context : public RewriteContext {
     }
   }
 
-  void Rewrite(int partition_index,
-               CachedResult* partition,
+  void Rewrite(int partition_index, CachedResult* partition,
                const OutputResourcePtr& output_resource) override {
     Dependency* dep = partition->add_collected_dependency();
     dep->set_url(slot(0)->resource()->url());
@@ -190,17 +186,13 @@ class CollectDependenciesFilter::Context : public RewriteContext {
 
   OutputResourceKind kind() const override { return kOnTheFlyResource; }
 
-  const char* id() const override {
-    return "cdf";
-  }
+  const char* id() const override { return "cdf"; }
 
-  bool PolicyPermitsRendering() const {
+  bool PolicyPermitsRendering() const override {
     return true;  // We don't alter the doc...
   }
 
-  void Render() override {
-    Report();
-  }
+  void Render() override { Report(); }
 
   void WillNotRender() override {
     {
@@ -220,9 +212,7 @@ class CollectDependenciesFilter::Context : public RewriteContext {
     Driver()->dependency_tracker()->ReportDependencyCandidate(dep_id_, nullptr);
   }
 
-  void Cancel() override {
-    Report();
-  }
+  void Cancel() override { Report(); }
 
  private:
   void Report() {
@@ -283,11 +273,9 @@ class CollectDependenciesFilter::Context : public RewriteContext {
 };
 
 CollectDependenciesFilter::CollectDependenciesFilter(RewriteDriver* driver)
-    : CommonFilter(driver) {
-}
+    : CommonFilter(driver) {}
 
-void CollectDependenciesFilter::StartDocumentImpl() {
-}
+void CollectDependenciesFilter::StartDocumentImpl() {}
 
 void CollectDependenciesFilter::StartElementImpl(HtmlElement* element) {
   // We generally don't want noscript path stuff, since it's not usually
@@ -298,8 +286,7 @@ void CollectDependenciesFilter::StartElementImpl(HtmlElement* element) {
   }
 
   resource_tag_scanner::UrlCategoryVector attributes;
-  resource_tag_scanner::ScanElement(
-      element, driver()->options(), &attributes);
+  resource_tag_scanner::ScanElement(element, driver()->options(), &attributes);
   for (int i = 0, n = attributes.size(); i < n; ++i) {
     // We only collect scripts and CSS.
     if (attributes[i].category == semantic_type::kStylesheet ||
@@ -335,8 +322,8 @@ void CollectDependenciesFilter::StartElementImpl(HtmlElement* element) {
             attributes[i].category == semantic_type::kScript);
       RewriteDriver::InputRole role =
           (attributes[i].category == semantic_type::kStylesheet
-           ? RewriteDriver::InputRole::kStyle
-           : RewriteDriver::InputRole::kScript);
+               ? RewriteDriver::InputRole::kStyle
+               : RewriteDriver::InputRole::kScript);
       ResourcePtr resource(
           CreateInputResourceOrInsertDebugComment(url, role, element));
       if (resource.get() == nullptr) {
@@ -347,8 +334,8 @@ void CollectDependenciesFilter::StartElementImpl(HtmlElement* element) {
       ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
       slot->set_need_aggregate_input_info(true);
       Context* context = new Context(
-          attributes[i].category == semantic_type::kStylesheet ?
-              DEP_CSS : DEP_JAVASCRIPT,
+          attributes[i].category == semantic_type::kStylesheet ? DEP_CSS
+                                                               : DEP_JAVASCRIPT,
           driver());
       context->AddSlot(slot);
       if (driver()->InitiateRewrite(context)) {
@@ -358,7 +345,6 @@ void CollectDependenciesFilter::StartElementImpl(HtmlElement* element) {
   }
 }
 
-void CollectDependenciesFilter::EndElementImpl(HtmlElement* element) {
-}
+void CollectDependenciesFilter::EndElementImpl(HtmlElement* element) {}
 
 }  // namespace net_instaweb

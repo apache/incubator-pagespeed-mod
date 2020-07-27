@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #include "webutil/css/media.h"
 
 #include "util/gtl/stl_util.h"

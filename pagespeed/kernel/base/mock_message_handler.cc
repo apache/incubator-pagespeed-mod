@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/mock_message_handler.h"
 
 #include <map>
@@ -32,12 +31,9 @@
 
 namespace net_instaweb {
 
-MockMessageHandler::MockMessageHandler(AbstractMutex* mutex)
-    : mutex_(mutex) {
-}
+MockMessageHandler::MockMessageHandler(AbstractMutex* mutex) : mutex_(mutex) {}
 
-MockMessageHandler::~MockMessageHandler() {
-}
+MockMessageHandler::~MockMessageHandler() {}
 
 void MockMessageHandler::MessageSImpl(MessageType type,
                                       const GoogleString& message) {
@@ -103,8 +99,8 @@ int MockMessageHandler::TotalSkippedMessages() const {
 
 int MockMessageHandler::TotalMessagesImpl(const MessageCountMap& counts) const {
   int total = 0;
-  for (MessageCountMap::const_iterator i = counts.begin();
-       i != counts.end(); ++i) {
+  for (MessageCountMap::const_iterator i = counts.begin(); i != counts.end();
+       ++i) {
     total += i->second;
   }
   return total;
@@ -113,7 +109,7 @@ int MockMessageHandler::TotalMessagesImpl(const MessageCountMap& counts) const {
 int MockMessageHandler::SeriousMessages() const {
   ScopedMutex hold_mutex(mutex_.get());
   int num = TotalMessagesImpl(message_counts_) -
-       MessagesOfTypeImpl(message_counts_, kInfo);
+            MessagesOfTypeImpl(message_counts_, kInfo);
   return num;
 }
 
@@ -122,13 +118,11 @@ void MockMessageHandler::set_mutex(AbstractMutex* mutex) {
   mutex_.reset(mutex);
 }
 
-void MockMessageHandler::AddPatternToSkipPrinting(
-    const char* pattern) {
+void MockMessageHandler::AddPatternToSkipPrinting(const char* pattern) {
   patterns_to_skip_.Allow(GoogleString(pattern));
 }
 
-bool MockMessageHandler::ShouldPrintMessage(
-    const StringPiece& msg) {
+bool MockMessageHandler::ShouldPrintMessage(const StringPiece& msg) {
   return !patterns_to_skip_.Match(msg, false);
 }
 

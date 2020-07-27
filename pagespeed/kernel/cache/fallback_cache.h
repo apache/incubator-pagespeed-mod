@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_FALLBACK_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_FALLBACK_CACHE_H_
 
@@ -46,32 +45,31 @@ class FallbackCache : public CacheInterface {
   // disable via set_account_for_key_size) on put. The threshold is inclusive:
   // up to that many bytes will be stored into small_object_cache.
   FallbackCache(CacheInterface* small_object_cache,
-                CacheInterface* large_object_cache,
-                int threshold_bytes,
+                CacheInterface* large_object_cache, int threshold_bytes,
                 MessageHandler* handler);
-  virtual ~FallbackCache();
+  ~FallbackCache() override;
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
-  virtual void MultiGet(MultiGetRequest* request);
-  virtual bool IsBlocking() const {
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
+  void MultiGet(MultiGetRequest* request) override;
+  bool IsBlocking() const override {
     // We can fulfill our guarantee only if both caches block.
     return (small_object_cache_->IsBlocking() &&
             large_object_cache_->IsBlocking());
   }
 
-  virtual bool IsHealthy() const {
+  bool IsHealthy() const override {
     return (small_object_cache_->IsHealthy() &&
             large_object_cache_->IsHealthy());
   }
 
-  virtual void ShutDown() {
+  void ShutDown() override {
     small_object_cache_->ShutDown();
     large_object_cache_->ShutDown();
   }
 
-  virtual GoogleString Name() const {
+  GoogleString Name() const override {
     return FormatName(small_object_cache_->Name(), large_object_cache_->Name());
   }
   static GoogleString FormatName(StringPiece small, StringPiece large);
@@ -81,9 +79,9 @@ class FallbackCache : public CacheInterface {
   void set_account_for_key_size(bool x) { account_for_key_size_ = x; }
 
  private:
-  void DecodeValueMatchingKeyAndCallCallback(
-      const GoogleString& key, const char* data, size_t data_len,
-      Callback* callback);
+  void DecodeValueMatchingKeyAndCallCallback(const GoogleString& key,
+                                             const char* data, size_t data_len,
+                                             Callback* callback);
 
   CacheInterface* small_object_cache_;
   CacheInterface* large_object_cache_;

@@ -17,9 +17,10 @@
  * under the License.
  */
 
+#include "net/instaweb/spriter/public/image_spriter.h"
+
 #include "net/instaweb/spriter/image_library_interface.h"
 #include "net/instaweb/spriter/mock_image_library_interface.h"
-#include "net/instaweb/spriter/public/image_spriter.h"
 #include "net/instaweb/spriter/public/image_spriter.pb.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -31,11 +32,11 @@ namespace spriter {
 namespace {
 
 // GMock names.
-using ::testing::Return;
 using ::testing::_;
-using ::testing::StrictMock;
 using ::testing::DoAll;
+using ::testing::Return;
 using ::testing::SetArgumentPointee;
+using ::testing::StrictMock;
 
 // Constants used in several tests.
 const int kSpriteId = 12345;
@@ -47,8 +48,7 @@ const ImageLibraryInterface::FilePath kPngB("b.png");
 
 // Set up a protobuf of spriting settings.  Tests use this to get
 // a reasonable default.
-void SetupCommonOptions(SpriterInput* spriter_input,
-                        ImageFormat format) {
+void SetupCommonOptions(SpriterInput* spriter_input, ImageFormat format) {
   spriter_input->set_id(kSpriteId);
 
   SpriteOptions* options = spriter_input->mutable_options();
@@ -64,7 +64,7 @@ void SetupCommonOptions(SpriterInput* spriter_input,
 class FailOnImageLibError : public ImageLibraryInterface::Delegate {
  public:
   // Implement ImageLibInterface::Delegate:
-  virtual void OnError(const GoogleString& error) const {
+  void OnError(const GoogleString& error) const override {
     ASSERT_TRUE(0) << "Unexpected error: " << error;
   }
 };
@@ -81,8 +81,8 @@ TEST(SpriterTest, ZeroImages) {
   std::unique_ptr<StrictMock<MockImageLibraryInterface::MockCanvas> >
       mock_canvas(new StrictMock<MockImageLibraryInterface::MockCanvas>);
 
-  testing::StrictMock<MockImageLibraryInterface>
-      mock_image_lib(kInBasePath, kOutBasePath, &no_failures_allowed);
+  testing::StrictMock<MockImageLibraryInterface> mock_image_lib(
+      kInBasePath, kOutBasePath, &no_failures_allowed);
 
   // No images: Combined image will be 0x0.
   EXPECT_CALL(mock_image_lib, CreateCanvas(0, 0))
@@ -93,7 +93,7 @@ TEST(SpriterTest, ZeroImages) {
 
   // spriter.Sprite() will free the canvas it gets.  In the test,
   // the canvas is mock object |mock_canvas|.  Disown the pointer.
-  EXPECT_FALSE(NULL == mock_canvas.release());
+  EXPECT_FALSE(nullptr == mock_canvas.release());
 
   ImageSpriter spriter(&mock_image_lib);
   std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
@@ -120,16 +120,15 @@ TEST(SpriterTest, OneImage) {
   std::unique_ptr<StrictMock<MockImageLibraryInterface::MockImage> >
       mock_image_a(new StrictMock<MockImageLibraryInterface::MockImage>);
 
-  testing::StrictMock<MockImageLibraryInterface>
-      mock_image_lib(kInBasePath, kOutBasePath, &no_failures_allowed);
+  testing::StrictMock<MockImageLibraryInterface> mock_image_lib(
+      kInBasePath, kOutBasePath, &no_failures_allowed);
 
   EXPECT_CALL(mock_image_lib, ReadFromFile(kPngA))
       .WillOnce(Return(mock_image_a.get()));
 
   // Image #1: 10x11.
   EXPECT_CALL(*mock_image_a, GetDimensions(_, _))
-      .WillOnce(DoAll(SetArgumentPointee<0>(10),
-                      SetArgumentPointee<1>(11),
+      .WillOnce(DoAll(SetArgumentPointee<0>(10), SetArgumentPointee<1>(11),
                       Return(true)));
 
   EXPECT_CALL(*mock_canvas, DrawImage(mock_image_a.get(), 0, 0))
@@ -143,8 +142,8 @@ TEST(SpriterTest, OneImage) {
       .WillOnce(Return(true));
 
   // spriter.Sprite() will free these.
-  EXPECT_FALSE(NULL == mock_canvas.release());
-  EXPECT_FALSE(NULL == mock_image_a.release());
+  EXPECT_FALSE(nullptr == mock_canvas.release());
+  EXPECT_FALSE(nullptr == mock_image_a.release());
 
   ImageSpriter spriter(&mock_image_lib);
   std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
@@ -177,26 +176,24 @@ TEST(SpriterTest, TwoImages) {
   std::unique_ptr<StrictMock<MockImageLibraryInterface::MockImage> >
       mock_image_b(new StrictMock<MockImageLibraryInterface::MockImage>);
 
-  testing::StrictMock<MockImageLibraryInterface>
-      mock_image_lib(kInBasePath, kOutBasePath, &no_failures_allowed);
+  testing::StrictMock<MockImageLibraryInterface> mock_image_lib(
+      kInBasePath, kOutBasePath, &no_failures_allowed);
 
   EXPECT_CALL(mock_image_lib, ReadFromFile(kPngA))
       .WillOnce(Return(mock_image_a.get()));
 
   EXPECT_CALL(*mock_image_a, GetDimensions(_, _))
-      .WillOnce(DoAll(SetArgumentPointee<0>(10),
-                      SetArgumentPointee<1>(11),
+      .WillOnce(DoAll(SetArgumentPointee<0>(10), SetArgumentPointee<1>(11),
                       Return(true)));
 
   EXPECT_CALL(mock_image_lib, ReadFromFile(kPngB))
       .WillOnce(Return(mock_image_b.get()));
 
   EXPECT_CALL(*mock_image_b, GetDimensions(_, _))
-      .WillOnce(DoAll(SetArgumentPointee<0>(20),
-                      SetArgumentPointee<1>(21),
+      .WillOnce(DoAll(SetArgumentPointee<0>(20), SetArgumentPointee<1>(21),
                       Return(true)));
 
-  int expected_width = 20;  // max(10, 20)
+  int expected_width = 20;   // max(10, 20)
   int expected_hieght = 32;  // 11 + 21
   EXPECT_CALL(mock_image_lib, CreateCanvas(expected_width, expected_hieght))
       .WillOnce(Return(mock_canvas.get()));
@@ -213,9 +210,9 @@ TEST(SpriterTest, TwoImages) {
       .WillOnce(Return(true));
 
   // spriter.Sprite() will free these.
-  EXPECT_FALSE(NULL == mock_canvas.release());
-  EXPECT_FALSE(NULL == mock_image_a.release());
-  EXPECT_FALSE(NULL == mock_image_b.release());
+  EXPECT_FALSE(nullptr == mock_canvas.release());
+  EXPECT_FALSE(nullptr == mock_image_a.release());
+  EXPECT_FALSE(nullptr == mock_image_b.release());
 
   ImageSpriter spriter(&mock_image_lib);
   std::unique_ptr<SpriterResult> sprite_result(spriter.Sprite(spriter_input));
@@ -226,6 +223,6 @@ TEST(SpriterTest, TwoImages) {
   EXPECT_EQ(2, sprite_result->image_position_size());
   EXPECT_EQ(kCombinedImagePath, sprite_result->output_image_path());
 }
-}  // namesapce
+}  // namespace
 }  // namespace spriter
 }  // namespace net_instaweb

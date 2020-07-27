@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // A filter which does not modify the DOM, but counts statistics about it.
 
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_DOM_STATS_FILTER_H_
@@ -36,12 +35,12 @@ class RewriteDriver;
 class DomStatsFilter : public CommonFilter {
  public:
   explicit DomStatsFilter(RewriteDriver* driver);
-  virtual ~DomStatsFilter();
+  ~DomStatsFilter() override;
 
   // Clears all state associated with the filter.
   void Clear();
 
-  virtual const char* Name() const { return "Dom Statistics"; }
+  const char* Name() const override { return "Dom Statistics"; }
 
   int num_img_tags() const { return num_img_tags_; }
   int num_inlined_img_tags() const { return num_inlined_img_tags_; }
@@ -50,9 +49,9 @@ class DomStatsFilter : public CommonFilter {
   int num_critical_images_used() const { return num_critical_images_used_; }
 
  private:
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override;
 
   int num_img_tags_;
   int num_inlined_img_tags_;

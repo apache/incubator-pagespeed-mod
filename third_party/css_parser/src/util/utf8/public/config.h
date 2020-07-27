@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef UTIL_UTF8_PUBLIC_CONFIG_H_
 #define UTIL_UTF8_PUBLIC_CONFIG_H_
 

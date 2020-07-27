@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_CANONICAL_ATTRIBUTES_H_
 #define PAGESPEED_KERNEL_HTML_CANONICAL_ATTRIBUTES_H_
 
@@ -34,11 +33,11 @@ class HtmlParse;
 class CanonicalAttributes : public EmptyHtmlFilter {
  public:
   explicit CanonicalAttributes(HtmlParse* html_parse);
-  virtual ~CanonicalAttributes();
+  ~CanonicalAttributes() override;
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual const char* Name() const { return "CanonicalAttributes"; }
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  const char* Name() const override { return "CanonicalAttributes"; }
   int num_changes() const { return num_changes_; }
   int num_errors() const { return num_errors_; }
 

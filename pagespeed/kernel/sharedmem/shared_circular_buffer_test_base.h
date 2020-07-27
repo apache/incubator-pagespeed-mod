@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_CIRCULAR_BUFFER_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_CIRCULAR_BUFFER_TEST_BASE_H_
 
@@ -84,12 +83,11 @@ class SharedCircularBufferTestBase : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(SharedCircularBufferTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedCircularBufferTestTemplate : public SharedCircularBufferTestBase {
  public:
   SharedCircularBufferTestTemplate()
-      : SharedCircularBufferTestBase(new ConcreteTestEnv) {
-  }
+      : SharedCircularBufferTestBase(new ConcreteTestEnv) {}
 };
 
 TYPED_TEST_SUITE_P(SharedCircularBufferTestTemplate);
@@ -111,7 +109,7 @@ TYPED_TEST_P(SharedCircularBufferTestTemplate, TestCircular) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(SharedCircularBufferTestTemplate, TestCreate,
-                           TestAdd, TestClear, TestCircular);
+                            TestAdd, TestClear, TestCircular);
 
 }  // namespace net_instaweb
 #endif  // PAGESPEED_KERNEL_SHAREDMEM_SHARED_CIRCULAR_BUFFER_TEST_BASE_H_

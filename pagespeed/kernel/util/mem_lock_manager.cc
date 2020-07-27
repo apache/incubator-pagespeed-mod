@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/mem_lock_manager.h"
 
 #include <utility>
@@ -29,10 +28,7 @@
 
 namespace net_instaweb {
 
-MemLockManager::MemLockManager(Timer* timer)
-    : timer_(timer),
-      sequence_(0) {
-}
+MemLockManager::MemLockManager(Timer* timer) : timer_(timer), sequence_(0) {}
 
 MemLockManager::~MemLockManager() {
   // Note that we don't delete the locks here.  We just detach the
@@ -40,7 +36,8 @@ MemLockManager::~MemLockManager() {
   // all the MemLocks allocated against them, as they are dependent
   // on the MemLockState to know their own name.
   for (MemLockStateMap::iterator p = lock_state_map_.begin(),
-           e = lock_state_map_.end(); p != e; ++p) {
+                                 e = lock_state_map_.end();
+       p != e; ++p) {
     MemLockState* name_state = p->second;
     name_state->MemLockManagerDestroyed();
   }

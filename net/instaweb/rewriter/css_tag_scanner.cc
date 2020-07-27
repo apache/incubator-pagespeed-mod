@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
 
 #include <cstddef>
@@ -42,25 +41,21 @@ const char kTextCss[] = "text/css";
 
 namespace net_instaweb {
 
-CssTagScanner::Transformer::~Transformer() {
-}
+CssTagScanner::Transformer::~Transformer() {}
 
 const char CssTagScanner::kStylesheet[] = "stylesheet";
 const char CssTagScanner::kAlternate[] = "alternate";
 const char CssTagScanner::kUriValue[] = "url(";
 
-CssTagScanner::CssTagScanner(
-    Transformer* transformer, MessageHandler* handler)
-    : transformer_(transformer), handler_(handler) {
-}
+CssTagScanner::CssTagScanner(Transformer* transformer, MessageHandler* handler)
+    : transformer_(transformer), handler_(handler) {}
 
-bool CssTagScanner::ParseCssElement(
-    HtmlElement* element,
-    HtmlElement::Attribute** href,
-    const char** media,
-    StringPieceVector* nonstandard_attributes) {
+bool CssTagScanner::ParseCssElement(HtmlElement* element,
+                                    HtmlElement::Attribute** href,
+                                    const char** media,
+                                    StringPieceVector* nonstandard_attributes) {
   *media = "";
-  *href = NULL;
+  *href = nullptr;
   if (element->keyword() != HtmlName::kLink) {
     return false;
   }
@@ -68,8 +63,8 @@ bool CssTagScanner::ParseCssElement(
   // there is a type, it must be type='text/css'. These can be in any order.
   HtmlElement::AttributeList* attrs = element->mutable_attributes();
   bool has_href = false, has_rel_stylesheet = false;
-  for (HtmlElement::AttributeIterator i(attrs->begin());
-       i != attrs->end(); ++i) {
+  for (HtmlElement::AttributeIterator i(attrs->begin()); i != attrs->end();
+       ++i) {
     HtmlElement::Attribute& attr = *i;
     switch (attr.keyword()) {
       case HtmlName::kHref:
@@ -92,7 +87,7 @@ bool CssTagScanner::ParseCssElement(
       }
       case HtmlName::kMedia:
         *media = attr.DecodedValueOrNull();
-        if (*media == NULL) {
+        if (*media == nullptr) {
           // No value (media rather than media=), or decoding error
           return false;
         }
@@ -120,7 +115,7 @@ bool CssTagScanner::ParseCssElement(
         // for a particular filter, it should be detected within that filter
         // (examples: extra tags are rejected in css_combine_filter, but they're
         // preserved by css_inline_filter).
-        if (nonstandard_attributes != NULL) {
+        if (nonstandard_attributes != nullptr) {
           nonstandard_attributes->push_back(attr.name_str());
         }
         break;
@@ -148,11 +143,7 @@ inline bool PopFirst(StringPiece* in, char* c) {
 // Since we handle incomplete input, in some cases we may not have enough of it
 // available to accept or reject a construct --- in which case the routines
 // will return kLexInterrupted.
-enum LexResult {
-  kLexNo,
-  kLexYes,
-  kLexInterrupted
-};
+enum LexResult { kLexNo, kLexYes, kLexInterrupted };
 
 // If in starts with expected, returns kLexYes and consumes it.
 inline LexResult EatLiteral(CssTagScanner::InputPortion input_kind,
@@ -182,9 +173,9 @@ inline LexResult EatLiteral(CssTagScanner::InputPortion input_kind,
 // *in is updated to have either the whole token or up to first clear error
 // consumed.
 LexResult CssExtractUntil(bool is_string,
-                          CssTagScanner::InputPortion input_kind,
-                          char term, StringPiece* in,
-                          GoogleString* out, bool* found_term) {
+                          CssTagScanner::InputPortion input_kind, char term,
+                          StringPiece* in, GoogleString* out,
+                          bool* found_term) {
   *found_term = false;
 
   StringPiece original_input = *in;
@@ -298,10 +289,9 @@ LexResult CssExtractUntil(bool is_string,
 // Tries to extract a string from current position into out.
 // If successful, *quote_out will contain its delimeter, and *found_term
 // will say whether the trailing terminator was present.
-LexResult CssExtractString(
-    CssTagScanner::InputPortion input_kind,
-    StringPiece* in, GoogleString* out,
-    char* quote_out, bool* found_term) {
+LexResult CssExtractString(CssTagScanner::InputPortion input_kind,
+                           StringPiece* in, GoogleString* out, char* quote_out,
+                           bool* found_term) {
   if (in->starts_with("'")) {
     in->remove_prefix(1);
     *quote_out = '\'';
@@ -319,8 +309,8 @@ LexResult CssExtractString(
   }
 }
 
-bool WriteRange(const char* out_begin, const char* out_end,
-                Writer* writer, MessageHandler* handler) {
+bool WriteRange(const char* out_begin, const char* out_end, Writer* writer,
+                MessageHandler* handler) {
   if (out_end > out_begin) {
     return writer->Write(StringPiece(out_begin, out_end - out_begin), handler);
   } else {
@@ -330,12 +320,10 @@ bool WriteRange(const char* out_begin, const char* out_end,
 
 }  // namespace
 
-
-void CssTagScanner::SerializeUrlUse(
-    UrlKind kind, const GoogleString& url,
-    bool is_quoted, bool have_term_quote, char quote,
-    bool have_term_paren,
-    Writer* writer, bool* ok) {
+void CssTagScanner::SerializeUrlUse(UrlKind kind, const GoogleString& url,
+                                    bool is_quoted, bool have_term_quote,
+                                    char quote, bool have_term_paren,
+                                    Writer* writer, bool* ok) {
   DCHECK(kind != kNone);
 
   if (kind == kImport) {
@@ -401,9 +389,8 @@ bool CssTagScanner::TransformUrlsStreaming(
           // The code here handles @import "foo" and @import 'foo';
           // for @import url(... we simply pass the @import through and let
           // the code that handles url( below take care of it.
-          LexResult url_argument =
-              CssExtractString(input_portion, &remaining, &url,
-                               &quote, &have_term_quote);
+          LexResult url_argument = CssExtractString(
+              input_portion, &remaining, &url, &quote, &have_term_quote);
           if (url_argument == kLexYes) {
             have_url = kImport;
             is_quoted = true;
@@ -430,9 +417,8 @@ bool CssTagScanner::TransformUrlsStreaming(
           TrimLeadingWhitespace(&remaining);
           // Note if we have a quoted URL inside url(), it needs to be
           // parsed as such.
-          LexResult quoted_url_argument =
-              CssExtractString(input_portion, &remaining, &url,
-                               &quote, &have_term_quote);
+          LexResult quoted_url_argument = CssExtractString(
+              input_portion, &remaining, &url, &quote, &have_term_quote);
           if (quoted_url_argument == kLexYes) {
             TrimLeadingWhitespace(&remaining);
             switch (EatLiteral(input_portion, ")", &remaining)) {
@@ -453,8 +439,8 @@ bool CssTagScanner::TransformUrlsStreaming(
           } else {
             // No quoted argument.
             LexResult unquoted_url_argument =
-              CssExtractUntil(false, input_portion, ')', &remaining,
-                              &wrapped_url, &have_term_paren);
+                CssExtractUntil(false, input_portion, ')', &remaining,
+                                &wrapped_url, &have_term_paren);
             if (unquoted_url_argument == kLexYes) {
               TrimWhitespace(wrapped_url, &url);
               have_url = kUrl;
@@ -481,10 +467,8 @@ bool CssTagScanner::TransformUrlsStreaming(
           // Write out the buffered up part of input.
           ok = ok && WriteRange(out_begin, out_end, writer, handler_);
 
-          SerializeUrlUse(have_url, url,
-                          is_quoted, have_term_quote, quote,
-                          have_term_paren,
-                          writer, &ok);
+          SerializeUrlUse(have_url, url, is_quoted, have_term_quote, quote,
+                          have_term_paren, writer, &ok);
 
           // Begin accumulating input again starting from next byte.
           out_begin = remaining.data();
@@ -492,8 +476,8 @@ bool CssTagScanner::TransformUrlsStreaming(
         }
         case Transformer::kFailure: {
           // We could not transform URL, fail fast.
-          handler_->Message(kWarning,
-                            "Transform failed for url %s", url.c_str());
+          handler_->Message(kWarning, "Transform failed for url %s",
+                            url.c_str());
           return false;
         }
         case Transformer::kNoChange: {
@@ -514,9 +498,9 @@ bool CssTagScanner::TransformUrlsStreaming(
   return ok;
 }
 
-bool CssTagScanner::TransformUrls(
-    StringPiece contents, Writer* writer, Transformer* transformer,
-    MessageHandler* handler) {
+bool CssTagScanner::TransformUrls(StringPiece contents, Writer* writer,
+                                  Transformer* transformer,
+                                  MessageHandler* handler) {
   CssTagScanner scanner(transformer, handler);
   return scanner.TransformUrlsStreaming(contents, kInputIncludesEnd, writer);
 }
@@ -572,25 +556,23 @@ RewriteDomainTransformer::RewriteDomainTransformer(
     const GoogleUrl* old_base_url, const GoogleUrl* new_base_url,
     const ServerContext* server_context, const RewriteOptions* options,
     MessageHandler* handler)
-    : old_base_url_(old_base_url), new_base_url_(new_base_url),
-      server_context_(server_context), options_(options),
-      handler_(handler), trim_urls_(true) {
-}
+    : old_base_url_(old_base_url),
+      new_base_url_(new_base_url),
+      server_context_(server_context),
+      options_(options),
+      handler_(handler),
+      trim_urls_(true) {}
 
-RewriteDomainTransformer::~RewriteDomainTransformer() {
-}
+RewriteDomainTransformer::~RewriteDomainTransformer() {}
 
 CssTagScanner::Transformer::TransformStatus RewriteDomainTransformer::Transform(
     GoogleString* str) {
   GoogleString rewritten;  // Result of rewriting domain.
   GoogleString out;        // Result after trimming.
-  if (DomainRewriteFilter::Rewrite(
-          *str, *old_base_url_, server_context_,
-          options_,
-          true, /* apply_sharding */
-          true, /* apply_domain_suffix */
-          &rewritten)
-      == DomainRewriteFilter::kFail) {
+  if (DomainRewriteFilter::Rewrite(*str, *old_base_url_, server_context_,
+                                   options_, true, /* apply_sharding */
+                                   true,           /* apply_domain_suffix */
+                                   &rewritten) == DomainRewriteFilter::kFail) {
     return kFailure;
   }
   // Note: Even if Rewrite() returned kDomainUnchanged, it will still absolutify

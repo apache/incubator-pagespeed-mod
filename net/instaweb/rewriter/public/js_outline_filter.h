@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_OUTLINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_OUTLINE_FILTER_H_
 
@@ -41,20 +40,20 @@ class MessageHandler;
 class JsOutlineFilter : public CommonFilter {
  public:
   explicit JsOutlineFilter(RewriteDriver* driver);
-  virtual ~JsOutlineFilter();
+  ~JsOutlineFilter() override;
   static const char kFilterId[];
 
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
 
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual void Flush();
+  void Flush() override;
 
   // HTML Events we expect to be in <script> elements.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
-  virtual const char* Name() const { return "OutlineJs"; }
+  const char* Name() const override { return "OutlineJs"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

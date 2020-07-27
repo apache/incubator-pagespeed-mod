@@ -53,7 +53,7 @@ struct ContentType {
     kVideo,
     kAudio,
     kOctetStream,  // Binary resources.
-    kOther,  // Used to specify a new local ContentType in one test file.
+    kOther,        // Used to specify a new local ContentType in one test file.
   };
 
   // Returns the maximum extension length of any resource types our filters
@@ -141,15 +141,13 @@ const ContentType* MimeTypeToContentType(const StringPiece& mime_type);
 // with the empty string.
 // Returns true if either a mime_type or a charset was extracted.
 bool ParseContentType(const StringPiece& content_type_str,
-                      GoogleString* mime_type,
-                      GoogleString* charset);
+                      GoogleString* mime_type, GoogleString* charset);
 
 // Splits comma-separated string to elements and tries to match each one with
 // a recognized content type. The out set will be cleared first and must be
 // present.
-void MimeTypeListToContentTypeSet(
-    const GoogleString& in,
-    std::set<const ContentType*>* out);
+void MimeTypeListToContentTypeSet(const GoogleString& in,
+                                  std::set<const ContentType*>* out);
 
 }  // namespace net_instaweb
 

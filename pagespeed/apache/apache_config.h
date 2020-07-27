@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_APACHE_CONFIG_H_
 #define PAGESPEED_APACHE_APACHE_CONFIG_H_
 
@@ -39,13 +38,13 @@ class ApacheConfig : public SystemRewriteOptions {
 
   ApacheConfig(const StringPiece& description, ThreadSystem* thread_system);
   explicit ApacheConfig(ThreadSystem* thread_system);
-  virtual ~ApacheConfig();
+  ~ApacheConfig() override;
 
   // Make an identical copy of these options and return it.
-  virtual ApacheConfig* Clone() const;
+  ApacheConfig* Clone() const override;
 
   // Make a new empty set of options.
-  virtual ApacheConfig* NewOptions() const;
+  ApacheConfig* NewOptions() const override;
 
   // Gets proxy authentication settings from the config file.  Returns true
   // if any settings were found, populating *name. *value and *redirect will
@@ -86,8 +85,8 @@ class ApacheConfig : public SystemRewriteOptions {
   void Merge(const RewriteOptions& src) override;
 
   OptionSettingResult ParseAndSetOptionFromName2(
-      StringPiece name, StringPiece arg1, StringPiece arg2,
-      GoogleString* msg, MessageHandler* handler) override;
+      StringPiece name, StringPiece arg1, StringPiece arg2, GoogleString* msg,
+      MessageHandler* handler) override;
 
   GoogleString SubclassSignatureLockHeld() override;
 
@@ -97,13 +96,11 @@ class ApacheConfig : public SystemRewriteOptions {
   static Properties* apache_properties_;
 
   // Adds an option to apache_properties_.
-  template<class OptionClass>
+  template <class OptionClass>
   static void AddApacheProperty(typename OptionClass::ValueType default_value,
                                 OptionClass ApacheConfig::*offset,
-                                const char* id,
-                                StringPiece option_name,
-                                const char* help,
-                                bool safe_to_print) {
+                                const char* id, StringPiece option_name,
+                                const char* help, bool safe_to_print) {
     AddProperty(default_value, offset, id, option_name,
                 RewriteOptions::kServerScope, help, safe_to_print,
                 apache_properties_);

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_SPLIT_WRITER_H_
 #define PAGESPEED_KERNEL_BASE_SPLIT_WRITER_H_
 
@@ -33,18 +32,17 @@ class MessageHandler;
 class SplitWriter : public Writer {
  public:
   SplitWriter(Writer* sub_writer1, Writer* sub_writer2)
-      : writer1_(sub_writer1), writer2_(sub_writer2) {
-  }
+      : writer1_(sub_writer1), writer2_(sub_writer2) {}
 
-  virtual ~SplitWriter();
+  ~SplitWriter() override;
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler) {
+  bool Write(const StringPiece& str, MessageHandler* handler) override {
     bool ret = writer1_->Write(str, handler);
     ret &= writer2_->Write(str, handler);
     return ret;
   }
 
-  virtual bool Flush(MessageHandler* handler) {
+  bool Flush(MessageHandler* handler) override {
     bool ret = writer1_->Flush(handler);
     ret &= writer2_->Flush(handler);
     return ret;

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_SYSTEM_SERVER_CONTEXT_H_
 #define PAGESPEED_SYSTEM_SYSTEM_SERVER_CONTEXT_H_
 
@@ -63,9 +62,9 @@ class SystemServerContext : public ServerContext {
   // cache.  But it also affects the syntax of the links created to sub-pages
   // in the top navigation bar.
 
-  SystemServerContext(RewriteDriverFactory* factory,
-                      StringPiece hostname, int port);
-  virtual ~SystemServerContext();
+  SystemServerContext(RewriteDriverFactory* factory, StringPiece hostname,
+                      int port);
+  ~SystemServerContext() override;
 
   void SetCachePath(SystemCachePath* cache_path);
 
@@ -87,7 +86,7 @@ class SystemServerContext : public ServerContext {
   void UpdateCachePurgeSet(const CopyOnWrite<PurgeSet>& purge_set);
 
   // Initialize this SystemServerContext to set up its admin site.
-  virtual void PostInitHook();
+  void PostInitHook() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -112,8 +111,8 @@ class SystemServerContext : public ServerContext {
   //    request headers.
   // Session fetchers allow us to make these decisions.  Here we may update
   // driver->async_fetcher() to be a special fetcher just for this request.
-  virtual void ApplySessionFetchers(const RequestContextPtr& req,
-                                    RewriteDriver* driver);
+  void ApplySessionFetchers(const RequestContextPtr& req,
+                            RewriteDriver* driver) override;
 
   // Accumulate in a histogram the amount of time spent rewriting HTML.
   // TODO(sligocki): Remove in favor of RewriteStats::rewrite_latency_histogram.
@@ -135,8 +134,7 @@ class SystemServerContext : public ServerContext {
 
   // Displays recent Info/Warning/Error messages.
   void MessageHistoryHandler(const RewriteOptions& options,
-                             AdminSite::AdminSource source,
-                             AsyncFetch* fetch);
+                             AdminSite::AdminSource source, AsyncFetch* fetch);
 
   // Deprecated handler for graphs in the PSOL console.
   void StatisticsGraphsHandler(Writer* writer);
@@ -154,8 +152,7 @@ class SystemServerContext : public ServerContext {
   // have granted public access to /mod_pagespeed_statistics, but we don't
   // want that to automatically imply access to the server cache.
   void StatisticsPage(bool is_global, const QueryParams& query_params,
-                      const RewriteOptions* options,
-                      AsyncFetch* fetch);
+                      const RewriteOptions* options, AsyncFetch* fetch);
 
   AdminSite* admin_site() { return admin_site_.get(); }
 
@@ -190,12 +187,10 @@ class SystemServerContext : public ServerContext {
   void PrintCaches(bool is_global, AdminSite::AdminSource source,
                    const GoogleUrl& stripped_gurl,
                    const QueryParams& query_params,
-                   const RewriteOptions* options,
-                   AsyncFetch* fetch);
+                   const RewriteOptions* options, AsyncFetch* fetch);
 
   // Print histograms showing the dynamics of server activity.
-  void PrintHistograms(bool is_global_request,
-                       AdminSite::AdminSource source,
+  void PrintHistograms(bool is_global_request, AdminSite::AdminSource source,
                        AsyncFetch* fetch);
 
   Variable* statistics_404_count();

@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 // Unit-test SimpleUrlData, in particular it's HTTP header parser.
 
 #include "pagespeed/kernel/http/request_headers.h"
@@ -105,11 +103,11 @@ TEST_F(RequestHeadersTest, CopyFromProto) {
 
 TEST_F(RequestHeadersTest, AcceptWebp) {
   const StringPiece kWebpMimeType = kContentTypeWebp.mime_type();
-  EXPECT_FALSE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                         kWebpMimeType));
+  EXPECT_FALSE(
+      request_headers_.HasValue(HttpAttributes::kAccept, kWebpMimeType));
   request_headers_.Add(HttpAttributes::kAccept, "x, image/webp, y");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                         kWebpMimeType));
+  EXPECT_TRUE(
+      request_headers_.HasValue(HttpAttributes::kAccept, kWebpMimeType));
   RequestHeaders keep;
   keep.Add(HttpAttributes::kAccept, "image/webp");
   keep.Add(HttpAttributes::kAccept, "y");
@@ -117,28 +115,28 @@ TEST_F(RequestHeadersTest, AcceptWebp) {
   EXPECT_STREQ("image/webp, y", request_headers_.Value(0));
 
   request_headers_.Clear();
-  EXPECT_FALSE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                         kWebpMimeType));
+  EXPECT_FALSE(
+      request_headers_.HasValue(HttpAttributes::kAccept, kWebpMimeType));
   request_headers_.Add(HttpAttributes::kAccept, "a");
   request_headers_.Add(HttpAttributes::kAccept, "image/webp");
   request_headers_.Add(HttpAttributes::kAccept, "b");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
+  EXPECT_TRUE(
+      request_headers_.HasValue(HttpAttributes::kAccept, kWebpMimeType));
   // Add extra copy of image/webp.
   request_headers_.Add(HttpAttributes::kAccept, "image/webp");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
+  EXPECT_TRUE(
+      request_headers_.HasValue(HttpAttributes::kAccept, kWebpMimeType));
   // remove both copies of the value.
   request_headers_.Remove(HttpAttributes::kAccept, "image/webp");
-  EXPECT_FALSE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
+  EXPECT_FALSE(
+      request_headers_.HasValue(HttpAttributes::kAccept, kWebpMimeType));
 
   request_headers_.Clear();
   request_headers_.Add(HttpAttributes::kAccept,
                        "application/xhtml+xml,application/xml;q=0.9,"
                        "image/webp,*/*;q=0.8");
-  EXPECT_TRUE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                        kWebpMimeType));
+  EXPECT_TRUE(
+      request_headers_.HasValue(HttpAttributes::kAccept, kWebpMimeType));
 
   // We do not currently handle arbitrary modifiers after image/webp.
   // If this becomes an issue in the future then this test should be
@@ -148,8 +146,8 @@ TEST_F(RequestHeadersTest, AcceptWebp) {
                        "application/xhtml+xml,application/xml;q=0.9,"
                        "image/webp;q=0.9,"
                        "*/*;q=0.8");
-  EXPECT_FALSE(request_headers_.HasValue(HttpAttributes::kAccept,
-                                         kWebpMimeType));
+  EXPECT_FALSE(
+      request_headers_.HasValue(HttpAttributes::kAccept, kWebpMimeType));
 }
 
 TEST_F(RequestHeadersTest, GetAllCookies) {
@@ -166,11 +164,10 @@ TEST_F(RequestHeadersTest, GetAllCookies) {
   EXPECT_EQ(10, cookies.size());
   // Data driven rather than a bunch of hand coded EXPECT_EQ's.
   const char* const kNames[] = {
-    "a", "a", "a", "c", "e", "e", "gggggggggggg", "iiiii", "jjjjjjjjjjjjj", "kk"
-  };
+      "a", "a", "a", "c", "e", "e", "gggggggggggg", "iiiii", "jjjjjjjjjjjjj",
+      "kk"};
   const char* const kValues[] = {
-    "b", "z", "y", "d", "\" f \"", "zomg", "hhhhhhhhhhhhhhh", "llr", "", ""
-  };
+      "b", "z", "y", "d", "\" f \"", "zomg", "hhhhhhhhhhhhhhh", "llr", "", ""};
   ASSERT_EQ(arraysize(kNames), cookies.size());
   ASSERT_EQ(arraysize(kValues), cookies.size());
   RequestHeaders::CookieMultimapConstIter iter = cookies.begin();

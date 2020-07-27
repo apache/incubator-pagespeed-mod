@@ -24,10 +24,12 @@
 
 #include <cstdlib>
 
-#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
+#include "apr_network_io.h"
+#include "apr_pools.h"
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/reflecting_test_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
+#include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
@@ -42,10 +44,6 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/util/platform.h"
 
-#include "apr_network_io.h"
-#include "apr_pools.h"
-
-
 namespace net_instaweb {
 
 namespace {
@@ -55,32 +53,25 @@ const char kOwnIp[] = "198.51.100.1";
 class LoopbackRouteFetcherTest : public RewriteOptionsTestBase<RewriteOptions> {
  public:
   LoopbackRouteFetcherTest()
-      : pool_(NULL),
+      : pool_(nullptr),
         thread_system_(Platform::CreateThreadSystem()),
         options_(thread_system_.get()),
-        loopback_route_fetcher_(&options_, kOwnIp, 42, &reflecting_fetcher_) {
-  }
+        loopback_route_fetcher_(&options_, kOwnIp, 42, &reflecting_fetcher_) {}
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     apr_initialize();
     atexit(apr_terminate);
   }
 
-  virtual void SetUp() {
-    apr_pool_create(&pool_, NULL);
-  }
+  void SetUp() override { apr_pool_create(&pool_, nullptr); }
 
-  virtual void TearDown() {
-    apr_pool_destroy(pool_);
-  }
+  void TearDown() override { apr_pool_destroy(pool_); }
 
-  void PrepareDone(bool ok) {
-    EXPECT_TRUE(ok);
-  }
+  void PrepareDone(bool ok) { EXPECT_TRUE(ok); }
 
  protected:
   char* DumpAddr(apr_sockaddr_t* addr) {
-    char* dbg = NULL;
+    char* dbg = nullptr;
     apr_sockaddr_ip_get(&dbg, addr);
     return dbg;  // it's in pool_
   }
@@ -104,19 +95,15 @@ TEST_F(LoopbackRouteFetcherTest, LoopbackRouteFetcherWorks) {
       true, RequestContext::NewTestRequestContext(thread_system_.get()));
   loopback_route_fetcher_.Fetch("http://somehost.com/url", &handler_, &dest);
   EXPECT_STREQ(StrCat("http://", kOwnIp, ":42/url"), dest.buffer());
-  EXPECT_STREQ("somehost.com",
-               dest.response_headers()->Lookup1("Host"));
+  EXPECT_STREQ("somehost.com", dest.response_headers()->Lookup1("Host"));
 
   // And also test handling of protocol-relative urls.
   ExpectStringAsyncFetch destPR(
-      true, RequestContext::NewTestRequestContext(
-          thread_system_.get()));
-  loopback_route_fetcher_.Fetch("http://somehost.com//foo/bar",
-                                &handler_, &destPR);
-  EXPECT_STREQ(StrCat("http://", kOwnIp, ":42//foo/bar"),
-               destPR.buffer());
-  EXPECT_STREQ("somehost.com",
-               destPR.response_headers()->Lookup1("Host"));
+      true, RequestContext::NewTestRequestContext(thread_system_.get()));
+  loopback_route_fetcher_.Fetch("http://somehost.com//foo/bar", &handler_,
+                                &destPR);
+  EXPECT_STREQ(StrCat("http://", kOwnIp, ":42//foo/bar"), destPR.buffer());
+  EXPECT_STREQ("somehost.com", destPR.response_headers()->Lookup1("Host"));
 
   // Now make somehost.com known, as well as somehost.cdn.com
   options_.WriteableDomainLawyer()->AddOriginDomainMapping(
@@ -129,15 +116,15 @@ TEST_F(LoopbackRouteFetcherTest, LoopbackRouteFetcherWorks) {
 
   ExpectStringAsyncFetch dest3(
       true, RequestContext::NewTestRequestContext(thread_system_.get()));
-  loopback_route_fetcher_.Fetch("http://somehost.cdn.com/url",
-                                &handler_, &dest3);
+  loopback_route_fetcher_.Fetch("http://somehost.cdn.com/url", &handler_,
+                                &dest3);
   EXPECT_STREQ("http://somehost.cdn.com/url", dest3.buffer());
 
   // Should still be redirected if the port doesn't match.
   ExpectStringAsyncFetch dest4(
       true, RequestContext::NewTestRequestContext(thread_system_.get()));
-  loopback_route_fetcher_.Fetch("http://somehost.cdn.com:123/url",
-                                &handler_, &dest4);
+  loopback_route_fetcher_.Fetch("http://somehost.cdn.com:123/url", &handler_,
+                                &dest4);
   EXPECT_STREQ(StrCat("http://", kOwnIp, ":42/url"), dest4.buffer());
   EXPECT_STREQ("somehost.cdn.com:123",
                dest4.response_headers()->Lookup1("Host"));
@@ -150,8 +137,8 @@ TEST_F(LoopbackRouteFetcherTest, LoopbackRouteFetcherWorks) {
       "http://somehost.cdn.com:123");
 
   ExpectStringAsyncFetch dest5(true, request_context5);
-  loopback_route_fetcher_.Fetch("http://somehost.cdn.com:123/url",
-                                &handler_, &dest5);
+  loopback_route_fetcher_.Fetch("http://somehost.cdn.com:123/url", &handler_,
+                                &dest5);
   EXPECT_STREQ("http://somehost.cdn.com:123/url", dest5.buffer());
 
   // The same authorization doesn't permit a different port, however.
@@ -161,45 +148,39 @@ TEST_F(LoopbackRouteFetcherTest, LoopbackRouteFetcherWorks) {
       "http://somehost.cdn.com:123");
 
   ExpectStringAsyncFetch dest6(true, request_context6);
-  loopback_route_fetcher_.Fetch("http://somehost.cdn.com:456/url",
-                                &handler_, &dest6);
+  loopback_route_fetcher_.Fetch("http://somehost.cdn.com:456/url", &handler_,
+                                &dest6);
   EXPECT_STREQ(StrCat("http://", kOwnIp, ":42/url"), dest6.buffer());
   EXPECT_STREQ("somehost.cdn.com:456",
                dest6.response_headers()->Lookup1("Host"));
 }
 
 TEST_F(LoopbackRouteFetcherTest, CanDetectSelfSrc) {
-  apr_sockaddr_t* loopback_1 = NULL;
-  ASSERT_EQ(APR_SUCCESS,
-            apr_sockaddr_info_get(&loopback_1, "127.0.0.1", APR_INET,
-                                  80, 0, pool_));
+  apr_sockaddr_t* loopback_1 = nullptr;
+  ASSERT_EQ(APR_SUCCESS, apr_sockaddr_info_get(&loopback_1, "127.0.0.1",
+                                               APR_INET, 80, 0, pool_));
 
-  apr_sockaddr_t* loopback_2 = NULL;
-  ASSERT_EQ(APR_SUCCESS,
-            apr_sockaddr_info_get(&loopback_2, "127.12.34.45", APR_INET,
-                                  80, 0, pool_));
+  apr_sockaddr_t* loopback_2 = nullptr;
+  ASSERT_EQ(APR_SUCCESS, apr_sockaddr_info_get(&loopback_2, "127.12.34.45",
+                                               APR_INET, 80, 0, pool_));
 
-  apr_sockaddr_t* loopback_3 = NULL;
+  apr_sockaddr_t* loopback_3 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
-            apr_sockaddr_info_get(&loopback_3, "::1", APR_INET6,
-                                  80, 0, pool_));
+            apr_sockaddr_info_get(&loopback_3, "::1", APR_INET6, 80, 0, pool_));
 
-  apr_sockaddr_t* loopback_4 = NULL;
-  ASSERT_EQ(APR_SUCCESS,
-            apr_sockaddr_info_get(&loopback_4, "::FFFF:127.0.0.2", APR_INET6,
-                                  80, 0, pool_));
+  apr_sockaddr_t* loopback_4 = nullptr;
+  ASSERT_EQ(APR_SUCCESS, apr_sockaddr_info_get(&loopback_4, "::FFFF:127.0.0.2",
+                                               APR_INET6, 80, 0, pool_));
 
-  apr_sockaddr_t* not_loopback_1 = NULL;
-  ASSERT_EQ(APR_SUCCESS,
-            apr_sockaddr_info_get(&not_loopback_1, "128.0.0.1", APR_INET,
-                                  80, 0, pool_));
+  apr_sockaddr_t* not_loopback_1 = nullptr;
+  ASSERT_EQ(APR_SUCCESS, apr_sockaddr_info_get(&not_loopback_1, "128.0.0.1",
+                                               APR_INET, 80, 0, pool_));
 
-  apr_sockaddr_t* not_loopback_2 = NULL;
-  ASSERT_EQ(APR_SUCCESS,
-            apr_sockaddr_info_get(&not_loopback_2, "::1:1", APR_INET6,
-                                  80, 0, pool_));
+  apr_sockaddr_t* not_loopback_2 = nullptr;
+  ASSERT_EQ(APR_SUCCESS, apr_sockaddr_info_get(&not_loopback_2, "::1:1",
+                                               APR_INET6, 80, 0, pool_));
 
-  apr_sockaddr_t* not_loopback_3 = NULL;
+  apr_sockaddr_t* not_loopback_3 = nullptr;
   ASSERT_EQ(APR_SUCCESS,
             apr_sockaddr_info_get(&not_loopback_3, "::1:FFFF:127.0.0.1",
                                   APR_INET6, 80, 0, pool_));
@@ -235,7 +216,7 @@ TEST_F(LoopbackRouteFetcherTest, ProxySuffix) {
       NewCallback(this, &LoopbackRouteFetcherTest::PrepareDone));
   loopback_route_fetcher_.Fetch("http://www.foo.com", &handler_, &dest);
   EXPECT_STREQ("http://www.foo.com", dest.buffer());
-  EXPECT_EQ(NULL, dest.response_headers()->Lookup1("Host"));
+  EXPECT_EQ(nullptr, dest.response_headers()->Lookup1("Host"));
 }
 
 }  // namespace

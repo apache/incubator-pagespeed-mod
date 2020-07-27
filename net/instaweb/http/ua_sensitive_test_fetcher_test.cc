@@ -50,24 +50,23 @@ class UserAgentSensitiveTestFetcherTest : public ::testing::Test {
  protected:
   UserAgentSensitiveTestFetcherTest()
       : timer_(new NullMutex, MockTimer::kApr_5_2010_ms),
-        ua_sensitive_fetcher_(&mock_fetcher_) {
-  }
+        ua_sensitive_fetcher_(&mock_fetcher_) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     // Font loader CSS gets Cache-Control:private, max-age=86400
     ResponseHeaders response_headers;
     response_headers.SetStatusAndReason(HttpStatus::kOK);
     response_headers.Add(HttpAttributes::kContentType,
                          kContentTypeCss.mime_type());
-    response_headers.SetDateAndCaching(
-        timer_.NowMs(), 86400 * Timer::kSecondMs, ", private");
+    response_headers.SetDateAndCaching(timer_.NowMs(), 86400 * Timer::kSecondMs,
+                                       ", private");
 
     // Set them up in spots where UaSensitiveFetcher would direct them.
     mock_fetcher_.SetResponse(StrCat(kRoboto, "&UA=Chromezilla"),
                               response_headers, "font_chromezilla");
 
-    mock_fetcher_.SetResponse(StrCat(kRoboto, "&UA=Safieri"),
-                              response_headers, "font_safieri");
+    mock_fetcher_.SetResponse(StrCat(kRoboto, "&UA=Safieri"), response_headers,
+                              "font_safieri");
 
     mock_fetcher_.SetResponse(StrCat(kRobotoSsl, "&UA=Chromezilla"),
                               response_headers, "sfont_chromezilla");
@@ -89,8 +88,8 @@ TEST_F(UserAgentSensitiveTestFetcherTest, BasicOperation) {
       RequestContext::NewTestRequestContext(ts.get()));
   // First attempts to fetch should fail due to lack of domain authorization.
   ExpectStringAsyncFetch evil_chromezilla_fetch(false, request_context);
-  evil_chromezilla_fetch.request_headers()->Add(
-      HttpAttributes::kUserAgent, "Chromezilla");
+  evil_chromezilla_fetch.request_headers()->Add(HttpAttributes::kUserAgent,
+                                                "Chromezilla");
 
   ua_sensitive_fetcher_.Fetch(kRoboto, &handler_, &evil_chromezilla_fetch);
   EXPECT_TRUE(evil_chromezilla_fetch.done());
@@ -103,8 +102,8 @@ TEST_F(UserAgentSensitiveTestFetcherTest, BasicOperation) {
       "https://fonts.googleapis.com");
 
   ExpectStringAsyncFetch chromezilla_fetch(true, request_context);
-  chromezilla_fetch.request_headers()->Add(
-      HttpAttributes::kUserAgent, "Chromezilla");
+  chromezilla_fetch.request_headers()->Add(HttpAttributes::kUserAgent,
+                                           "Chromezilla");
 
   ua_sensitive_fetcher_.Fetch(kRoboto, &handler_, &chromezilla_fetch);
   EXPECT_TRUE(chromezilla_fetch.done());
@@ -112,16 +111,15 @@ TEST_F(UserAgentSensitiveTestFetcherTest, BasicOperation) {
 
   // Now over "SSL"
   chromezilla_fetch.Reset();
-  chromezilla_fetch.request_headers()->Add(
-      HttpAttributes::kUserAgent, "Chromezilla");
+  chromezilla_fetch.request_headers()->Add(HttpAttributes::kUserAgent,
+                                           "Chromezilla");
   ua_sensitive_fetcher_.Fetch(kRobotoSsl, &handler_, &chromezilla_fetch);
   EXPECT_TRUE(chromezilla_fetch.done());
   EXPECT_EQ("sfont_chromezilla", chromezilla_fetch.buffer());
 
   // Same for the other "UA"
   ExpectStringAsyncFetch safieri_fetch(true, request_context);
-  safieri_fetch.request_headers()->Add(
-      HttpAttributes::kUserAgent, "Safieri");
+  safieri_fetch.request_headers()->Add(HttpAttributes::kUserAgent, "Safieri");
 
   ua_sensitive_fetcher_.Fetch(kRoboto, &handler_, &safieri_fetch);
   EXPECT_TRUE(safieri_fetch.done());
@@ -129,8 +127,7 @@ TEST_F(UserAgentSensitiveTestFetcherTest, BasicOperation) {
 
   // Now over "SSL"
   safieri_fetch.Reset();
-  safieri_fetch.request_headers()->Add(
-      HttpAttributes::kUserAgent, "Safieri");
+  safieri_fetch.request_headers()->Add(HttpAttributes::kUserAgent, "Safieri");
   ua_sensitive_fetcher_.Fetch(kRobotoSsl, &handler_, &safieri_fetch);
   EXPECT_TRUE(safieri_fetch.done());
   EXPECT_EQ("sfont_safieri", safieri_fetch.buffer());

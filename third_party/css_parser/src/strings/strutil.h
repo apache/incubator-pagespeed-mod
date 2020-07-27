@@ -30,6 +30,8 @@
 //     default: return "UNKNOWN value";
 //   }
 // Only the enum string will be returned (i.e., without the "Foo::" prefix).
-#define CONSIDER_IN_CLASS(cls,val)       case cls::val: return #val
+#define CONSIDER_IN_CLASS(cls, val) \
+  case cls::val:                    \
+    return #val
 
 #endif  // WEBUTIL_CSS_OPEN_SOURCE_STRINGS_STRUTIL_H_

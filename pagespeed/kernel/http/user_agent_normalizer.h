@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_HTTP_USER_AGENT_NORMALIZER_H_
 #define PAGESPEED_KERNEL_HTTP_USER_AGENT_NORMALIZER_H_
 
@@ -56,9 +54,9 @@ class UserAgentNormalizer {
 class AndroidUserAgentNormalizer : public UserAgentNormalizer {
  public:
   AndroidUserAgentNormalizer();
-  virtual ~AndroidUserAgentNormalizer();
+  ~AndroidUserAgentNormalizer() override;
 
-  virtual GoogleString Normalize(const GoogleString& in) const;
+  GoogleString Normalize(const GoogleString& in) const override;
 
  private:
   RE2 dalvik_ua_;
@@ -72,9 +70,9 @@ class AndroidUserAgentNormalizer : public UserAgentNormalizer {
 class IEUserAgentNormalizer : public UserAgentNormalizer {
  public:
   IEUserAgentNormalizer();
-  virtual ~IEUserAgentNormalizer();
+  ~IEUserAgentNormalizer() override;
 
-  virtual GoogleString Normalize(const GoogleString& in) const;
+  GoogleString Normalize(const GoogleString& in) const override;
 
  private:
   RE2 ie_ua_;

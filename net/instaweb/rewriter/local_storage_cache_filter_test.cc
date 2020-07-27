@@ -17,9 +17,9 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/local_storage_cache_filter.h"
 
 #include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/local_storage_cache_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -44,8 +44,7 @@ const char kCuppaPngFilename[] = "Cuppa.png";
 const char kPuzzleJpgFilename[] = "Puzzle.jpg";
 
 // Contents of resource files.
-const char kJunkCssContents[] =
-    "@import url(junk://junk.com);";
+const char kJunkCssContents[] = "@import url(junk://junk.com);";
 const char kStylesCssContents[] =
     ".background_cyan{background-color:#0ff}"
     ".foreground_pink{color:#ffc0cb}";
@@ -111,7 +110,7 @@ const char kCuppaPng150sqInlineData[] =
 class LocalStorageCacheTest : public RewriteTestBase,
                               public ::testing::WithParamInterface<bool> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     MySetUp();
   }
@@ -133,13 +132,12 @@ class LocalStorageCacheTest : public RewriteTestBase,
                          kPuzzleJpgFilename, kContentTypeJpeg, 100);
     StaticAssetManager* static_asset_manager =
         server_context()->static_asset_manager();
-    local_storage_cache_js_ =
-        StrCat("<script type=\"text/javascript\" data-pagespeed-no-defer>"
-               "//<![CDATA[\n",
-               static_asset_manager->GetAsset(
-                   StaticAssetEnum::LOCAL_STORAGE_CACHE_JS, options()),
-               LocalStorageCacheFilter::kLscInitializer,
-               "\n//]]></script>");
+    local_storage_cache_js_ = StrCat(
+        "<script type=\"text/javascript\" data-pagespeed-no-defer>"
+        "//<![CDATA[\n",
+        static_asset_manager->GetAsset(StaticAssetEnum::LOCAL_STORAGE_CACHE_JS,
+                                       options()),
+        LocalStorageCacheFilter::kLscInitializer, "\n//]]></script>");
   }
 
   void TestLocalStorage(const StringPiece& case_id,
@@ -161,18 +159,20 @@ class LocalStorageCacheTest : public RewriteTestBase,
         "%s"
         "</head>\n"
         "<body>",
-        kNoScriptRedirectFormatter, "\n"
+        kNoScriptRedirectFormatter,
+        "\n"
         "%s"
         "</body>\n");
 
-    GoogleString url = StrCat(
-        "http://test.com/", case_id, ".html?PageSpeed=noscript");
+    GoogleString url =
+        StrCat("http://test.com/", case_id, ".html?PageSpeed=noscript");
 
-    GoogleString html_in (absl::StrFormat(
-        kInWrapperFormat, head_html_in.c_str(), body_html_in.c_str()));
-    GoogleString html_out (absl::StrFormat(
-        *absl::ParsedFormat<'s','s','s','s'>::New(out_wrapper_format), head_html_out.c_str(), url.c_str(),
-        url.c_str(), body_html_out.c_str()));
+    GoogleString html_in(absl::StrFormat(kInWrapperFormat, head_html_in.c_str(),
+                                         body_html_in.c_str()));
+    GoogleString html_out(absl::StrFormat(
+        *absl::ParsedFormat<'s', 's', 's', 's'>::New(out_wrapper_format),
+        head_html_out.c_str(), url.c_str(), url.c_str(),
+        body_html_out.c_str()));
 
     // Clear request_headers and set them afresh for every test.
     ClearRewriteDriver();
@@ -199,8 +199,7 @@ TEST_F(LocalStorageCacheTest, Simple) {
 
 TEST_F(LocalStorageCacheTest, Link) {
   TestLocalStorage(
-      "link",
-      "<link rel='stylesheet' href='styles.css'>",
+      "link", "<link rel='stylesheet' href='styles.css'>",
       InsertScriptBefore(
           "<style "
           "data-pagespeed-lsc-url=\"http://test.com/styles.css\" "
@@ -228,15 +227,14 @@ TEST_F(LocalStorageCacheTest, LinkUrlTransormationFails) {
   AddDomain("example.com");
   TestLocalStorage("link_url_transormation_fails",
                    "<link rel='stylesheet' href='http://example.com/junk.css'>",
-                   InsertScriptBefore(
-                       "<link rel='stylesheet' "
-                       "href='http://example.com/junk.css'>"),
+                   InsertScriptBefore("<link rel='stylesheet' "
+                                      "href='http://example.com/junk.css'>"),
                    "<div/>", "<div/>");
 }
 
 class LocalStorageCacheTinyTest : public LocalStorageCacheTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_css_inline_max_bytes(10);  // An arbitrary tiny value.
     MySetUp();
@@ -247,31 +245,29 @@ TEST_F(LocalStorageCacheTinyTest, LinkDontInline) {
   // The CSS inlining fails because we've turned the limit down low. We expect
   // no LSC attributes in the result but because the CSS rewriting is
   // asynchronous we still insert the JS even though it ends up not being used.
-  TestLocalStorage("link_dont_inline",
-                   "<link rel='stylesheet' href='styles.css'>",
-                   InsertScriptBefore(
-                       "<link rel='stylesheet' href='styles.css'>"),
-                   "<div/>", "<div/>");
+  TestLocalStorage(
+      "link_dont_inline", "<link rel='stylesheet' href='styles.css'>",
+      InsertScriptBefore("<link rel='stylesheet' href='styles.css'>"), "<div/>",
+      "<div/>");
 }
 
 TEST_F(LocalStorageCacheTest, Img) {
-  TestLocalStorage("img", "", "",
-                   StrCat("<img src='", kCuppaPngFilename, "'>"),
-                   InsertScriptBefore(
-                       StrCat("<img src='", kCuppaPngInlineData,
-                              "' data-pagespeed-lsc-url="
-                              "\"", kTestDomain, kCuppaPngFilename, "\""
-                              " data-pagespeed-lsc-hash=\"0\""
-                              " data-pagespeed-lsc-expiry="
-                              "\"Tue, 02 Feb 2010 18:53:06 GMT\""
-                              ">")));
+  TestLocalStorage("img", "", "", StrCat("<img src='", kCuppaPngFilename, "'>"),
+                   InsertScriptBefore(StrCat("<img src='", kCuppaPngInlineData,
+                                             "' data-pagespeed-lsc-url="
+                                             "\"",
+                                             kTestDomain, kCuppaPngFilename,
+                                             "\""
+                                             " data-pagespeed-lsc-hash=\"0\""
+                                             " data-pagespeed-lsc-expiry="
+                                             "\"Tue, 02 Feb 2010 18:53:06 GMT\""
+                                             ">")));
 }
 
 TEST_F(LocalStorageCacheTest, ImgTooBig) {
-  TestLocalStorage("img_too_big", "", "",
-                   StrCat("<img src='", kPuzzleJpgFilename, "'>"),
-                   InsertScriptBefore(
-                       StrCat("<img src='", kPuzzleJpgFilename, "'>")));
+  TestLocalStorage(
+      "img_too_big", "", "", StrCat("<img src='", kPuzzleJpgFilename, "'>"),
+      InsertScriptBefore(StrCat("<img src='", kPuzzleJpgFilename, "'>")));
 }
 
 TEST_F(LocalStorageCacheTest, ImgLocalStorageDisabled) {
@@ -290,105 +286,123 @@ TEST_F(LocalStorageCacheTest, ImgLocalStorageDisabled) {
 TEST_F(LocalStorageCacheTest, CookieSet) {
   // The 2 hash values are Fe1SLPZ14c and du_OhARrJl. Only suppress the first.
   UseMd5Hasher();
-  GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName,
-                               "=Fe1SLPZ14c");
+  GoogleString cookie =
+      StrCat(LocalStorageCacheFilter::kLscCookieName, "=Fe1SLPZ14c");
   request_headers_.Add(HttpAttributes::kCookie, cookie);
-  TestLocalStorage("cookie_set",
-                   StrCat("<link rel='stylesheet' href='",
-                          kStylesCssFilename,
-                          "'>"),
-                   InsertScriptBefore(
-                       StrCat("<script data-pagespeed-no-defer>"
-                              "pagespeed.localStorageCache.inlineCss("
-                              "\"", kTestDomain, kStylesCssFilename, "\""
-                              ");</script>")),
-                   StrCat("<img src='", kCuppaPngFilename, "'>"),
-                   StrCat("<img src='", kCuppaPngInlineData,
-                          "' data-pagespeed-lsc-url="
-                          "\"", kTestDomain, kCuppaPngFilename, "\""
-                          " data-pagespeed-lsc-hash=\"du_OhARrJl\""
-                          " data-pagespeed-lsc-expiry="
-                          "\"Tue, 02 Feb 2010 18:53:06 GMT\""
-                          ">"));
+  TestLocalStorage(
+      "cookie_set",
+      StrCat("<link rel='stylesheet' href='", kStylesCssFilename, "'>"),
+      InsertScriptBefore(StrCat("<script data-pagespeed-no-defer>"
+                                "pagespeed.localStorageCache.inlineCss("
+                                "\"",
+                                kTestDomain, kStylesCssFilename,
+                                "\""
+                                ");</script>")),
+      StrCat("<img src='", kCuppaPngFilename, "'>"),
+      StrCat("<img src='", kCuppaPngInlineData,
+             "' data-pagespeed-lsc-url="
+             "\"",
+             kTestDomain, kCuppaPngFilename,
+             "\""
+             " data-pagespeed-lsc-hash=\"du_OhARrJl\""
+             " data-pagespeed-lsc-expiry="
+             "\"Tue, 02 Feb 2010 18:53:06 GMT\""
+             ">"));
 }
 
 TEST_F(LocalStorageCacheTest, RepeatViews) {
   // The 2 hash values are Fe1SLPZ14c (CSS) and du_OhARrJl (image).
   UseMd5Hasher();
 
-  GoogleString css = StrCat("<link rel='stylesheet' href='",
-                            kStylesCssFilename,
-                            "'>");
+  GoogleString css =
+      StrCat("<link rel='stylesheet' href='", kStylesCssFilename, "'>");
   GoogleString img = StrCat("<img src='", kCuppaPngFilename, "'>");
 
   // First view shouldn't rewrite anything though lsc_url attributes are added.
   // Don't rewrite because in the real world the fetch and processing of the
   // resource could take longer than the rewriting timeout, and we want to
   // simulate that here. We redo it below with the rewriting completing in time.
-  GoogleString external_css = StrCat("<link rel='stylesheet' href="
-                                     "'", kStylesCssFilename, "'"
-                                     " data-pagespeed-lsc-url="
-                                     "\"", kTestDomain, kStylesCssFilename, "\""
-                                     ">");
-  GoogleString external_img = StrCat("<img src="
-                                     "'", kCuppaPngFilename, "'"
-                                     " data-pagespeed-lsc-url="
-                                     "\"", kTestDomain, kCuppaPngFilename, "\""
-                                     ">");
+  GoogleString external_css = StrCat(
+      "<link rel='stylesheet' href="
+      "'",
+      kStylesCssFilename,
+      "'"
+      " data-pagespeed-lsc-url="
+      "\"",
+      kTestDomain, kStylesCssFilename,
+      "\""
+      ">");
+  GoogleString external_img = StrCat(
+      "<img src="
+      "'",
+      kCuppaPngFilename,
+      "'"
+      " data-pagespeed-lsc-url="
+      "\"",
+      kTestDomain, kCuppaPngFilename,
+      "\""
+      ">");
   SetupWaitFetcher();
-  TestLocalStorage("first_view",
-                   css, InsertScriptBefore(external_css),
-                   img, external_img);
+  TestLocalStorage("first_view", css, InsertScriptBefore(external_css), img,
+                   external_img);
   CallFetcherCallbacks();
 
   // Second view will inline them both and add an expiry to both.
-  GoogleString inlined_css = StrCat("<style data-pagespeed-lsc-url="
-                                    "\"", kTestDomain, kStylesCssFilename, "\""
-                                    " data-pagespeed-lsc-hash=\"Fe1SLPZ14c\""
-                                    " data-pagespeed-lsc-expiry="
-                                    "\"Tue, 02 Feb 2010 18:53:06 GMT\""
-                                    ">",
-                                    kStylesCssContents,
-                                    "</style>");
+  GoogleString inlined_css = StrCat(
+      "<style data-pagespeed-lsc-url="
+      "\"",
+      kTestDomain, kStylesCssFilename,
+      "\""
+      " data-pagespeed-lsc-hash=\"Fe1SLPZ14c\""
+      " data-pagespeed-lsc-expiry="
+      "\"Tue, 02 Feb 2010 18:53:06 GMT\""
+      ">",
+      kStylesCssContents, "</style>");
   GoogleString inlined_img = StrCat("<img src='", kCuppaPngInlineData,
                                     "' data-pagespeed-lsc-url="
-                                    "\"", kTestDomain, kCuppaPngFilename, "\""
+                                    "\"",
+                                    kTestDomain, kCuppaPngFilename,
+                                    "\""
                                     " data-pagespeed-lsc-hash=\"du_OhARrJl\""
                                     " data-pagespeed-lsc-expiry="
                                     "\"Tue, 02 Feb 2010 18:53:06 GMT\""
                                     ">");
-  TestLocalStorage("second_view",
-                   css, InsertScriptBefore(inlined_css),
-                   img, inlined_img);
+  TestLocalStorage("second_view", css, InsertScriptBefore(inlined_css), img,
+                   inlined_img);
 
   // The JavaScript would set these cookies for the next request.
-  GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName,
-                               "=", "Fe1SLPZ14c", "!", "du_OhARrJl");
+  GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName, "=",
+                               "Fe1SLPZ14c", "!", "du_OhARrJl");
   request_headers_.Add(HttpAttributes::kCookie, cookie);
 
   // Third view will not send the inlined data and will send scripts in place
   // of the link and img elements.
-  GoogleString scripted_css = StrCat("<script data-pagespeed-no-defer>"
-                                     "pagespeed.localStorageCache.inlineCss("
-                                     "\"", kTestDomain, kStylesCssFilename, "\""
-                                     ");</script>");
-  GoogleString scripted_img = StrCat("<script data-pagespeed-no-defer>"
-                                     "pagespeed.localStorageCache.inlineImg("
-                                     "\"", kTestDomain, kCuppaPngFilename, "\""
-                                     ", \"du_OhARrJl\");</script>");
-  TestLocalStorage("third_view",
-                   css, InsertScriptBefore(scripted_css),
-                   img, scripted_img);
+  GoogleString scripted_css = StrCat(
+      "<script data-pagespeed-no-defer>"
+      "pagespeed.localStorageCache.inlineCss("
+      "\"",
+      kTestDomain, kStylesCssFilename,
+      "\""
+      ");</script>");
+  GoogleString scripted_img = StrCat(
+      "<script data-pagespeed-no-defer>"
+      "pagespeed.localStorageCache.inlineImg("
+      "\"",
+      kTestDomain, kCuppaPngFilename,
+      "\""
+      ", \"du_OhARrJl\");</script>");
+  TestLocalStorage("third_view", css, InsertScriptBefore(scripted_css), img,
+                   scripted_img);
 }
 
 TEST_F(LocalStorageCacheTest, RepeatViewsWithOtherAttributes) {
   // The 2 hash values are Fe1SLPZ14c (CSS) and du_OhARrJl (image).
   UseMd5Hasher();
 
-  GoogleString css = StrCat("<link rel='stylesheet' href='",
-                            kStylesCssFilename,
-                            "'>");
-  GoogleString img = StrCat("<img src='", kCuppaPngFilename, "'"
+  GoogleString css =
+      StrCat("<link rel='stylesheet' href='", kStylesCssFilename, "'>");
+  GoogleString img = StrCat("<img src='", kCuppaPngFilename,
+                            "'"
                             " alt='A cup of joe'"
                             " alt=\"A cup of joe\""
                             " alt='A cup of joe&#39;s \"joe\"'"
@@ -398,74 +412,92 @@ TEST_F(LocalStorageCacheTest, RepeatViewsWithOtherAttributes) {
   // Don't rewrite because in the real world the fetch and processing of the
   // resource could take longer than the rewriting timeout, and we want to
   // simulate that here. We redo it below with the rewriting completing in time.
-  GoogleString external_css = StrCat("<link rel='stylesheet' href="
-                                     "'", kStylesCssFilename, "'"
-                                     " data-pagespeed-lsc-url="
-                                     "\"", kTestDomain, kStylesCssFilename, "\""
-                                     ">");
-  GoogleString external_img = StrCat("<img src="
-                                     "'", kCuppaPngFilename, "'"
-                                     " alt='A cup of joe'"
-                                     " alt=\"A cup of joe\""
-                                     " alt='A cup of joe&#39;s \"joe\"'"
-                                     " alt=\"A cup of joe's &quot;joe&quot;\""
-                                     " data-pagespeed-lsc-url="
-                                     "\"", kTestDomain, kCuppaPngFilename, "\""
-                                     ">");
+  GoogleString external_css = StrCat(
+      "<link rel='stylesheet' href="
+      "'",
+      kStylesCssFilename,
+      "'"
+      " data-pagespeed-lsc-url="
+      "\"",
+      kTestDomain, kStylesCssFilename,
+      "\""
+      ">");
+  GoogleString external_img = StrCat(
+      "<img src="
+      "'",
+      kCuppaPngFilename,
+      "'"
+      " alt='A cup of joe'"
+      " alt=\"A cup of joe\""
+      " alt='A cup of joe&#39;s \"joe\"'"
+      " alt=\"A cup of joe's &quot;joe&quot;\""
+      " data-pagespeed-lsc-url="
+      "\"",
+      kTestDomain, kCuppaPngFilename,
+      "\""
+      ">");
   SetupWaitFetcher();
-  TestLocalStorage("first_view",
-                   css, InsertScriptBefore(external_css),
-                   img, external_img);
+  TestLocalStorage("first_view", css, InsertScriptBefore(external_css), img,
+                   external_img);
   CallFetcherCallbacks();
 
   // Second view will inline them both and add an expiry to both.
-  GoogleString inlined_css = StrCat("<style"
-                                    " data-pagespeed-lsc-url="
-                                    "\"", kTestDomain, kStylesCssFilename, "\""
-                                    " data-pagespeed-lsc-hash=\"Fe1SLPZ14c\""
-                                    " data-pagespeed-lsc-expiry="
-                                    "\"Tue, 02 Feb 2010 18:53:06 GMT\""
-                                    ">",
-                                    kStylesCssContents,
-                                    "</style>");
-  GoogleString inlined_img = StrCat("<img src='", kCuppaPngInlineData, "'"
+  GoogleString inlined_css = StrCat(
+      "<style"
+      " data-pagespeed-lsc-url="
+      "\"",
+      kTestDomain, kStylesCssFilename,
+      "\""
+      " data-pagespeed-lsc-hash=\"Fe1SLPZ14c\""
+      " data-pagespeed-lsc-expiry="
+      "\"Tue, 02 Feb 2010 18:53:06 GMT\""
+      ">",
+      kStylesCssContents, "</style>");
+  GoogleString inlined_img = StrCat("<img src='", kCuppaPngInlineData,
+                                    "'"
                                     " alt='A cup of joe'"
                                     " alt=\"A cup of joe\""
                                     " alt='A cup of joe&#39;s \"joe\"'"
                                     " alt=\"A cup of joe's &quot;joe&quot;\""
                                     " data-pagespeed-lsc-url="
-                                    "\"", kTestDomain, kCuppaPngFilename, "\""
+                                    "\"",
+                                    kTestDomain, kCuppaPngFilename,
+                                    "\""
                                     " data-pagespeed-lsc-hash=\"du_OhARrJl\""
                                     " data-pagespeed-lsc-expiry="
                                     "\"Tue, 02 Feb 2010 18:53:06 GMT\""
                                     ">");
-  TestLocalStorage("second_view",
-                   css, InsertScriptBefore(inlined_css),
-                   img, inlined_img);
+  TestLocalStorage("second_view", css, InsertScriptBefore(inlined_css), img,
+                   inlined_img);
 
   // The JavaScript would set these cookies for the next request.
-  GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName,
-                               "=", "Fe1SLPZ14c", "!", "du_OhARrJl");
+  GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName, "=",
+                               "Fe1SLPZ14c", "!", "du_OhARrJl");
   request_headers_.Add(HttpAttributes::kCookie, cookie);
 
   // Third view will not send the inlined data and will send scripts in place
   // of the link and img elements.
-  GoogleString scripted_css = StrCat("<script data-pagespeed-no-defer>"
-                                     "pagespeed.localStorageCache.inlineCss("
-                                     "\"", kTestDomain, kStylesCssFilename, "\""
-                                     ");</script>");
-  GoogleString scripted_img = StrCat("<script data-pagespeed-no-defer>"
-                                     "pagespeed.localStorageCache.inlineImg("
-                                     "\"", kTestDomain, kCuppaPngFilename, "\""
-                                     ", \"du_OhARrJl\""
-                                     ", \"alt=A cup of joe\""
-                                     ", \"alt=A cup of joe\""
-                                     ", \"alt=A cup of joe\\'s \\\"joe\\\"\""
-                                     ", \"alt=A cup of joe\\'s \\\"joe\\\"\""
-                                     ");</script>");
-  TestLocalStorage("third_view",
-                   css, InsertScriptBefore(scripted_css),
-                   img, scripted_img);
+  GoogleString scripted_css = StrCat(
+      "<script data-pagespeed-no-defer>"
+      "pagespeed.localStorageCache.inlineCss("
+      "\"",
+      kTestDomain, kStylesCssFilename,
+      "\""
+      ");</script>");
+  GoogleString scripted_img = StrCat(
+      "<script data-pagespeed-no-defer>"
+      "pagespeed.localStorageCache.inlineImg("
+      "\"",
+      kTestDomain, kCuppaPngFilename,
+      "\""
+      ", \"du_OhARrJl\""
+      ", \"alt=A cup of joe\""
+      ", \"alt=A cup of joe\""
+      ", \"alt=A cup of joe\\'s \\\"joe\\\"\""
+      ", \"alt=A cup of joe\\'s \\\"joe\\\"\""
+      ");</script>");
+  TestLocalStorage("third_view", css, InsertScriptBefore(scripted_css), img,
+                   scripted_img);
 }
 
 TEST_F(LocalStorageCacheTest, RepeatViewsOfSameImageAtDifferentSizes) {
@@ -488,47 +520,59 @@ TEST_F(LocalStorageCacheTest, RepeatViewsOfSameImageAtDifferentSizes) {
   const char kHash30x30[] = "07FPv8sBor";
   const char kHash150x150[] = "jSr1gEyima";
 
-  GoogleString imgs = StrCat("<img src='", kCuppaPngFilename, "'"
+  GoogleString imgs = StrCat("<img src='", kCuppaPngFilename,
+                             "'"
                              "width=\"30\" height=\"30\">"
-                             "<img src='", kCuppaPngFilename, "'"
+                             "<img src='",
+                             kCuppaPngFilename,
+                             "'"
                              "width=\"150\" height=\"150\">");
 
   // First view shouldn't rewrite anything though lsc_url attributes are added.
   // Don't rewrite because in the real world the fetch and processing of the
   // resource could take longer than the rewriting timeout, and we want to
   // simulate that here. We redo it below with the rewriting completing in time.
-  GoogleString external_imgs =
-      StrCat("<img src='", kCuppaPngFilename, "'"
-             " width=\"30\" height=\"30\""
-             " data-pagespeed-lsc-url=""\"",
-             kTestDomain, kCuppaPngFilename, "\">",
-             "<img src='", kCuppaPngFilename, "'"
-             " width=\"150\" height=\"150\""
-             " data-pagespeed-lsc-url=\"",
-             kTestDomain, kCuppaPngFilename, "\">");
+  GoogleString external_imgs = StrCat("<img src='", kCuppaPngFilename,
+                                      "'"
+                                      " width=\"30\" height=\"30\""
+                                      " data-pagespeed-lsc-url="
+                                      "\"",
+                                      kTestDomain, kCuppaPngFilename, "\">",
+                                      "<img src='", kCuppaPngFilename,
+                                      "'"
+                                      " width=\"150\" height=\"150\""
+                                      " data-pagespeed-lsc-url=\"",
+                                      kTestDomain, kCuppaPngFilename, "\">");
 
   SetupWaitFetcher();
-  TestLocalStorage("first_view", "", "",
-                   imgs, InsertScriptBefore(external_imgs));
+  TestLocalStorage("first_view", "", "", imgs,
+                   InsertScriptBefore(external_imgs));
   CallFetcherCallbacks();
 
   // Second view will inline them and add an expiry.
-  GoogleString inlined_imgs =
-      StrCat("<img src='", kCuppaPng30sqInlineData, "'"
-             // This is dropped; see below for why.
-             // " width=\"30\" height=\"30\""
-             " data-pagespeed-lsc-url=\"",
-             kTestDomain, kCuppaPngFilename, "\""
-             " data-pagespeed-lsc-hash=\"", kHash30x30, "\""
-             " data-pagespeed-lsc-expiry="
-             "\"Tue, 02 Feb 2010 18:53:06 GMT\">",
-             "<img src='", kCuppaPng150sqInlineData, "'"
-             " width=\"150\" height=\"150\""
-             " data-pagespeed-lsc-url=\"",
-             kTestDomain, kCuppaPngFilename, "\""
-             " data-pagespeed-lsc-hash=\"", kHash150x150, "\""
-             " data-pagespeed-lsc-expiry="
-             "\"Tue, 02 Feb 2010 18:53:06 GMT\">");
+  GoogleString inlined_imgs = StrCat("<img src='", kCuppaPng30sqInlineData,
+                                     "'"
+                                     // This is dropped; see below for why.
+                                     // " width=\"30\" height=\"30\""
+                                     " data-pagespeed-lsc-url=\"",
+                                     kTestDomain, kCuppaPngFilename,
+                                     "\""
+                                     " data-pagespeed-lsc-hash=\"",
+                                     kHash30x30,
+                                     "\""
+                                     " data-pagespeed-lsc-expiry="
+                                     "\"Tue, 02 Feb 2010 18:53:06 GMT\">",
+                                     "<img src='", kCuppaPng150sqInlineData,
+                                     "'"
+                                     " width=\"150\" height=\"150\""
+                                     " data-pagespeed-lsc-url=\"",
+                                     kTestDomain, kCuppaPngFilename,
+                                     "\""
+                                     " data-pagespeed-lsc-hash=\"",
+                                     kHash150x150,
+                                     "\""
+                                     " data-pagespeed-lsc-expiry="
+                                     "\"Tue, 02 Feb 2010 18:53:06 GMT\">");
   // NOTE: Why are width=30 and height=30 dropped from the first img tag?
   // Because the image rewriter calls DeleteMatchingImageDimsAfterInline for
   // each inlined image, and at this point the cached version of Cuppa.png is
@@ -537,31 +581,33 @@ TEST_F(LocalStorageCacheTest, RepeatViewsOfSameImageAtDifferentSizes) {
   // TODO(matterbury): Work out if the image rewriter needs to be smarter about
   // cached versions on inline images in this situation: same image, inlined
   // at different resolutions.
-  TestLocalStorage("second_view", "", "",
-                   imgs, InsertScriptBefore(inlined_imgs));
+  TestLocalStorage("second_view", "", "", imgs,
+                   InsertScriptBefore(inlined_imgs));
 
   // The JavaScript would set this cookie for the next request.
-  GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName,
-                               "=", kHash30x30, "!", kHash150x150);
+  GoogleString cookie = StrCat(LocalStorageCacheFilter::kLscCookieName, "=",
+                               kHash30x30, "!", kHash150x150);
   request_headers_.Add(HttpAttributes::kCookie, cookie);
 
   // Third view will not send the inlined data and will send scripts in place
   // of the link and img elements.
-  GoogleString scripted_imgs =
-      StrCat("<script data-pagespeed-no-defer>"
-             "pagespeed.localStorageCache.inlineImg("
-             "\"", kTestDomain, kCuppaPngFilename,
-             "\", \"", kHash30x30, "\""
-             ", \"width=30\", \"height=30\""
-             ");</script>",
-             "<script data-pagespeed-no-defer>"
-             "pagespeed.localStorageCache.inlineImg("
-             "\"", kTestDomain, kCuppaPngFilename,
-             "\", \"", kHash150x150, "\""
-             ", \"width=150\", \"height=150\""
-             ");</script>");
-  TestLocalStorage("third_view", "", "",
-                   imgs, InsertScriptBefore(scripted_imgs));
+  GoogleString scripted_imgs = StrCat(
+      "<script data-pagespeed-no-defer>"
+      "pagespeed.localStorageCache.inlineImg("
+      "\"",
+      kTestDomain, kCuppaPngFilename, "\", \"", kHash30x30,
+      "\""
+      ", \"width=30\", \"height=30\""
+      ");</script>",
+      "<script data-pagespeed-no-defer>"
+      "pagespeed.localStorageCache.inlineImg("
+      "\"",
+      kTestDomain, kCuppaPngFilename, "\", \"", kHash150x150,
+      "\""
+      ", \"width=150\", \"height=150\""
+      ");</script>");
+  TestLocalStorage("third_view", "", "", imgs,
+                   InsertScriptBefore(scripted_imgs));
 }
 
 }  // namespace

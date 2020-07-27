@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_THREADSAFE_LOCK_MANAGER_H_
 #define PAGESPEED_KERNEL_UTIL_THREADSAFE_LOCK_MANAGER_H_
 
@@ -32,8 +31,8 @@ namespace net_instaweb {
 class ThreadSafeLockManager : public NamedLockManager {
  public:
   explicit ThreadSafeLockManager(Scheduler* scheduler);
-  virtual ~ThreadSafeLockManager();
-  virtual NamedLock* CreateNamedLock(const StringPiece& name);
+  ~ThreadSafeLockManager() override;
+  NamedLock* CreateNamedLock(const StringPiece& name) override;
 
  private:
   class Lock;

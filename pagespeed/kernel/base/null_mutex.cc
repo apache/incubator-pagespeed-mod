@@ -17,22 +17,16 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/null_mutex.h"
 
 namespace net_instaweb {
 
-NullMutex::~NullMutex() {
-}
+NullMutex::~NullMutex() {}
 
-bool NullMutex::TryLock() {
-  return true;
-}
+bool NullMutex::TryLock() { return true; }
 
-void NullMutex::Lock() {
-}
+void NullMutex::Lock() {}
 
-void NullMutex::Unlock() {
-}
+void NullMutex::Unlock() {}
 
 }  // namespace net_instaweb

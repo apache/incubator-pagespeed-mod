@@ -17,14 +17,13 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_PRIORITY_QUEUE_H_
 #define PAGESPEED_CONTROLLER_PRIORITY_QUEUE_H_
 
 #include <cstddef>
 #include <functional>
-#include <utility>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "base/logging.h"
@@ -35,12 +34,11 @@
 
 namespace net_instaweb {
 
-template <typename T,
-          typename HashFn = std::hash<T>,
+template <typename T, typename HashFn = std::hash<T>,
           typename EqFn = std::equal_to<T>>
 class PriorityQueue {
  public:
-  PriorityQueue() { }
+  PriorityQueue() {}
   ~PriorityQueue() { Clear(); }
 
   // Increase the priority of "key" by amount. If key is not already present,
@@ -69,9 +67,7 @@ class PriorityQueue {
   // and queue_ must each know the value, so we store it by pointer to avoid
   // having two copies around.
   struct PtrHash {
-    size_t operator()(const T* x) const {
-      return HashFn()(*x);
-    }
+    size_t operator()(const T* x) const { return HashFn()(*x); }
   };
 
   struct PtrEq {
@@ -94,8 +90,7 @@ class PriorityQueue {
   void SanityCheckForTesting() const;
 
   // Map items onto their position in queue_.
-  typedef std::unordered_map<const T*, size_t, PtrHash, PtrEq>
-      IndexMap;
+  typedef std::unordered_map<const T*, size_t, PtrHash, PtrEq> IndexMap;
   IndexMap index_map_;
 
   // The actual max-heap. Stores the value so that it can look it back up in

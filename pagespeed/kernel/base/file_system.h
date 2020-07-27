@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_FILE_SYSTEM_H_
 #define PAGESPEED_KERNEL_BASE_FILE_SYSTEM_H_
 
@@ -35,18 +34,14 @@ namespace net_instaweb {
 // accidental usage in an if- or ternary-condition without explicitly indicating
 // whether you are looking for true, false, or error.
 class BoolOrError {
-  enum Choice {
-    kIsFalse,
-    kIsTrue,
-    kIsError
-  };
+  enum Choice { kIsFalse, kIsTrue, kIsError };
 
  public:
-  BoolOrError() : choice_(kIsError) { }
-  explicit BoolOrError(bool t_or_f) : choice_(t_or_f ? kIsTrue : kIsFalse) { }
+  BoolOrError() : choice_(kIsError) {}
+  explicit BoolOrError(bool t_or_f) : choice_(t_or_f ? kIsTrue : kIsFalse) {}
 
   // Intended to be passed by value; explicitly support copy & assign
-  BoolOrError(const BoolOrError& src) : choice_(src.choice_) { }
+  BoolOrError(const BoolOrError& src) : choice_(src.choice_) {}
   BoolOrError& operator=(const BoolOrError& src) {
     if (&src != this) {
       choice_ = src.choice_;
@@ -109,7 +104,7 @@ class FileSystem {
 
    protected:
     friend class FileSystem;
-    virtual ~InputFile();
+    ~InputFile() override;
   };
 
   class OutputFile : public File {
@@ -122,7 +117,7 @@ class FileSystem {
 
    protected:
     friend class FileSystem;
-    virtual ~OutputFile();
+    ~OutputFile() override;
   };
 
   class ProgressNotifier {
@@ -146,7 +141,7 @@ class FileSystem {
   };
 
   struct DirInfo {
-    DirInfo() : size_bytes(0), inode_count(0) { }
+    DirInfo() : size_bytes(0), inode_count(0) {}
 
     std::vector<FileInfo> files;
     StringVector empty_dirs;
@@ -165,62 +160,46 @@ class FileSystem {
   // versions accept a NULL input_file, in which case they report failure.  If
   // the file is larget than max_file_size, return false.  All routines close
   // the file.
-  virtual bool ReadFile(const char* filename,
-                        int64 max_file_size,
-                        Writer* writer,
-                        MessageHandler* handler);
-  virtual bool ReadFile(InputFile* input_file,
-                        int64 max_file_size,
-                        Writer* writer,
-                        MessageHandler* handler);
-  virtual bool ReadFile(const char* filename,
-                        int64 max_file_size,
-                        GoogleString* buffer,
-                        MessageHandler* handler);
-  virtual bool ReadFile(InputFile* input_file,
-                        int64 max_file_size,
-                        GoogleString* buffer,
-                        MessageHandler* handler);
+  virtual bool ReadFile(const char* filename, int64 max_file_size,
+                        Writer* writer, MessageHandler* handler);
+  virtual bool ReadFile(InputFile* input_file, int64 max_file_size,
+                        Writer* writer, MessageHandler* handler);
+  virtual bool ReadFile(const char* filename, int64 max_file_size,
+                        GoogleString* buffer, MessageHandler* handler);
+  virtual bool ReadFile(InputFile* input_file, int64 max_file_size,
+                        GoogleString* buffer, MessageHandler* handler);
   // Deprecated versions of ReadFile, because they can OOM if the file they're
   // trying to read happens to be surprisingly large.  Instead, call ReadFile
   // with a limit.  If you can guarantee that you'll never encounter a large
   // file with this call, perhaps because you're reading a file you created,
   // then call ReadFile with an explicit limit of kUnlimitedSize.
-  virtual bool ReadFile(const char* filename,
-                        GoogleString* buffer,
+  virtual bool ReadFile(const char* filename, GoogleString* buffer,
                         MessageHandler* handler);
-  virtual bool ReadFile(InputFile* input_file,
-                        GoogleString* buffer,
+  virtual bool ReadFile(InputFile* input_file, GoogleString* buffer,
                         MessageHandler* handler);
-  virtual bool ReadFile(const char* filename,
-                        Writer* writer,
+  virtual bool ReadFile(const char* filename, Writer* writer,
                         MessageHandler* handler);
-  virtual bool ReadFile(InputFile* input_file,
-                        Writer* writer,
+  virtual bool ReadFile(InputFile* input_file, Writer* writer,
                         MessageHandler* handler);
   // Non-atomic. Use WriteFileAtomic() for atomic version.
-  virtual bool WriteFile(const char* filename,
-                         const StringPiece& buffer,
+  virtual bool WriteFile(const char* filename, const StringPiece& buffer,
                          MessageHandler* handler);
   // Writes given data to a temp file in one shot, storing the filename
   // in filename on success.  Returns false and clears filename on failure.
   virtual bool WriteTempFile(const StringPiece& prefix_name,
-                             const StringPiece& buffer,
-                             GoogleString* filename,
+                             const StringPiece& buffer, GoogleString* filename,
                              MessageHandler* handler);
 
   // Write a temp file first and then copy to filename so that the file
   // cannot be read after being partially written.
   // Temp file name is based on filename.
-  bool WriteFileAtomic(const StringPiece& filename,
-                       const StringPiece& buffer,
+  bool WriteFileAtomic(const StringPiece& filename, const StringPiece& buffer,
                        MessageHandler* handler);
 
   virtual InputFile* OpenInputFile(const char* filename,
                                    MessageHandler* handler) = 0;
   // Automatically creates sub-directories to filename.
-  OutputFile* OpenOutputFile(const char* filename,
-                             MessageHandler* handler) {
+  OutputFile* OpenOutputFile(const char* filename, MessageHandler* handler) {
     SetupFileDir(filename, handler);
     return OpenOutputFileHelper(filename, false, handler);
   }
@@ -244,7 +223,6 @@ class FileSystem {
 
   // Closes the File and cleans up memory.
   virtual bool Close(File* file, MessageHandler* handler);
-
 
   // Like POSIX 'rm'.
   virtual bool RemoveFile(const char* filename, MessageHandler* handler) = 0;
@@ -310,9 +288,9 @@ class FileSystem {
 
   // Like GetDirInfo, but notifier->Notify() is called repeatedly as long as
   // GetDirInfo is making progress.
-  virtual void GetDirInfoWithProgress(
-      const StringPiece& path, DirInfo* dirinfo,
-      ProgressNotifier* notifier, MessageHandler* handler);
+  virtual void GetDirInfoWithProgress(const StringPiece& path, DirInfo* dirinfo,
+                                      ProgressNotifier* notifier,
+                                      MessageHandler* handler);
 
   // Given a file, computes its size in bytes and store it in *size.  Returns
   // true on success, false on failure.  Behavior is undefined if path refers to
@@ -372,8 +350,7 @@ class FileSystem {
  protected:
   // These interfaces must be defined by implementers of FileSystem.
   // They may assume the directory already exists.
-  virtual OutputFile* OpenOutputFileHelper(const char* filename,
-                                           bool append,
+  virtual OutputFile* OpenOutputFileHelper(const char* filename, bool append,
                                            MessageHandler* handler) = 0;
   virtual OutputFile* OpenTempFileHelper(const StringPiece& filename,
                                          MessageHandler* handler) = 0;

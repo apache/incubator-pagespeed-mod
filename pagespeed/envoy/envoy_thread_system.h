@@ -33,8 +33,8 @@
 
 namespace net_instaweb {
 class EnvoyThreadSystem : public net_instaweb::SystemThreadSystem {
-public:
+ public:
   void BeforeThreadRunHook() override {}
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

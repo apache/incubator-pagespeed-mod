@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_RPC_HANDLER_H_
 #define PAGESPEED_CONTROLLER_EXPENSIVE_OPERATION_RPC_HANDLER_H_
 
@@ -49,11 +48,11 @@ namespace net_instaweb {
 // release "locks".
 
 class ExpensiveOperationRpcHandler
-    : public RequestResultRpcHandler<
-          ExpensiveOperationRpcHandler, ExpensiveOperationController,
-          CentralControllerRpcService::AsyncService,
-          ScheduleExpensiveOperationRequest,
-          ScheduleExpensiveOperationResponse> {
+    : public RequestResultRpcHandler<ExpensiveOperationRpcHandler,
+                                     ExpensiveOperationController,
+                                     CentralControllerRpcService::AsyncService,
+                                     ScheduleExpensiveOperationRequest,
+                                     ScheduleExpensiveOperationResponse> {
  protected:
   ExpensiveOperationRpcHandler(
       CentralControllerRpcService::AsyncService* service,
@@ -61,8 +60,8 @@ class ExpensiveOperationRpcHandler
       ExpensiveOperationController* controller);
 
   // RequestResultRpcHandler implementation.
-  void HandleClientRequest(
-      const ScheduleExpensiveOperationRequest& req, Function* cb) override;
+  void HandleClientRequest(const ScheduleExpensiveOperationRequest& req,
+                           Function* cb) override;
   void HandleClientResult(
       const ScheduleExpensiveOperationRequest& req) override;
   void HandleOperationFailed() override;

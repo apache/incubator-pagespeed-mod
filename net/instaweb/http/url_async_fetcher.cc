@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/url_async_fetcher.h"
 
 #include "net/instaweb/http/public/inflating_fetch.h"
@@ -26,11 +25,9 @@ namespace net_instaweb {
 
 const int64 UrlAsyncFetcher::kUnspecifiedTimeout = 0;
 
-UrlAsyncFetcher::~UrlAsyncFetcher() {
-}
+UrlAsyncFetcher::~UrlAsyncFetcher() {}
 
-void UrlAsyncFetcher::ShutDown() {
-}
+void UrlAsyncFetcher::ShutDown() {}
 
 AsyncFetch* UrlAsyncFetcher::EnableInflation(AsyncFetch* fetch) const {
   InflatingFetch* inflating_fetch = new InflatingFetch(fetch);

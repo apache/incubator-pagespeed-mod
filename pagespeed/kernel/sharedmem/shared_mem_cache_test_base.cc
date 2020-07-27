@@ -17,15 +17,16 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/sharedmem/shared_mem_cache_test_base.h"
 
 #include <unistd.h>
-#include <cstddef>                     // for size_t
+
+#include <cstddef>  // for size_t
 #include <map>
+#include <memory>
 #include <utility>
 
-#include "base/logging.h"               // for Check_EQImpl, CHECK_EQ
+#include "base/logging.h"  // for Check_EQImpl, CHECK_EQ
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -51,9 +52,7 @@ const int kSnapshotIntervalMs = 1000;
 // In some tests we have tight consumer/producer spinloops assuming they'll get
 // preempted to let other end proceed. Valgrind does not actually do that
 // sometimes.
-void YieldToThread() {
-  usleep(1);
-}
+void YieldToThread() { usleep(1); }
 
 }  // namespace
 
@@ -223,7 +222,7 @@ void SharedMemCacheTestBase::TestReaderWriter() {
 }
 
 void SharedMemCacheTestBase::TestReaderWriterChild() {
-  std::unique_ptr<SharedMemCache<kBlockSize> > child_cache(MakeCache());
+  std::unique_ptr<SharedMemCache<kBlockSize>> child_cache(MakeCache());
   if (!child_cache->Attach()) {
     test_env_->ChildFailed();
   }
@@ -252,11 +251,10 @@ void SharedMemCacheTestBase::TestConflict() {
 
   // We create a cache with 1 sector, and kAssociativity entries, since it
   // makes it easy to get a conflict and replacement.
-  std::unique_ptr<SharedMemCache<kBlockSize> > small_cache(
-      new SharedMemCache<kBlockSize>(shmem_runtime_.get(), kAltSegment, &timer_,
-                                     &hasher_, 1 /* sectors*/,
-                                     kAssociativity /* entries / sector */,
-                                     kSectorBlocks, &handler_));
+  std::unique_ptr<SharedMemCache<kBlockSize>> small_cache(
+      new SharedMemCache<kBlockSize>(
+          shmem_runtime_.get(), kAltSegment, &timer_, &hasher_, 1 /* sectors*/,
+          kAssociativity /* entries / sector */, kSectorBlocks, &handler_));
   ASSERT_TRUE(small_cache->Initialize());
 
   // Insert kAssociativity + 1 entries.
@@ -277,11 +275,10 @@ void SharedMemCacheTestBase::TestConflict() {
 void SharedMemCacheTestBase::TestEvict() {
   // We create a cache with 1 sector as it makes it easier to reason
   // about how much room is left.
-  std::unique_ptr<SharedMemCache<kBlockSize> > small_cache(
-      new SharedMemCache<kBlockSize>(shmem_runtime_.get(), kAltSegment, &timer_,
-                                     &hasher_, 1 /* sectors*/,
-                                     kSectorBlocks * 4 /* entries / sector */,
-                                     kSectorBlocks, &handler_));
+  std::unique_ptr<SharedMemCache<kBlockSize>> small_cache(
+      new SharedMemCache<kBlockSize>(
+          shmem_runtime_.get(), kAltSegment, &timer_, &hasher_, 1 /* sectors*/,
+          kSectorBlocks * 4 /* entries / sector */, kSectorBlocks, &handler_));
   ASSERT_TRUE(small_cache->Initialize());
 
   // Insert large_ kSectorBlocks times. Since large_ is ~3 blocks in size,
@@ -295,16 +292,17 @@ void SharedMemCacheTestBase::TestEvict() {
   small_cache->GlobalCleanup(shmem_runtime_.get(), kAltSegment, &handler_);
 }
 
-void SharedMemCacheTestBase::CheckDumpsEqual(
-    const SharedMemCacheDump& a, const SharedMemCacheDump& b,
-    const char* test_label) {
+void SharedMemCacheTestBase::CheckDumpsEqual(const SharedMemCacheDump& a,
+                                             const SharedMemCacheDump& b,
+                                             const char* test_label) {
   ASSERT_EQ(a.entry_size(), b.entry_size()) << test_label;
 
   for (int i = 0; i < a.entry_size(); ++i) {
     EXPECT_EQ(a.entry(i).value(), b.entry(i).value()) << test_label;
     EXPECT_EQ(a.entry(i).raw_key(), b.entry(i).raw_key()) << test_label;
     EXPECT_EQ(a.entry(i).last_use_timestamp_ms(),
-              b.entry(i).last_use_timestamp_ms()) << test_label;
+              b.entry(i).last_use_timestamp_ms())
+        << test_label;
   }
 }
 
@@ -377,8 +375,7 @@ void SharedMemCacheTestBase::TestSnapshot() {
   SharedMemCacheDump roundtrip_dump;
   for (int i = 0; i < kSectors; ++i) {
     Cache()->SetLastWriteMsForTesting(i, kLastWriteMs);
-    EXPECT_TRUE(
-        Cache()->AddSectorToSnapshot(i, kLastWriteMs, &roundtrip_dump));
+    EXPECT_TRUE(Cache()->AddSectorToSnapshot(i, kLastWriteMs, &roundtrip_dump));
     EXPECT_EQ(timer_.NowMs(), Cache()->GetLastWriteMsForTesting(i));
   }
 
@@ -395,8 +392,8 @@ void SharedMemCacheTestBase::TestSnapshot() {
   SharedMemCacheDump dump_ts_mismatch;
   int sector_num = 0;
   Cache()->SetLastWriteMsForTesting(sector_num, kLastWriteMs);
-  EXPECT_FALSE(Cache()->AddSectorToSnapshot(
-      sector_num, kLastWriteMs - 1, &dump_ts_mismatch));
+  EXPECT_FALSE(Cache()->AddSectorToSnapshot(sector_num, kLastWriteMs - 1,
+                                            &dump_ts_mismatch));
   EXPECT_EQ(kLastWriteMs, Cache()->GetLastWriteMsForTesting(sector_num));
   EXPECT_EQ(0, dump_ts_mismatch.entry_size());
 }
@@ -410,8 +407,8 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
   // Test that we handle setting the file cache to multiple paths by picking the
   // one that's first alphabetically.
   std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_abc(
-      new FileCacheTestWrapper(
-          "/abc", thread_system_.get(), &timer_, &handler_));
+      new FileCacheTestWrapper("/abc", thread_system_.get(), &timer_,
+                               &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_abc->file_cache(),
                                     kSnapshotIntervalMs);
   CHECK_EQ(cache_->snapshot_path(), "/abc");
@@ -419,8 +416,8 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
 
   // Alphabetically before /abc, so replaces it.
   std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_abb(
-      new FileCacheTestWrapper(
-          "/abb", thread_system_.get(), &timer_, &handler_));
+      new FileCacheTestWrapper("/abb", thread_system_.get(), &timer_,
+                               &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_abb->file_cache(),
                                     kSnapshotIntervalMs);
   CHECK_EQ(cache_->snapshot_path(), "/abb");
@@ -428,8 +425,8 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
 
   // Not before /abb, so doesn't replace it.
   std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_acb(
-      new FileCacheTestWrapper(
-          "/acb", thread_system_.get(), &timer_, &handler_));
+      new FileCacheTestWrapper("/acb", thread_system_.get(), &timer_,
+                               &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_acb->file_cache(),
                                     kSnapshotIntervalMs);
   CHECK_EQ(cache_->snapshot_path(), "/abb");
@@ -437,8 +434,8 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
 
   // Before /abb, so does replace it.
   std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_aab(
-      new FileCacheTestWrapper(
-          "/aab", thread_system_.get(), &timer_, &handler_));
+      new FileCacheTestWrapper("/aab", thread_system_.get(), &timer_,
+                               &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_aab->file_cache(),
                                     kSnapshotIntervalMs);
   CHECK_EQ(cache_->snapshot_path(), "/aab");
@@ -447,8 +444,8 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
   // The cache was constructed with a filename of kSegment, and a match on
   // filename should always win here.
   std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_ksegment(
-      new FileCacheTestWrapper(
-          kSegment, thread_system_.get(), &timer_, &handler_));
+      new FileCacheTestWrapper(kSegment, thread_system_.get(), &timer_,
+                               &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_ksegment->file_cache(),
                                     kSnapshotIntervalMs);
   CHECK_EQ(cache_->snapshot_path(), kSegment);
@@ -457,8 +454,8 @@ void SharedMemCacheTestBase::TestRegisterSnapshotFileCache() {
   // Before kSegment, but doesn't replace it because kSegment was a filename
   // match.
   std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper_aaa(
-      new FileCacheTestWrapper(
-          "/aaa", thread_system_.get(), &timer_, &handler_));
+      new FileCacheTestWrapper("/aaa", thread_system_.get(), &timer_,
+                               &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper_aaa->file_cache(),
                                     kSnapshotIntervalMs);
   CHECK_EQ(cache_->snapshot_path(), kSegment);
@@ -469,12 +466,12 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
   const GoogleString kPath = "/a-path";
 
   // Setup.
-  cache_.reset(new SharedMemCache<kBlockSize>(
-      shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
+      shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors, kSectorEntries,
+      kSectorBlocks, &handler_);
   std::unique_ptr<FileCacheTestWrapper> file_cache_wrapper(
-      new FileCacheTestWrapper(
-          kPath, thread_system_.get(), &timer_, &handler_));
+      new FileCacheTestWrapper(kPath, thread_system_.get(), &timer_,
+                               &handler_));
   cache_->RegisterSnapshotFileCache(file_cache_wrapper->file_cache(),
                                     kSnapshotIntervalMs);
   EXPECT_EQ(cache_->file_cache(), file_cache_wrapper->file_cache());
@@ -500,9 +497,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
 
   // Reset the cache, but don't set a file system.  We expect not to load
   // anything.
-  cache_.reset(new SharedMemCache<kBlockSize>(
-      shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
+      shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors, kSectorEntries,
+      kSectorBlocks, &handler_);
   EXPECT_TRUE(cache_->Initialize());
   CheckNotFound("200");
 
@@ -510,9 +507,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
   // is similar to the case where a default shm cache and an explicitly
   // configured one share the same file cache path.  We expect not to load
   // anything, because the path is part of the key.
-  cache_.reset(new SharedMemCache<kBlockSize>(
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
       shmem_runtime_.get(), "default-shm-cache", &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+      kSectorEntries, kSectorBlocks, &handler_);
   cache_->RegisterSnapshotFileCache(file_cache_wrapper->file_cache(),
                                     kSnapshotIntervalMs);
   EXPECT_TRUE(cache_->Initialize());
@@ -520,9 +517,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
 
   // Now reset the cache, but do set the file system.  Everything should be
   // loaded back in.
-  cache_.reset(new SharedMemCache<kBlockSize>(
-      shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
+      shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors, kSectorEntries,
+      kSectorBlocks, &handler_);
   cache_->RegisterSnapshotFileCache(file_cache_wrapper->file_cache(),
                                     kSnapshotIntervalMs);
   EXPECT_TRUE(cache_->Initialize());
@@ -533,9 +530,9 @@ void SharedMemCacheTestBase::TestCheckpointAndRestore() {
   CheckGet("200", "OK");
 
   // But you can't reload from an empty filesystem.
-  cache_.reset(new SharedMemCache<kBlockSize>(
-      shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors,
-      kSectorEntries, kSectorBlocks, &handler_));
+  cache_ = std::make_unique<SharedMemCache<kBlockSize>>(
+      shmem_runtime_.get(), kPath, &timer_, &hasher_, kSectors, kSectorEntries,
+      kSectorBlocks, &handler_);
   cache_->RegisterSnapshotFileCache(file_cache_wrapper->file_cache(),
                                     kSnapshotIntervalMs);
   EXPECT_TRUE(cache_->Initialize());

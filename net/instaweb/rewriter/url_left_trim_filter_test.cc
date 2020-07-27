@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/url_left_trim_filter.h"
+
+#include <memory>
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -33,10 +34,10 @@ namespace net_instaweb {
 
 class UrlLeftTrimFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
-    left_trim_filter_.reset(new UrlLeftTrimFilter(rewrite_driver(),
-                                                  statistics()));
+    left_trim_filter_ =
+        std::make_unique<UrlLeftTrimFilter>(rewrite_driver(), statistics());
     rewrite_driver()->AddFilter(left_trim_filter_.get());
   }
 
@@ -49,10 +50,8 @@ class UrlLeftTrimFilterTest : public RewriteTestBase {
     OneTrim(true, "http://www.example.com/dir/#anchor", "/dir/#anchor");
     OneTrim(true, "http://www.example.com/dir/foo.html", "foo.html");
     OneTrim(true, "http://www.example.com/dir/abc/f?g=h", "abc/f?g=h");
-    OneTrim(true, "http://www.example.com/dir/f?g=h#anchor",
-            "f?g=h#anchor");
-    OneTrim(true, "http://www.example.com/dir/index.html#",
-            "index.html#");
+    OneTrim(true, "http://www.example.com/dir/f?g=h#anchor", "f?g=h#anchor");
+    OneTrim(true, "http://www.example.com/dir/index.html#", "index.html#");
     OneTrim(true, "http://www.example.com/dir/index.html?f=g#bottom",
             "index.html?f=g#bottom");
     OneTrim(true, "http://www.example.com/dir/index.html?f=g#bottom",
@@ -60,24 +59,24 @@ class UrlLeftTrimFilterTest : public RewriteTestBase {
     OneTrim(false, "#top", "");
   }
 
-  void OneTrim(bool changed,
-               const StringPiece& init, const StringPiece& expected) {
+  void OneTrim(bool changed, const StringPiece& init,
+               const StringPiece& expected) {
     StringPiece url(init);
     GoogleString trimmed;
-    CHECK(base_url_.get() != NULL);
-    EXPECT_EQ(changed, left_trim_filter_->Trim(
-        *base_url_.get(), url, &trimmed,
-        rewrite_driver()->message_handler()));
+    CHECK(base_url_.get() != nullptr);
+    EXPECT_EQ(changed,
+              left_trim_filter_->Trim(*base_url_.get(), url, &trimmed,
+                                      rewrite_driver()->message_handler()));
     if (changed) {
       EXPECT_STREQ(expected, trimmed);
     }
   }
 
   void SetFilterBaseUrl(const StringPiece& base_url) {
-    base_url_.reset(new GoogleUrl(base_url));
+    base_url_ = std::make_unique<GoogleUrl>(base_url);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
   // TODO(jmarantz): factor out all the image references in this file to use
   // this method.

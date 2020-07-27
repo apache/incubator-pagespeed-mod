@@ -17,16 +17,15 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/counting_writer.h"
-#include "pagespeed/kernel/base/writer.h"
+
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/base/writer.h"
 
 namespace net_instaweb {
 class MessageHandler;
 
-CountingWriter::~CountingWriter() {
-}
+CountingWriter::~CountingWriter() {}
 
 bool CountingWriter::Write(const StringPiece& str, MessageHandler* handler) {
   byte_count_ += str.size();

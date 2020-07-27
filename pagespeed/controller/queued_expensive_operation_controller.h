@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_QUEUED_EXPENSIVE_OPERATION_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_QUEUED_EXPENSIVE_OPERATION_CONTROLLER_H_
 
@@ -41,8 +40,7 @@ namespace net_instaweb {
 // process/multi-threaded environment, or through an external RPC system.
 // See WorkBoundExpensiveOperationController for an alternate implementation
 // that does not have this limitation.
-class QueuedExpensiveOperationController
-    : public ExpensiveOperationController {
+class QueuedExpensiveOperationController : public ExpensiveOperationController {
  public:
   static const char kActiveExpensiveOperations[];
   static const char kQueuedExpensiveOperations[];
@@ -51,11 +49,11 @@ class QueuedExpensiveOperationController
   QueuedExpensiveOperationController(int max_expensive_operations,
                                      ThreadSystem* thread_system,
                                      Statistics* stats);
-  virtual ~QueuedExpensiveOperationController();
+  ~QueuedExpensiveOperationController() override;
 
   // ExpensiveOperationController interface.
-  virtual void ScheduleExpensiveOperation(Function* callback);
-  virtual void NotifyExpensiveOperationComplete();
+  void ScheduleExpensiveOperation(Function* callback) override;
+  void NotifyExpensiveOperationComplete() override;
 
   static void InitStats(Statistics* stats);
 

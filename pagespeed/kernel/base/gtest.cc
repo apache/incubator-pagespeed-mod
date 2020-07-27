@@ -24,18 +24,18 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>  // For getpid()
+
 #include <vector>
 
 #include "pagespeed/kernel/base/stack_buffer.h"
-#include "pagespeed/kernel/base/string_util.h"
-
 #include "pagespeed/kernel/base/string.h"
+#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
 GoogleString GTestSrcDir() {
   char cwd[kStackBufferSize];
-  CHECK(getcwd(cwd, sizeof(cwd)) != NULL);
+  CHECK(getcwd(cwd, sizeof(cwd)) != nullptr);
 
   // This needs to return the root of the git checkout. In practice all the
   // tests are run automatically from there, so we just stat a few directories
@@ -51,14 +51,15 @@ GoogleString GTestSrcDir() {
     }
   }
   // XXX(oschaaf): now that we run with bazel this is no longer a thing?
-  // CHECK(found) << "You must run this test from the root of the checkout" << cwd;
+  // CHECK(found) << "You must run this test from the root of the checkout" <<
+  // cwd;
   return cwd;
 }
 
 GoogleString GTestTempDir() {
   GoogleString dir = absl::StrFormat("/tmp/gtest.%d", getpid());
   struct stat info;
-  if(stat(dir.c_str(), &info) != 0) {
+  if (stat(dir.c_str(), &info) != 0) {
     CHECK(!mkdir(dir.c_str(), 0777));
   }
   return dir;

@@ -84,8 +84,7 @@ class UrlPartnership {
   static bool FindResourceDomain(const GoogleUrl& base_url,
                                  const UrlNamer* url_namer,
                                  const RewriteOptions* rewrite_options,
-                                 GoogleUrl* resource,
-                                 GoogleString* domain,
+                                 GoogleUrl* resource, GoogleString* domain,
                                  MessageHandler* handler);
 
  protected:

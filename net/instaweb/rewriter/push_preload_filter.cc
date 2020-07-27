@@ -29,7 +29,7 @@
 
 #include <algorithm>
 #include <unordered_set>
-#include <utility>                      // for pair
+#include <utility>  // for pair
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/dependencies.pb.h"
@@ -46,8 +46,7 @@
 namespace net_instaweb {
 
 PushPreloadFilter::PushPreloadFilter(RewriteDriver* rewrite_driver)
-    : CommonFilter(rewrite_driver) {
-}
+    : CommonFilter(rewrite_driver) {}
 
 PushPreloadFilter::~PushPreloadFilter() {}
 
@@ -90,9 +89,10 @@ void PushPreloadFilter::StartDocumentImpl() {
     for (int i = 0; i < dep.validity_info_size(); ++i) {
       const InputInfo& input = dep.validity_info(i);
       bool purged_ignored, stale_rewrite_ignored;
-      if (!input_info_utils::IsInputValid(
-            server_context(), rewrite_options(), false /* not nested_rewriter*/,
-            input, now_ms, &purged_ignored, &stale_rewrite_ignored)) {
+      if (!input_info_utils::IsInputValid(server_context(), rewrite_options(),
+                                          false /* not nested_rewriter*/, input,
+                                          now_ms, &purged_ignored,
+                                          &stale_rewrite_ignored)) {
         // Stop at first invalid entry, to avoid out-of-order hints.
         return;
       }

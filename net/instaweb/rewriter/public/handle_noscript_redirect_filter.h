@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_HANDLE_NOSCRIPT_REDIRECT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_HANDLE_NOSCRIPT_REDIRECT_FILTER_H_
 
@@ -37,12 +36,12 @@ class RewriteDriver;
 class HandleNoscriptRedirectFilter : public EmptyHtmlFilter {
  public:
   explicit HandleNoscriptRedirectFilter(RewriteDriver* rewrite_driver);
-  virtual ~HandleNoscriptRedirectFilter();
+  ~HandleNoscriptRedirectFilter() override;
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual const char* Name() const { return "HandleNoscriptRedirect"; }
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  const char* Name() const override { return "HandleNoscriptRedirect"; }
 
  private:
   void Init();

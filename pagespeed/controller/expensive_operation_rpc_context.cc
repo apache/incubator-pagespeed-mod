@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/expensive_operation_rpc_context.h"
 
 #include <memory>
@@ -53,9 +52,7 @@ class ExpensiveOperationRpcContext::ExpensiveOperationRequestResultRpcClient
     return stub->AsyncScheduleExpensiveOperation(context, queue, tag);
   }
 
-  ~ExpensiveOperationRequestResultRpcClient() {
-    Done();
-  }
+  ~ExpensiveOperationRequestResultRpcClient() override { Done(); }
 
   void Done() {
     ScheduleExpensiveOperationRequest req;

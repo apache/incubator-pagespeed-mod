@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/async_fetch_with_lock.h"
 
 #include "base/logging.h"
@@ -41,24 +40,23 @@ const int kLockTimeoutSlackMs = 2 * Timer::kMinuteMs;
 
 }  // namespace
 
-AsyncFetchWithLock::AsyncFetchWithLock(
-    const Hasher* hasher,
-    const RequestContextPtr& request_context,
-    const GoogleString& url,
-    const GoogleString& cache_key,
-    NamedLockManager* lock_manager,
-    MessageHandler* message_handler)
+AsyncFetchWithLock::AsyncFetchWithLock(const Hasher* hasher,
+                                       const RequestContextPtr& request_context,
+                                       const GoogleString& url,
+                                       const GoogleString& cache_key,
+                                       NamedLockManager* lock_manager,
+                                       MessageHandler* message_handler)
     : AsyncFetch(request_context),
       lock_manager_(lock_manager),
       lock_hasher_(hasher),
       url_(url),
       cache_key_(cache_key),
-      message_handler_(message_handler) {
-}
+      message_handler_(message_handler) {}
 
 AsyncFetchWithLock::~AsyncFetchWithLock() {
-  DCHECK(lock_ == NULL) << "Fetch is completed without deleting the lock for "
-                        << "cache key: " << cache_key_ << "url: " << url_;
+  DCHECK(lock_ == nullptr)
+      << "Fetch is completed without deleting the lock for "
+      << "cache key: " << cache_key_ << "url: " << url_;
 }
 
 void AsyncFetchWithLock::Start(UrlAsyncFetcher* fetcher) {
@@ -74,28 +72,27 @@ void AsyncFetchWithLock::Start(UrlAsyncFetcher* fetcher) {
     lock_timeout += kLockTimeoutSlackMs;
   }
 
-  lock_->LockTimedWaitStealOld(0 /* wait_ms */, lock_timeout,
-                               MakeFunction(this,
-                                            &AsyncFetchWithLock::LockAcquired,
-                                            &AsyncFetchWithLock::LockFailed,
-                                            fetcher));
+  lock_->LockTimedWaitStealOld(
+      0 /* wait_ms */, lock_timeout,
+      MakeFunction(this, &AsyncFetchWithLock::LockAcquired,
+                   &AsyncFetchWithLock::LockFailed, fetcher));
 }
 
 void AsyncFetchWithLock::LockFailed(UrlAsyncFetcher* fetcher) {
   // lock_name will be needed after lock is deleted.
   GoogleString lock_name(lock_->name());
-  lock_.reset(NULL);
+  lock_.reset(nullptr);
   // TODO(abliss): a per-unit-time statistic would be useful here.
   if (ShouldYieldToRedundantFetchInProgress()) {
-    message_handler_->Message(
-        kInfo, "%s is already being fetched (lock %s)",
-        cache_key().c_str(), lock_name.c_str());
+    message_handler_->Message(kInfo, "%s is already being fetched (lock %s)",
+                              cache_key().c_str(), lock_name.c_str());
     Finalize(true /* lock_failure */, false /* success */);
     delete this;
   } else {
-    message_handler_->Message(
-        kInfo, "%s is being re-fetched asynchronously "
-        "(lock %s held elsewhere)", cache_key().c_str(), lock_name.c_str());
+    message_handler_->Message(kInfo,
+                              "%s is being re-fetched asynchronously "
+                              "(lock %s held elsewhere)",
+                              cache_key().c_str(), lock_name.c_str());
     StartFetch(fetcher, message_handler_);
   }
 }
@@ -105,28 +102,24 @@ void AsyncFetchWithLock::LockAcquired(UrlAsyncFetcher* fetcher) {
 }
 
 void AsyncFetchWithLock::HandleDone(bool success) {
-  if (lock_.get() != NULL) {
+  if (lock_.get() != nullptr) {
     lock_->Unlock();
-    lock_.reset(NULL);
+    lock_.reset(nullptr);
   }
   Finalize(false /* lock_failure */, success /* success */);
   delete this;
 }
 
-void AsyncFetchWithLock::HandleHeadersComplete() {
-}
+void AsyncFetchWithLock::HandleHeadersComplete() {}
 
-bool AsyncFetchWithLock::HandleWrite(
-    const StringPiece& content, MessageHandler* handler) {
+bool AsyncFetchWithLock::HandleWrite(const StringPiece& content,
+                                     MessageHandler* handler) {
   return true;
 }
 
-bool AsyncFetchWithLock::HandleFlush(MessageHandler* handler) {
-  return true;
-}
+bool AsyncFetchWithLock::HandleFlush(MessageHandler* handler) { return true; }
 
-void AsyncFetchWithLock::Finalize(bool lock_failure, bool success) {
-}
+void AsyncFetchWithLock::Finalize(bool lock_failure, bool success) {}
 
 NamedLock* AsyncFetchWithLock::MakeInputLock(const GoogleString& url) {
   return MakeInputLock(url, lock_hasher_, lock_manager_);

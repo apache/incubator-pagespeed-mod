@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_DYNAMIC_STRING_MAP_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_DYNAMIC_STRING_MAP_TEST_BASE_H_
 
@@ -86,13 +85,12 @@ class SharedDynamicStringMapTestBase : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(SharedDynamicStringMapTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedDynamicStringMapTestTemplate
     : public SharedDynamicStringMapTestBase {
  public:
   SharedDynamicStringMapTestTemplate()
-      : SharedDynamicStringMapTestBase(new ConcreteTestEnv) {
-  }
+      : SharedDynamicStringMapTestBase(new ConcreteTestEnv) {}
 };
 
 TYPED_TEST_SUITE_P(SharedDynamicStringMapTestTemplate);
@@ -128,10 +126,10 @@ TYPED_TEST_P(SharedDynamicStringMapTestTemplate,
 }
 
 REGISTER_TYPED_TEST_SUITE_P(SharedDynamicStringMapTestTemplate, TestSimple,
-                           TestCreate, TestAdd, TestQuarterFull,
-                           TestFillSingleThread,
-                           TestFillMultipleNonOverlappingThreads,
-                           TestFillMultipleOverlappingThreads);
+                            TestCreate, TestAdd, TestQuarterFull,
+                            TestFillSingleThread,
+                            TestFillMultipleNonOverlappingThreads,
+                            TestFillMultipleOverlappingThreads);
 
 }  // namespace net_instaweb
 

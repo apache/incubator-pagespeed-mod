@@ -23,7 +23,6 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_MEASUREMENT_PROXY_URL_NAMER_H_
 
 #include "net/instaweb/rewriter/public/url_namer.h"
-
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -49,10 +48,8 @@ class MeasurementProxyUrlNamer : public UrlNamer {
               GoogleString* decoded) const override;
 
   static bool DecodePathDetails(const GoogleUrl& request_url,
-                                StringPiece* config,
-                                StringPiece* config_domain,
-                                StringPiece* password,
-                                GoogleString* res_url);
+                                StringPiece* config, StringPiece* config_domain,
+                                StringPiece* password, GoogleString* res_url);
 
   bool IsAuthorized(const GoogleUrl& request_url,
                     const RewriteOptions& options) const override {

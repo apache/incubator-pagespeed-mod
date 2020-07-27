@@ -53,18 +53,15 @@ class StatsMaker {
         timer_(threads_->NewMutex(), MockTimer::kApr_5_2010_ms),
         fs_(threads_.get(), &timer_),
         mem_runtime_(new InProcessSharedMem(threads_.get())),
-        stats_(new SharedMemStatistics(3000 /* log dump interval */,
-                                       100000 /* max log size kb */,
-                                       "/stats.log", false /* no log */,
-                                       "in_mem", mem_runtime_.get(),
-                                       &message_handler_, &fs_, &timer_)) {
+        stats_(new SharedMemStatistics(
+            3000 /* log dump interval */, 100000 /* max log size kb */,
+            "/stats.log", false /* no log */, "in_mem", mem_runtime_.get(),
+            &message_handler_, &fs_, &timer_)) {
     UrlAsyncFetcherStats::InitStats("test", stats_.get());
     stats_->Init(true, &message_handler_);
   }
 
-  ~StatsMaker() {
-    stats_->GlobalCleanup(&message_handler_);
-  }
+  ~StatsMaker() { stats_->GlobalCleanup(&message_handler_); }
 
   Statistics* stats() { return stats_.get(); }
 
@@ -94,17 +91,17 @@ class UrlAsyncFetcherStatsTest : public testing::Test {
   // We use per-fixture (rather than per-test) setup and teardown to
   // manage the stats to better model their real-life use and better cover
   // ::Initialize.
-  static void SetUpTestCase() {
-    testing::Test::SetUpTestCase();
+  static void SetUpTestSuite() {
+    testing::Test::SetUpTestSuite();
     stats_maker_ = new StatsMaker();
     stats_ = stats_maker_->stats();
   }
 
-  static void TearDownTestCase() {
+  static void TearDownTestSuite() {
     delete stats_maker_;
-    stats_maker_ = NULL;
-    stats_ = NULL;
-    testing::Test::TearDownTestCase();
+    stats_maker_ = nullptr;
+    stats_ = nullptr;
+    testing::Test::TearDownTestSuite();
   }
 
   static StatsMaker* stats_maker_;

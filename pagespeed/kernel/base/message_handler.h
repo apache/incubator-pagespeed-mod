@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MESSAGE_HANDLER_H_
 #define PAGESPEED_KERNEL_BASE_MESSAGE_HANDLER_H_
 
@@ -31,12 +30,7 @@ namespace net_instaweb {
 
 class Writer;
 
-enum MessageType {
-  kInfo,
-  kWarning,
-  kError,
-  kFatal
-};
+enum MessageType { kInfo, kWarning, kError, kFatal };
 
 class MessageHandler {
  public:
@@ -67,7 +61,6 @@ class MessageHandler {
   // Conditional errors.
   void Check(bool condition, const char* msg, ...) INSTAWEB_PRINTF_FORMAT(3, 4);
   void CheckV(bool condition, const char* msg, va_list args);
-
 
   // Convenience functions for FileMessage for backwards compatibility.
   // TODO(sligocki): Rename these to InfoAt, ... so that Info, ... can be used
@@ -106,8 +99,8 @@ class MessageHandler {
   virtual bool Dump(Writer* writer);
 
   // Parse the dumped log into messages.
-  virtual void ParseMessageDumpIntoMessages(
-      StringPiece message_dump, StringPieceVector* messages);
+  virtual void ParseMessageDumpIntoMessages(StringPiece message_dump,
+                                            StringPieceVector* messages);
 
   // Return the message type.
   virtual MessageType GetMessageType(StringPiece message);
@@ -118,17 +111,15 @@ class MessageHandler {
  protected:
   // 'MessageVImpl' and 'FileMessageVImpl' have default implementations in terms
   // of MessageSImpl and FileMessageSImpl.
-  virtual void MessageVImpl(MessageType type, const char* msg,
-                            va_list args);
+  virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
   virtual void FileMessageVImpl(MessageType type, const char* filename,
                                 int line, const char* msg, va_list args);
   // These methods don't perform any formatting on the string, since it turns
   // out delegating message_handlers generally only need to format once at the
   // top of the stack and then propagate the formatted string inwards.
   virtual void MessageSImpl(MessageType type, const GoogleString& message) = 0;
-  virtual void FileMessageSImpl(
-      MessageType type, const char* filename, int line,
-      const GoogleString& message) = 0;
+  virtual void FileMessageSImpl(MessageType type, const char* filename,
+                                int line, const GoogleString& message) = 0;
   // FormatTo appends to *buffer.
   void FormatTo(GoogleString* buffer, const char* msg, va_list args);
 
@@ -140,31 +131,26 @@ class MessageHandler {
 
 // Macros for logging messages.
 #define PS_LOG_INFO(handler, ...) \
-    (handler)->Info(__FILE__, __LINE__, __VA_ARGS__)
+  (handler)->Info(__FILE__, __LINE__, __VA_ARGS__)
 #define PS_LOG_WARN(handler, ...) \
-    (handler)->Warning(__FILE__, __LINE__, __VA_ARGS__)
+  (handler)->Warning(__FILE__, __LINE__, __VA_ARGS__)
 #define PS_LOG_ERROR(handler, ...) \
-    (handler)->Error(__FILE__, __LINE__, __VA_ARGS__)
+  (handler)->Error(__FILE__, __LINE__, __VA_ARGS__)
 #define PS_LOG_FATAL(handler, ...) \
-    (handler)->FatalError(__FILE__, __LINE__, __VA_ARGS__)
+  (handler)->FatalError(__FILE__, __LINE__, __VA_ARGS__)
 
 #ifndef NDEBUG
-#define PS_LOG_DFATAL(handler, ...) \
-    PS_LOG_FATAL(handler, __VA_ARGS__)
+#define PS_LOG_DFATAL(handler, ...) PS_LOG_FATAL(handler, __VA_ARGS__)
 #else
-#define PS_LOG_DFATAL(handler, ...) \
-    PS_LOG_ERROR(handler, __VA_ARGS__)
+#define PS_LOG_DFATAL(handler, ...) PS_LOG_ERROR(handler, __VA_ARGS__)
 #endif  // NDEBUG
 
 // Macros for logging debugging messages. They expand to no-ops in opt-mode
 // builds.
 #ifndef NDEBUG
-#define PS_DLOG_INFO(handler, ...) \
-    PS_LOG_INFO(handler, __VA_ARGS__)
-#define PS_DLOG_WARN(handler, ...) \
-    PS_LOG_WARN(handler, __VA_ARGS__)
-#define PS_DLOG_ERROR(handler, ...) \
-    PS_LOG_ERROR(handler, __VA_ARGS__)
+#define PS_DLOG_INFO(handler, ...) PS_LOG_INFO(handler, __VA_ARGS__)
+#define PS_DLOG_WARN(handler, ...) PS_LOG_WARN(handler, __VA_ARGS__)
+#define PS_DLOG_ERROR(handler, ...) PS_LOG_ERROR(handler, __VA_ARGS__)
 #else
 // A dummy function that will be optimized away. This is needed
 // because the macros below are sometimes used in comma expressions and

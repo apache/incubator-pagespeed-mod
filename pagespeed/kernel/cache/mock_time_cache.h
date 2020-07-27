@@ -44,12 +44,12 @@ class MockTimeCache : public CacheInterface {
  public:
   // Note: takes ownership of nothing.
   MockTimeCache(Scheduler* scheduler, CacheInterface* cache);
-  virtual ~MockTimeCache();
+  ~MockTimeCache() override;
 
   // Reimplementations of CacheInterface methods.
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
 
   // Sets the delay the cache will inject before invoking the callbacks.
   // Note that this only affects the 'Done' callback; 'ValidateCandidate'
@@ -59,11 +59,11 @@ class MockTimeCache : public CacheInterface {
 
   Scheduler* scheduler() { return scheduler_; }
 
-  virtual GoogleString Name() const { return FormatName(cache_->Name()); }
+  GoogleString Name() const override { return FormatName(cache_->Name()); }
   static GoogleString FormatName(StringPiece name);
-  virtual bool IsBlocking() const { return cache_->IsBlocking(); }
-  virtual bool IsHealthy() const { return cache_->IsHealthy(); }
-  virtual void ShutDown() { cache_->ShutDown(); }
+  bool IsBlocking() const override { return cache_->IsBlocking(); }
+  bool IsHealthy() const override { return cache_->IsHealthy(); }
+  void ShutDown() override { cache_->ShutDown(); }
 
  private:
   class DelayCallback;

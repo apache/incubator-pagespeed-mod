@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/experiment_matcher.h"
 
 #include "net/instaweb/rewriter/public/experiment_util.h"
@@ -26,7 +25,7 @@
 
 namespace net_instaweb {
 
-ExperimentMatcher::~ExperimentMatcher() { }
+ExperimentMatcher::~ExperimentMatcher() {}
 
 bool ExperimentMatcher::ClassifyIntoExperiment(
     const RequestHeaders& headers, const UserAgentMatcher& agent_matcher,
@@ -42,9 +41,9 @@ bool ExperimentMatcher::ClassifyIntoExperiment(
     experiment_value =
         experiment::DetermineExperimentState(options, headers, agent_matcher);
     need_cookie = true;
-  } else if (
-      options->enroll_experiment_id() == experiment::kNoExperiment ||
-      options->GetExperimentSpec(options->enroll_experiment_id()) != NULL) {
+  } else if (options->enroll_experiment_id() == experiment::kNoExperiment ||
+             options->GetExperimentSpec(options->enroll_experiment_id()) !=
+                 nullptr) {
     // Only allow people to force experiment ids that are actually defined
     // plus kNoExperiment.
     experiment_value = options->enroll_experiment_id();
@@ -56,7 +55,7 @@ bool ExperimentMatcher::ClassifyIntoExperiment(
     // on 50% but that 95% who originally got put into "No-Experiment"
     // (PageSpeedExperiment=0) will be excluded until their cookies expire.
     need_cookie = false;
-  } else if (options->GetExperimentSpec(experiment_value) == NULL) {
+  } else if (options->GetExperimentSpec(experiment_value) == nullptr) {
     // Either:
     //  * They're not yet assigned to an experiment grouping.
     //  * They were assigned, but that experiment isn't running anymore.
@@ -82,11 +81,10 @@ bool ExperimentMatcher::ClassifyIntoExperiment(
   return need_cookie;
 }
 
-void ExperimentMatcher::StoreExperimentData(
-    int state, const StringPiece& url, int64 expiration_time_ms,
-    ResponseHeaders* headers) {
+void ExperimentMatcher::StoreExperimentData(int state, const StringPiece& url,
+                                            int64 expiration_time_ms,
+                                            ResponseHeaders* headers) {
   experiment::SetExperimentCookie(headers, state, url, expiration_time_ms);
 }
-
 
 }  // namespace net_instaweb

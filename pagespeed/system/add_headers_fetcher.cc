@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/add_headers_fetcher.h"
 
 #include "net/instaweb/http/public/async_fetch.h"
@@ -28,8 +27,7 @@ namespace net_instaweb {
 
 AddHeadersFetcher::AddHeadersFetcher(const RewriteOptions* options,
                                      UrlAsyncFetcher* backend_fetcher)
-    : options_(options), backend_fetcher_(backend_fetcher) {
-}
+    : options_(options), backend_fetcher_(backend_fetcher) {}
 
 AddHeadersFetcher::~AddHeadersFetcher() {}
 
@@ -45,4 +43,3 @@ void AddHeadersFetcher::Fetch(const GoogleString& original_url,
 }
 
 }  // namespace net_instaweb
-

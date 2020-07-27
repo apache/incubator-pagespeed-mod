@@ -1,5 +1,7 @@
-/* include/private/apu_config.h.  Generated from apu_config.h.in by configure.  */
-/* include/private/apu_config.h.in.  Generated from configure.in by autoheader.  */
+/* include/private/apu_config.h.  Generated from apu_config.h.in by configure.
+ */
+/* include/private/apu_config.h.in.  Generated from configure.in by autoheader.
+ */
 
 /* Define if the system crypt() function is threadsafe */
 /* #undef APU_CRYPT_THREADSAFE */

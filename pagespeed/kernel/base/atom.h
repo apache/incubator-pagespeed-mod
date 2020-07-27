@@ -17,18 +17,19 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_ATOM_H_
 #define PAGESPEED_KERNEL_BASE_ATOM_H_
 
 #include <set>
+
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
 struct CaseFold;
 struct CasePreserve;
-template<class CharTransform> class SymbolTable;
+template <class CharTransform>
+class SymbolTable;
 
 // Atoms are idempotent representations of strings, created
 // via a symbol table.
@@ -52,15 +53,11 @@ class Atom {
 
   // This is comparing the underlying StringPiece pointers.  It is invalid
   // to compare Atoms from different symbol tables.
-  bool operator==(const Atom& sym) const {
-    return str_ == sym.str_;
-  }
+  bool operator==(const Atom& sym) const { return str_ == sym.str_; }
 
   // This is comparing the underlying StringPiece pointers.  It is invalid
   // to compare Atoms from different symbol tables.
-  bool operator!=(const Atom& sym) const {
-    return str_ != sym.str_;
-  }
+  bool operator!=(const Atom& sym) const { return str_ != sym.str_; }
 
   // SymbolTable is a friend of Symbol because SymbolTable is the
   // only class that has the right to construct a new Atom from

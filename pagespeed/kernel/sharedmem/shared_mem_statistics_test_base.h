@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_TEST_BASE_H_
 
@@ -47,8 +46,8 @@ class SharedMemStatisticsTestBase : public testing::Test {
   SharedMemStatisticsTestBase();
   explicit SharedMemStatisticsTestBase(SharedMemTestEnv* test_env);
 
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
   bool CreateChild(TestMethod method);
 
   void TestCreate();
@@ -96,12 +95,11 @@ class SharedMemStatisticsTestBase : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(SharedMemStatisticsTestBase);
 };
 
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemStatisticsTestTemplate : public SharedMemStatisticsTestBase {
  public:
   SharedMemStatisticsTestTemplate()
-      : SharedMemStatisticsTestBase(new ConcreteTestEnv) {
-  }
+      : SharedMemStatisticsTestBase(new ConcreteTestEnv) {}
 };
 
 TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate);
@@ -147,12 +145,11 @@ TYPED_TEST_P(SharedMemStatisticsTestTemplate, TestTimedVariableEmulation) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate, TestCreate,
-                           TestSet, TestClear, TestAdd,
-                           TestSetReturningPrevious,
-                           TestHistogram, TestHistogramRender,
-                           TestHistogramNoExtraClear,
-                           TestHistogramExtremeBuckets,
-                           TestTimedVariableEmulation);
+                            TestSet, TestClear, TestAdd,
+                            TestSetReturningPrevious, TestHistogram,
+                            TestHistogramRender, TestHistogramNoExtraClear,
+                            TestHistogramExtremeBuckets,
+                            TestTimedVariableEmulation);
 
 }  // namespace net_instaweb
 

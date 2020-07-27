@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/association_transformer.h"
+
+#include <memory>
 
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/css_url_counter.h"
@@ -41,20 +42,18 @@ namespace net_instaweb {
 class DummyResource : public Resource {
  public:
   DummyResource() : Resource() {}
-  virtual ~DummyResource() {}
+  ~DummyResource() override {}
 
-  void set_url(const StringPiece& url) {
-    url_ = url.as_string();
-  }
-  virtual GoogleString url() const { return url_; }
+  void set_url(const StringPiece& url) { url_ = url.as_string(); }
+  GoogleString url() const override { return url_; }
 
-  virtual void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
-                               const RequestContextPtr& request_context,
-                               AsyncCallback* callback) {
+  void LoadAndCallback(NotCacheablePolicy not_cacheable_policy,
+                       const RequestContextPtr& request_context,
+                       AsyncCallback* callback) override {
     callback->Done(false, false);
   }
 
-  virtual bool UseHttpCache() const { return false; }
+  bool UseHttpCache() const override { return false; }
 
  private:
   GoogleString url_;
@@ -67,9 +66,9 @@ namespace {
 class DummyTransformer : public CssTagScanner::Transformer {
  public:
   DummyTransformer() {}
-  virtual ~DummyTransformer() {}
+  ~DummyTransformer() override {}
 
-  virtual TransformStatus Transform(GoogleString* str) {
+  TransformStatus Transform(GoogleString* str) override {
     *str = StrCat("Dummy:", *str);
     return kSuccess;
   }
@@ -85,17 +84,15 @@ class AssociationTransformerTest : public ::testing::Test {
   AssociationTransformerTest()
       : thread_system_(Platform::CreateThreadSystem()) {
     RewriteOptions::Initialize();
-    options_.reset(new RewriteOptions(thread_system_.get()));
+    options_ = std::make_unique<RewriteOptions>(thread_system_.get());
     options_->ComputeSignature();
   }
 
-  ~AssociationTransformerTest() {
-    RewriteOptions::Terminate();
-  }
+  ~AssociationTransformerTest() override { RewriteOptions::Terminate(); }
 
   template <class T>
-  void ExpectValue(const std::map<GoogleString, T>& map,
-                   const StringPiece& key, const T& expected_value) {
+  void ExpectValue(const std::map<GoogleString, T>& map, const StringPiece& key,
+                   const T& expected_value) {
     typename std::map<GoogleString, T>::const_iterator iter =
         map.find(key.as_string());
     ASSERT_NE(map.end(), iter) << "map does not have key " << key;
@@ -140,8 +137,8 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
   // Provide URL association.
   DummyResource* resource = new DummyResource;
   ResourcePtr resource_ptr(resource);
-  ResourceSlotPtr slot(new AssociationSlot(
-      resource_ptr, trans.map(), "http://example.com/before.css"));
+  ResourceSlotPtr slot(new AssociationSlot(resource_ptr, trans.map(),
+                                           "http://example.com/before.css"));
   resource->set_url("http://example.com/after.css");
   slot->Render();
 
@@ -153,8 +150,8 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
   // Run second pass.
   GoogleString out;
   StringWriter out_writer(&out);
-  EXPECT_TRUE(CssTagScanner::TransformUrls(css_before, &out_writer, &trans,
-                                           &handler));
+  EXPECT_TRUE(
+      CssTagScanner::TransformUrls(css_before, &out_writer, &trans, &handler));
 
   // Check that contents was rewritten correctly.
   const GoogleString css_after = absl::StrFormat(
@@ -164,11 +161,9 @@ TEST_F(AssociationTransformerTest, TransformsCorrectly) {
       "Dummy:image.gif",
       // before.css was rewritten in both places to after.css.
       // The first one stays relative and the second stays absolute.
-      "after.css",
-      "http://example.com/after.css",
+      "after.css", "http://example.com/after.css",
       // Passed through DummyTransformer.
-      "Dummy:http://other.org/foo.ttf",
-      "Dummy:data:text/plain,Foobar");
+      "Dummy:http://other.org/foo.ttf", "Dummy:data:text/plain,Foobar");
   EXPECT_EQ(css_after, out);
 }
 
@@ -184,8 +179,8 @@ TEST_F(AssociationTransformerTest, FailsOnInvalidUrl) {
   // Transform fails because there is an invalid URL.
   GoogleString out;
   StringWriter out_writer(&out);
-  EXPECT_FALSE(CssTagScanner::TransformUrls(css_before, &out_writer, &trans,
-                                            &handler));
+  EXPECT_FALSE(
+      CssTagScanner::TransformUrls(css_before, &out_writer, &trans, &handler));
 }
 
 }  // namespace net_instaweb

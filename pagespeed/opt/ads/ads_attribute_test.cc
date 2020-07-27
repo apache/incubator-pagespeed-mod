@@ -29,14 +29,12 @@ TEST(LookupAdsByGoogleAttributeNameTest, Basic) {
   EXPECT_EQ("data-ad-client",
             LookupAdsByGoogleAttributeName("google_ad_client"));
 
-  EXPECT_EQ("data-ad-slot",
-            LookupAdsByGoogleAttributeName("google_ad_slot"));
+  EXPECT_EQ("data-ad-slot", LookupAdsByGoogleAttributeName("google_ad_slot"));
 
   EXPECT_EQ("data-ad-channel",
             LookupAdsByGoogleAttributeName("google_ad_channel"));
 
-  EXPECT_EQ("data-language",
-            LookupAdsByGoogleAttributeName("google_language"));
+  EXPECT_EQ("data-language", LookupAdsByGoogleAttributeName("google_language"));
 
   EXPECT_EQ("data-color-border",
             LookupAdsByGoogleAttributeName("google_color_border"));

@@ -45,9 +45,8 @@ class CentralControllerRpcServer : public ControllerProcess {
   CentralControllerRpcServer(
       const GoogleString& listen_address,
       ExpensiveOperationController* expensive_operation_controller,
-      ScheduleRewriteController* rewrite_controller,
-      MessageHandler* handler);
-  virtual ~CentralControllerRpcServer() { }
+      ScheduleRewriteController* rewrite_controller, MessageHandler* handler);
+  ~CentralControllerRpcServer() override {}
 
   // ControllerProcess implementation.
   int Setup() override;

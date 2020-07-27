@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/json_writer.h"
 
 #include <memory>
@@ -32,12 +31,9 @@ class MessageHandler;
 
 JsonWriter::JsonWriter(Writer* writer,
                        const std::vector<ElementJsonPair>* element_json_stack)
-    : writer_(writer),
-      element_json_stack_(element_json_stack) {
-}
+    : writer_(writer), element_json_stack_(element_json_stack) {}
 
-JsonWriter::~JsonWriter() {
-}
+JsonWriter::~JsonWriter() {}
 
 bool JsonWriter::Write(const StringPiece& str,
                        MessageHandler* message_handler) {
@@ -51,7 +47,7 @@ void JsonWriter::UpdateDictionary() {
     dictionary[kInstanceHtml] = "";
   }
   const GoogleString& updated_instance_html =
-        StrCat(dictionary[kInstanceHtml].asCString(), buffer_);
+      StrCat(dictionary[kInstanceHtml].asCString(), buffer_);
   dictionary[kInstanceHtml] = updated_instance_html.c_str();
   buffer_.clear();
 }

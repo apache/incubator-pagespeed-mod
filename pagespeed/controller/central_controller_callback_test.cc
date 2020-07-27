@@ -18,14 +18,15 @@
  */
 
 #include "pagespeed/controller/central_controller_callback.h"
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
+#include "pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 
@@ -50,12 +51,12 @@ class MockCentralControllerCallback
   MockCentralControllerCallback(Sequence* sequence, struct CallCounts* counts)
       : CentralControllerCallback<
             MockCallbackHandle>::CentralControllerCallback(sequence),
-        counts_(counts), steal_pointer_(false) {
-  }
+        counts_(counts),
+        steal_pointer_(false) {}
 
-  virtual ~MockCentralControllerCallback() {}
+  ~MockCentralControllerCallback() override {}
 
-  virtual void RunImpl(std::unique_ptr<MockCallbackHandle>* handle) {
+  void RunImpl(std::unique_ptr<MockCallbackHandle>* handle) override {
     ++counts_->run_called;
     if (steal_pointer_) {
       counts_->handle.reset(handle->release());
@@ -63,7 +64,7 @@ class MockCentralControllerCallback
     counts_->sync.Notify();
   }
 
-  virtual void CancelImpl() {
+  void CancelImpl() override {
     ++counts_->cancel_called;
     counts_->sync.Notify();
   }
@@ -89,9 +90,7 @@ class MockCallbackHandle {
     }
   }
 
-  void CallRun() {
-    callback_->CallRun();
-  }
+  void CallRun() { callback_->CallRun(); }
 
   void CallCancel() {
     counts_ = nullptr;

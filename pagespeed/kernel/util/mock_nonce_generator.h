@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_UTIL_MOCK_NONCE_GENERATOR_H_
 #define PAGESPEED_KERNEL_UTIL_MOCK_NONCE_GENERATOR_H_
 
-#include "pagespeed/kernel/util/nonce_generator.h"
-
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/util/nonce_generator.h"
 
 namespace net_instaweb {
 
@@ -33,11 +30,11 @@ namespace net_instaweb {
 class MockNonceGenerator : public NonceGenerator {
  public:
   explicit MockNonceGenerator(AbstractMutex* mutex)
-      : NonceGenerator(mutex), counter_(0) { }
-  virtual ~MockNonceGenerator();
+      : NonceGenerator(mutex), counter_(0) {}
+  ~MockNonceGenerator() override;
 
  protected:
-  virtual uint64 NewNonceImpl();
+  uint64 NewNonceImpl() override;
 
  private:
   uint64 counter_;

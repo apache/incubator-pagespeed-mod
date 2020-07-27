@@ -17,14 +17,14 @@
  * under the License.
  */
 
-
 // Unit-test AsyncCache, using LRUCache.
 
 #include "pagespeed/kernel/cache/async_cache.h"
 
 #include <cstddef>
 #include <map>
-#include <utility>                      // for pair
+#include <memory>
+#include <utility>  // for pair
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
@@ -54,9 +54,7 @@ class AsyncCacheTest : public CacheTestBase {
   class DelayMap {
    public:
     explicit DelayMap(ThreadSystem* thread_system)
-        : mutex_(thread_system->NewMutex()),
-          thread_system_(thread_system) {
-    }
+        : mutex_(thread_system->NewMutex()), thread_system_(thread_system) {}
     ~DelayMap() { STLDeleteValues(&map_); }
 
     // Note that Delay is called only in test mainlines, prior to
@@ -96,7 +94,7 @@ class AsyncCacheTest : public CacheTestBase {
     }
 
     void Notify(const GoogleString& key) {
-      WorkerTestBase::SyncPoint* sync_point = NULL;
+      WorkerTestBase::SyncPoint* sync_point = nullptr;
       {
         ScopedMutex lock(mutex_.get());
         Map::iterator p = map_.find(key);
@@ -104,7 +102,7 @@ class AsyncCacheTest : public CacheTestBase {
           sync_point = p->second;
         }
       }
-      CHECK(sync_point != NULL);
+      CHECK(sync_point != nullptr);
       sync_point->Notify();
     }
 
@@ -125,22 +123,22 @@ class AsyncCacheTest : public CacheTestBase {
                    AbstractMutex* mutex)
         : ThreadsafeCache(lru_cache, mutex),
           delay_map_(delay_map),
-          sync_point_(NULL) {
+          sync_point_(nullptr) {
       set_is_healthy(true);
     }
-    virtual ~SyncedLRUCache() {}
+    ~SyncedLRUCache() override {}
 
     void set_sync_point(WorkerTestBase::SyncPoint* x) { sync_point_ = x; }
 
-    void Get(const GoogleString& key, Callback* callback) {
-      if (sync_point_ != NULL) {
+    void Get(const GoogleString& key, Callback* callback) override {
+      if (sync_point_ != nullptr) {
         sync_point_->Notify();
       }
       delay_map_->Wait(key);
       ThreadsafeCache::Get(key, callback);
     }
 
-    virtual bool IsHealthy() const { return is_healthy_.value(); }
+    bool IsHealthy() const override { return is_healthy_.value(); }
     void set_is_healthy(bool x) { is_healthy_.set_value(x); }
 
    private:
@@ -154,16 +152,14 @@ class AsyncCacheTest : public CacheTestBase {
   class AsyncCallback : public CacheTestBase::Callback {
    public:
     explicit AsyncCallback(AsyncCacheTest* test)
-        : Callback(test),
-          sync_point_(test->thread_system_.get()) {
-    }
+        : Callback(test), sync_point_(test->thread_system_.get()) {}
 
-    virtual void Done(CacheInterface::KeyState state) {
+    void Done(CacheInterface::KeyState state) override {
       Callback::Done(state);
       sync_point_.Notify();
     }
 
-    virtual void Wait() { sync_point_.Wait(); }
+    void Wait() override { sync_point_.Wait(); }
 
    private:
     WorkerTestBase::SyncPoint sync_point_;
@@ -177,20 +173,22 @@ class AsyncCacheTest : public CacheTestBase {
         suppress_post_get_cleanup_(false),
         expected_outstanding_operations_(0) {
     set_mutex(thread_system_->NewMutex());
-    pool_.reset(new QueuedWorkerPool(1, "cache", thread_system_.get()));
-    synced_lru_cache_.reset(new SyncedLRUCache(
-        &delay_map_, &lru_cache_, thread_system_->NewMutex()));
-    async_cache_.reset(new AsyncCache(synced_lru_cache_.get(), pool_.get()));
+    pool_ =
+        std::make_unique<QueuedWorkerPool>(1, "cache", thread_system_.get());
+    synced_lru_cache_ = std::make_unique<SyncedLRUCache>(
+        &delay_map_, &lru_cache_, thread_system_->NewMutex());
+    async_cache_ =
+        std::make_unique<AsyncCache>(synced_lru_cache_.get(), pool_.get());
   }
 
-  ~AsyncCacheTest() {
+  ~AsyncCacheTest() override {
     pool_->ShutDown();  // quiesce before destructing cache.
   }
 
-  virtual CacheInterface* Cache() { return async_cache_.get(); }
-  virtual Callback* NewCallback() { return new AsyncCallback(this); }
+  CacheInterface* Cache() override { return async_cache_.get(); }
+  Callback* NewCallback() override { return new AsyncCallback(this); }
 
-  virtual void PostOpCleanup() {
+  void PostOpCleanup() override {
     // Wait until the AsyncCache available thread-count is restored to
     // non-zero.  Note that in AsyncCache we call blocking cache
     // Get/MultiGet first, then decrement the in-use thread-count, so
@@ -224,7 +222,7 @@ class AsyncCacheTest : public CacheTestBase {
     synced_lru_cache_->set_sync_point(&sync_point);
     Callback* callback = InitiateGet(key);
     sync_point.Wait();
-    synced_lru_cache_->set_sync_point(NULL);
+    synced_lru_cache_->set_sync_point(nullptr);
     return callback;
   }
 
@@ -288,9 +286,7 @@ TEST_F(AsyncCacheTest, DelayN0NoParallelism) {
   CheckGet("n3", "v3");
 }
 
-TEST_F(AsyncCacheTest, MultiGet) {
-  TestMultiGet();
-}
+TEST_F(AsyncCacheTest, MultiGet) { TestMultiGet(); }
 
 TEST_F(AsyncCacheTest, MultiGetDrop) {
   PopulateCache(3);
@@ -395,10 +391,10 @@ TEST_F(AsyncCacheTest, CancelOutstandingDeletes) {
   ++expected_outstanding_operations_;  // Delete will be blocked.
   CheckDelete("n1");
   async_cache_->CancelPendingOperations();  // Delete will not happen.
-  --expected_outstanding_operations_;  // Delete was canceled.
+  --expected_outstanding_operations_;       // Delete was canceled.
   ReleaseKey("n0");
   WaitAndCheck(n0, "v0");
-  CheckGet("n1", "v1");   // works because the delete did not happen.
+  CheckGet("n1", "v1");  // works because the delete did not happen.
 }
 
 TEST_F(AsyncCacheTest, DeleteNotQueuedOnSickServer) {
@@ -409,7 +405,7 @@ TEST_F(AsyncCacheTest, DeleteNotQueuedOnSickServer) {
   synced_lru_cache_->set_is_healthy(true);
   ReleaseKey("n0");
   WaitAndCheck(n0, "v0");
-  CheckGet("n1", "v1");   // works because the delete did not happen.
+  CheckGet("n1", "v1");  // works because the delete did not happen.
 }
 
 TEST_F(AsyncCacheTest, PutNotQueuedOnSickServer) {
@@ -420,7 +416,7 @@ TEST_F(AsyncCacheTest, PutNotQueuedOnSickServer) {
   synced_lru_cache_->set_is_healthy(true);
   ReleaseKey("n0");
   WaitAndCheck(n0, "v0");
-  CheckGet("n1", "v1");   // still "v1" not "new value for n1"
+  CheckGet("n1", "v1");  // still "v1" not "new value for n1"
 }
 
 TEST_F(AsyncCacheTest, GetNotQueuedOnSickServer) {
@@ -445,8 +441,8 @@ TEST_F(AsyncCacheTest, MultiGetNotQueuedOnSickServer) {
   synced_lru_cache_->set_is_healthy(true);
   ReleaseKey("n0");
   WaitAndCheck(n0, "v0");
-  WaitAndCheckNotFound(n1);          // 'MultiGet' was never queued cause server
-  WaitAndCheckNotFound(not_found);   //  was sick.
+  WaitAndCheckNotFound(n1);         // 'MultiGet' was never queued cause server
+  WaitAndCheckNotFound(not_found);  //  was sick.
   WaitAndCheckNotFound(n2);
 }
 
@@ -486,11 +482,11 @@ TEST_F(AsyncCacheTest, RetireOldOperations) {
   // the bogus deletes will all be executed and we should have drained
   // the queue.
   expected_outstanding_operations_ = 0;
-  PostOpCleanup();   // waits for the Deletes to complete.
+  PostOpCleanup();  // waits for the Deletes to complete.
 
   // Now see that the MultiGet and Get failed.
-  WaitAndCheckNotFound(n1);          // 'MultiGet' was never queued because
-  WaitAndCheckNotFound(not_found);   // the server was sick.
+  WaitAndCheckNotFound(n1);         // 'MultiGet' was never queued because
+  WaitAndCheckNotFound(not_found);  // the server was sick.
   WaitAndCheckNotFound(n2);
   WaitAndCheckNotFound(n3);
 

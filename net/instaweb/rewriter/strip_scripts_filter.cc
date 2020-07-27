@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/strip_scripts_filter.h"
 
 #include "pagespeed/kernel/html/html_element.h"
@@ -27,8 +26,7 @@
 namespace net_instaweb {
 
 StripScriptsFilter::StripScriptsFilter(HtmlParse* html_parse)
-    : html_parse_(html_parse) {
-}
+    : html_parse_(html_parse) {}
 
 StripScriptsFilter::~StripScriptsFilter() {}
 

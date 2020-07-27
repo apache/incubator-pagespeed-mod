@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_url_counter.h"
 
 #include "net/instaweb/rewriter/public/css_tag_scanner.h"
@@ -27,8 +26,7 @@
 
 namespace net_instaweb {
 
-CssUrlCounter::~CssUrlCounter() {
-}
+CssUrlCounter::~CssUrlCounter() {}
 
 bool CssUrlCounter::Count(const StringPiece& in_text) {
   // Output is meaningless, we are simply counting occurrences of URLs.

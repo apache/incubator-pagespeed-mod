@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_element.h"
 
 #include <cstdio>
@@ -33,13 +32,11 @@
 namespace net_instaweb {
 
 HtmlElement::HtmlElement(HtmlElement* parent, const HtmlName& name,
-    const HtmlEventListIterator& begin, const HtmlEventListIterator& end)
-    : HtmlNode(parent),
-      data_(new Data(name, begin, end)) {
-}
+                         const HtmlEventListIterator& begin,
+                         const HtmlEventListIterator& end)
+    : HtmlNode(parent), data_(new Data(name, begin, end)) {}
 
-HtmlElement::~HtmlElement() {
-}
+HtmlElement::~HtmlElement() {}
 
 HtmlElement::Data::Data(const HtmlName& name,
                         const HtmlEventListIterator& begin,
@@ -50,14 +47,12 @@ HtmlElement::Data::Data(const HtmlName& name,
       style_(AUTO_CLOSE),
       name_(name),
       begin_(begin),
-      end_(end) {
-}
+      end_(end) {}
 
-HtmlElement::Data::~Data() {
-}
+HtmlElement::Data::~Data() {}
 
 void HtmlElement::MarkAsDead(const HtmlEventListIterator& end) {
-  if (data_.get() != NULL) {
+  if (data_.get() != nullptr) {
     data_->live_ = false;
     set_begin(end);
     set_end(end);
@@ -97,7 +92,7 @@ bool HtmlElement::DeleteAttribute(StringPiece name) {
 
 const HtmlElement::Attribute* HtmlElement::FindAttribute(
     HtmlName::Keyword keyword) const {
-  const Attribute* ret = NULL;
+  const Attribute* ret = nullptr;
 
   for (AttributeConstIterator iter = attributes().begin();
        iter != attributes().end(); ++iter) {
@@ -119,7 +114,7 @@ const HtmlElement::Attribute* HtmlElement::FindAttribute(
       return attribute;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 GoogleString HtmlElement::ToString() const {
@@ -134,7 +129,7 @@ GoogleString HtmlElement::ToString() const {
     if (attribute.decoding_error()) {
       // This is a debug method; not used in serialization.
       buf += "<DECODING ERROR>";
-    } else if (value != NULL) {
+    } else if (value != nullptr) {
       buf += "=";
       const char* quote = attribute.quote_str();
       buf += quote;
@@ -143,13 +138,24 @@ GoogleString HtmlElement::ToString() const {
     }
   }
   switch (data_->style_) {
-    case AUTO_CLOSE:       buf += "> (not yet closed)"; break;
-    case IMPLICIT_CLOSE:   buf += ">";  break;
-    case EXPLICIT_CLOSE:   StrAppend(&buf, "></", data_->name_.value(), ">");
-                           break;
-    case BRIEF_CLOSE:      buf += "/>"; break;
-    case UNCLOSED:         buf += "> (unclosed)"; break;
-    case INVISIBLE:        buf += "> (invisible)"; break;
+    case AUTO_CLOSE:
+      buf += "> (not yet closed)";
+      break;
+    case IMPLICIT_CLOSE:
+      buf += ">";
+      break;
+    case EXPLICIT_CLOSE:
+      StrAppend(&buf, "></", data_->name_.value(), ">");
+      break;
+    case BRIEF_CLOSE:
+      buf += "/>";
+      break;
+    case UNCLOSED:
+      buf += "> (unclosed)";
+      break;
+    case INVISIBLE:
+      buf += "> (invisible)";
+      break;
   }
   if ((data_->begin_line_number_ != Data::kMaxLineNumber) ||
       (data_->end_line_number_ != Data::kMaxLineNumber)) {
@@ -165,13 +171,10 @@ GoogleString HtmlElement::ToString() const {
   return buf;
 }
 
-void HtmlElement::DebugPrint() const {
-  puts(ToString().c_str());
-}
+void HtmlElement::DebugPrint() const { puts(ToString().c_str()); }
 
 void HtmlElement::AddAttribute(const Attribute& src_attr) {
-  Attribute* attr = new Attribute(src_attr.name(),
-                                  src_attr.escaped_value(),
+  Attribute* attr = new Attribute(src_attr.name(), src_attr.escaped_value(),
                                   src_attr.quote_style());
   if (src_attr.decoded_value_computed_) {
     attr->decoded_value_computed_ = true;
@@ -185,9 +188,8 @@ void HtmlElement::AddAttribute(const HtmlName& name,
                                const StringPiece& decoded_value,
                                QuoteStyle quote_style) {
   GoogleString buf;
-  Attribute* attr = new Attribute(name,
-                                  HtmlKeywords::Escape(decoded_value, &buf),
-                                  quote_style);
+  Attribute* attr = new Attribute(
+      name, HtmlKeywords::Escape(decoded_value, &buf), quote_style);
   attr->decoded_value_computed_ = true;
   attr->decoding_error_ = false;
   Attribute::CopyValue(decoded_value, &attr->decoded_value_);
@@ -203,7 +205,7 @@ void HtmlElement::AddEscapedAttribute(const HtmlName& name,
 
 void HtmlElement::Attribute::CopyValue(const StringPiece& src,
                                        scoped_array<char>* dst) {
-  if (src.data() == NULL) {
+  if (src.data() == nullptr) {
     // This case indicates attribute without value <tag attr>, as opposed
     // to data()=="", which implies an empty value <tag attr=>.
     dst->reset();
@@ -247,7 +249,7 @@ void HtmlElement::Attribute::SetEscapedValue(const StringPiece& escaped_value) {
   // is a substring of value_.  This copies the value just prior
   // to deallocation of the old value_.
   const char* value_chars = decoded_value_.get();
-  if (value_chars != NULL) {
+  if (value_chars != nullptr) {
     DCHECK(value_chars + strlen(value_chars) < escaped_value.data() ||
            escaped_value.data() + escaped_value.size() < value_chars)
         << "Setting escaped value from substring of unescaped value.";
@@ -274,8 +276,8 @@ const char* HtmlElement::Attribute::quote_str() const {
 
 void HtmlElement::Attribute::ComputeDecodedValue() const {
   GoogleString buf;
-  StringPiece unescaped_value = HtmlKeywords::Unescape(
-      escaped_value_.get(), &buf, &decoding_error_);
+  StringPiece unescaped_value =
+      HtmlKeywords::Unescape(escaped_value_.get(), &buf, &decoding_error_);
   CopyValue(unescaped_value, &decoded_value_);
   decoded_value_computed_ = true;
 }

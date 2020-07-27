@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/url_partnership.h"
+
+#include <memory>
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -47,7 +48,6 @@ const char kAbsoluteResourceUrl3[] = "http://www.nytimes.com/r/main.css";
 
 }  // namespace
 
-
 namespace net_instaweb {
 
 class UrlPartnershipTest : public RewriteTestBase {
@@ -56,23 +56,22 @@ class UrlPartnershipTest : public RewriteTestBase {
       : styles_path_("http://www.nytimes.com/r/styles/"),
         r_path_("http://www.nytimes.com/r/"),
         style_url_("style.css?appearance=reader/writer?"),
-        style2_url_("style2.css?appearance=reader") {
-  }
+        style2_url_("style2.css?appearance=reader") {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     GoogleUrl original_gurl(kOriginalRequest);
-    partnership_.reset(new UrlPartnership(rewrite_driver()));
+    partnership_ = std::make_unique<UrlPartnership>(rewrite_driver());
     partnership_->Reset(original_gurl);
   }
 
   // Add up to 3 URLs -- url2 and url3 are ignored if null.
   bool AddUrls(const char* url1, const char* url2, const char* url3) {
     bool ret = partnership_->AddUrl(url1, &message_handler_);
-    if (url2 != NULL) {
+    if (url2 != nullptr) {
       ret &= partnership_->AddUrl(url2, &message_handler_);
     }
-    if (url3 != NULL) {
+    if (url3 != nullptr) {
       ret &= partnership_->AddUrl(url3, &message_handler_);
     }
     return ret;
@@ -95,7 +94,7 @@ class UrlPartnershipTest : public RewriteTestBase {
 };
 
 TEST_F(UrlPartnershipTest, OneUrlFlow) {
-  ASSERT_TRUE(AddUrls(kResourceUrl1, NULL, NULL));
+  ASSERT_TRUE(AddUrls(kResourceUrl1, nullptr, nullptr));
   ASSERT_EQ(1, partnership_->num_urls());
   EXPECT_EQ(styles_path_, partnership_->ResolvedBase());
   EXPECT_EQ(style_url_, partnership_->RelativePath(0));
@@ -103,7 +102,7 @@ TEST_F(UrlPartnershipTest, OneUrlFlow) {
 }
 
 TEST_F(UrlPartnershipTest, OneUrlFlowAbsolute) {
-  ASSERT_TRUE(AddUrls(kAbsoluteResourceUrl1, NULL, NULL));
+  ASSERT_TRUE(AddUrls(kAbsoluteResourceUrl1, nullptr, nullptr));
   ASSERT_EQ(1, partnership_->num_urls());
   EXPECT_EQ(styles_path_, partnership_->ResolvedBase());
   EXPECT_EQ(style_url_, partnership_->RelativePath(0));
@@ -111,7 +110,7 @@ TEST_F(UrlPartnershipTest, OneUrlFlowAbsolute) {
 }
 
 TEST_F(UrlPartnershipTest, TwoUrlFlowSamePath) {
-  AddUrls(kResourceUrl1, kResourceUrl2, NULL);
+  AddUrls(kResourceUrl1, kResourceUrl2, nullptr);
   ASSERT_EQ(2, partnership_->num_urls());
   EXPECT_EQ(styles_path_, partnership_->ResolvedBase());
   EXPECT_EQ(style_url_, partnership_->RelativePath(0));
@@ -119,7 +118,7 @@ TEST_F(UrlPartnershipTest, TwoUrlFlowSamePath) {
 }
 
 TEST_F(UrlPartnershipTest, TwoUrlFlowSamePathMixed) {
-  AddUrls(kAbsoluteResourceUrl1, kResourceUrl2, NULL);
+  AddUrls(kAbsoluteResourceUrl1, kResourceUrl2, nullptr);
   ASSERT_EQ(2, partnership_->num_urls());
   EXPECT_EQ(styles_path_, partnership_->ResolvedBase());
   EXPECT_EQ(style_url_, partnership_->RelativePath(0));
@@ -160,7 +159,7 @@ TEST_F(UrlPartnershipTest, ThreeUrlFlowDifferentPathsMixed) {
 }
 
 TEST_F(UrlPartnershipTest, ExternalDomainNotDeclared) {
-  EXPECT_FALSE(AddUrls(kCdnResourceUrl, NULL, NULL));
+  EXPECT_FALSE(AddUrls(kCdnResourceUrl, nullptr, nullptr));
 }
 
 TEST_F(UrlPartnershipTest, ExternalDomainDeclared) {
@@ -186,10 +185,10 @@ TEST_F(UrlPartnershipTest, AbsExternalDomainDeclaredButNotMapped) {
 
 TEST_F(UrlPartnershipTest, EmptyTail) {
   EXPECT_FALSE(partnership_->AddUrl("", &message_handler_));
-  EXPECT_TRUE(partnership_->AddUrl("http://www.nytimes.com",
-                                  &message_handler_));
-  EXPECT_TRUE(partnership_->AddUrl("http://www.nytimes.com/",
-                                  &message_handler_));
+  EXPECT_TRUE(
+      partnership_->AddUrl("http://www.nytimes.com", &message_handler_));
+  EXPECT_TRUE(
+      partnership_->AddUrl("http://www.nytimes.com/", &message_handler_));
 }
 
 TEST_F(UrlPartnershipTest, EmptyWithPartner) {
@@ -203,7 +202,7 @@ TEST_F(UrlPartnershipTest, EmptyWithPartner) {
 }
 
 TEST_F(UrlPartnershipTest, NeedsATrim) {
-  AddUrls(" http://www.nytimes.com/needs_a_trim.jpg ", NULL, NULL);
+  AddUrls(" http://www.nytimes.com/needs_a_trim.jpg ", nullptr, nullptr);
   EXPECT_EQ(GoogleString("needs_a_trim.jpg"), partnership_->RelativePath(0));
 }
 
@@ -215,9 +214,9 @@ TEST_F(UrlPartnershipTest, RemoveLast) {
 }
 
 TEST_F(UrlPartnershipTest, ResourcesFromMappedDomains) {
-  domain_lawyer()->AddRewriteDomainMapping(
-      "http://graphics8.nytimes.com", "http://www.nytimes.com",
-      &message_handler_);
+  domain_lawyer()->AddRewriteDomainMapping("http://graphics8.nytimes.com",
+                                           "http://www.nytimes.com",
+                                           &message_handler_);
   domain_lawyer()->AddRewriteDomainMapping(
       "http://graphics8.nytimes.com", "http://styles.com", &message_handler_);
 
@@ -238,8 +237,8 @@ TEST_F(UrlPartnershipTest, ResourcesFromMappedSameDomainsDifferentPaths) {
   // We can combine these because they're mapped to the same domain but
   // different paths.
   EXPECT_TRUE(AddUrls("http://cdn.com/notw/style.css",
-                       "r/styles/style.css?appearance=reader/writer?",
-                       "http://styles.com/external.css"));
+                      "r/styles/style.css?appearance=reader/writer?",
+                      "http://styles.com/external.css"));
   EXPECT_EQ("http://cdn.com/", partnership_->ResolvedBase());
 }
 
@@ -269,8 +268,8 @@ TEST_F(UrlPartnershipTest, ResourcesFromMappedDifferentDomainsSamePaths) {
 
   // We can combine these because they all map to cdn.com.
   ASSERT_TRUE(AddUrls("http://cdn.com/nypost/style.css",
-                       "r/styles/style.css?appearance=reader/writer?",
-                       "http://money.com/external.css"));
+                      "r/styles/style.css?appearance=reader/writer?",
+                      "http://money.com/external.css"));
   EXPECT_EQ("http://cdn.com/", partnership_->ResolvedBase());
 }
 

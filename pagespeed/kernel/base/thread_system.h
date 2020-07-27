@@ -47,8 +47,8 @@ class ThreadSystem {
 
   class LOCKABLE CondvarCapableMutex : public AbstractMutex {
    public:
-    CondvarCapableMutex() { }
-    virtual ~CondvarCapableMutex();
+    CondvarCapableMutex() {}
+    ~CondvarCapableMutex() override;
 
     // Creates a new condition variable associated with 'this' mutex.
     virtual Condvar* NewCondvar() = 0;
@@ -63,7 +63,7 @@ class ThreadSystem {
   class LOCKABLE RWLock : public AbstractMutex {
    public:
     RWLock() {}
-    virtual ~RWLock();
+    ~RWLock() override;
 
     // ReaderLock/Unlock are different from normal locks. Reader locks are
     // shared while normal locks are exclusive. Normal lock cannot happen when
@@ -126,10 +126,7 @@ class ThreadSystem {
     DISALLOW_COPY_AND_ASSIGN(ThreadId);
   };
 
-  enum ThreadFlags {
-    kDetached = 0,
-    kJoinable = 1
-  };
+  enum ThreadFlags { kDetached = 0, kJoinable = 1 };
 
   virtual ~ThreadSystem();
   ThreadSystem() {}

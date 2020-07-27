@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_JS_INLINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_JS_INLINE_FILTER_H_
 
@@ -45,25 +44,25 @@ class JsInlineFilter : public CommonFilter {
  public:
   static const char kNumJsInlined[];
   explicit JsInlineFilter(RewriteDriver* driver);
-  virtual ~JsInlineFilter();
+  ~JsInlineFilter() override;
 
-  virtual void StartDocumentImpl();
-  virtual void EndDocument();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual const char* Name() const { return "InlineJs"; }
+  void StartDocumentImpl() override;
+  void EndDocument() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  const char* Name() const override { return "InlineJs"; }
   // Inlining javascript from unauthorized domains into HTML is considered
   // safe because it does not cause any new content to be executed compared
   // to the unoptimized page.
-  virtual RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
-      const {
+  RewriteDriver::InlineAuthorizationPolicy AllowUnauthorizedDomain()
+      const override {
     return driver()->options()->HasInlineUnauthorizedResourceType(
-               semantic_type::kScript) ?
-           RewriteDriver::kInlineUnauthorizedResources :
-           RewriteDriver::kInlineOnlyAuthorizedResources;
+               semantic_type::kScript)
+               ? RewriteDriver::kInlineUnauthorizedResources
+               : RewriteDriver::kInlineOnlyAuthorizedResources;
   }
-  virtual bool IntendedForInlining() const { return true; }
+  bool IntendedForInlining() const override { return true; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
   static void InitStats(Statistics* statistics);

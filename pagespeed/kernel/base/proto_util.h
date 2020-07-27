@@ -17,21 +17,17 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_BASE_PROTO_UTIL_H_
 #define PAGESPEED_KERNEL_BASE_PROTO_UTIL_H_
-
-#include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/base/string_util.h"
-
 
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include "google/protobuf/message.h"
 #include "google/protobuf/message_lite.h"
 #include "google/protobuf/repeated_field.h"
 #include "google/protobuf/text_format.h"
+#include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/string.h"
+#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
@@ -46,8 +42,8 @@ using namespace google::protobuf;  // NOLINT
 
 }  // namespace protobuf
 
-inline bool ParseProtoFromStringPiece(
-    StringPiece sp, protobuf::MessageLite* proto) {
+inline bool ParseProtoFromStringPiece(StringPiece sp,
+                                      protobuf::MessageLite* proto) {
   return proto->ParseFromArray(sp.data(), sp.size());
 }
 
@@ -57,6 +53,5 @@ inline bool ParseTextFormatProtoFromString(const GoogleString& s,
 }
 
 }  // namespace net_instaweb
-
 
 #endif  // PAGESPEED_KERNEL_BASE_PROTO_UTIL_H_

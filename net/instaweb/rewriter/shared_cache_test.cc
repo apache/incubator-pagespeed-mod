@@ -17,10 +17,7 @@
  * under the License.
  */
 
-
 // Unit-test the interaction of shared cache (e.g. memcached) & LoadFromFile.
-
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -44,6 +41,7 @@
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/delay_cache.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
+#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/opt/logging/log_record.h"
 
 namespace net_instaweb {
@@ -55,7 +53,7 @@ class CacheInterface;
 // filesystem and with a shared http/metadata cache.
 class SharedCacheTest : public RewriteContextTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteContextTestBase::SetUp();
 
     options()->file_load_policy()->Associate(kTestDomain, "/test/");
@@ -67,18 +65,17 @@ class SharedCacheTest : public RewriteContextTestBase {
     filesystem1_ = server1_->file_system();
     filesystem2_ = server2_->file_system();
 
-    EXPECT_EQ(NULL, server1_->filesystem_metadata_cache());
-    EXPECT_EQ(NULL, server2_->filesystem_metadata_cache());
+    EXPECT_EQ(nullptr, server1_->filesystem_metadata_cache());
+    EXPECT_EQ(nullptr, server2_->filesystem_metadata_cache());
 
     kRewrittenHref = Encode("", "tw", "0", kOriginalHref, "css");
 
     // Make the metadata and HTTP caches the same for this test.
     factory1_ = factory();
     factory2_ = other_factory();
-    server2_->set_http_cache(new HTTPCache(factory1_->delay_cache(),
-                                          factory1_->timer(),
-                                          factory1_->hasher(),
-                                          factory1_->statistics()));
+    server2_->set_http_cache(
+        new HTTPCache(factory1_->delay_cache(), factory1_->timer(),
+                      factory1_->hasher(), factory1_->statistics()));
     server2_->set_metadata_cache(factory1_->delay_cache());
 
     // The metadata cache and the HTTP cache share an underlying LRU cache at
@@ -86,10 +83,10 @@ class SharedCacheTest : public RewriteContextTestBase {
     shared_cache_ = lru_cache();
 
     // Set up each file system with the same file, same mtime.
-    EXPECT_TRUE(filesystem1_->WriteFile(kFilename, kContents,
-                                       message_handler()));
-    EXPECT_TRUE(filesystem2_->WriteFile(kFilename, kContents,
-                                       message_handler()));
+    EXPECT_TRUE(
+        filesystem1_->WriteFile(kFilename, kContents, message_handler()));
+    EXPECT_TRUE(
+        filesystem2_->WriteFile(kFilename, kContents, message_handler()));
     int64 mtime1, mtime2;
     EXPECT_TRUE(filesystem1_->Mtime(kFilename, &mtime1, message_handler()));
     EXPECT_TRUE(filesystem2_->Mtime(kFilename, &mtime2, message_handler()));
@@ -117,45 +114,46 @@ class SharedCacheTest : public RewriteContextTestBase {
     server1_->DeleteCacheOnDestruction(cache);
   }
 
-  void ValidateRewrite(StringPiece id,
-                       int num_new_metadata_hits,
-                       int num_new_metadata_misses,
-                       int num_new_shared_hits,
-                       int num_new_shared_misses,
-                       int num_new_shared_inserts,
+  void ValidateRewrite(StringPiece id, int num_new_metadata_hits,
+                       int num_new_metadata_misses, int num_new_shared_hits,
+                       int num_new_shared_misses, int num_new_shared_inserts,
                        int num_new_shared_reinserts,
                        int num_new_filesystem_opens,
                        StringPiece expected_contents) {
     // Restore request context (FetchResourceUrl sets a new one on
     // rewrite_driver).
     rewrite_driver()->set_request_context(validation_ctx_);
-    ValidateExpected(id,
-                     CssLinkHref(kOriginalHref),
+    ValidateExpected(id, CssLinkHref(kOriginalHref),
                      CssLinkHref(kRewrittenHref));
 
     // Update and check the expected counts.
-    EXPECT_EQ(num_new_metadata_hits,
-              validation_ctx_->log_record()->logging_info()->
-                  metadata_cache_info().num_hits() -
-              metadata_num_hits_);
+    EXPECT_EQ(num_new_metadata_hits, validation_ctx_->log_record()
+                                             ->logging_info()
+                                             ->metadata_cache_info()
+                                             .num_hits() -
+                                         metadata_num_hits_);
     metadata_num_hits_ = logging_info()->metadata_cache_info().num_hits();
 
-    EXPECT_EQ(num_new_metadata_misses,
-              validation_ctx_->log_record()->logging_info()->
-                  metadata_cache_info().num_misses() -
-              metadata_num_misses_) << id;
+    EXPECT_EQ(num_new_metadata_misses, validation_ctx_->log_record()
+                                               ->logging_info()
+                                               ->metadata_cache_info()
+                                               .num_misses() -
+                                           metadata_num_misses_)
+        << id;
     metadata_num_misses_ = logging_info()->metadata_cache_info().num_misses();
 
-    EXPECT_EQ(num_new_shared_hits,
-              shared_cache_->num_hits() - shared_num_hits_) << id;
+    EXPECT_EQ(num_new_shared_hits, shared_cache_->num_hits() - shared_num_hits_)
+        << id;
     shared_num_hits_ = shared_cache_->num_hits();
 
     EXPECT_EQ(num_new_shared_misses,
-              shared_cache_->num_misses() - shared_num_misses_) << id;
+              shared_cache_->num_misses() - shared_num_misses_)
+        << id;
     shared_num_misses_ = shared_cache_->num_misses();
 
     EXPECT_EQ(num_new_shared_inserts,
-              shared_cache_->num_inserts() - shared_num_inserts_) << id;
+              shared_cache_->num_inserts() - shared_num_inserts_)
+        << id;
     shared_num_inserts_ = shared_cache_->num_inserts();
 
     EXPECT_EQ(num_new_shared_reinserts,
@@ -183,13 +181,12 @@ class SharedCacheTest : public RewriteContextTestBase {
   }
 
   void WriteNewContents(TestRewriteDriverFactory* factory,
-                        FileSystem* filesystem,
-                        int64 delta_ms) {
+                        FileSystem* filesystem, int64 delta_ms) {
     // Advance time for the given factory then write new contents to the
     // test file in the given filesystem.
     factory->AdvanceTimeMs(delta_ms);
-    EXPECT_TRUE(filesystem->WriteFile(kFilename, kNewContents,
-                                      message_handler()));
+    EXPECT_TRUE(
+        filesystem->WriteFile(kFilename, kNewContents, message_handler()));
     int64 mtime1, mtime2;
     EXPECT_TRUE(filesystem1_->Mtime(kFilename, &mtime1, message_handler()));
     EXPECT_TRUE(filesystem2_->Mtime(kFilename, &mtime2, message_handler()));
@@ -227,9 +224,9 @@ class SharedCacheTest : public RewriteContextTestBase {
 const char SharedCacheTest::kFilename[] = "/test/a.css";
 const char SharedCacheTest::kContents[] = " foo b ar ";
 const char SharedCacheTest::kNewContents[] = " bar fo o ";
-const char SharedCacheTest::kTrimmed[]  = "foo b ar";
+const char SharedCacheTest::kTrimmed[] = "foo b ar";
 const char SharedCacheTest::kNewTrimmed[] = "bar fo o";
-const char SharedCacheTest::kOriginalHref[]  = "a.css";
+const char SharedCacheTest::kOriginalHref[] = "a.css";
 
 TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
   // With two independent servers, both using load-from-file, both sharing a
@@ -244,11 +241,11 @@ TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
   //   We do NOT store the original URL -> content in there as it's on disk.
   // - We opened the file to read it.
   ValidateRewrite("first_read",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      0,
-                  /* num_new_shared_misses = */    1,  // metadata
-                  /* num_new_shared_inserts = */   2,  // metadata + HTTP
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 0,
+                  /* num_new_shared_misses = */ 1,   // metadata
+                  /* num_new_shared_inserts = */ 2,  // metadata + HTTP
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,  // HTTP
                   kTrimmed);
@@ -266,14 +263,13 @@ TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
   //   metadata cache fixes by storing the timestamp in a server private cache.
   SetActiveServer(kSecondary);
   ValidateRewrite("first_cache",
-                  /* num_new_metadata_hits = */    1,
-                  /* num_new_metadata_misses = */  0,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   0,
+                  /* num_new_metadata_hits = */ 1,
+                  /* num_new_metadata_misses = */ 0,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 0,
                   /* num_new_shared_reinserts = */ 0,
-                  /* num_new_filesystem_opens = */ 0,
-                  kTrimmed);
+                  /* num_new_filesystem_opens = */ 0, kTrimmed);
 
   // 3. Modify server1's version of the file and fetch it from there again.
   //    We will have to rewrite it again and update the caches.
@@ -290,14 +286,14 @@ TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
   SetActiveServer(kPrimary);
   WriteNewContents(factory1_, filesystem1_, Timer::kSecondMs);  // Update FS #1
   ValidateRewrite("second_read",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   2,  // HTTP + metadata
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,
-                  kNewTrimmed);                        // NEW content!
+                  kNewTrimmed);  // NEW content!
 
   // 4. Rewrite using server2, which has the old contents in its filesystem.
   //    We'll find the resource in the metadata cache but its mtime is wrong so
@@ -314,14 +310,14 @@ TEST_F(SharedCacheTest, LoadFromFileMisbehavesWithoutFilesystemMetadataCache) {
   // - And we had to read the file to get its contents.
   SetActiveServer(kSecondary);
   ValidateRewrite("first_not_cache",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      1,  // HTTP
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   2,  // HTTP + metadata
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 1,  // HTTP
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,
-                  kTrimmed);                           // OLD content!
+                  kTrimmed);  // OLD content!
 }
 
 TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
@@ -333,11 +329,11 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
 
   // Same as step 1 of LoadFromFileFailsWithSharedCache above.
   ValidateRewrite("first_read",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      0,
-                  /* num_new_shared_misses = */    1,  // metadata
-                  /* num_new_shared_inserts = */   2,  // metadata + HTTP
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 0,
+                  /* num_new_shared_misses = */ 1,   // metadata
+                  /* num_new_shared_inserts = */ 2,  // metadata + HTTP
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,  // HTTP
                   kTrimmed);
@@ -346,11 +342,11 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
   // - We do file read to compute the filesystem metadata cache's content hash.
   SetActiveServer(kSecondary);
   ValidateRewrite("first_cache",
-                  /* num_new_metadata_hits = */    1,
-                  /* num_new_metadata_misses = */  0,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   0,
+                  /* num_new_metadata_hits = */ 1,
+                  /* num_new_metadata_misses = */ 0,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 0,
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,  // FSMDC
                   kTrimmed);
@@ -362,11 +358,11 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
   SetActiveServer(kPrimary);
   WriteNewContents(factory1_, filesystem1_, Timer::kSecondMs);  // Update FS #1
   ValidateRewrite("first_update",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   2,  // HTTP + metadata
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
                   kNewTrimmed);                        // NEW content!
@@ -377,11 +373,11 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
   //   background.
   SetActiveServer(kSecondary);
   ValidateRewrite("first_not_cache",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      1,  // HTTP
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   2,  // HTTP + metadata
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 1,  // HTTP
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
                   kTrimmed);                           // OLD content!
@@ -390,31 +386,31 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
   // different versions of the file contents.
   SetActiveServer(kPrimary);
   ValidateRewrite("first_flip_flop",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   2,  // HTTP + metadata
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
                   kNewTrimmed);                        // NEW content!
   SetActiveServer(kSecondary);
   ValidateRewrite("second_flip_flop",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   2,  // HTTP + metadata
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
                   kTrimmed);                           // OLD content!
   SetActiveServer(kPrimary);
   ValidateRewrite("third_flip_flop",
-                  /* num_new_metadata_hits = */    0,
-                  /* num_new_metadata_misses = */  1,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   2,  // HTTP + metadata
+                  /* num_new_metadata_hits = */ 0,
+                  /* num_new_metadata_misses = */ 1,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 2,  // HTTP + metadata
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 2,  // FSMDC + HTTP
                   kNewTrimmed);                        // NEW content!
@@ -424,13 +420,14 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
   // are now the same, so we can reuse server1's rewritten contents. The end
   // result is that this is exactly the same as our step 2 above.
   SetActiveServer(kSecondary);
-  WriteNewContents(factory2_, filesystem2_, 2*Timer::kSecondMs);  // Update FS#2
+  WriteNewContents(factory2_, filesystem2_,
+                   2 * Timer::kSecondMs);  // Update FS#2
   ValidateRewrite("second_update",
-                  /* num_new_metadata_hits = */    1,
-                  /* num_new_metadata_misses = */  0,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   0,
+                  /* num_new_metadata_hits = */ 1,
+                  /* num_new_metadata_misses = */ 0,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 0,
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 1,  // FSMDC
                   kNewTrimmed);                        // NEW content!
@@ -438,34 +435,34 @@ TEST_F(SharedCacheTest, LoadFromFileSucceedsWithFilesystemMetadataCache) {
   // We should stabilize and stop flip-flopping having reloaded from server2.
   SetActiveServer(kPrimary);
   ValidateRewrite("first_stabilize",
-                  /* num_new_metadata_hits = */    1,
-                  /* num_new_metadata_misses = */  0,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   0,
+                  /* num_new_metadata_hits = */ 1,
+                  /* num_new_metadata_misses = */ 0,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 0,
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 0,
-                  kNewTrimmed);                        // NEW content!
+                  kNewTrimmed);  // NEW content!
   SetActiveServer(kSecondary);
   ValidateRewrite("second_stabilize",
-                  /* num_new_metadata_hits = */    1,
-                  /* num_new_metadata_misses = */  0,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   0,
+                  /* num_new_metadata_hits = */ 1,
+                  /* num_new_metadata_misses = */ 0,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 0,
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 0,
-                  kNewTrimmed);                        // NEW content!
+                  kNewTrimmed);  // NEW content!
   SetActiveServer(kPrimary);
   ValidateRewrite("third_stabilize",
-                  /* num_new_metadata_hits = */    1,
-                  /* num_new_metadata_misses = */  0,
-                  /* num_new_shared_hits = */      1,  // metadata
-                  /* num_new_shared_misses = */    0,
-                  /* num_new_shared_inserts = */   0,
+                  /* num_new_metadata_hits = */ 1,
+                  /* num_new_metadata_misses = */ 0,
+                  /* num_new_shared_hits = */ 1,  // metadata
+                  /* num_new_shared_misses = */ 0,
+                  /* num_new_shared_inserts = */ 0,
                   /* num_new_shared_reinserts = */ 0,
                   /* num_new_filesystem_opens = */ 0,
-                  kNewTrimmed);                        // NEW content!
+                  kNewTrimmed);  // NEW content!
 }
 
 }  // namespace net_instaweb

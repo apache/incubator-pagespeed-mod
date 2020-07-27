@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_INLINE_IMPORT_TO_LINK_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_INLINE_IMPORT_TO_LINK_FILTER_H_
 
@@ -48,22 +47,22 @@ class CssInlineImportToLinkFilter : public EmptyHtmlFilter {
  public:
   explicit CssInlineImportToLinkFilter(RewriteDriver* driver,
                                        Statistics* statistics);
-  virtual ~CssInlineImportToLinkFilter();
+  ~CssInlineImportToLinkFilter() override;
 
   static void InitStats(Statistics* statistics);
 
-  virtual void StartDocument();
-  virtual void EndDocument();
+  void StartDocument() override;
+  void EndDocument() override;
 
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
 
-  virtual void Flush();
+  void Flush() override;
 
   // HTML Events we expect to be in a <style> element.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
-  virtual const char* Name() const { return "InlineImportToLinkCss"; }
+  const char* Name() const override { return "InlineImportToLinkCss"; }
 
  private:
   void ResetState();

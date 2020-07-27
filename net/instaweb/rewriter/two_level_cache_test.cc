@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Test the interaction of L1 and L2 cache for the metadata cache.
 
 #include <utility>
@@ -60,7 +59,7 @@ namespace {
 class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
  public:
   static std::pair<TestRewriteDriverFactory*, TestRewriteDriverFactory*>
-      MakeFactories(MockUrlFetcher* mock_url_fetcher) {
+  MakeFactories(MockUrlFetcher* mock_url_fetcher) {
     CustomRewriteDriverFactory* factory1 = new CustomRewriteDriverFactory(
         mock_url_fetcher, true /* Use write through cache */, 1000);
     CustomRewriteDriverFactory* factory2 = new CustomRewriteDriverFactory(
@@ -69,7 +68,7 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
     return std::make_pair(factory1, factory2);
   }
 
-  virtual void SetupCaches(ServerContext* server_context) {
+  void SetupCaches(ServerContext* server_context) override {
     server_context->set_http_cache(
         new HTTPCache(cache1_, timer(), hasher(), statistics()));
     if (use_write_through_cache_) {
@@ -96,8 +95,7 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
 
  private:
   CustomRewriteDriverFactory(MockUrlFetcher* url_fetcher,
-                             bool use_write_through_cache,
-                             int cache_size)
+                             bool use_write_through_cache, int cache_size)
       : TestRewriteDriverFactory(RewriteTestBase::process_context(),
                                  GTestTempDir(), url_fetcher),
         owned_cache1_(new LRUCache(cache_size)),
@@ -109,8 +107,8 @@ class CustomRewriteDriverFactory : public TestRewriteDriverFactory {
   }
 
   CustomRewriteDriverFactory(MockUrlFetcher* url_fetcher,
-                             bool use_write_through_cache,
-                             LRUCache* cache1, LRUCache* cache2)
+                             bool use_write_through_cache, LRUCache* cache1,
+                             LRUCache* cache2)
       : TestRewriteDriverFactory(RewriteTestBase::process_context(),
                                  GTestTempDir(), url_fetcher),
         cache1_(cache1),
@@ -134,19 +132,15 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
  protected:
   TwoLevelCacheTest()
       : RewriteContextTestBase(
-          CustomRewriteDriverFactory::MakeFactories(&mock_url_fetcher_)) {}
+            CustomRewriteDriverFactory::MakeFactories(&mock_url_fetcher_)) {}
 
   // These must be run prior to the calls to 'new CustomRewriteDriverFactory'
   // in the constructor initializer above.  Thus the calls to Initialize() in
   // the base class are too late.
-  static void SetUpTestCase() {
-    RewriteOptions::Initialize();
-  }
-  static void TearDownTestCase() {
-    RewriteOptions::Terminate();
-  }
+  static void SetUpTestSuite() { RewriteOptions::Initialize(); }
+  static void TearDownTestSuite() { RewriteOptions::Terminate(); }
 
-  virtual void SetUp() {
+  void SetUp() override {
     // Keeping local pointers to cache backends for convenience.  Note that both
     // factory and other_factory use the same cache backends.
     CustomRewriteDriverFactory* custom_factory =
@@ -156,11 +150,9 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
     RewriteContextTestBase::SetUp();
   }
 
-  virtual void TearDown() {
-    RewriteContextTestBase::TearDown();
-  }
+  void TearDown() override { RewriteContextTestBase::TearDown(); }
 
-  virtual void ClearStats() {
+  void ClearStats() override {
     RewriteContextTestBase::ClearStats();
     cache1_->ClearStats();
     cache2_->ClearStats();
@@ -184,8 +176,8 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
       options()->set_metadata_cache_staleness_threshold_ms(2 * kOriginTtlMs);
       options()->ComputeSignature();
       other_options()->ClearSignatureForTesting();
-      other_options()->set_metadata_cache_staleness_threshold_ms(
-          2 * kOriginTtlMs);
+      other_options()->set_metadata_cache_staleness_threshold_ms(2 *
+                                                                 kOriginTtlMs);
       other_options()->ComputeSignature();
     }
 
@@ -196,8 +188,8 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
     // mapping (OutputPartitions).  The output resource should not be
     // stored.
     GoogleString input_html(CssLinkHref("a.css"));
-    GoogleString output_html(CssLinkHref(
-        Encode("", "tw", "0", "a.css", "css")));
+    GoogleString output_html(
+        CssLinkHref(Encode("", "tw", "0", "a.css", "css")));
     ValidateExpected("trimmable", input_html, output_html);
     EXPECT_EQ(0, cache1_->num_hits());
     EXPECT_EQ(2, cache1_->num_misses());
@@ -248,14 +240,12 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
     if (stale_ok) {
       // If metadata staleness threshold is set, we would get a cache hit
       // as we allow stale rewrites.
-      EXPECT_EQ(
-          1, other_logging_info->metadata_cache_info().num_stale_rewrites());
-      EXPECT_EQ(0,
-                other_logging_info->metadata_cache_info().num_revalidates());
+      EXPECT_EQ(1,
+                other_logging_info->metadata_cache_info().num_stale_rewrites());
+      EXPECT_EQ(0, other_logging_info->metadata_cache_info().num_revalidates());
       EXPECT_EQ(1, other_logging_info->metadata_cache_info().num_hits());
     } else {
-      EXPECT_EQ(1,
-                other_logging_info->metadata_cache_info().num_revalidates());
+      EXPECT_EQ(1, other_logging_info->metadata_cache_info().num_revalidates());
       EXPECT_EQ(0, other_logging_info->metadata_cache_info().num_hits());
     }
 
@@ -266,7 +256,7 @@ class TwoLevelCacheTest : public RewriteContextTestBase {
     ValidateExpected("trimmable", input_html, output_html);
     // We have an expired hit for metadata in cache1, and a fresh hit for it in
     // cache2.  The fresh metadata is inserted in cache1.
-    EXPECT_EQ(1, cache1_->num_hits());     // expired hit
+    EXPECT_EQ(1, cache1_->num_hits());  // expired hit
     EXPECT_EQ(0, cache1_->num_misses());
     EXPECT_EQ(1, cache1_->num_inserts());  // re-inserts after expiration.
     EXPECT_EQ(1, cache2_->num_hits());     // fresh hit
@@ -294,8 +284,7 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   // mapping (OutputPartitions).  The output resource should not be
   // stored.
   GoogleString input_html(CssLinkHref("a.css"));
-  GoogleString output_html(CssLinkHref(
-      Encode("", "tw", "0", "a.css", "css")));
+  GoogleString output_html(CssLinkHref(Encode("", "tw", "0", "a.css", "css")));
   ValidateExpected("trimmable", input_html, output_html);
   EXPECT_EQ(0, cache1_->num_hits());
   EXPECT_EQ(2, cache1_->num_misses());
@@ -332,13 +321,13 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   // the data did not actually change.
   AdvanceTimeMs(2 * kOriginTtlMs);
   ValidateExpected("trimmable", input_html, output_html);
-  EXPECT_EQ(2, cache1_->num_hits());     // 1 expired hit, 1 valid hit.
+  EXPECT_EQ(2, cache1_->num_hits());  // 1 expired hit, 1 valid hit.
   EXPECT_EQ(0, cache1_->num_misses());
   EXPECT_EQ(2, cache1_->num_inserts());  // re-inserts after expiration.
   // The following is 1 because the ValidateCandidate check in
   // OutputCacheCallback will return false for cache1.  Without the check we
   // will simply return expired value from cache1 instead of trying cache2.
-  EXPECT_EQ(1, cache2_->num_hits());     // 1 expired hit
+  EXPECT_EQ(1, cache2_->num_hits());  // 1 expired hit
   EXPECT_EQ(0, cache2_->num_misses());
   EXPECT_EQ(1, cache2_->num_inserts());  // re-inserts after expiration.
   EXPECT_EQ(1, counting_url_async_fetcher()->fetch_count());
@@ -350,7 +339,7 @@ TEST_F(TwoLevelCacheTest, BothCachesInSameState) {
   // The fourth time we request this URL, the cache is in good shape despite
   // the expired date header from the origin.
   ValidateExpected("trimmable", input_html, output_html);
-  EXPECT_EQ(1, cache1_->num_hits());     // 1 expired hit, 1 valid hit.
+  EXPECT_EQ(1, cache1_->num_hits());  // 1 expired hit, 1 valid hit.
   EXPECT_EQ(0, cache1_->num_misses());
   EXPECT_EQ(0, cache1_->num_inserts());  // re-inserts after expiration.
   EXPECT_EQ(0, cache2_->num_hits());

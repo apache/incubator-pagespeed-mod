@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/posix_timer.h"
 
 #include <sys/time.h>
 #include <unistd.h>
+
 #include <cerrno>
 
 #include "base/logging.h"
@@ -30,20 +30,17 @@
 
 namespace net_instaweb {
 
-PosixTimer::~PosixTimer() {
-}
+PosixTimer::~PosixTimer() {}
 
 int64 PosixTimer::NowUs() const {
   struct timeval tv;
-  struct timezone tz = { 0, 0 };  // UTC
+  struct timezone tz = {0, 0};  // UTC
   if (gettimeofday(&tv, &tz) != 0) {
     LOG(FATAL) << "Could not determine time of day: " << strerror(errno);
   }
   return (static_cast<int64>(tv.tv_sec) * 1000000) + tv.tv_usec;
 }
 
-void PosixTimer::SleepUs(int64 us) {
-  usleep(us);
-}
+void PosixTimer::SleepUs(int64 us) { usleep(us); }
 
 }  // namespace net_instaweb

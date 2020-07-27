@@ -17,20 +17,17 @@
  * under the License.
  */
 
-
-#ifndef PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
-#define PAGESPEED_KERNEL_BASE_SCOPED_PTR_H_
+#pragma once
 
 #include <memory>
 
 namespace net_instaweb {
 
-template<typename T> class scoped_array : public std::unique_ptr<T[]> {
+template <typename T>
+class scoped_array : public std::unique_ptr<T[]> {
  public:
   scoped_array() : std::unique_ptr<T[]>() {}
   explicit scoped_array(T* t) : std::unique_ptr<T[]>(t) {}
 };
 
-}
-
-#endif
+}  // namespace net_instaweb

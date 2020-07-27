@@ -17,21 +17,21 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/pthread_shared_mem.h"
 
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
 #include <cerrno>
 #include <cstddef>
 #include <map>
 #include <utility>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
+#include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
@@ -63,17 +63,13 @@ class PthreadSharedMemMutex : public AbstractMutex {
   explicit PthreadSharedMemMutex(pthread_mutex_t* external_mutex)
       : external_mutex_(external_mutex) {}
 
-  virtual bool TryLock() {
+  bool TryLock() override {
     return (pthread_mutex_trylock(external_mutex_) == 0);
   }
 
-  virtual void Lock() {
-    pthread_mutex_lock(external_mutex_);
-  }
+  void Lock() override { pthread_mutex_lock(external_mutex_); }
 
-  virtual void Unlock() {
-    pthread_mutex_unlock(external_mutex_);
-  }
+  void Unlock() override { pthread_mutex_unlock(external_mutex_); }
 
  private:
   pthread_mutex_t* external_mutex_;
@@ -85,22 +81,15 @@ class PthreadSharedMemSegment : public AbstractSharedMemSegment {
  public:
   // We will be representing memory mapped in the [base, base + size) range.
   PthreadSharedMemSegment(char* base, size_t size, MessageHandler* handler)
-      : base_(base),
-        size_(size) {
-  }
+      : base_(base), size_(size) {}
 
-  virtual ~PthreadSharedMemSegment() {
-  }
+  ~PthreadSharedMemSegment() override {}
 
-  virtual volatile char* Base() {
-    return base_;
-  }
+  volatile char* Base() override { return base_; }
 
-  virtual size_t SharedMutexSize() const {
-    return sizeof(pthread_mutex_t);
-  }
+  size_t SharedMutexSize() const override { return sizeof(pthread_mutex_t); }
 
-  virtual bool InitializeSharedMutex(size_t offset, MessageHandler* handler) {
+  bool InitializeSharedMutex(size_t offset, MessageHandler* handler) override {
     pthread_mutexattr_t attr;
     if (pthread_mutexattr_init(&attr) != 0) {
       handler->Message(kError, "pthread_mutexattr_init failed with errno:%d",
@@ -126,7 +115,7 @@ class PthreadSharedMemSegment : public AbstractSharedMemSegment {
     return true;
   }
 
-  virtual AbstractMutex* AttachToSharedMutex(size_t offset) {
+  AbstractMutex* AttachToSharedMutex(size_t offset) override {
     return new PthreadSharedMemMutex(MutexPtr(offset));
   }
 
@@ -147,14 +136,11 @@ pthread_mutex_t segment_bases_lock = PTHREAD_MUTEX_INITIALIZER;
 
 size_t PthreadSharedMem::s_instance_count_ = 0;
 
-PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::segment_bases_ = NULL;
+PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::segment_bases_ = nullptr;
 
-PthreadSharedMem::PthreadSharedMem() {
-  instance_number_ = ++s_instance_count_;
-}
+PthreadSharedMem::PthreadSharedMem() { instance_number_ = ++s_instance_count_; }
 
-PthreadSharedMem::~PthreadSharedMem() {
-}
+PthreadSharedMem::~PthreadSharedMem() {}
 
 size_t PthreadSharedMem::SharedMutexSize() const {
   return sizeof(pthread_mutex_t);
@@ -167,21 +153,23 @@ AbstractSharedMemSegment* PthreadSharedMem::CreateSegment(
   int fd = open("/dev/zero", O_RDWR);
   if (fd == -1) {
     handler->Message(
-        kError, "Unable to create SHM segment %s, open of /dev/zero failed "
-        "with errno=%d.", prefixed_name.c_str(), errno);
-    return NULL;
+        kError,
+        "Unable to create SHM segment %s, open of /dev/zero failed "
+        "with errno=%d.",
+        prefixed_name.c_str(), errno);
+    return nullptr;
   }
 
   // map it
   char* base = reinterpret_cast<char*>(
-                   mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+      mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
   int mmap_errno = errno;
   CheckedClose(fd, handler);
   if (base == MAP_FAILED) {
     handler->Message(
         kError, "Unable to create SHM segment %s, mmap failed with errno=%d.",
         prefixed_name.c_str(), mmap_errno);
-    return NULL;
+    return nullptr;
   }
 
   SegmentBaseMap* bases = AcquireSegmentBases();
@@ -199,7 +187,7 @@ AbstractSharedMemSegment* PthreadSharedMem::AttachToSegment(
     handler->Message(kError, "Unable to find SHM segment %s to attach to.",
                      prefixed_name.c_str());
     UnlockSegmentBases();
-    return NULL;
+    return nullptr;
   }
   char* base = i->second.first;
   DCHECK_EQ(size, i->second.second);
@@ -221,7 +209,7 @@ void PthreadSharedMem::DestroySegment(const GoogleString& name,
     bases->erase(i);
     if (bases->empty()) {
       delete segment_bases_;
-      segment_bases_ = NULL;
+      segment_bases_ = nullptr;
     }
   } else {
     handler->Message(kError, "Attempt to destroy unknown SHM segment %s.",
@@ -234,7 +222,7 @@ PthreadSharedMem::SegmentBaseMap* PthreadSharedMem::AcquireSegmentBases() {
   PthreadSharedMemMutex lock(&segment_bases_lock);
   lock.Lock();
 
-  if (segment_bases_ == NULL) {
+  if (segment_bases_ == nullptr) {
     segment_bases_ = new SegmentBaseMap();
   }
 
@@ -257,9 +245,9 @@ void PthreadSharedMem::Terminate() {
   // storage.
   PthreadSharedMemMutex lock(&segment_bases_lock);
   lock.Lock();
-  if (segment_bases_ != NULL) {
+  if (segment_bases_ != nullptr) {
     delete segment_bases_;
-    segment_bases_ = NULL;
+    segment_bases_ = nullptr;
   }
   lock.Unlock();
 }

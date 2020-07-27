@@ -17,28 +17,25 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
 
+#include "base/logging.h"
+#include "net/instaweb/rewriter/public/javascript_code_block.h"
 #include "net/instaweb/rewriter/public/request_properties.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
+#include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
-
-#include "base/logging.h"
-#include "net/instaweb/rewriter/public/javascript_code_block.h"
-#include "pagespeed/kernel/base/null_message_handler.h"
 
 namespace net_instaweb {
 
 JsDeferDisabledFilter::JsDeferDisabledFilter(RewriteDriver* driver)
-    : CommonFilter(driver) {
-}
+    : CommonFilter(driver) {}
 
-JsDeferDisabledFilter::~JsDeferDisabledFilter() { }
+JsDeferDisabledFilter::~JsDeferDisabledFilter() {}
 
 void JsDeferDisabledFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(ShouldApply(driver()));
@@ -55,9 +52,8 @@ void JsDeferDisabledFilter::InsertJsDeferCode() {
   const RewriteOptions* options = driver()->options();
   // Insert script node with deferJs code as outlined.
   HtmlElement* defer_js_url_node =
-      driver()->NewElement(NULL, HtmlName::kScript);
-  driver()->AddAttribute(defer_js_url_node, HtmlName::kType,
-                                "text/javascript");
+      driver()->NewElement(nullptr, HtmlName::kScript);
+  driver()->AddAttribute(defer_js_url_node, HtmlName::kType, "text/javascript");
   driver()->AddAttribute(
       defer_js_url_node, HtmlName::kSrc,
       static_asset_manager->GetAssetUrl(StaticAssetEnum::DEFER_JS, options));

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_ADMIN_SITE_H_
 #define PAGESPEED_SYSTEM_ADMIN_SITE_H_
 
@@ -57,8 +56,7 @@ class AdminSite {
   AdminSite(StaticAssetManager* static_asset_manager, Timer* timer,
             MessageHandler* message_handler);
 
-  ~AdminSite() {
-  }
+  ~AdminSite() {}
 
   // Handler which serves PSOL console.
   // Note: ConsoleHandler always succeeds.
@@ -68,8 +66,8 @@ class AdminSite {
                       Statistics* statistics);
 
   // Displays recent Info/Warning/Error messages.: public ServerContext
-  void MessageHistoryHandler(const RewriteOptions& options,
-                             AdminSource source, AsyncFetch* fetch);
+  void MessageHistoryHandler(const RewriteOptions& options, AdminSource source,
+                             AsyncFetch* fetch);
 
   // Deprecated handler for graphs in the PSOL console.
   void StatisticsGraphsHandler(
@@ -79,10 +77,9 @@ class AdminSite {
   // point for all the administrator pages including stats,
   // message-histogram, console, etc.
   void AdminPage(bool is_global, const GoogleUrl& stripped_gurl,
-                 const QueryParams& query_params,
-                 const RewriteOptions* options,
-                 SystemCachePath* cache_path,
-                 AsyncFetch* fetch, SystemCaches* system_caches,
+                 const QueryParams& query_params, const RewriteOptions* options,
+                 SystemCachePath* cache_path, AsyncFetch* fetch,
+                 SystemCaches* system_caches,
                  CacheInterface* filesystem_metadata_cache,
                  HTTPCache* http_cache, CacheInterface* metadata_cache,
                  PropertyCache* page_property_cache,
@@ -124,7 +121,8 @@ class AdminSite {
   // TODO(xqyin): Integrate this into console page.
   void GraphsHandler(const RewriteOptions& options, AdminSource source,
                      const QueryParams& query_params, AsyncFetch* fetch,
-                     Statistics* stats);;
+                     Statistics* stats);
+  ;
 
   // Print details for configuration.
   void PrintConfig(AdminSource source, AsyncFetch* fetch,
@@ -135,8 +133,7 @@ class AdminSite {
   void PrintCaches(bool is_global, AdminSource source,
                    const GoogleUrl& stripped_gurl,
                    const QueryParams& query_params,
-                   const RewriteOptions* options,
-                   SystemCachePath* cache_path,
+                   const RewriteOptions* options, SystemCachePath* cache_path,
                    AsyncFetch* fetch, SystemCaches* system_caches,
                    CacheInterface* filesystem_metadata_cache,
                    HTTPCache* http_cache, CacheInterface* metadata_cache,

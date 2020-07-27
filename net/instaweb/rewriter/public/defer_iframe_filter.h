@@ -71,14 +71,14 @@ class DeferIframeFilter : public CommonFilter {
   static const char kDeferIframeInit[];
   static const char kDeferIframeIframeJs[];
   explicit DeferIframeFilter(RewriteDriver* driver);
-  ~DeferIframeFilter();
+  ~DeferIframeFilter() override;
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
-  virtual const char* Name() const { return "DeferIframe"; }
+  const char* Name() const override { return "DeferIframe"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

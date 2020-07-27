@@ -29,34 +29,24 @@
 
 namespace net_instaweb {
 
-WgetUrlFetcher::WgetUrlFetcher() {
-  set_binary("/usr/bin/wget");
-}
+WgetUrlFetcher::WgetUrlFetcher() { set_binary("/usr/bin/wget"); }
 
-const char* WgetUrlFetcher::GetFetchLabel() {
-  return "wget";
-}
-
+const char* WgetUrlFetcher::GetFetchLabel() { return "wget"; }
 
 GoogleString WgetUrlFetcher::ConstructFetchCommand(
-    const GoogleString& escaped_url,
-    const char* user_agent,
+    const GoogleString& escaped_url, const char* user_agent,
     const StringVector& escaped_headers) {
-
   GoogleString cmd(binary_);
   StrAppend(&cmd, " --save-headers -q -O -");
 
   // Use default user-agent if none is set in headers.
-  if (user_agent == NULL) {
-    StrAppend(&cmd,
-              " --user-agent \"",
-              ExternalUrlFetcher::kDefaultUserAgent,
+  if (user_agent == nullptr) {
+    StrAppend(&cmd, " --user-agent \"", ExternalUrlFetcher::kDefaultUserAgent,
               "\"");
   }
 
   for (StringVector::const_iterator it = escaped_headers.begin();
-       it != escaped_headers.end();
-       ++it) {
+       it != escaped_headers.end(); ++it) {
     StrAppend(&cmd, " --header \"", *it, "\"");
   }
 

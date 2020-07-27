@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/central_controller_rpc_server.h"
 
 #include <memory>
@@ -37,8 +36,7 @@ CentralControllerRpcServer::CentralControllerRpcServer(
     : listen_address_(listen_address),
       expensive_operation_controller_(expensive_operation_controller),
       rewrite_controller_(rewrite_controller),
-      handler_(handler) {
-}
+      handler_(handler) {}
 
 int CentralControllerRpcServer::Setup() {
   ::grpc::ServerBuilder builder;
@@ -64,8 +62,7 @@ int CentralControllerRpcServer::Setup() {
 }
 
 int CentralControllerRpcServer::Run() {
-  PS_LOG_INFO(handler_,
-              "CentralControllerRpcServer processing requests on %s",
+  PS_LOG_INFO(handler_, "CentralControllerRpcServer processing requests on %s",
               listen_address_.c_str());
 
   MainLoop(queue_.get());

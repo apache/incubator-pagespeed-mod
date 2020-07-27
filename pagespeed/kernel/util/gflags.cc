@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/util/gflags.h"
 
 #include "gflags/gflags.h"

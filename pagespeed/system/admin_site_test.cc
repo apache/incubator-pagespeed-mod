@@ -28,8 +28,6 @@
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
-#include "pagespeed/system/system_rewrite_options.h"
-#include "pagespeed/system/system_server_context.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
@@ -38,6 +36,8 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/platform.h"
+#include "pagespeed/system/system_rewrite_options.h"
+#include "pagespeed/system/system_server_context.h"
 
 namespace net_instaweb {
 
@@ -46,8 +46,7 @@ namespace {
 class SystemServerContextNoProxyHtml : public SystemServerContext {
  public:
   explicit SystemServerContextNoProxyHtml(RewriteDriverFactory* factory)
-      : SystemServerContext(factory, "fake_hostname", 80 /* fake port */) {
-  }
+      : SystemServerContext(factory, "fake_hostname", 80 /* fake port */) {}
 
   virtual bool ProxiesHtml() const { return false; }
 
@@ -61,17 +60,14 @@ class AdminSiteTest : public CustomRewriteTestBase<SystemRewriteOptions> {
       : thread_system_(Platform::CreateThreadSystem()),
         options_(new SystemRewriteOptions(thread_system_.get())),
         admin_site_(new AdminSite(factory()->static_asset_manager(), timer(),
-                                  message_handler())) {
-  }
+                                  message_handler())) {}
 
   virtual void SetUp() {
     CustomRewriteTestBase<SystemRewriteOptions>::SetUp();
     server_context_.reset(SetupServerContext(options_.release()));
   }
 
-  virtual void TearDown() {
-    RewriteTestBase::TearDown();
-  }
+  virtual void TearDown() { RewriteTestBase::TearDown(); }
 
   // Set up the ServerContext. The ServerContext is only used for
   // PrintCaches method. If we remove this dependency later,
@@ -108,10 +104,10 @@ TEST_F(AdminSiteTest, ColorMessagesInHistoryPage) {
   // does not matter in this test. So we just test for kPageSpeedAdmin here.
   admin_site_->MessageHistoryHandler(*(rewrite_driver()->options()),
                                      AdminSite::kPageSpeedAdmin, &fetch);
-  EXPECT_THAT(
-      buffer, ::testing::HasSubstr (absl::StrFormat(kColorTemplate, "red")));
-  EXPECT_THAT(
-      buffer, ::testing::HasSubstr (absl::StrFormat(kColorTemplate, "brown")));
+  EXPECT_THAT(buffer,
+              ::testing::HasSubstr(absl::StrFormat(kColorTemplate, "red")));
+  EXPECT_THAT(buffer,
+              ::testing::HasSubstr(absl::StrFormat(kColorTemplate, "brown")));
   EXPECT_THAT(buffer, ::testing::HasSubstr("style=\"margin:0;\""));
 }
 // TODO(xqyin): Add unit tests for other methods in AdminSite.

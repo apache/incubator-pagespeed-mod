@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_WRITE_THROUGH_CACHE_H_
 #define PAGESPEED_KERNEL_CACHE_WRITE_THROUGH_CACHE_H_
 
@@ -38,16 +37,13 @@ class WriteThroughCache : public CacheInterface {
 
   // Does not take ownership of caches passed in.
   WriteThroughCache(CacheInterface* cache1, CacheInterface* cache2)
-      : cache1_(cache1),
-        cache2_(cache2),
-        cache1_size_limit_(kUnlimited) {
-  }
+      : cache1_(cache1), cache2_(cache2), cache1_size_limit_(kUnlimited) {}
 
-  virtual ~WriteThroughCache();
+  ~WriteThroughCache() override;
 
-  virtual void Get(const GoogleString& key, Callback* callback);
-  virtual void Put(const GoogleString& key, const SharedString& value);
-  virtual void Delete(const GoogleString& key);
+  void Get(const GoogleString& key, Callback* callback) override;
+  void Put(const GoogleString& key, const SharedString& value) override;
+  void Delete(const GoogleString& key) override;
 
   // By default, all data goes into both cache1 and cache2.  But
   // if you only want to put small items in cache1, you can set the
@@ -58,21 +54,21 @@ class WriteThroughCache : public CacheInterface {
 
   CacheInterface* cache1() { return cache1_; }
   CacheInterface* cache2() { return cache2_; }
-  virtual bool IsBlocking() const {
+  bool IsBlocking() const override {
     // We can fulfill our guarantee only if both caches block.
     return cache1_->IsBlocking() && cache2_->IsBlocking();
   }
 
-  virtual bool IsHealthy() const {
+  bool IsHealthy() const override {
     return cache1_->IsHealthy() && cache2_->IsHealthy();
   }
 
-  virtual void ShutDown() {
+  void ShutDown() override {
     cache1_->ShutDown();
     cache2_->ShutDown();
   }
 
-  virtual GoogleString Name() const {
+  GoogleString Name() const override {
     return FormatName(cache1_->Name(), cache2_->Name());
   }
   static GoogleString FormatName(StringPiece l1, StringPiece l2);

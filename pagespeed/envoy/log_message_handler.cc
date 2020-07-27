@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,8 +32,8 @@
 
 namespace {
 class Logger : public Envoy::Logger::Loggable<Envoy::Logger::Id::main> {
-  bool LogMessageHandler(int severity, const char* file, int line, size_t message_start,
-                         const GoogleString& str) {
+  bool LogMessageHandler(int severity, const char* file, int line,
+                         size_t message_start, const GoogleString& str) {
     // TODO(oschaaf): if log level is fatal we need to do more:
     // - if debugging, break
     // - else log stack trace.
@@ -41,22 +41,23 @@ class Logger : public Envoy::Logger::Loggable<Envoy::Logger::Id::main> {
     absl::ConsumeSuffix(&message, "\n");
     constexpr char preamble[] = "[pagespeed %s] %s";
     switch (severity) {
-    case logging::LOG_INFO:
-      ENVOY_LOG(info, preamble, net_instaweb::kModPagespeedVersion, message);
-    case logging::LOG_WARNING:
-      ENVOY_LOG(warn, preamble, net_instaweb::kModPagespeedVersion, message);
-    case logging::LOG_ERROR:
-      ENVOY_LOG(error, preamble, net_instaweb::kModPagespeedVersion, message);
-    case logging::LOG_FATAL:
-      ENVOY_LOG(critical, preamble, net_instaweb::kModPagespeedVersion, message);
-    default: // For VLOG(s)
-      ENVOY_LOG(debug, preamble, net_instaweb::kModPagespeedVersion, message);
+      case logging::LOG_INFO:
+        ENVOY_LOG(info, preamble, net_instaweb::kModPagespeedVersion, message);
+      case logging::LOG_WARNING:
+        ENVOY_LOG(warn, preamble, net_instaweb::kModPagespeedVersion, message);
+      case logging::LOG_ERROR:
+        ENVOY_LOG(error, preamble, net_instaweb::kModPagespeedVersion, message);
+      case logging::LOG_FATAL:
+        ENVOY_LOG(critical, preamble, net_instaweb::kModPagespeedVersion,
+                  message);
+      default:  // For VLOG(s)
+        ENVOY_LOG(debug, preamble, net_instaweb::kModPagespeedVersion, message);
     }
     return true;
   }
 };
 
-} // namespace
+}  // namespace
 
 namespace net_instaweb {
 
@@ -68,5 +69,5 @@ void Install() {
   // logging::SetMinLogLevel(-2);
 }
 
-} // namespace log_message_handler
-} // namespace net_instaweb
+}  // namespace log_message_handler
+}  // namespace net_instaweb

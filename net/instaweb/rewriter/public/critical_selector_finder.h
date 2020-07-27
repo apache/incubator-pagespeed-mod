@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_SELECTOR_FINDER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_SELECTOR_FINDER_H_
 
@@ -77,8 +76,7 @@ class CriticalSelectorFinder {
   // cohort.  If results are obtained from a trusted source
   // (ShouldReplacePriorResult() must return true) then nonce may be NULL.
   virtual void WriteCriticalSelectorsToPropertyCache(
-      const StringSet& selector_set, StringPiece nonce,
-      RewriteDriver* driver);
+      const StringSet& selector_set, StringPiece nonce, RewriteDriver* driver);
 
   // As above, but suitable for use in a beacon context where no RewriteDriver
   // is available.
@@ -93,8 +91,8 @@ class CriticalSelectorFinder {
   // selector data.  Otherwise re-beaconing is based on a time and request
   // interval.  Returns the BeaconMetadata; result.status indicates whether
   // beaconing should occur.
-  BeaconMetadata PrepareForBeaconInsertion(
-      const StringSet& selector_set, RewriteDriver* driver);
+  BeaconMetadata PrepareForBeaconInsertion(const StringSet& selector_set,
+                                           RewriteDriver* driver);
 
   // Gets the SupportInterval for a new beacon result.
   virtual int SupportInterval() const = 0;
@@ -140,7 +138,7 @@ class BeaconCriticalSelectorFinder : public CriticalSelectorFinder {
   static const int kDefaultSupportInterval = 10;
 
   // Gets the SupportInterval for a new beacon result (see comment at top).
-  virtual int SupportInterval() const { return kDefaultSupportInterval; }
+  int SupportInterval() const override { return kDefaultSupportInterval; }
 };
 
 }  // namespace net_instaweb

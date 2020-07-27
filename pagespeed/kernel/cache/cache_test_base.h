@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Shared infrastructure for testing cache implementations
 
 #ifndef PAGESPEED_KERNEL_CACHE_CACHE_TEST_BASE_H_
@@ -47,7 +46,7 @@ class CacheTestBase : public testing::Test {
    public:
     explicit Callback(CacheTestBase* test) : test_(test) { Reset(); }
     Callback() : test_(NULL) { Reset(); }
-    virtual ~Callback() {}
+    ~Callback() override {}
     Callback* Reset() {
       SynchronousCallback::Reset();
       validate_called_ = false;
@@ -58,8 +57,8 @@ class CacheTestBase : public testing::Test {
       return this;
     }
 
-    virtual bool ValidateCandidate(const GoogleString& key,
-                                   CacheInterface::KeyState state) {
+    bool ValidateCandidate(const GoogleString& key,
+                           CacheInterface::KeyState state) override {
       validate_called_ = true;
       if ((invalid_value_ != NULL) && (value_str() == invalid_value_)) {
         return false;
@@ -70,7 +69,7 @@ class CacheTestBase : public testing::Test {
       return true;
     }
 
-    virtual void Done(CacheInterface::KeyState state) {
+    void Done(CacheInterface::KeyState state) override {
       SynchronousCallback::Done(state);
       EXPECT_TRUE(validate_called_);
       if (test_ != NULL) {
@@ -107,11 +106,8 @@ class CacheTestBase : public testing::Test {
       : invalid_value_(NULL),
         invalid_key_(NULL),
         mutex_(new NullMutex),
-        outstanding_fetches_(0) {
-  }
-  ~CacheTestBase() {
-    STLDeleteElements(&callbacks_);
-  }
+        outstanding_fetches_(0) {}
+  ~CacheTestBase() override { STLDeleteElements(&callbacks_); }
 
   // Allocates a callback structure.  The default Callback structure
   // has an empty implementation of Wait().
@@ -152,9 +148,7 @@ class CacheTestBase : public testing::Test {
   }
 
   // Performs a Get and verifies that the key is not found.
-  void CheckNotFound(const char* key) {
-    CheckNotFound(Cache(), key);
-  }
+  void CheckNotFound(const char* key) { CheckNotFound(Cache(), key); }
 
   void CheckNotFound(CacheInterface* cache, const char* key) {
     Callback* callback = InitiateGet(cache, key);
@@ -199,9 +193,9 @@ class CacheTestBase : public testing::Test {
     PostOpCleanup();
   }
 
-  void IssueMultiGet(Callback* c0, const GoogleString& key0,
-                     Callback* c1, const GoogleString& key1,
-                     Callback* c2, const GoogleString& key2) {
+  void IssueMultiGet(Callback* c0, const GoogleString& key0, Callback* c1,
+                     const GoogleString& key1, Callback* c2,
+                     const GoogleString& key2) {
     CacheInterface::MultiGetRequest* request =
         new CacheInterface::MultiGetRequest;
     request->push_back(CacheInterface::KeyCallback(key0, c0));
@@ -225,7 +219,7 @@ class CacheTestBase : public testing::Test {
   // and values in pattern v0 v1 v2 v3...
   void PopulateCache(int num) {
     for (int i = 0; i < num; ++i) {
-      CheckPut (absl::StrFormat("n%d", i), absl::StrFormat("v%d", i));
+      CheckPut(absl::StrFormat("n%d", i), absl::StrFormat("v%d", i));
     }
   }
 
@@ -270,7 +264,7 @@ class CacheTestBase : public testing::Test {
   }
 
   const char* invalid_value_;  // may be NULL.
-  const char* invalid_key_;  // may be NULL.
+  const char* invalid_key_;    // may be NULL.
   std::vector<Callback*> callbacks_;
   std::unique_ptr<AbstractMutex> mutex_;
   int outstanding_fetches_;  // protected by mutex_

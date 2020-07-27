@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_SYSTEM_TCP_CONNECTION_FOR_TESTING_H_
 #define PAGESPEED_SYSTEM_TCP_CONNECTION_FOR_TESTING_H_
 
@@ -45,14 +44,10 @@ class TcpConnectionForTesting {
   GoogleString ReadBytes(int length);
 
   // LF is included unless EOF happened before it.
-  GoogleString ReadLine() {
-    return ReadUntil("\n");
-  }
+  GoogleString ReadLine() { return ReadUntil("\n"); }
 
   // CRLF is included unless EOF happened before it.
-  GoogleString ReadLineCrLf() {
-    return ReadUntil("\r\n");
-  }
+  GoogleString ReadLineCrLf() { return ReadUntil("\r\n"); }
 
   // Returns data read, marker is included unless EOF happened before it.
   GoogleString ReadUntil(StringPiece marker);

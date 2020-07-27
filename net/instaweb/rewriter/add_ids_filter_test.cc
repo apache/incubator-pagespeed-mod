@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/add_ids_filter.h"
 
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -31,16 +30,14 @@ namespace {
 
 class AddIdsFilterTest : public RewriteTestBase {
  protected:
-  AddIdsFilterTest()
-      : add_ids_filter_(rewrite_driver()) {
-  }
+  AddIdsFilterTest() : add_ids_filter_(rewrite_driver()) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     html_parse()->AddFilter(&add_ids_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
   // Remove PageSpeed- ids
   GoogleString Unlabel(StringPiece labeled) {
@@ -60,13 +57,13 @@ TEST_F(AddIdsFilterTest, NoDivtest) {
       "  <p>Today's top stories are:</p>\n"
       "  <ol>\n"
       "    <li><a href='http://www.example1.com/'>"
-               "Website wins award for most boring URL.</a></li>\n"
+      "Website wins award for most boring URL.</a></li>\n"
       "    <li><a href='http://www.example2.com/'>"
-               "Copycats quickly try to steal some spotlight.</a></li>\n"
+      "Copycats quickly try to steal some spotlight.</a></li>\n"
       "    <li><a href='http://www.example3.com/'>Internet "
-               "proves itself capable of spawning copycat copycats.</a></li>\n"
+      "proves itself capable of spawning copycat copycats.</a></li>\n"
       "    <li><a href='http://www.example5.com/'>Embarrassed "
-               "imitator ruins trend.</a></li>\n"
+      "imitator ruins trend.</a></li>\n"
       "  </ol>\n"
       "</body></html>\n";
   ValidateNoChanges("no_div_test", kExpected);
@@ -78,13 +75,13 @@ TEST_F(AddIdsFilterTest, WithDivsTest) {
       "  <div id='menu'>\n"
       "   <ul id=\"PageSpeed-menu-0\">\n"
       "    <li><a href='http://www.example.com/home'>"
-               "HOME</a></li>\n"
+      "HOME</a></li>\n"
       "    <li><a href='http://www.example.com/contact_us'>"
-               "CONTACT US</a></li>\n"
+      "CONTACT US</a></li>\n"
       "    <li><a href='http://www.example.com/about'>"
-               "ABOUT</a></li>\n"
+      "ABOUT</a></li>\n"
       "    <li><div id=\"PageSpeed-menu-0-3-0\">"
-               "Share this</div></li>\n"
+      "Share this</div></li>\n"
       "   </ul>\n"
       "  </div>\n"
       "  <div id=\"PageSpeed-1\"></div>\n"
@@ -111,13 +108,13 @@ TEST_F(AddIdsFilterTest, BodyHasId) {
       "  <div id='menu'>\n"
       "   <ul id=\"PageSpeed-menu-0\">\n"
       "    <li><a href='http://www.example.com/home'>"
-               "HOME</a></li>\n"
+      "HOME</a></li>\n"
       "    <li><a href='http://www.example.com/contact_us'>"
-               "CONTACT US</a></li>\n"
+      "CONTACT US</a></li>\n"
       "    <li><a href='http://www.example.com/about'>"
-               "ABOUT</a></li>\n"
+      "ABOUT</a></li>\n"
       "    <li><div id=\"PageSpeed-menu-0-3-0\">"
-               "Share this</div></li>\n"
+      "Share this</div></li>\n"
       "   </ul>\n"
       "  </div>\n"
       "  <div id=\"PageSpeed-body-1\"></div>\n"

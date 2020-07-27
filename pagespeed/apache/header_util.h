@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_HEADER_UTIL_H_
 #define PAGESPEED_APACHE_HEADER_UTIL_H_
 

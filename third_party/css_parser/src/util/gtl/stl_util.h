@@ -20,7 +20,6 @@
 #ifndef UTIL_GTL_STL_UTIL_H_
 #define UTIL_GTL_STL_UTIL_H_
 
-
 template <class ForwardIterator>
 void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
   while (begin != end) {
@@ -31,11 +30,10 @@ void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
 }
 
 template <class T>
-void STLDeleteElements(T *container) {
+void STLDeleteElements(T* container) {
   if (!container) return;
   STLDeleteContainerPointers(container->begin(), container->end());
   container->clear();
 }
-
 
 #endif  // UTIL_GTL_STL_UTIL_H_

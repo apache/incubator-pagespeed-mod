@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/system_rewrite_options.h"
 
 #include <functional>
@@ -33,8 +32,7 @@ namespace net_instaweb {
 class SystemRewriteOptionsTest
     : public RewriteOptionsTestBase<SystemRewriteOptions> {
  protected:
-  SystemRewriteOptionsTest() : options_("test", &thread_system_) {
-  }
+  SystemRewriteOptionsTest() : options_("test", &thread_system_) {}
 
   // Helper for testing options consisting of single integer. Validates that
   // setting an option with option_name changes return value of getter and that
@@ -43,15 +41,14 @@ class SystemRewriteOptionsTest
                      std::function<int(SystemRewriteOptions*)> getter) {
     GoogleString msg;
     RewriteOptions::OptionSettingResult result =
-        options_.ParseAndSetOptionFromName1(
-            option_name, "1234", &msg,
-            &handler_);
+        options_.ParseAndSetOptionFromName1(option_name, "1234", &msg,
+                                            &handler_);
     EXPECT_EQ(result, RewriteOptions::kOptionOk);
     EXPECT_EQ(1234, getter(&options_));
     EXPECT_EQ("", msg);
 
-    result = options_.ParseAndSetOptionFromName1(
-        option_name, "1a", &msg, &handler_);
+    result =
+        options_.ParseAndSetOptionFromName1(option_name, "1a", &msg, &handler_);
     EXPECT_EQ(result, RewriteOptions::kOptionValueInvalid);
     EXPECT_EQ(1234, getter(&options_));
     EXPECT_NE("", msg);
@@ -69,7 +66,7 @@ class SystemRewriteOptionsTest
           option_name, "host1:1234", &msg, &handler_);
       EXPECT_EQ(result, RewriteOptions::kOptionOk);
       EXPECT_EQ(msg, "");
-      const ExternalServerSpec &spec = getter(&options_);
+      const ExternalServerSpec& spec = getter(&options_);
       EXPECT_EQ("host1", spec.host);
       EXPECT_EQ(1234, spec.port);
     }
@@ -79,7 +76,7 @@ class SystemRewriteOptionsTest
           option_name, "host5:port", &msg, &handler_);
       EXPECT_EQ(result, RewriteOptions::kOptionValueInvalid);
       EXPECT_NE(msg, "");
-      const ExternalServerSpec &spec = getter(&options_);
+      const ExternalServerSpec& spec = getter(&options_);
       // No data was overwritten
       EXPECT_EQ("host1", spec.host);
       EXPECT_EQ(1234, spec.port);
@@ -99,7 +96,7 @@ class SystemRewriteOptionsTest
           option_name, "host1:1234,host2,host3:4567", &msg, &handler_);
       EXPECT_EQ(result, RewriteOptions::kOptionOk);
       EXPECT_EQ(msg, "");
-      const ExternalClusterSpec &spec = getter(&options_);
+      const ExternalClusterSpec& spec = getter(&options_);
       ASSERT_EQ(3, spec.servers.size());
       EXPECT_EQ("host1", spec.servers[0].host);
       EXPECT_EQ(1234, spec.servers[0].port);
@@ -114,7 +111,7 @@ class SystemRewriteOptionsTest
           option_name, "host4,host5:port", &msg, &handler_);
       EXPECT_EQ(result, RewriteOptions::kOptionValueInvalid);
       EXPECT_NE(msg, "");
-      const ExternalClusterSpec &spec = getter(&options_);
+      const ExternalClusterSpec& spec = getter(&options_);
       // No data was overwritten
       ASSERT_EQ(3, spec.servers.size());
       EXPECT_EQ("host1", spec.servers[0].host);
@@ -137,19 +134,22 @@ TEST_F(SystemRewriteOptionsTest, StaticAssetCdn) {
 
   GoogleString msg;
   RewriteOptions::OptionSettingResult result =
-      options_.ParseAndSetOptionFromName1(
-        SystemRewriteOptions::kStaticAssetCDN, "foo.com", &msg, &handler_);
+      options_.ParseAndSetOptionFromName1(SystemRewriteOptions::kStaticAssetCDN,
+                                          "foo.com", &msg, &handler_);
   EXPECT_EQ(result, RewriteOptions::kOptionValueInvalid);
-  EXPECT_EQ("Cannot set option StaticAssetCDN to foo.com. "
-            "Not enough arguments.", msg);
+  EXPECT_EQ(
+      "Cannot set option StaticAssetCDN to foo.com. "
+      "Not enough arguments.",
+      msg);
   EXPECT_FALSE(options_.has_static_assets_to_cdn());
 
   result = options_.ParseAndSetOptionFromName1(
       SystemRewriteOptions::kStaticAssetCDN, "foo.com, Weird", &msg, &handler_);
   EXPECT_EQ(result, RewriteOptions::kOptionValueInvalid);
-  EXPECT_EQ("Cannot set option StaticAssetCDN to foo.com, Weird. "
-            "Invalid static asset label: Weird",
-            msg);
+  EXPECT_EQ(
+      "Cannot set option StaticAssetCDN to foo.com, Weird. "
+      "Invalid static asset label: Weird",
+      msg);
   EXPECT_FALSE(options_.has_static_assets_to_cdn());
 
   result = options_.ParseAndSetOptionFromName1(
@@ -163,8 +163,7 @@ TEST_F(SystemRewriteOptionsTest, StaticAssetCdn) {
   EXPECT_EQ(2, assets.size());
   EXPECT_TRUE(assets.find(StaticAssetEnum::ADD_INSTRUMENTATION_JS) !=
               assets.end());
-  EXPECT_TRUE(assets.find(StaticAssetEnum::BLANK_GIF) !=
-              assets.end());
+  EXPECT_TRUE(assets.find(StaticAssetEnum::BLANK_GIF) != assets.end());
 
   // Check conversion into proto.
   StaticAssetConfig proto_conf;
@@ -197,8 +196,7 @@ TEST_F(SystemRewriteOptionsTest, StaticAssetCdn) {
   EXPECT_EQ(2, assets2.size());
   EXPECT_TRUE(assets2.find(StaticAssetEnum::ADD_INSTRUMENTATION_JS) !=
               assets2.end());
-  EXPECT_TRUE(assets2.find(StaticAssetEnum::BLANK_GIF) !=
-              assets2.end());
+  EXPECT_TRUE(assets2.find(StaticAssetEnum::BLANK_GIF) != assets2.end());
 
   // Merge of something with the same path --- overwrites both.
   std::unique_ptr<SystemRewriteOptions> options3(
@@ -221,8 +219,8 @@ TEST_F(SystemRewriteOptionsTest, StaticAssetCdn) {
   std::unique_ptr<SystemRewriteOptions> options4(
       new SystemRewriteOptions(&thread_system_));
   result = options4->ParseAndSetOptionFromName1(
-      SystemRewriteOptions::kStaticAssetCDN,
-      "//bar.com, MOBILIZE_JS", &msg, &handler_);
+      SystemRewriteOptions::kStaticAssetCDN, "//bar.com, MOBILIZE_JS", &msg,
+      &handler_);
   ASSERT_EQ(result, RewriteOptions::kOptionOk) << msg;
 
   options_.Merge(*options4);
@@ -241,8 +239,9 @@ TEST_F(SystemRewriteOptionsTest, CentralControllerInitValue) {
 TEST_F(SystemRewriteOptionsTest, CentralControllerTcpPort) {
   GoogleString msg;
   EXPECT_EQ(options_.ParseAndSetOptionFromName1(
-            SystemRewriteOptions::kCentralControllerPort, "1234", &msg,
-            &handler_), RewriteOptions::kOptionOk);
+                SystemRewriteOptions::kCentralControllerPort, "1234", &msg,
+                &handler_),
+            RewriteOptions::kOptionOk);
   EXPECT_EQ(options_.controller_port(), "localhost:1234");
   EXPECT_EQ("", msg);
 }
@@ -250,8 +249,9 @@ TEST_F(SystemRewriteOptionsTest, CentralControllerTcpPort) {
 TEST_F(SystemRewriteOptionsTest, CentralControllerUnixPort) {
   GoogleString msg;
   EXPECT_EQ(options_.ParseAndSetOptionFromName1(
-            SystemRewriteOptions::kCentralControllerPort, "unix:a", &msg,
-            &handler_), RewriteOptions::kOptionOk);
+                SystemRewriteOptions::kCentralControllerPort, "unix:a", &msg,
+                &handler_),
+            RewriteOptions::kOptionOk);
   EXPECT_EQ(options_.controller_port(), "unix:a");
   EXPECT_EQ("", msg);
 }
@@ -259,8 +259,9 @@ TEST_F(SystemRewriteOptionsTest, CentralControllerUnixPort) {
 TEST_F(SystemRewriteOptionsTest, CentralControllerTooShortUnixPort) {
   GoogleString msg;
   EXPECT_EQ(options_.ParseAndSetOptionFromName1(
-            SystemRewriteOptions::kCentralControllerPort, "unix:", &msg,
-            &handler_), RewriteOptions::kOptionValueInvalid);
+                SystemRewriteOptions::kCentralControllerPort, "unix:", &msg,
+                &handler_),
+            RewriteOptions::kOptionValueInvalid);
   EXPECT_EQ(options_.controller_port(), "");
   EXPECT_NE("", msg);
 }
@@ -268,8 +269,9 @@ TEST_F(SystemRewriteOptionsTest, CentralControllerTooShortUnixPort) {
 TEST_F(SystemRewriteOptionsTest, CentralControllerBadTcpPort) {
   GoogleString msg;
   EXPECT_EQ(options_.ParseAndSetOptionFromName1(
-            SystemRewriteOptions::kCentralControllerPort, "123a", &msg,
-            &handler_), RewriteOptions::kOptionValueInvalid);
+                SystemRewriteOptions::kCentralControllerPort, "123a", &msg,
+                &handler_),
+            RewriteOptions::kOptionValueInvalid);
   EXPECT_EQ(options_.controller_port(), "");
   EXPECT_NE("", msg);
 }

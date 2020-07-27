@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,7 +22,8 @@
 namespace net_instaweb {
 
 PagespeedRemoteDataFetcher::PagespeedRemoteDataFetcher(
-    Envoy::Upstream::ClusterManager& cm, const ::envoy::config::core::v3::HttpUri& uri,
+    Envoy::Upstream::ClusterManager& cm,
+    const ::envoy::config::core::v3::HttpUri& uri,
     PagespeedRemoteDataFetcherCallback& callback)
     : cm_(cm), uri_(uri), callback_(callback) {}
 
@@ -38,28 +39,33 @@ void PagespeedRemoteDataFetcher::cancel() {
 }
 
 void PagespeedRemoteDataFetcher::fetch() {
-  Envoy::Http::RequestMessagePtr message = Envoy::Http::Utility::prepareHeaders(uri_);
-  message->headers().setReferenceMethod(Envoy::Http::Headers::get().MethodValues.Get);
+  Envoy::Http::RequestMessagePtr message =
+      Envoy::Http::Utility::prepareHeaders(uri_);
+  message->headers().setReferenceMethod(
+      Envoy::Http::Headers::get().MethodValues.Get);
   ENVOY_LOG(debug, "fetch remote data from [uri = {}]: start", uri_.uri());
-  request_ =
-      cm_.httpAsyncClientForCluster(uri_.cluster())
-          .send(std::move(message), *this,
-                Envoy::Http::AsyncClient::RequestOptions().setTimeout(std::chrono::milliseconds(
-                    Envoy::DurationUtil::durationToMilliseconds(uri_.timeout()))));
+  request_ = cm_.httpAsyncClientForCluster(uri_.cluster())
+                 .send(std::move(message), *this,
+                       Envoy::Http::AsyncClient::RequestOptions().setTimeout(
+                           std::chrono::milliseconds(
+                               Envoy::DurationUtil::durationToMilliseconds(
+                                   uri_.timeout()))));
 }
 
-void PagespeedRemoteDataFetcher::onSuccess(const Envoy::Http::AsyncClient::Request&,
-                                           Envoy::Http::ResponseMessagePtr&& response) {
+void PagespeedRemoteDataFetcher::onSuccess(
+    const Envoy::Http::AsyncClient::Request&,
+    Envoy::Http::ResponseMessagePtr&& response) {
   // TODO : check for response status
   callback_.onSuccess(response);
   request_ = nullptr;
 }
 
-void PagespeedRemoteDataFetcher::onFailure(const Envoy::Http::AsyncClient::Request&,
-                                           Envoy::Http::AsyncClient::FailureReason reason) {
+void PagespeedRemoteDataFetcher::onFailure(
+    const Envoy::Http::AsyncClient::Request&,
+    Envoy::Http::AsyncClient::FailureReason reason) {
   // TODO : Handle various failure causes
   callback_.onFailure(FailureReason::Network);
   request_ = nullptr;
 }
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

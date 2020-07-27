@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_UTIL_PUBLIC_PURGE_SET_H_
 #define NET_INSTAWEB_UTIL_PUBLIC_PURGE_SET_H_
 
@@ -31,8 +30,6 @@
 #include "pagespeed/kernel/cache/lru_cache_base.h"
 
 namespace net_instaweb {
-
-
 
 // Maintains a bounded collection of cache-purge records.  These can
 // be used to validate data read from a cache.
@@ -121,15 +118,10 @@ class PurgeSet {
   class InvalidationTimestampHelper {
    public:
     explicit InvalidationTimestampHelper(PurgeSet* purge_set)
-        : purge_set_(purge_set) {
-    }
+        : purge_set_(purge_set) {}
 
-    size_t size(int64 value) const {
-      return sizeof(value);
-    }
-    bool Equal(int64 a, int64 b) const {
-      return a == b;
-    }
+    size_t size(int64 value) const { return sizeof(value); }
+    bool Equal(int64 a, int64 b) const { return a == b; }
 
     // Update global invalidation timestamp whenever a purge record is
     // evicted to guarantee that that resource remains purged.

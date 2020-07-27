@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/scheduler.h"
 
 #include <algorithm>
@@ -76,10 +75,9 @@ class Scheduler::Alarm {
   void set_in_wait_dispatch(bool w) { in_wait_dispatch_ = w; }
 
  protected:
-  Alarm() : wakeup_time_us_(0),
-            index_(kIndexNotSet),
-            in_wait_dispatch_(false) { }
-  virtual ~Alarm() { }
+  Alarm()
+      : wakeup_time_us_(0), index_(kIndexNotSet), in_wait_dispatch_(false) {}
+  virtual ~Alarm() {}
 
  private:
   friend class Scheduler;
@@ -100,15 +98,11 @@ namespace {
 class FunctionAlarm : public Scheduler::Alarm {
  public:
   explicit FunctionAlarm(Function* function, Scheduler* scheduler)
-      : scheduler_(scheduler), function_(function) { }
-  virtual ~FunctionAlarm() { }
+      : scheduler_(scheduler), function_(function) {}
+  ~FunctionAlarm() override {}
 
-  virtual void RunAlarm() {
-    DropMutexActAndCleanup(&Function::CallRun);
-  }
-  virtual void CancelAlarm() {
-    DropMutexActAndCleanup(&Function::CallCancel);
-  }
+  void RunAlarm() override { DropMutexActAndCleanup(&Function::CallRun); }
+  void CancelAlarm() override { DropMutexActAndCleanup(&Function::CallCancel); }
 
  private:
   typedef void (Function::*FunctionAction)();
@@ -147,20 +141,20 @@ class FunctionAlarm : public Scheduler::Alarm {
 class Scheduler::CondVarTimeout : public Scheduler::Alarm {
  public:
   CondVarTimeout(bool* set_on_timeout, Scheduler* scheduler)
-      : set_on_timeout_(set_on_timeout),
-        scheduler_(scheduler) { }
-  virtual ~CondVarTimeout() { }
-  virtual void RunAlarm() {
+      : set_on_timeout_(set_on_timeout), scheduler_(scheduler) {}
+  ~CondVarTimeout() override {}
+  void RunAlarm() override {
     *set_on_timeout_ = true;
     scheduler_->CancelWaiting(this);
     if (!in_wait_dispatch()) {
       delete this;
     }
   }
-  virtual void CancelAlarm() {
+  void CancelAlarm() override {
     DCHECK(in_wait_dispatch());
     delete this;
   }
+
  private:
   bool* set_on_timeout_;
   Scheduler* scheduler_;
@@ -172,10 +166,9 @@ class Scheduler::CondVarTimeout : public Scheduler::Alarm {
 class Scheduler::CondVarCallbackTimeout : public Scheduler::Alarm {
  public:
   CondVarCallbackTimeout(Function* callback, Scheduler* scheduler)
-      : callback_(callback),
-        scheduler_(scheduler) { }
-  virtual ~CondVarCallbackTimeout() { }
-  virtual void RunAlarm() {
+      : callback_(callback), scheduler_(scheduler) {}
+  ~CondVarCallbackTimeout() override {}
+  void RunAlarm() override {
     // We may get deleted at tail end of Signal if the lock gets dropped during
     // CallRun(), so save this into a local.
     bool saved_in_wait_dispatch = in_wait_dispatch();
@@ -185,7 +178,7 @@ class Scheduler::CondVarCallbackTimeout : public Scheduler::Alarm {
       delete this;
     }
   }
-  virtual void CancelAlarm() {
+  void CancelAlarm() override {
     DCHECK(in_wait_dispatch());
     callback_->CallRun();
     delete this;
@@ -210,8 +203,7 @@ Scheduler::Scheduler(ThreadSystem* thread_system, Timer* timer)
       condvar_(mutex_->NewCondvar()),
       index_(kIndexNotSet),
       signal_count_(0),
-      running_waiting_alarms_(false) {
-}
+      running_waiting_alarms_(false) {}
 
 Scheduler::~Scheduler() {
 #if SCHEDULER_CANCEL_OUTSTANDING_ALARMS_ON_DESTRUCTION
@@ -236,7 +228,7 @@ void Scheduler::BlockingTimedWaitUs(int64 timeout_us) {
   CondVarTimeout* alarm = new CondVarTimeout(&timed_out, this);
   InsertAlarmAtUsMutexHeld(wakeup_time_us, true, alarm);
   waiting_alarms_.insert(alarm);
-  int64 next_wakeup_us = RunAlarms(NULL);
+  int64 next_wakeup_us = RunAlarms(nullptr);
   while (signal_count_ == original_signal_count && !timed_out &&
          next_wakeup_us > 0) {
     // Now we have to block until either we time out, or we are signaled.  We
@@ -244,7 +236,7 @@ void Scheduler::BlockingTimedWaitUs(int64 timeout_us) {
     // a belt and suspenders protection against programmer error; this ought to
     // imply timed_out.
     AwaitWakeupUntilUs(std::min(wakeup_time_us, next_wakeup_us));
-    next_wakeup_us = RunAlarms(NULL);
+    next_wakeup_us = RunAlarms(nullptr);
   }
 }
 
@@ -258,7 +250,7 @@ void Scheduler::TimedWaitMs(int64 timeout_ms, Function* callback) {
   CondVarCallbackTimeout* alarm = new CondVarCallbackTimeout(callback, this);
   InsertAlarmAtUsMutexHeld(completion_time_us, true, alarm);
   waiting_alarms_.insert(alarm);
-  RunAlarms(NULL);
+  RunAlarms(nullptr);
 }
 
 void Scheduler::CancelWaiting(Alarm* alarm) {
@@ -302,7 +294,7 @@ void Scheduler::Signal() {
   }
   condvar_->Broadcast();
   running_waiting_alarms_ = false;
-  RunAlarms(NULL);
+  RunAlarms(nullptr);
 }
 
 // Add alarm while holding mutex.  Don't run any alarms or otherwise drop mutex.
@@ -314,7 +306,8 @@ void Scheduler::InsertAlarmAtUsMutexHeld(int64 wakeup_time_us,
   alarm->index_ = ++index_;
 
   if (broadcast_on_wakeup_change) {
-    bool wakeup_time_changed = outstanding_alarms_.empty() ||
+    bool wakeup_time_changed =
+        outstanding_alarms_.empty() ||
         (wakeup_time_us < (*outstanding_alarms_.begin())->wakeup_time_us_);
     if (wakeup_time_changed) {
       condvar_->Broadcast();
@@ -329,7 +322,7 @@ Scheduler::Alarm* Scheduler::AddAlarmAtUs(int64 wakeup_time_us,
   Alarm* result = new FunctionAlarm(callback, this);
   ScopedMutex lock(mutex_.get());
   InsertAlarmAtUsMutexHeld(wakeup_time_us, true, result);
-  RunAlarms(NULL);
+  RunAlarms(nullptr);
   return result;
 }
 
@@ -366,7 +359,7 @@ int64 Scheduler::RunAlarms(bool* ran_alarms) {
     // first_alarm should be run.  It can't have been cancelled as we've held
     // the lock since we found it.
     outstanding_alarms_.erase(first_alarm_iterator);  // Prevent cancellation.
-    if (ran_alarms != NULL) {
+    if (ran_alarms != nullptr) {
       *ran_alarms = true;
     }
     // Note that the following call may drop and re-lock the scheduler lock.
@@ -401,7 +394,7 @@ bool Scheduler::ProcessAlarmsOrWaitUs(int64 timeout_us) {
     }
     AwaitWakeupUntilUs(next_wakeup_us);
 
-    next_wakeup_us = RunAlarms(NULL);
+    next_wakeup_us = RunAlarms(nullptr);
   }
   return !outstanding_alarms_.empty();
 }
@@ -417,7 +410,7 @@ SchedulerBlockingFunction::SchedulerBlockingFunction(Scheduler* scheduler)
   set_delete_after_callback(false);
 }
 
-SchedulerBlockingFunction::~SchedulerBlockingFunction() { }
+SchedulerBlockingFunction::~SchedulerBlockingFunction() {}
 
 void SchedulerBlockingFunction::Run() {
   success_ = true;
@@ -444,8 +437,6 @@ bool SchedulerBlockingFunction::Block() {
 void Scheduler::RegisterWorker(QueuedWorkerPool::Sequence* w) {}
 void Scheduler::UnregisterWorker(QueuedWorkerPool::Sequence* w) {}
 
-Scheduler::Sequence* Scheduler::NewSequence() {
-  return new Sequence(this);
-}
+Scheduler::Sequence* Scheduler::NewSequence() { return new Sequence(this); }
 
 }  // namespace net_instaweb

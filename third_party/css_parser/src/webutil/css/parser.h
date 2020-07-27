@@ -17,22 +17,21 @@
  * under the License.
  */
 
-
-
 #ifndef WEBUTIL_CSS_PARSER_H__
 #define WEBUTIL_CSS_PARSER_H__
 
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "pagespeed/kernel/base/gtest_prod.h"
 #include "strings/stringpiece.h"
-#include "testing/production_stub/public/gunit_prod.h"
 #include "util/utf8/public/unicodetext.h"
 #include "webutil/css/media.h"
 #include "webutil/css/property.h"  // while these CSS includes can be
 #include "webutil/css/selector.h"  // forward-declared, who is really
 #include "webutil/css/string.h"
-#include "webutil/css/value.h"    // going to want parser.h but not values.h?
+#include "webutil/css/value.h"  // going to want parser.h but not values.h?
 #include "webutil/html/htmlcolor.h"
 
 namespace Css {
@@ -196,23 +195,23 @@ class Parser {
 
   // This is a bitmask of errors seen during the parse.  This is decidedly
   // incomplete --- there are definitely many errors that are not reported here.
-  static const uint64_t kNoError           = 0;
-  static const uint64_t kUtf8Error         = 1ULL << 0;   // 1
-  static const uint64_t kDeclarationError  = 1ULL << 1;   // 2
-  static const uint64_t kSelectorError     = 1ULL << 2;   // 4
-  static const uint64_t kFunctionError     = 1ULL << 3;   // 8
-  static const uint64_t kMediaError        = 1ULL << 4;   // 16
-  static const uint64_t kCounterError      = 1ULL << 5;   // 32
-  static const uint64_t kHtmlCommentError  = 1ULL << 6;   // 64
-  static const uint64_t kValueError        = 1ULL << 7;   // 128
-  static const uint64_t kRulesetError      = 1ULL << 8;   // 256
-  static const uint64_t kSkippedTokenError = 1ULL << 9;   // 512
-  static const uint64_t kCharsetError      = 1ULL << 10;  // 1024
-  static const uint64_t kBlockError        = 1ULL << 11;  // 2048
-  static const uint64_t kNumberError       = 1ULL << 12;  // 4096
-  static const uint64_t kImportError       = 1ULL << 13;  // 8192
-  static const uint64_t kAtRuleError       = 1ULL << 14;  // 16384
-  static const uint64_t kCssCommentError   = 1ULL << 15;  // 32768
+  static const uint64_t kNoError = 0;
+  static const uint64_t kUtf8Error = 1ULL << 0;          // 1
+  static const uint64_t kDeclarationError = 1ULL << 1;   // 2
+  static const uint64_t kSelectorError = 1ULL << 2;      // 4
+  static const uint64_t kFunctionError = 1ULL << 3;      // 8
+  static const uint64_t kMediaError = 1ULL << 4;         // 16
+  static const uint64_t kCounterError = 1ULL << 5;       // 32
+  static const uint64_t kHtmlCommentError = 1ULL << 6;   // 64
+  static const uint64_t kValueError = 1ULL << 7;         // 128
+  static const uint64_t kRulesetError = 1ULL << 8;       // 256
+  static const uint64_t kSkippedTokenError = 1ULL << 9;  // 512
+  static const uint64_t kCharsetError = 1ULL << 10;      // 1024
+  static const uint64_t kBlockError = 1ULL << 11;        // 2048
+  static const uint64_t kNumberError = 1ULL << 12;       // 4096
+  static const uint64_t kImportError = 1ULL << 13;       // 8192
+  static const uint64_t kAtRuleError = 1ULL << 14;       // 16384
+  static const uint64_t kCssCommentError = 1ULL << 15;   // 32768
   uint64_t errors_seen_mask() const { return errors_seen_mask_; }
   uint64_t unparseable_sections_seen_mask() const {
     return unparseable_sections_seen_mask_;
@@ -375,7 +374,8 @@ class Parser {
   // escaped with a backslash (\). For instance, the following two
   // selectors are exactly the same:
   // http://www.w3.org/TR/REC-CSS2/syndata.html#strings
-  template<char delim> UnicodeText ParseString();
+  template <char delim>
+  UnicodeText ParseString();
 
   // If the current character is a string-delimiter (' or "),
   // ParseStringOrIdent() parses a string and returns the contents.
@@ -385,7 +385,8 @@ class Parser {
 
   // Same as ParseString, but returns a Value object containing that string,
   // which has bytes_in_original_buffer set.
-  template<char delim> Value* ParseStringValue();
+  template <char delim>
+  Value* ParseStringValue();
 
   // ParseNumber parses a number and an optional unit, consuming to
   // the end of the number or unit and returning a Value*.
@@ -414,9 +415,9 @@ class Parser {
   //
   // However, if quirks_mode_ is false (standard compliant mode), forms 1 and 3
   // (without #) would not be accepted.
-  HtmlColor ParseColor();                          // parse a hex or named
-                                                   // color like #fff, #bcdefa
-                                                   // or black
+  HtmlColor ParseColor();  // parse a hex or named
+                           // color like #fff, #bcdefa
+                           // or black
 
   //
   // FUNCTIONS and FUNCTION-like objects: rgb(), url(), rect()
@@ -451,8 +452,8 @@ class Parser {
   // Starting just past 'rgb(', ParseRgbColor() consumes up to (but not
   // including) the closing ) and returns the color it finds.
   // Returns NULL if mal-formed.
-  Value* ParseRgbColor();   // parse an rgbcolor like 125, 25, 12
-                            // or 12%, 57%, 89%
+  Value* ParseRgbColor();  // parse an rgbcolor like 125, 25, 12
+                           // or 12%, 57%, 89%
 
   // ParseUrl parses the part between the parentheses of url( )
   // according to http://www.w3.org/TR/REC-CSS2/syndata.html#uri .
@@ -468,7 +469,7 @@ class Parser {
   // the optional whitespace.  If the url is well-formed, the next
   // character must be ')'.
   // Returns NULL for mal-formed URLs.
-  Value* ParseUrl();      // parse a url like yellow.png or 'blah.png'
+  Value* ParseUrl();  // parse a url like yellow.png or 'blah.png'
 
   //
   // Value and Values
@@ -597,9 +598,9 @@ class Parser {
   // error_flag should be one of the static const k*Error's above.
   void ReportParsingError(uint64_t error_flag, const CssStringPiece& message);
 
-  const char *begin_;  // The beginning of the doc (used to report offset).
-  const char *in_;     // The current point in the parse.
-  const char *end_;    // The end of the document to parse.
+  const char* begin_;  // The beginning of the doc (used to report offset).
+  const char* in_;     // The current point in the parse.
+  const char* end_;    // The end of the document to parse.
 
   bool quirks_mode_;  // Whether we are in quirks mode.
   // In preservation mode, we attempt to save all information from the
@@ -671,7 +672,8 @@ class Declaration {
   // Constructor for dummy declaration used to pass through unparseable
   // declaration text.
   explicit Declaration(const CssStringPiece& bytes_in_original_buffer)
-      : property_(Property::UNPARSEABLE), important_(false),
+      : property_(Property::UNPARSEABLE),
+        important_(false),
         bytes_in_original_buffer_(bytes_in_original_buffer.data(),
                                   bytes_in_original_buffer.length()) {}
 
@@ -722,7 +724,7 @@ class Declaration {
 // deleted as a Declarations.
 class Declarations : public std::vector<Declaration*> {
  public:
-  Declarations() : std::vector<Declaration*>() { }
+  Declarations() : std::vector<Declaration*>() {}
   ~Declarations();
 
   // We provide syntactic sugar for accessing elements.
@@ -730,6 +732,7 @@ class Declarations : public std::vector<Declaration*> {
   const Declaration* get(int i) const { return (*this)[i]; }
 
   string ToString() const;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Declarations);
 };
@@ -769,21 +772,29 @@ class UnparsedRegion {
 class Ruleset {
  public:
   // TODO(sligocki): Allow other parsed at-rules, like @page.
-  enum Type { RULESET, UNPARSED_REGION, };
+  enum Type {
+    RULESET,
+    UNPARSED_REGION,
+  };
 
-  Ruleset() : type_(RULESET), media_queries_(new MediaQueries),
-              selectors_(new Selectors),
-              declarations_(new Declarations) { }
+  Ruleset()
+      : type_(RULESET),
+        media_queries_(new MediaQueries),
+        selectors_(new Selectors),
+        declarations_(new Declarations) {}
   // Takes ownership of selectors, media_queries and declarations.
   Ruleset(Selectors* selectors, MediaQueries* media_queries,
           Declarations* declarations)
-      : type_(RULESET), media_queries_(media_queries), selectors_(selectors),
-        declarations_(declarations) { }
+      : type_(RULESET),
+        media_queries_(media_queries),
+        selectors_(selectors),
+        declarations_(declarations) {}
   // Dummy Ruleset. Used for unparsed statements, for example unknown at-rules.
   explicit Ruleset(UnparsedRegion* unparsed_region)
-      : type_(UNPARSED_REGION), media_queries_(new MediaQueries),
-        unparsed_region_(unparsed_region) { }
-  ~Ruleset() { }
+      : type_(UNPARSED_REGION),
+        media_queries_(new MediaQueries),
+        unparsed_region_(unparsed_region) {}
+  ~Ruleset() {}
 
   // Is this actually a Ruleset or some sort of at-rule? For historical reasons
   // at-rules are also stored as Rulesets.
@@ -848,6 +859,7 @@ class Ruleset {
   }
 
   string ToString() const;
+
  private:
   Type type_;
 
@@ -866,7 +878,7 @@ class Ruleset {
 
 class Rulesets : public std::vector<Css::Ruleset*> {
  public:
-  Rulesets() : std::vector<Css::Ruleset*>() { }
+  Rulesets() : std::vector<Css::Ruleset*>() {}
   ~Rulesets();
 };
 
@@ -902,7 +914,7 @@ class Import {
 
 class Imports : public std::vector<Css::Import*> {
  public:
-  Imports() : std::vector<Css::Import*>() { }
+  Imports() : std::vector<Css::Import*>() {}
   ~Imports();
 };
 
@@ -927,6 +939,7 @@ class FontFace {
   Declarations& mutable_declarations() { return *declarations_; }
 
   string ToString() const;
+
  private:
   std::unique_ptr<MediaQueries> media_queries_;
   std::unique_ptr<Declarations> declarations_;
@@ -936,7 +949,7 @@ class FontFace {
 
 class FontFaces : public std::vector<Css::FontFace*> {
  public:
-  FontFaces() : std::vector<Css::FontFace*>() { }
+  FontFaces() : std::vector<Css::FontFace*>() {}
   ~FontFaces();
 };
 
@@ -968,6 +981,7 @@ class Stylesheet {
   Rulesets& mutable_rulesets() { return rulesets_; }
 
   string ToString() const;
+
  private:
   StylesheetType type_;
   Charsets charsets_;

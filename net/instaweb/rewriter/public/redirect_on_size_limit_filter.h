@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REDIRECT_ON_SIZE_LIMIT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REDIRECT_ON_SIZE_LIMIT_FILTER_H_
 
@@ -34,13 +33,13 @@ namespace net_instaweb {
 class RedirectOnSizeLimitFilter : public CommonFilter {
  public:
   explicit RedirectOnSizeLimitFilter(RewriteDriver* rewrite_driver);
-  virtual ~RedirectOnSizeLimitFilter();
+  ~RedirectOnSizeLimitFilter() override;
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "RedirectOnSizeLimit"; }
+  const char* Name() const override { return "RedirectOnSizeLimit"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:

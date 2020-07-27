@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_TEST_REWRITE_DRIVER_FACTORY_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_TEST_REWRITE_DRIVER_FACTORY_H_
 
@@ -68,7 +67,7 @@ class WaitUrlAsyncFetcher;
 // mock fetchers, and a memory-based file system.
 class TestRewriteDriverFactory : public RewriteDriverFactory {
  public:
-  static const int64 kStartTimeMs;  // Arbitrary time to start MockTimer.
+  static const int64 kStartTimeMs;      // Arbitrary time to start MockTimer.
   static const char kUrlNamerScheme[];  // Env.var URL_NAMER_SCHEME
 
   // These constants are used to initialize the rate-controlling fetcher,
@@ -111,7 +110,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   TestRewriteDriverFactory(const ProcessContext& process_context,
                            const StringPiece& temp_dir,
                            MockUrlFetcher* mock_fetcher);
-  virtual ~TestRewriteDriverFactory();
+  ~TestRewriteDriverFactory() override;
 
   static void InitStats(Statistics* statistics);
 
@@ -120,9 +119,7 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   MockTimer* mock_timer() { return mock_timer_; }
   MockHasher* mock_hasher() { return mock_hasher_; }
   MemFileSystem* mem_file_system() { return mem_file_system_; }
-  MockUrlFetcher* mock_url_async_fetcher() {
-    return mock_url_fetcher_;
-  }
+  MockUrlFetcher* mock_url_async_fetcher() { return mock_url_fetcher_; }
   WaitUrlAsyncFetcher* wait_url_async_fetcher() {
     return wait_url_async_fetcher_.get();
   }
@@ -143,21 +140,17 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
     filter_callback_vector_.push_back(callback);
   }
 
-  void ClearFilterCallbackVector() {
-    filter_callback_vector_.clear();
-  }
+  void ClearFilterCallbackVector() { filter_callback_vector_.clear(); }
 
   // Does NOT take ownership of the callback.
   void AddCreateRewriterCallback(CreateRewriterCallback* callback) {
     rewriter_callback_vector_.push_back(callback);
   }
 
-  void ClearRewriterCallbackVector() {
-    rewriter_callback_vector_.clear();
-  }
+  void ClearRewriterCallbackVector() { rewriter_callback_vector_.clear(); }
 
   // By default this is false, but can be reset.
-  virtual bool UseBeaconResultsInFilters() const {
+  bool UseBeaconResultsInFilters() const override {
     return use_beacon_results_in_filters_;
   }
 
@@ -176,14 +169,14 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   }
 
   // Note that this disables ajax rewriting by default.
-  virtual RewriteOptions* NewRewriteOptions();
+  RewriteOptions* NewRewriteOptions() override;
 
   // Note that this enables html proxying.
-  virtual ServerContext* NewServerContext();
+  ServerContext* NewServerContext() override;
 
-  virtual ServerContext* NewDecodingServerContext();
+  ServerContext* NewDecodingServerContext() override;
 
-  virtual bool IsDebugClient(const GoogleString& ip) const {
+  bool IsDebugClient(const GoogleString& ip) const override {
     return ip == "127.0.0.1";
   }
 
@@ -205,31 +198,29 @@ class TestRewriteDriverFactory : public RewriteDriverFactory {
   void AdvanceTimeMs(int64 delta_ms);
 
   // Sets up the cohort in the PropertyCache provided.
-  const PropertyCache::Cohort*  SetupCohort(
-      PropertyCache* cache, const GoogleString& cohort_name);
+  const PropertyCache::Cohort* SetupCohort(PropertyCache* cache,
+                                           const GoogleString& cohort_name);
 
-  CachePropertyStore* cache_property_store() {
-    return cache_property_store_;
-  }
+  CachePropertyStore* cache_property_store() { return cache_property_store_; }
 
  protected:
-  virtual Hasher* NewHasher();
-  virtual MessageHandler* DefaultHtmlParseMessageHandler();
-  virtual MessageHandler* DefaultMessageHandler();
-  virtual UrlAsyncFetcher* DefaultAsyncUrlFetcher();
-  virtual FileSystem* DefaultFileSystem();
-  virtual NonceGenerator* DefaultNonceGenerator();
-  virtual Timer* DefaultTimer();
-  virtual void SetupCaches(ServerContext* server_context);
-  virtual UrlNamer* DefaultUrlNamer();
-  virtual Scheduler* CreateScheduler();
-  virtual void AddPlatformSpecificDecodingPasses(RewriteDriver* driver);
-  virtual void AddPlatformSpecificRewritePasses(RewriteDriver* driver);
-  virtual void ApplyPlatformSpecificConfiguration(RewriteDriver* driver);
-  virtual NamedLockManager* DefaultLockManager();
+  Hasher* NewHasher() override;
+  MessageHandler* DefaultHtmlParseMessageHandler() override;
+  MessageHandler* DefaultMessageHandler() override;
+  UrlAsyncFetcher* DefaultAsyncUrlFetcher() override;
+  FileSystem* DefaultFileSystem() override;
+  NonceGenerator* DefaultNonceGenerator() override;
+  Timer* DefaultTimer() override;
+  void SetupCaches(ServerContext* server_context) override;
+  UrlNamer* DefaultUrlNamer() override;
+  Scheduler* CreateScheduler() override;
+  void AddPlatformSpecificDecodingPasses(RewriteDriver* driver) override;
+  void AddPlatformSpecificRewritePasses(RewriteDriver* driver) override;
+  void ApplyPlatformSpecificConfiguration(RewriteDriver* driver) override;
+  NamedLockManager* DefaultLockManager() override;
 
  private:
-  MockTimer* mock_timer_;  // owned by base class timer_.
+  MockTimer* mock_timer_;          // owned by base class timer_.
   MockScheduler* mock_scheduler_;  // owned by RewriteDriverFactory::scheduler_.
   DelayCache* delay_cache_;
   std::unique_ptr<ThreadsafeCache> threadsafe_cache_;

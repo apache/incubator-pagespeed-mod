@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit test the MemLockManager.  Note that the lock-server is designed to be
 // run in a separate process, but we are testing it all in-process.  It
 // is intended to be run with some sort of scheduling infrastructure (not
@@ -62,7 +61,7 @@ class MemLockManagerTest : public testing::Test {
         tester_(thread_system_.get()) {
     tester_.set_quiesce(MakeFunction(this, &MemLockManagerTest::Quiesce));
   }
-  virtual ~MemLockManagerTest() { }
+  ~MemLockManagerTest() override {}
 
   NamedLock* MakeLock(const StringPiece& name) {
     return lock_manager_->CreateNamedLock(name);
@@ -76,9 +75,7 @@ class MemLockManagerTest : public testing::Test {
     EXPECT_FALSE(LockTimedWait(kWaitMs, lock2));
   }
 
-  MockTimer* timer() {
-    return &timer_;
-  }
+  MockTimer* timer() { return &timer_; }
 
   bool TryLock(const std::unique_ptr<NamedLock>& lock) {
     return tester_.TryLock(lock.get());
@@ -106,22 +103,15 @@ class MemLockManagerTest : public testing::Test {
     }
   }
 
-  void LogGrant(const char* name) {
-    StrAppend(&log_, name, "(grant) ");
-  }
+  void LogGrant(const char* name) { StrAppend(&log_, name, "(grant) "); }
 
-  void LogDeny(const char* name) {
-    StrAppend(&log_, name, "(deny) ");
-  }
+  void LogDeny(const char* name) { StrAppend(&log_, name, "(deny) "); }
 
   Function* LogFunction(const char* name) {
-    return MakeFunction(this,
-                        &MemLockManagerTest::LogGrant,
-                        &MemLockManagerTest::LogDeny,
-                        name);
+    return MakeFunction(this, &MemLockManagerTest::LogGrant,
+                        &MemLockManagerTest::LogDeny, name);
   }
 
- protected:
   std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   GoogleMessageHandler handler_;
@@ -254,7 +244,8 @@ TEST_F(MemLockManagerTest, TimeoutFail) {
   EXPECT_TRUE(TryLock(lock1));
   EXPECT_TRUE(lock1->Held());
   int64 start_ms = timer()->NowMs();
-  std::unique_ptr<NamedLock> lock1a(MakeLock(kLock1));  // Same name, new object.
+  std::unique_ptr<NamedLock> lock1a(
+      MakeLock(kLock1));  // Same name, new object.
   EXPECT_FALSE(LockTimedWait(kWaitMs, lock1a));
   EXPECT_TRUE(lock1->Held());  // was never unlocked...
   int64 end_ms = timer()->NowMs();
@@ -316,7 +307,8 @@ TEST_F(MemLockManagerTest, WaitStealOld) {
   EXPECT_TRUE(TryLock(lock1));
   int64 start_ms = timer()->NowMs();
   // If we start now, we'll time out with time to spare.
-  std::unique_ptr<NamedLock> lock1a(MakeLock(kLock1));  // Same name, new object.
+  std::unique_ptr<NamedLock> lock1a(
+      MakeLock(kLock1));  // Same name, new object.
   EXPECT_FALSE(LockTimedWaitStealOld(kWaitMs, kStealMs, lock1a));
   int64 end_ms = timer()->NowMs();
   EXPECT_LE(start_ms + kWaitMs, end_ms);
@@ -396,13 +388,13 @@ TEST_F(MemLockManagerTest, UnlockRevealingNewStealer) {
   std::unique_ptr<NamedLock> c(MakeLock(kLock1));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
-  c->LockTimedWaitStealOld(2*kStealMs, kStealMs, LogFunction("c"));
+  c->LockTimedWaitStealOld(2 * kStealMs, kStealMs, LogFunction("c"));
   timer()->SetTimeMs(1);
   lock_manager_->Wakeup();
   EXPECT_TRUE(a->Held());
   timer()->SetTimeMs(kStealMs - (kWaitMs / 2) /* 45000 */);
-  a->Unlock();                                // grants B, C is stealer
-  Quiesce();                                  // C steals cause it has long wait
+  a->Unlock();  // grants B, C is stealer
+  Quiesce();    // C steals cause it has long wait
   EXPECT_STREQ("a(grant) b(grant) c(grant) ", log_);
 }
 
@@ -414,7 +406,7 @@ TEST_F(MemLockManagerTest, CloseManagerWithActiveLocks) {
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
   c->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("c"));
-  lock_manager_.reset(NULL);  // Locks still active.
+  lock_manager_.reset(nullptr);  // Locks still active.
   EXPECT_STREQ("a(grant) b(deny) c(deny) ", log_);
 }
 
@@ -428,8 +420,8 @@ TEST_F(MemLockManagerTest, DeletePendingLock) {
   timer()->SetTimeMs(1);
   lock_manager_->Wakeup();
   EXPECT_TRUE(a->Held());
-  b.reset(NULL);                              // Denies B.
-  a->Unlock();                                // Grants C.
+  b.reset(nullptr);  // Denies B.
+  a->Unlock();       // Grants C.
   Quiesce();
   EXPECT_STREQ("a(grant) b(deny) c(grant) ", log_);
 }

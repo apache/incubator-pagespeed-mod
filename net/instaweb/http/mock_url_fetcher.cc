@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/mock_url_fetcher.h"
 
 #include <map>
-#include <utility>                      // for pair
+#include <utility>  // for pair
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -54,16 +53,13 @@ MockUrlFetcher::MockUrlFetcher()
       split_writes_(false),
       supports_https_(false),
       strip_query_params_(false),
-      timer_(NULL),
+      timer_(nullptr),
       thread_system_(Platform::CreateThreadSystem()),
       // TODO(hujie): We should pass in the mutex at all call-sites instead of
       //     creating a new mutex here.
-      mutex_(thread_system_->NewMutex()) {
-}
+      mutex_(thread_system_->NewMutex()) {}
 
-MockUrlFetcher::~MockUrlFetcher() {
-  Clear();
-}
+MockUrlFetcher::~MockUrlFetcher() { Clear(); }
 
 void MockUrlFetcher::SetResponse(const StringPiece& url,
                                  const ResponseHeaders& response_header,
@@ -72,7 +68,7 @@ void MockUrlFetcher::SetResponse(const StringPiece& url,
   // always perform normal GETs you won't even notice that we've set the
   // last_modified_time internally.
   DCHECK(response_header.headers_complete());
-  SetConditionalResponse(url, 0, "" , response_header, response_body);
+  SetConditionalResponse(url, 0, "", response_header, response_body);
 }
 
 void MockUrlFetcher::AddToResponse(const StringPiece& url,
@@ -138,9 +134,8 @@ void MockUrlFetcher::RemoveResponse(const StringPiece& url) {
   }
 }
 
-void MockUrlFetcher::Fetch(
-    const GoogleString& url_in, MessageHandler* message_handler,
-    AsyncFetch* fetch) {
+void MockUrlFetcher::Fetch(const GoogleString& url_in,
+                           MessageHandler* message_handler, AsyncFetch* fetch) {
   const RequestHeaders& request_headers = *fetch->request_headers();
   ResponseHeaders* response_headers = fetch->response_headers();
   bool ret = false;
@@ -190,7 +185,7 @@ void MockUrlFetcher::Fetch(
     const char* referer = request_headers.Lookup1(HttpAttributes::kReferer);
     {
       ScopedMutex lock(mutex_.get());
-      if (referer == NULL) {
+      if (referer == nullptr) {
         last_referer_.clear();
       } else {
         last_referer_ = referer;
@@ -217,15 +212,16 @@ void MockUrlFetcher::Fetch(
         // TODO(sligocki): Perhaps allow other headers to be set.
         // Date is technically required to be set.
       } else if (!response->etag().empty() &&
-          request_headers.Lookup(HttpAttributes::kIfNoneMatch, &values) &&
-          values.size() == 1 && *values[0] == response->etag()) {
+                 request_headers.Lookup(HttpAttributes::kIfNoneMatch,
+                                        &values) &&
+                 values.size() == 1 && *values[0] == response->etag()) {
         // We received an If-None-Match header whose etag matches that of the
         // stored response. serve a 304 Not Modified.
         response_headers->SetStatusAndReason(HttpStatus::kNotModified);
       } else {
         // Otherwise serve a normal 200 OK response.
         int64 implicit_cache_ttl_ms_ =
-             response_headers->implicit_cache_ttl_ms();
+            response_headers->implicit_cache_ttl_ms();
         response_headers->CopyFrom(response->header());
         // implicit_cache_ttl_ms is set to default value from the origin
         // fetch. The explicit values set in the test case take precedence over
@@ -236,7 +232,7 @@ void MockUrlFetcher::Fetch(
           return;
         }
         if (update_date_headers) {
-          CHECK(timer != NULL);
+          CHECK(timer != nullptr);
           // Update Date headers.
           response_headers->SetDate(timer_->NowMs());
         }

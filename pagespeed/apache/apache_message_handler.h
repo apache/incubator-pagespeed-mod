@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_APACHE_APACHE_MESSAGE_HANDLER_H_
 #define PAGESPEED_APACHE_APACHE_MESSAGE_HANDLER_H_
 
@@ -49,10 +47,10 @@ class ApacheMessageHandler : public SystemMessageHandler {
   static void InstallCrashHandler(server_rec* global_server);
 
  protected:
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageSImpl(MessageType type, const char* filename, int line,
+                        const GoogleString& message) override;
 
  private:
   int GetApacheLogLevel(MessageType type);

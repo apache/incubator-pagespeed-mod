@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_CACHE_PURGE_CONTEXT_H_
 #define PAGESPEED_KERNEL_CACHE_PURGE_CONTEXT_H_
 
@@ -75,15 +74,10 @@ class PurgeContext {
   static const char kPurgePollTimestampMs[];
   static const char kStatCalls[];
 
-  PurgeContext(StringPiece filename,
-               FileSystem* file_system,
-               Timer* timer,
-               int max_bytes_in_cache,
-               ThreadSystem* thread_system,
-               NamedLockManager* lock_manager,
-               Scheduler* scheduler,
-               Statistics* statistics,
-               MessageHandler* handler);
+  PurgeContext(StringPiece filename, FileSystem* file_system, Timer* timer,
+               int max_bytes_in_cache, ThreadSystem* thread_system,
+               NamedLockManager* lock_manager, Scheduler* scheduler,
+               Statistics* statistics, MessageHandler* handler);
   ~PurgeContext();
 
   static void InitStats(Statistics* statistics);
@@ -182,16 +176,13 @@ class PurgeContext {
   // This method is thread-safe; it grabs mutex_.
   void ModifyPurgeSet(PurgeSet* purges_from_file, GoogleString* buffer,
                       PurgeCallbackVector* return_callbacks,
-                      PurgeSet* return_purges,
-                      int* failures);
+                      PurgeSet* return_purges, int* failures);
 
   // When a write fails, we must do one of these:
   //  a) restore the pending purges & callbacks and try to re-take the lock.
   //  b) call the callbacks with 'false' and drop return_purges.
-  void HandleWriteFailure(int failures,
-                          PurgeCallbackVector* callbacks,
-                          PurgeSet* return_purges,
-                          bool* lock_and_update);
+  void HandleWriteFailure(int failures, PurgeCallbackVector* callbacks,
+                          PurgeSet* return_purges, bool* lock_and_update);
 
   // Writes the serialized purge data into filename_.  This method must
   // be called with the interprocess_lock_ held, but does not reference
@@ -243,7 +234,7 @@ class PurgeContext {
   bool waiting_for_interprocess_lock_;     // protected_by mutex_
   bool reading_;                           // protected_by mutex_
 
-  bool enable_purge_;           // When false, can only flush entire cache.
+  bool enable_purge_;  // When false, can only flush entire cache.
   int max_bytes_in_cache_;
 
   int64 request_batching_delay_ms_;

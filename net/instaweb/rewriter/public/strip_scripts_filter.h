@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_STRIP_SCRIPTS_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_STRIP_SCRIPTS_FILTER_H_
 
@@ -32,10 +31,10 @@ class HtmlParse;
 class StripScriptsFilter : public EmptyHtmlFilter {
  public:
   explicit StripScriptsFilter(HtmlParse* html_parse);
-  virtual ~StripScriptsFilter();
+  ~StripScriptsFilter() override;
 
-  virtual void EndElement(HtmlElement* element);
-  virtual const char* Name() const { return "StripScripts"; }
+  void EndElement(HtmlElement* element) override;
+  const char* Name() const override { return "StripScripts"; }
 
  private:
   HtmlParse* html_parse_;

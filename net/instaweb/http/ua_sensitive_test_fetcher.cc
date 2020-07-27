@@ -54,7 +54,7 @@ void UserAgentSensitiveTestFetcher::Fetch(const GoogleString& url,
   GoogleString ua_string;
   const char* specified_ua =
       fetch->request_headers()->Lookup1(HttpAttributes::kUserAgent);
-  ua_string = (specified_ua == NULL ? "unknown" : specified_ua);
+  ua_string = (specified_ua == nullptr ? "unknown" : specified_ua);
 
   std::unique_ptr<GoogleUrl> with_ua(
       parsed_url.CopyAndAddQueryParam("UA", ua_string));

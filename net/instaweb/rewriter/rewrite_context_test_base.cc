@@ -17,11 +17,12 @@
  * under the License.
  */
 
-
 // Base-class & helper classes for testing RewriteContext and its
 // interaction with various subsystems.
 
 #include "net/instaweb/rewriter/public/rewrite_context_test_base.h"
+
+#include <memory>
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"
@@ -50,8 +51,7 @@ const char CombiningFilter::kFilterId[] = "cr";
 // RewriteContextTest::TrimFetchHashFailedShortTtl.
 const int64 RewriteContextTestBase::kLowOriginTtlMs;
 
-TrimWhitespaceRewriter::~TrimWhitespaceRewriter() {
-}
+TrimWhitespaceRewriter::~TrimWhitespaceRewriter() {}
 
 bool TrimWhitespaceRewriter::RewriteText(const StringPiece& url,
                                          const StringPiece& in,
@@ -68,34 +68,29 @@ HtmlElement::Attribute* TrimWhitespaceRewriter::FindResourceAttribute(
   if (element->keyword() == HtmlName::kLink) {
     return element->FindAttribute(HtmlName::kHref);
   }
-  return NULL;
+  return nullptr;
 }
 
-TrimWhitespaceSyncFilter::~TrimWhitespaceSyncFilter() {
-}
+TrimWhitespaceSyncFilter::~TrimWhitespaceSyncFilter() {}
 
 void TrimWhitespaceSyncFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kLink) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
-    if (href != NULL) {
+    if (href != nullptr) {
       GoogleUrl gurl(driver()->google_url(), href->DecodedValueOrNull());
       href->SetValue(StrCat(gurl.Spec(), ".pagespeed.ts.0.css"));
     }
   }
 }
 
-UpperCaseRewriter::~UpperCaseRewriter() {
-}
+UpperCaseRewriter::~UpperCaseRewriter() {}
 
-NestedFilter::~NestedFilter() {
-}
+NestedFilter::~NestedFilter() {}
 
-NestedFilter::Context::~Context() {
-  STLDeleteElements(&strings_);
-}
+NestedFilter::Context::~Context() { STLDeleteElements(&strings_); }
 
-void NestedFilter::Context::RewriteSingle(
-    const ResourcePtr& input, const OutputResourcePtr& output) {
+void NestedFilter::Context::RewriteSingle(const ResourcePtr& input,
+                                          const OutputResourcePtr& output) {
   ++filter_->num_top_rewrites_;
   // Assume that this file just has nested CSS URLs one per line,
   // which we will rewrite.
@@ -112,7 +107,7 @@ void NestedFilter::Context::RewriteSingle(
         bool unused;
         ResourcePtr resource(Driver()->CreateInputResource(
             url, RewriteDriver::InputRole::kUnknown, &unused));
-        if (resource.get() != NULL) {
+        if (resource.get() != nullptr) {
           ResourceSlotPtr slot(new NestedSlot(resource));
           RewriteContext* nested_context =
               filter_->upper_filter()->MakeNestedRewriteContext(this, slot);
@@ -122,8 +117,7 @@ void NestedFilter::Context::RewriteSingle(
           // Test chaining of a 2nd rewrite on the same slot, if asked.
           if (chain_) {
             RewriteContext* nested_context2 =
-                filter_->upper_filter()->MakeNestedRewriteContext(this,
-                                                                  slot);
+                filter_->upper_filter()->MakeNestedRewriteContext(this, slot);
             AddNestedContext(nested_context2);
           }
         }
@@ -157,11 +151,9 @@ void NestedFilter::Context::Harvest() {
   // Warning: this uses input's content-type for simplicity, but real
   // filters should not do that --- see comments in
   // CacheExtender::RewriteLoadedResource as to why.
-  if (Driver()->Write(ResourceVector(1, slot(0)->resource()),
-                      new_content,
+  if (Driver()->Write(ResourceVector(1, slot(0)->resource()), new_content,
                       slot(0)->resource()->type(),
-                      slot(0)->resource()->charset(),
-                      output(0).get())) {
+                      slot(0)->resource()->charset(), output(0).get())) {
     result = kRewriteOk;
   }
   RewriteDone(result, 0);
@@ -169,12 +161,12 @@ void NestedFilter::Context::Harvest() {
 
 void NestedFilter::StartElementImpl(HtmlElement* element) {
   HtmlElement::Attribute* attr = element->FindAttribute(HtmlName::kHref);
-  if (attr != NULL) {
+  if (attr != nullptr) {
     bool unused;
-    ResourcePtr resource = CreateInputResource(
-        attr->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
-        &unused);
-    if (resource.get() != NULL) {
+    ResourcePtr resource =
+        CreateInputResource(attr->DecodedValueOrNull(),
+                            RewriteDriver::InputRole::kUnknown, &unused);
+    if (resource.get() != nullptr) {
       ResourceSlotPtr slot(driver()->GetSlot(resource, element, attr));
 
       // This 'new' is paired with a delete in RewriteContext::FinishFetch()
@@ -195,21 +187,20 @@ CombiningFilter::CombiningFilter(RewriteDriver* driver,
       num_will_not_render_(0),
       num_cancel_(0),
       rewrite_delay_ms_(rewrite_delay_ms),
-      rewrite_block_on_(NULL),
-      rewrite_signal_on_(NULL),
+      rewrite_block_on_(nullptr),
+      rewrite_signal_on_(nullptr),
       on_the_fly_(false),
       optimization_only_(true),
       disable_successors_(false) {
   ClearStats();
 }
 
-CombiningFilter::~CombiningFilter() {
-}
+CombiningFilter::~CombiningFilter() {}
 
 CombiningFilter::Context::Context(RewriteDriver* driver,
                                   CombiningFilter* filter,
                                   MockScheduler* scheduler)
-    : RewriteContext(driver, NULL, NULL),
+    : RewriteContext(driver, nullptr, nullptr),
       combiner_(driver, filter),
       scheduler_(scheduler),
       time_at_start_of_rewrite_us_(scheduler_->timer()->NowUs()),
@@ -228,12 +219,12 @@ bool CombiningFilter::Context::Partition(OutputPartitions* partitions,
     }
     // This should be called after checking IsSafeToRewrite, since
     // AddInputInfoToPartition requires the resource to be loaded()
-    slot(i)->resource()->AddInputInfoToPartition(
-        Resource::kIncludeInputHash, i, partition);
+    slot(i)->resource()->AddInputInfoToPartition(Resource::kIncludeInputHash, i,
+                                                 partition);
   }
   OutputResourcePtr combination(combiner_.MakeOutput());
   // MakeOutput can fail if for example there is only one input resource.
-  if (combination.get() == NULL) {
+  if (combination.get() == nullptr) {
     return false;
   }
 
@@ -251,19 +242,19 @@ bool CombiningFilter::Context::Partition(OutputPartitions* partitions,
 void CombiningFilter::Context::Rewrite(int partition_index,
                                        CachedResult* partition,
                                        const OutputResourcePtr& output) {
-  if (filter_->rewrite_signal_on_ != NULL) {
+  if (filter_->rewrite_signal_on_ != nullptr) {
     filter_->rewrite_signal_on_->Notify();
   }
-  if (filter_->rewrite_block_on_ != NULL) {
+  if (filter_->rewrite_block_on_ != nullptr) {
     filter_->rewrite_block_on_->Wait();
   }
   if (filter_->rewrite_delay_ms() == 0) {
     DoRewrite(partition_index, partition, output);
   } else {
-    int64 wakeup_us = time_at_start_of_rewrite_us_ +
-        1000 * filter_->rewrite_delay_ms();
-    Function* closure = MakeFunction(
-        this, &Context::DoRewrite, partition_index, partition, output);
+    int64 wakeup_us =
+        time_at_start_of_rewrite_us_ + 1000 * filter_->rewrite_delay_ms();
+    Function* closure = MakeFunction(this, &Context::DoRewrite, partition_index,
+                                     partition, output);
     scheduler_->AddAlarmAtUs(wakeup_us, closure);
   }
 }
@@ -302,9 +293,7 @@ void CombiningFilter::Context::WillNotRender() {
   ++filter_->num_will_not_render_;
 }
 
-void CombiningFilter::Context::Cancel() {
-  ++filter_->num_cancel_;
-}
+void CombiningFilter::Context::Cancel() { ++filter_->num_cancel_; }
 
 void CombiningFilter::Context::DisableRemovedSlots(
     const CachedResult* partition) {
@@ -320,14 +309,14 @@ void CombiningFilter::Context::DisableRemovedSlots(
 void CombiningFilter::StartElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kLink) {
     HtmlElement::Attribute* href = element->FindAttribute(HtmlName::kHref);
-    if (href != NULL) {
+    if (href != nullptr) {
       bool unused;
-      ResourcePtr resource(CreateInputResource(
-          href->DecodedValueOrNull(), RewriteDriver::InputRole::kUnknown,
-          &unused));
-      if (resource.get() != NULL) {
-        if (context_.get() == NULL) {
-          context_.reset(new Context(driver(), this, scheduler_));
+      ResourcePtr resource(
+          CreateInputResource(href->DecodedValueOrNull(),
+                              RewriteDriver::InputRole::kUnknown, &unused));
+      if (resource.get() != nullptr) {
+        if (context_.get() == nullptr) {
+          context_ = std::make_unique<Context>(driver(), this, scheduler_);
         }
         context_->AddElement(element, href, resource);
       }
@@ -337,14 +326,13 @@ void CombiningFilter::StartElementImpl(HtmlElement* element) {
 
 const int64 RewriteContextTestBase::kRewriteDeadlineMs;
 
-RewriteContextTestBase::~RewriteContextTestBase() {
-}
+RewriteContextTestBase::~RewriteContextTestBase() {}
 
 void RewriteContextTestBase::SetUp() {
-  trim_filter_ = NULL;
-  other_trim_filter_ = NULL;
-  combining_filter_ = NULL;
-  nested_filter_ = NULL;
+  trim_filter_ = nullptr;
+  other_trim_filter_ = nullptr;
+  combining_filter_ = nullptr;
+  nested_filter_ = nullptr;
   // The default deadline set in RewriteDriver is dependent on whether
   // the system was compiled for debug, or is being run under valgrind.
   // However, the unit-tests here use mock-time so we want to set the
@@ -403,9 +391,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   private_css_header.Add(HttpAttributes::kContentType, "text/css");
   private_css_header.ComputeCaching();
 
-  SetFetchResponse(StrCat(domain, "a_private.css"),
-                   private_css_header,
-                   " a ");
+  SetFetchResponse(StrCat(domain, "a_private.css"), private_css_header, " a ");
 
   // trimmable, no-cache
   ResponseHeaders no_cache_css_header;
@@ -416,8 +402,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   no_cache_css_header.Add(HttpAttributes::kContentType, "text/css");
   no_cache_css_header.ComputeCaching();
 
-  SetFetchResponse(StrCat(domain, "a_no_cache.css"),
-                   no_cache_css_header,
+  SetFetchResponse(StrCat(domain, "a_no_cache.css"), no_cache_css_header,
                    " a ");
 
   // trimmable, no-transform
@@ -431,8 +416,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   no_transform_css_header.ComputeCaching();
 
   SetFetchResponse(StrCat(domain, "a_no_transform.css"),
-                   no_transform_css_header,
-                   " a ");
+                   no_transform_css_header, " a ");
 
   // trimmable, no-cache, no-store
   ResponseHeaders no_store_css_header;
@@ -443,8 +427,7 @@ void RewriteContextTestBase::InitResourcesToDomain(const char* domain) {
   no_store_css_header.Add(HttpAttributes::kContentType, "text/css");
   no_store_css_header.ComputeCaching();
 
-  SetFetchResponse(StrCat(domain, "a_no_store.css"),
-                   no_store_css_header,
+  SetFetchResponse(StrCat(domain, "a_no_store.css"), no_store_css_header,
                    " a ");
 }
 
@@ -457,8 +440,8 @@ void RewriteContextTestBase::InitUpperFilter(OutputResourceKind kind,
 
 void RewriteContextTestBase::InitCombiningFilter(int64 rewrite_delay_ms) {
   RewriteDriver* driver = rewrite_driver();
-  combining_filter_ = new CombiningFilter(driver, mock_scheduler(),
-                                          rewrite_delay_ms);
+  combining_filter_ =
+      new CombiningFilter(driver, mock_scheduler(), rewrite_delay_ms);
   driver->AppendRewriteFilter(combining_filter_);
   driver->AddFilters();
 }
@@ -472,8 +455,7 @@ void RewriteContextTestBase::InitNestedFilter(
   // NestedFilter gets to them.
   UpperCaseRewriter* upper_rewriter;
   SimpleTextFilter* upper_filter =
-      UpperCaseRewriter::MakeFilter(kOnTheFlyResource, driver,
-                                    &upper_rewriter);
+      UpperCaseRewriter::MakeFilter(kOnTheFlyResource, driver, &upper_rewriter);
   AddFetchOnlyRewriteFilter(upper_filter);
   nested_filter_ = new NestedFilter(driver, upper_filter, upper_rewriter,
                                     expected_nested_rewrite_result);
@@ -495,16 +477,16 @@ void RewriteContextTestBase::InitTrimFilters(OutputResourceKind kind) {
 
 void RewriteContextTestBase::ClearStats() {
   RewriteTestBase::ClearStats();
-  if (trim_filter_ != NULL) {
+  if (trim_filter_ != nullptr) {
     trim_filter_->ClearStats();
   }
-  if (other_trim_filter_ != NULL) {
+  if (other_trim_filter_ != nullptr) {
     other_trim_filter_->ClearStats();
   }
-  if (combining_filter_ != NULL) {
+  if (combining_filter_ != nullptr) {
     combining_filter_->ClearStats();
   }
-  if (nested_filter_ != NULL) {
+  if (nested_filter_ != nullptr) {
     nested_filter_->ClearStats();
   }
 }

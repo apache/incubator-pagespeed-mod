@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,10 +19,9 @@
 
 #pragma once
 
-#include "pagespeed/envoy/envoy_server_context.h"
-
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
+#include "pagespeed/envoy/envoy_server_context.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/http/headers.h"
 
@@ -30,21 +29,22 @@ namespace Envoy {
 namespace Http {
 class HttpPageSpeedDecoderFilter;
 }
-} // namespace Envoy
+}  // namespace Envoy
 
 namespace net_instaweb {
 
 enum PreserveCachingHeaders {
-  kPreserveAllCachingHeaders, // Cache-Control, ETag, Last-Modified, etc
-  kPreserveOnlyCacheControl,  // Only Cache-Control.
+  kPreserveAllCachingHeaders,  // Cache-Control, ETag, Last-Modified, etc
+  kPreserveOnlyCacheControl,   // Only Cache-Control.
   kDontPreserveHeaders,
 };
 
 class EnvoyBaseFetch : public AsyncFetch {
-public:
+ public:
   EnvoyBaseFetch(StringPiece url, EnvoyServerContext* server_context,
                  const RequestContextPtr& request_ctx,
-                 PreserveCachingHeaders preserve_caching_headers, const RewriteOptions* options,
+                 PreserveCachingHeaders preserve_caching_headers,
+                 const RewriteOptions* options,
                  Envoy::Http::HttpPageSpeedDecoderFilter* decoder);
 
   // Called by Envoy to decrement the refcount.
@@ -53,11 +53,11 @@ public:
   int IncrementRefCount();
   bool IsCachedResultValid(const ResponseHeaders& headers) override;
 
-private:
-  virtual bool HandleWrite(const StringPiece& sp, MessageHandler* handler);
-  virtual bool HandleFlush(MessageHandler* handler);
-  virtual void HandleHeadersComplete();
-  virtual void HandleDone(bool success);
+ private:
+  bool HandleWrite(const StringPiece& sp, MessageHandler* handler) override;
+  bool HandleFlush(MessageHandler* handler) override;
+  void HandleHeadersComplete() override;
+  void HandleDone(bool success) override;
 
   int DecrefAndDeleteIfUnreferenced();
 
@@ -74,4 +74,4 @@ private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyBaseFetch);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

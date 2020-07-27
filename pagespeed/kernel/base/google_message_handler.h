@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // TODO(huibao): Rename GoogleMessageHandler and google_message_handler
 // to reflect the fact that they are not google specific.
 
@@ -36,16 +35,16 @@ namespace net_instaweb {
 // logging to emit messsages.
 class GoogleMessageHandler : public MessageHandler {
  public:
-  GoogleMessageHandler() { }
+  GoogleMessageHandler() {}
 
   // These are left public so they can be delegated to.
-  virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageVImpl(MessageType type, const char* msg, va_list args) override;
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageVImpl(MessageType type, const char* filename,
-                                int line, const char* msg, va_list args);
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageVImpl(MessageType type, const char* filename, int line,
+                        const char* msg, va_list args) override;
+  void FileMessageSImpl(MessageType type, const char* filename, int line,
+                        const GoogleString& message) override;
   GoogleString Format(const char* msg, va_list args);
 
  private:

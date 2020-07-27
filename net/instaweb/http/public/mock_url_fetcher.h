@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_MOCK_URL_FETCHER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_MOCK_URL_FETCHER_H_
 
@@ -43,7 +42,7 @@ class Timer;
 class MockUrlFetcher : public UrlAsyncFetcher {
  public:
   MockUrlFetcher();
-  virtual ~MockUrlFetcher();
+  ~MockUrlFetcher() override;
 
   void SetResponse(const StringPiece& url,
                    const ResponseHeaders& response_header,
@@ -51,25 +50,22 @@ class MockUrlFetcher : public UrlAsyncFetcher {
 
   // Adds a new response-header attribute name/value pair to an existing
   // response.  If the response does not already exist, the method check-fails.
-  void AddToResponse(const StringPiece& url,
-                     const StringPiece& name,
+  void AddToResponse(const StringPiece& url, const StringPiece& name,
                      const StringPiece& value);
 
   // Set a conditional response which will either respond with the supplied
   // response_headers and response_body or a simple 304 Not Modified depending
   // upon last_modified_time and conditional GET "If-Modified-Since" headers.
-  void SetConditionalResponse(const StringPiece& url,
-                              int64 last_modified_date,
+  void SetConditionalResponse(const StringPiece& url, int64 last_modified_date,
                               const GoogleString& etag,
                               const ResponseHeaders& response_header,
                               const StringPiece& response_body);
 
   // Fetching unset URLs will cause EXPECT failures as well as Done(false).
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
-  virtual bool SupportsHttps() const {
+  bool SupportsHttps() const override {
     ScopedMutex lock(mutex_.get());
     return supports_https_;
   }
@@ -211,21 +207,21 @@ class MockUrlFetcher : public UrlAsyncFetcher {
   ResponseMap response_map_;
 
   bool enabled_;
-  bool fail_on_unexpected_;     // Should we EXPECT if unexpected url called?
-  bool update_date_headers_;    // Should we update Date headers from timer?
-  bool omit_empty_writes_;      // Should we call ->Write with length 0?
-  bool fail_after_headers_;     // Should we call Done(false) after headers?
-  bool verify_host_header_;     // Should we verify the Host: header?
-  bool verify_pagespeed_header_off_;   // Verify PageSpeed:off in request?
-  bool split_writes_;           // Should we turn one write into multiple?
-  bool supports_https_;         // Should we claim HTTPS support?
-  bool strip_query_params_;     // Should we strip query params before lookup?
+  bool fail_on_unexpected_;   // Should we EXPECT if unexpected url called?
+  bool update_date_headers_;  // Should we update Date headers from timer?
+  bool omit_empty_writes_;    // Should we call ->Write with length 0?
+  bool fail_after_headers_;   // Should we call Done(false) after headers?
+  bool verify_host_header_;   // Should we verify the Host: header?
+  bool verify_pagespeed_header_off_;  // Verify PageSpeed:off in request?
+  bool split_writes_;                 // Should we turn one write into multiple?
+  bool supports_https_;               // Should we claim HTTPS support?
+  bool strip_query_params_;  // Should we strip query params before lookup?
 
   GoogleString error_message_;  // If non empty, we write out this on error
   Timer* timer_;                // Timer to use for updating header dates.
   GoogleString last_referer_;   // Referer string.
   std::unique_ptr<ThreadSystem> thread_system_;  // Thread system for mutex.
-  std::unique_ptr<AbstractMutex> mutex_;  // Mutex Protect.
+  std::unique_ptr<AbstractMutex> mutex_;         // Mutex Protect.
 
   DISALLOW_COPY_AND_ASSIGN(MockUrlFetcher);
 };

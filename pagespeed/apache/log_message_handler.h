@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_APACHE_LOG_MESSAGE_HANDLER_H_
 #define PAGESPEED_APACHE_LOG_MESSAGE_HANDLER_H_
 
 #include <algorithm>  // for std::min
-#include "apr_pools.h"
 
+#include "apr_pools.h"
 #include "pagespeed/kernel/base/string_util.h"
 
 struct server_rec;

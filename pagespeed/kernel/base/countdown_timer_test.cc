@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/countdown_timer.h"
 
 #include "pagespeed/kernel/base/gtest.h"
@@ -32,7 +31,6 @@ class CountdownTimerTest : public testing::Test {
 
   MockTimer timer_;
 };
-
 
 TEST_F(CountdownTimerTest, SetTimeNegative) {
   const char* data = "Some fake data";
@@ -50,7 +48,6 @@ TEST_F(CountdownTimerTest, SetTimeNegative) {
   EXPECT_TRUE(countdown_timer.HaveTimeLeft());
   EXPECT_EQ(&data, countdown_timer.user_data());
 }
-
 
 TEST_F(CountdownTimerTest, SetTimeZero) {
   const char* data = "Nothing real";

@@ -1,15 +1,18 @@
 ---
-Language:        Cpp
-AccessModifierOffset: -2
-ColumnLimit: 100
+# Use the Google style in this project.
+BasedOnStyle: Google
+Language: Cpp
+AccessModifierOffset: -1
+ColumnLimit: 80
 DerivePointerAlignment: false
 PointerAlignment: Left
-SortIncludes: true
-...
-
+SortIncludes: false
+# This excludes multi-line comments, and with that
+# we leave license banners as-is
+CommentPragmas: "."
+ReflowComments: false
 ---
 Language: Proto
 ColumnLimit: 100
 SpacesInContainerLiterals: false
 AllowShortFunctionsOnASingleLine: false
-...

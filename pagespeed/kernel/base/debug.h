@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_DEBUG_H_
 #define PAGESPEED_KERNEL_BASE_DEBUG_H_
 

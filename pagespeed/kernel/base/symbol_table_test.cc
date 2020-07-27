@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the symbol table
 
 #include "pagespeed/kernel/base/symbol_table.h"
@@ -29,8 +28,7 @@
 
 namespace net_instaweb {
 
-class SymbolTableTest : public testing::Test {
-};
+class SymbolTableTest : public testing::Test {};
 
 TEST_F(SymbolTableTest, TestInternSensitive) {
   SymbolTableSensitive symbol_table;
@@ -116,7 +114,7 @@ TEST_F(SymbolTableTest, TestOverflowFirstChunk) {
 }
 
 TEST_F(SymbolTableTest, InternEmbeddedNull) {
-  const char kBytes[] = { 'A', '\0', 'B' };
+  const char kBytes[] = {'A', '\0', 'B'};
   SymbolTableSensitive symbol_table;
   Atom a1 = symbol_table.Intern(StringPiece(kBytes, 1));
   Atom a2 = symbol_table.Intern(StringPiece(kBytes, 3));

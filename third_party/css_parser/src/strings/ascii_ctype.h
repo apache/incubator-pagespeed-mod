@@ -64,13 +64,9 @@ static inline bool ascii_isdigit(unsigned char c) {
   return c >= '0' && c <= '9';
 }
 
-static inline bool ascii_isprint(unsigned char c) {
-  return c >= 32 && c < 127;
-}
+static inline bool ascii_isprint(unsigned char c) { return c >= 32 && c < 127; }
 
-static inline bool ascii_isgraph(unsigned char c) {
-  return c >  32 && c < 127;
-}
+static inline bool ascii_isgraph(unsigned char c) { return c > 32 && c < 127; }
 
 static inline bool ascii_isupper(unsigned char c) {
   return c >= 'A' && c <= 'Z';
@@ -80,9 +76,7 @@ static inline bool ascii_islower(unsigned char c) {
   return c >= 'a' && c <= 'z';
 }
 
-static inline bool ascii_isascii(unsigned char c) {
-  return c < 128;
-}
+static inline bool ascii_isascii(unsigned char c) { return c < 128; }
 #undef kApb
 
 extern const char kAsciiToLower[256];

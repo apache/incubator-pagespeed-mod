@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -31,8 +31,9 @@ class EnvoyRewriteOptions;
 class SystemRequestContext;
 
 class EnvoyServerContext : public SystemServerContext {
-public:
-  EnvoyServerContext(EnvoyRewriteDriverFactory* factory, StringPiece hostname, int port);
+ public:
+  EnvoyServerContext(EnvoyRewriteDriverFactory* factory, StringPiece hostname,
+                     int port);
 
   // We don't allow ProxyFetch to fetch HTML via MapProxyDomain. We will call
   // set_trusted_input() on any ProxyFetches we use to transform internal HTML.
@@ -43,7 +44,9 @@ public:
   // downcast.
   EnvoyRewriteOptions* config();
 
-  EnvoyRewriteDriverFactory* envoy_rewrite_driver_factory() { return envoy_factory_; }
+  EnvoyRewriteDriverFactory* envoy_rewrite_driver_factory() {
+    return envoy_factory_;
+  }
   SystemRequestContext* NewRequestContext();
 
   EnvoyMessageHandler* envoy_message_handler() {
@@ -52,9 +55,9 @@ public:
 
   GoogleString FormatOption(StringPiece option_name, StringPiece args) override;
 
-private:
+ private:
   EnvoyRewriteDriverFactory* envoy_factory_;
   DISALLOW_COPY_AND_ASSIGN(EnvoyServerContext);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

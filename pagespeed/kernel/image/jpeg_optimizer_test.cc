@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/jpeg_optimizer.h"
 
 #include <vector>
 
@@ -24,7 +25,6 @@
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/jpeg_optimizer.h"
 #include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 #include "pagespeed/kernel/image/test_utils.h"
 
@@ -43,11 +43,12 @@ using pagespeed::image_compression::kJpegTestDir;
 using pagespeed::image_compression::OptimizeJpeg;
 using pagespeed::image_compression::OptimizeJpegWithOptions;
 using pagespeed::image_compression::ReadTestFileWithExt;
-using pagespeed_testing::image_compression::GetNumScansInJpeg;
-using pagespeed_testing::image_compression::GetJpegNumComponentsAndSamplingFactors;  // NOLINT
-using pagespeed_testing::image_compression::IsJpegSegmentPresent;
 using pagespeed_testing::image_compression::GetColorProfileMarker;
 using pagespeed_testing::image_compression::GetExifDataMarker;
+using pagespeed_testing::image_compression::
+    GetJpegNumComponentsAndSamplingFactors;  // NOLINT
+using pagespeed_testing::image_compression::GetNumScansInJpeg;
+using pagespeed_testing::image_compression::IsJpegSegmentPresent;
 
 // The JPEG_TEST_DIR_PATH macro is set by the gyp target that builds this file.
 const char kAppSegmentsJpegFile[] = "app_segments.jpg";
@@ -62,22 +63,22 @@ struct ImageCompressionInfo {
 };
 
 ImageCompressionInfo kValidImages[] = {
-  { "sjpeg1.jpg", 1552, 1536, 1165, 1774, 1410 },
-  { "sjpeg3.jpg", 44084, 41664, 26924, 40997, 25814 },
-  { "sjpeg6.jpg", 149600, 147163, 89671, 146038, 84641 },
-  { "testgray.jpg", 5014, 3072, 3060, 3094, 3078 },
-  { "sjpeg2.jpg", 3612, 3283, 3652, 3475, 3833 },
-  { "sjpeg4.jpg", 168895, 168240, 50936, 162867, 48731 },
-  { "test411.jpg", 6883, 4367, 3705, 4540, 3849 },
-  { "test420.jpg", 6173, 3657, 3651, 3796, 3787 },
-  { "test422.jpg", 6501, 3985, 3709, 4152, 3852 },
+    {"sjpeg1.jpg", 1552, 1536, 1165, 1774, 1410},
+    {"sjpeg3.jpg", 44084, 41664, 26924, 40997, 25814},
+    {"sjpeg6.jpg", 149600, 147163, 89671, 146038, 84641},
+    {"testgray.jpg", 5014, 3072, 3060, 3094, 3078},
+    {"sjpeg2.jpg", 3612, 3283, 3652, 3475, 3833},
+    {"sjpeg4.jpg", 168895, 168240, 50936, 162867, 48731},
+    {"test411.jpg", 6883, 4367, 3705, 4540, 3849},
+    {"test420.jpg", 6173, 3657, 3651, 3796, 3787},
+    {"test422.jpg", 6501, 3985, 3709, 4152, 3852},
 };
 
-const char *kInvalidFiles[] = {
-  "notajpeg.png",   // A png.
-  "notajpeg.gif",   // A gif.
-  "emptyfile.jpg",  // A zero-byte file.
-  "corrupt.jpg",    // Invalid huffman code in the image data section.
+const char* kInvalidFiles[] = {
+    "notajpeg.png",   // A png.
+    "notajpeg.gif",   // A gif.
+    "emptyfile.jpg",  // A zero-byte file.
+    "corrupt.jpg",    // Invalid huffman code in the image data section.
 };
 
 const size_t kValidImageCount = arraysize(kValidImages);
@@ -85,27 +86,24 @@ const size_t kInvalidFileCount = arraysize(kInvalidFiles);
 
 class JpegOptimizerTest : public testing::Test {
  public:
-  JpegOptimizerTest()
-    : message_handler_(new NullMutex) {
-  }
+  JpegOptimizerTest() : message_handler_(new NullMutex) {}
 
   void AssertColorSampling(const GoogleString& data,
                            int expected_h_sampling_factor,
                            int expected_v_sampling_factor) {
     int num_components, h_sampling_factor, v_sampling_factor;
-    ASSERT_TRUE(GetJpegNumComponentsAndSamplingFactors(data,
-                                                       &num_components,
-                                                       &h_sampling_factor,
-                                                       &v_sampling_factor));
+    ASSERT_TRUE(GetJpegNumComponentsAndSamplingFactors(
+        data, &num_components, &h_sampling_factor, &v_sampling_factor));
     ASSERT_LE(1, num_components);
     ASSERT_EQ(expected_h_sampling_factor, h_sampling_factor);
     ASSERT_EQ(expected_v_sampling_factor, v_sampling_factor);
   }
 
-  void AssertJpegOptimizeWithSampling(
-      const GoogleString &src_data, GoogleString* dest_data,
-      ColorSampling color_sampling, int h_sampling_factor,
-      int v_sampling_factor) {
+  void AssertJpegOptimizeWithSampling(const GoogleString& src_data,
+                                      GoogleString* dest_data,
+                                      ColorSampling color_sampling,
+                                      int h_sampling_factor,
+                                      int v_sampling_factor) {
     dest_data->clear();
     JpegCompressionOptions options;
     options.lossy = true;
@@ -168,8 +166,7 @@ TEST_F(JpegOptimizerTest, ValidJpegLossyAndColorSampling) {
   // Calling optimize will use default color sampling which is 420.
   ASSERT_TRUE(OptimizeJpegWithOptions(src_data, &dest_data, options,
                                       &message_handler_));
-  size_t lossy_420_size =
-      kValidImages[test_422_file_idx].lossy_compressed_size;
+  size_t lossy_420_size = kValidImages[test_422_file_idx].lossy_compressed_size;
   EXPECT_EQ(lossy_420_size, dest_data.size()) << src_filename;
   AssertColorSampling(dest_data, 2, 2);
 
@@ -331,7 +328,8 @@ TEST_F(JpegOptimizerTest, ValidJpegsProgressiveAndLossy) {
     EXPECT_EQ(kValidImages[i].original_size, src_data.size())
         << kValidImages[i].filename;
     EXPECT_EQ(kValidImages[i].progressive_and_lossy_compressed_size,
-              dest_data.size()) << kValidImages[i].filename;
+              dest_data.size())
+        << kValidImages[i].filename;
   }
 }
 
@@ -391,8 +389,8 @@ TEST_F(JpegOptimizerTest, CleanupAfterReadingInvalidJpeg) {
   for (size_t i = 0; i < kValidImageCount; ++i) {
     GoogleString src_data;
     ReadTestFileWithExt(kJpegTestDir, kValidImages[i].filename, &src_data);
-    correctly_compressed.push_back("");
-    GoogleString &dest_data = correctly_compressed.back();
+    correctly_compressed.emplace_back("");
+    GoogleString& dest_data = correctly_compressed.back();
     ASSERT_TRUE(OptimizeJpeg(src_data, &dest_data, &message_handler_));
   }
 
@@ -411,10 +409,10 @@ TEST_F(JpegOptimizerTest, CleanupAfterReadingInvalidJpeg) {
                         &valid_src_data);
     GoogleString valid_dest_data;
 
-    ASSERT_FALSE(OptimizeJpeg(invalid_src_data, &invalid_dest_data,
-                              &message_handler_));
-    ASSERT_TRUE(OptimizeJpeg(valid_src_data, &valid_dest_data,
-                             &message_handler_));
+    ASSERT_FALSE(
+        OptimizeJpeg(invalid_src_data, &invalid_dest_data, &message_handler_));
+    ASSERT_TRUE(
+        OptimizeJpeg(valid_src_data, &valid_dest_data, &message_handler_));
 
     // Diff the jpeg created by CreateOptimizedJpeg() with the one created
     // with a reinitialized JpegOptimizer.

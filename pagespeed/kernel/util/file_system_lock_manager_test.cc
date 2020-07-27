@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit test the file_system_lock_manager using single-threaded mocks.
 
 #include "pagespeed/kernel/util/file_system_lock_manager.h"
@@ -54,17 +53,17 @@ class FileSystemLockManagerTest : public testing::Test {
         timer_(thread_system_->NewMutex(), 0),
         scheduler_(thread_system_.get(), &timer_),
         file_system_(thread_system_.get(), &timer_),
-        manager_(&file_system_, GTestTempDir(), &scheduler_, &handler_) { }
-  virtual ~FileSystemLockManagerTest() { }
+        manager_(&file_system_, GTestTempDir(), &scheduler_, &handler_) {}
+  ~FileSystemLockManagerTest() override {}
 
   SchedulerBasedAbstractLock* MakeLock(const StringPiece& name) {
     SchedulerBasedAbstractLock* result = manager_.CreateNamedLock(name);
-    CHECK(NULL != result) << "Creating lock " << name;
+    CHECK(nullptr != result) << "Creating lock " << name;
     EXPECT_EQ(StrCat(GTestTempDir(), "/", name), result->name());
     return result;
   }
 
-  void AllLocksFail(SchedulerBasedAbstractLock* lock) {
+  static void AllLocksFail(SchedulerBasedAbstractLock* lock) {
     // Note: we do it in this order to make sure that the timed waits don't
     // cause the lock to time out.
     // Note also that we don't do the blocking lock operations, as they'll block
@@ -75,16 +74,14 @@ class FileSystemLockManagerTest : public testing::Test {
     EXPECT_FALSE(lock->LockTimedWait(kWaitMs));
   }
 
-  MockTimer* timer() {
-    return &timer_;
-  }
+  MockTimer* timer() { return &timer_; }
 
-  bool TryLock(const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
+  static bool TryLock(const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
     return lock->TryLock();
   }
 
-  bool TryLockStealOld(int64 steal_ms,
-                       const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
+  static bool TryLockStealOld(
+      int64 steal_ms, const std::unique_ptr<SchedulerBasedAbstractLock>& lock) {
     return lock->TryLockStealOld(steal_ms);
   }
 

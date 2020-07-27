@@ -1,10 +1,10 @@
-/* include/arch/unix/apr_private.h.  Generated from apr_private.h.in by configure.  */
-/* include/arch/unix/apr_private.h.in.  Generated from configure.in by autoheader.  */
-
+/* include/arch/unix/apr_private.h.  Generated from apr_private.h.in by
+ * configure.  */
+/* include/arch/unix/apr_private.h.in.  Generated from configure.in by
+ * autoheader.  */
 
 #ifndef APR_PRIVATE_H
 #define APR_PRIVATE_H
-
 
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
@@ -85,7 +85,7 @@
 #define HAVE_ALLOCA 1
 
 /* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
-   */
+ */
 #define HAVE_ALLOCA_H 1
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
@@ -720,7 +720,7 @@
 /* #undef HAVE_ZOS_PTHREADS */
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+ */
 #define LT_OBJDIR ".libs/"
 
 /* Define if EAI_ error codes from getaddrinfo are negative */
@@ -801,9 +801,9 @@
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at runtime.
-	STACK_DIRECTION > 0 => grows toward higher addresses
-	STACK_DIRECTION < 0 => grows toward lower addresses
-	STACK_DIRECTION = 0 => direction of growth unknown */
+        STACK_DIRECTION > 0 => grows toward higher addresses
+        STACK_DIRECTION < 0 => grows toward lower addresses
+        STACK_DIRECTION = 0 => direction of growth unknown */
 /* #undef STACK_DIRECTION */
 
 /* Define to 1 if you have the ANSI C header files. */
@@ -865,25 +865,24 @@
 
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
-# define _ALL_SOURCE 1
+#define _ALL_SOURCE 1
 #endif
 /* Enable GNU extensions on systems that have them.  */
 #ifndef _GNU_SOURCE
-# define _GNU_SOURCE 1
+#define _GNU_SOURCE 1
 #endif
 /* Enable threading extensions on Solaris.  */
 #ifndef _POSIX_PTHREAD_SEMANTICS
-# define _POSIX_PTHREAD_SEMANTICS 1
+#define _POSIX_PTHREAD_SEMANTICS 1
 #endif
 /* Enable extensions on HP NonStop.  */
 #ifndef _TANDEM_SOURCE
-# define _TANDEM_SOURCE 1
+#define _TANDEM_SOURCE 1
 #endif
 /* Enable general extensions on Solaris.  */
 #ifndef __EXTENSIONS__
-# define __EXTENSIONS__ 1
+#define __EXTENSIONS__ 1
 #endif
-
 
 /* Define if SysV IPC semget() will be used */
 #define USE_SYSVSEM_SERIALIZE 1
@@ -894,13 +893,13 @@
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
 #if defined AC_APPLE_UNIVERSAL_BUILD
-# if defined __BIG_ENDIAN__
-#  define WORDS_BIGENDIAN 1
-# endif
+#if defined __BIG_ENDIAN__
+#define WORDS_BIGENDIAN 1
+#endif
 #else
-# ifndef WORDS_BIGENDIAN
+#ifndef WORDS_BIGENDIAN
 /* #  undef WORDS_BIGENDIAN */
-# endif
+#endif
 #endif
 
 /* Define to 1 if on MINIX. */
@@ -940,7 +939,6 @@
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
 
-
 /* switch this on if we have a BeOS version below BONE */
 #if BEOS && !HAVE_BONE_VERSION
 #define BEOS_R5 1
@@ -953,4 +951,3 @@
  */
 #include "../apr_private_common.h"
 #endif /* APR_PRIVATE_H */
-

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_UTIL_URL_SEGMENT_ENCODER_H_
 #define PAGESPEED_KERNEL_UTIL_URL_SEGMENT_ENCODER_H_
 
@@ -34,7 +33,7 @@ class ResourceContext;
 // Most instances of this will want to delegate to UrlEscaper.
 class UrlSegmentEncoder {
  public:
-  UrlSegmentEncoder() { }
+  UrlSegmentEncoder() {}
   virtual ~UrlSegmentEncoder();
 
   // Encodes arbitrary text so it can be used in a url segment.  A
@@ -44,15 +43,14 @@ class UrlSegmentEncoder {
   //
   // 'data' is optional -- it can be NULL and it is up to the encoder to
   // decide what to do.
-  virtual void Encode(const StringVector& urls,  const ResourceContext* data,
+  virtual void Encode(const StringVector& urls, const ResourceContext* data,
                       GoogleString* url_segment) const;
 
   // Decode URLs from "url_segment".  Note that there may be other
   // meta-data encoded in url_segment, which this function will write
   // into out_data, if present.
-  virtual bool Decode(const StringPiece& url_segment,
-                      StringVector* urls, ResourceContext* out_data,
-                      MessageHandler* handler) const;
+  virtual bool Decode(const StringPiece& url_segment, StringVector* urls,
+                      ResourceContext* out_data, MessageHandler* handler) const;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(UrlSegmentEncoder);

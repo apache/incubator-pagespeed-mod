@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_resource_slot.h"
 
 #include <cstddef>
@@ -41,19 +40,17 @@ namespace net_instaweb {
 CssResourceSlot::CssResourceSlot(const ResourcePtr& resource,
                                  const GoogleUrl& trim_url,
                                  const RewriteOptions* options,
-                                 Css::Values* values,
-                                 size_t value_index)
+                                 Css::Values* values, size_t value_index)
     : ResourceSlot(resource),
       values_(values),
       value_index_(value_index),
-      url_relativity_(GoogleUrl::FindRelativity(UnicodeTextToUTF8(
-          values->at(value_index)->GetStringValue()))),
+      url_relativity_(GoogleUrl::FindRelativity(
+          UnicodeTextToUTF8(values->at(value_index)->GetStringValue()))),
       options_(options) {
   trim_url_.Reset(trim_url);
 }
 
-CssResourceSlot::~CssResourceSlot() {
-}
+CssResourceSlot::~CssResourceSlot() {}
 
 void CssResourceSlot::Render() {
   if (disable_rendering() || preserve_urls()) {
@@ -77,8 +74,8 @@ void CssResourceSlot::Render() {
       // TODO(sligocki): Make sure this is the correct (final) URL of the CSS.
       DirectSetUrl(trimmed_url);
     } else {
-      DirectSetUrl(RelativizeOrPassthrough(options_, url, url_relativity_,
-                                           trim_url_));
+      DirectSetUrl(
+          RelativizeOrPassthrough(options_, url, url_relativity_, trim_url_));
     }
   }
 }
@@ -100,20 +97,18 @@ bool CssResourceSlot::DirectSetUrl(const StringPiece& url) {
     return false;
   }
   delete (*values_)[value_index_];
-  (*values_)[value_index_] =
-      new Css::Value(Css::Value::URI,
-                     UTF8ToUnicodeText(url.data(), url.size()));
+  (*values_)[value_index_] = new Css::Value(
+      Css::Value::URI, UTF8ToUnicodeText(url.data(), url.size()));
   return true;
 }
 
 bool CssResourceSlotFactory::SlotComparator::operator()(
     const CssResourceSlotPtr& p, const CssResourceSlotPtr& q) const {
   return (std::make_pair(p->values(), p->value_index()) <
-              std::make_pair(q->values(), q->value_index()));
+          std::make_pair(q->values(), q->value_index()));
 }
 
-CssResourceSlotFactory::~CssResourceSlotFactory() {
-}
+CssResourceSlotFactory::~CssResourceSlotFactory() {}
 
 CssResourceSlotPtr CssResourceSlotFactory::GetSlot(
     const ResourcePtr& resource, const GoogleUrl& trim_url,

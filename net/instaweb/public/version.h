@@ -9,7 +9,7 @@
 
 // Version Information
 
-#define MOD_PAGESPEED_VERSION @MAJOR@,@MINOR@,@BUILD@,@PATCH@
+#define MOD_PAGESPEED_VERSION @MAJOR @, @MINOR @, @BUILD @, @PATCH @
 #define MOD_PAGESPEED_VERSION_STRING "@MAJOR@.@MINOR@.@BUILD@.@PATCH@"
 
 // Branding Information
@@ -31,6 +31,6 @@ namespace net_instaweb {
 const char kModPagespeedVersion[] =
     MOD_PAGESPEED_VERSION_STRING "-" LASTCHANGE_STRING;
 
-}
+}  // namespace net_instaweb
 
 #endif  // NET_INSTAWEB_PUBLIC_VERSION_H_

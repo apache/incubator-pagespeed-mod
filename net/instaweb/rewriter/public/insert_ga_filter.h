@@ -54,7 +54,7 @@ extern inline constexpr char kGAExperimentSnippet[] =
 extern inline constexpr char kGAJsSnippet[] =
     "if (window.parent == window) {"
     "var _gaq = _gaq || [];"
-    "_gaq.push(['_setAccount', '%s']);"  // %s is the GA account number.
+    "_gaq.push(['_setAccount', '%s']);"     // %s is the GA account number.
     "_gaq.push(['_setDomainName', '%s']);"  // %s is the domain name
     "_gaq.push(['_setAllowLinker', true]);"
     "%s"  // Optional snippet to increase site speed tracking.
@@ -124,25 +124,24 @@ extern inline constexpr char kContentExperimentsSetExpAndVariantSnippet[] =
 extern inline constexpr char kGASpeedTracking[] =
     "_gaq.push(['_setSiteSpeedSampleRate', 100]);";
 
-
 // This class is the implementation of the insert_ga filter, which handles:
 // * Adding a Google Analytics snippet to html pages.
 // * Adding js to report experiment data to Google Analytics.
 class InsertGAFilter : public CommonFilter {
  public:
   explicit InsertGAFilter(RewriteDriver* rewrite_driver);
-  virtual ~InsertGAFilter();
+  ~InsertGAFilter() override;
 
   // Set up statistics for this filter.
   static void InitStats(Statistics* stats);
 
-  virtual void StartDocumentImpl();
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override;
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
   // HTML Events we expect to be in <script> elements.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
-  virtual const char* Name() const { return "InsertGASnippet"; }
+  const char* Name() const override { return "InsertGASnippet"; }
   ScriptUsage GetScriptUsage() const override { return kWillInjectScripts; }
 
  private:
@@ -172,7 +171,7 @@ class InsertGAFilter : public CommonFilter {
   GoogleString ConstructExperimentSnippet() const;
 
   // If appropriate, insert the GA snippet at the end of the document.
-  virtual void EndDocument();
+  void EndDocument() override;
 
   // If RewriteInlineScript left work to do, finish it now.
   void HandleEndScript(HtmlElement* script);

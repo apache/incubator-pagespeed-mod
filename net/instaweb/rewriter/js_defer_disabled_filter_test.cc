@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/js_defer_disabled_filter.h"
+
+#include <memory>
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -33,13 +34,14 @@
 
 namespace net_instaweb {
 
-const char * kDeferJsCodeNonGStatic = "<script type=\"text/javascript\" "
+const char* kDeferJsCodeNonGStatic =
+    "<script type=\"text/javascript\" "
     "src=\"/psajs/js_defer.0.js\"></script>";
 
 class JsDeferDisabledFilterTest : public RewriteTestBase {
  protected:
   // TODO(matterbury): Delete this method as it should be redundant.
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetHtmlMimetype();  // Prevent insertion of CDATA tags to static JS.
   }
@@ -48,13 +50,13 @@ class JsDeferDisabledFilterTest : public RewriteTestBase {
     if (debug) {
       options()->EnableFilter(RewriteOptions::kDebug);
     }
-    js_defer_disabled_filter_.reset(
-        new JsDeferDisabledFilter(rewrite_driver()));
+    js_defer_disabled_filter_ =
+        std::make_unique<JsDeferDisabledFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(js_defer_disabled_filter_.get());
   }
 
-  virtual bool AddHtmlTags() const { return false; }
-  virtual bool AddBody() const { return false; }
+  bool AddHtmlTags() const override { return false; }
+  bool AddBody() const override { return false; }
 
   std::unique_ptr<JsDeferDisabledFilter> js_defer_disabled_filter_;
 };
@@ -63,7 +65,8 @@ class JsDeferDisabledFilterTest : public RewriteTestBase {
 TEST_F(JsDeferDisabledFilterTest, DeferScript) {
   InitJsDeferDisabledFilter(false);
 
-  ValidateExpected("defer_script",
+  ValidateExpected(
+      "defer_script",
       "<html><head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
@@ -76,8 +79,7 @@ TEST_F(JsDeferDisabledFilterTest, DeferScript) {
              "<script type='text/psajs'"
              "> func();</script>"
              "</head><body>Hello, world!",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
+             kDeferJsCodeNonGStatic, "</body></html>"));
 }
 
 TEST_F(JsDeferDisabledFilterTest, JsDeferPreserveURLsOn) {
@@ -86,7 +88,8 @@ TEST_F(JsDeferDisabledFilterTest, JsDeferPreserveURLsOn) {
   options()->set_support_noscript_enabled(false);
   options()->SoftEnableFilterForTesting(RewriteOptions::kDeferJavascript);
   rewrite_driver()->AddFilters();
-  GoogleString before = "<head>"
+  GoogleString before =
+      "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
       "<script type='text/psajs'"
@@ -97,7 +100,8 @@ TEST_F(JsDeferDisabledFilterTest, JsDeferPreserveURLsOn) {
 
 TEST_F(JsDeferDisabledFilterTest, DeferScriptMultiBody) {
   InitJsDeferDisabledFilter(false);
-  ValidateExpected("defer_script_multi_body",
+  ValidateExpected(
+      "defer_script_multi_body",
       "<html><head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
@@ -111,8 +115,7 @@ TEST_F(JsDeferDisabledFilterTest, DeferScriptMultiBody) {
              "</head><body>Hello, world!"
              "</body><body><script type='text/psajs'> func2(); "
              "</script>",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
+             kDeferJsCodeNonGStatic, "</body></html>"));
 }
 
 TEST_F(JsDeferDisabledFilterTest, DeferScriptOptimized) {
@@ -135,7 +138,8 @@ TEST_F(JsDeferDisabledFilterTest, DeferScriptDebug) {
 TEST_F(JsDeferDisabledFilterTest, InvalidUserAgent) {
   InitJsDeferDisabledFilter(false);
   SetCurrentUserAgent("BlackListUserAgent");
-  const char script[] = "<head>"
+  const char script[] =
+      "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
       "<script type='text/psajs'"
@@ -148,21 +152,22 @@ TEST_F(JsDeferDisabledFilterTest, InvalidUserAgent) {
 TEST_F(JsDeferDisabledFilterTest, AllowMobileUserAgent) {
   InitJsDeferDisabledFilter(false);
   SetCurrentUserAgent(UserAgentMatcherTestBase::kIPhone4Safari);
-  const char script[] = "<head>"
+  const char script[] =
+      "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
       "<script type='text/psajs'"
       "> func();</script>"
       "</head><body>Hello, world!</body>";
 
-  GoogleString expected = StrCat("<head>"
+  GoogleString expected = StrCat(
+      "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
       "<script type='text/psajs'"
       "> func();</script></head><body>"
       "Hello, world!",
-      kDeferJsCodeNonGStatic,
-      "</body>");
+      kDeferJsCodeNonGStatic, "</body>");
 
   ValidateExpected("defer_script", script, expected);
 }
@@ -172,7 +177,8 @@ TEST_F(JsDeferDisabledFilterTest, DisAllowMobileUserAgent) {
   options_->ClearSignatureForTesting();
   options_->set_enable_aggressive_rewriters_for_mobile(false);
   SetCurrentUserAgent(UserAgentMatcherTestBase::kIPhone4Safari);
-  const char script[] = "<head>"
+  const char script[] =
+      "<head>"
       "<script type='text/psajs' "
       "src='http://www.google.com/javascript/ajax_apis.js'></script>"
       "<script type='text/psajs'"
@@ -183,8 +189,7 @@ TEST_F(JsDeferDisabledFilterTest, DisAllowMobileUserAgent) {
 }
 
 TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromGStatic) {
-  StaticAssetManager static_asset_manager("",
-                                          server_context()->thread_system(),
+  StaticAssetManager static_asset_manager("", server_context()->thread_system(),
                                           server_context()->hasher(),
                                           server_context()->message_handler());
   static_asset_manager.ServeAssetsFromGStatic(StaticAssetManager::kGStaticBase);
@@ -215,8 +220,7 @@ TEST_F(JsDeferDisabledFilterTest, TestDeferJsUrlFromNonGStatic) {
       StrCat("<html><body>Hello, world!",
              "</body><body><script type='text/psajs'> func2(); "
              "</script>",
-             kDeferJsCodeNonGStatic,
-             "</body></html>"));
+             kDeferJsCodeNonGStatic, "</body></html>"));
 }
 
 }  // namespace net_instaweb

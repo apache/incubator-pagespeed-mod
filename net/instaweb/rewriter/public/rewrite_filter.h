@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_FILTER_H_
 
@@ -36,10 +35,8 @@ namespace net_instaweb {
 
 class RewriteFilter : public CommonFilter {
  public:
-  explicit RewriteFilter(RewriteDriver* driver)
-      : CommonFilter(driver) {
-  }
-  virtual ~RewriteFilter();
+  explicit RewriteFilter(RewriteDriver* driver) : CommonFilter(driver) {}
+  ~RewriteFilter() override;
 
   virtual const char* id() const = 0;
 
@@ -47,12 +44,12 @@ class RewriteFilter : public CommonFilter {
   // property cache can enable writing of it in the RewriterDriver. Filters
   // inheriting from RewriteDriver that use the DOM cohort should override
   // UsePropertyCacheDomCohort to return true.
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void DetermineEnabled(GoogleString* disabled_reason) override;
 
   // Returns whether this filter can modify urls.  Because most filters do
   // modify urls this defaults returning true, and filters that commit to never
   // modifying urls should override it to return false.
-  virtual bool CanModifyUrls() { return true; }
+  bool CanModifyUrls() override { return true; }
 
   // All RewriteFilters define how they encode URLs and other
   // associated information needed for a rewrite into a URL.
@@ -76,8 +73,8 @@ class RewriteFilter : public CommonFilter {
   // Generates a nested RewriteContext appropriate for this filter.
   // Default implementation returns NULL.
   // This is used to implement ajax rewriting.
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
+  virtual RewriteContext* MakeNestedRewriteContext(RewriteContext* parent,
+                                                   const ResourceSlotPtr& slot);
 
   // Encodes user agent information needed by the filter into ResourceContext.
   // See additional header document for
@@ -114,8 +111,7 @@ class RewriteFilter : public CommonFilter {
   // Note that I do not know which browsers implement this, but I know they
   // aren't consistent, so some definitely don't.
   static GoogleString GetCharsetForStylesheet(
-      const Resource* stylesheet,
-      const StringPiece attribute_charset,
+      const Resource* stylesheet, const StringPiece attribute_charset,
       const StringPiece enclosing_charset);
 
   // Determines which filters are related to this RewriteFilter.  Note,
@@ -138,13 +134,11 @@ class RewriteFilter : public CommonFilter {
   // Return the names of options related to this RewriteFilter in
   // case-insensitive alphabetical order. NULL means there are none.
   // Ownership of the vector is not transferred to the caller.
-  virtual const StringPieceVector* RelatedOptions() const {
-    return NULL;
-  }
+  virtual const StringPieceVector* RelatedOptions() const { return NULL; }
 
  protected:
   // This class logs using id().
-  virtual const char* LoggingId() { return id(); }
+  const char* LoggingId() override { return id(); }
 
  private:
   // Filters should override this and return true if they write to the property

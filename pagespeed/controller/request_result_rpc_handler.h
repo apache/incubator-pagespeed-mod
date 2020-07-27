@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_REQUEST_RESULT_RPC_HANDLER_H_
 #define PAGESPEED_CONTROLLER_REQUEST_RESULT_RPC_HANDLER_H_
 
@@ -52,7 +51,7 @@ class RequestResultRpcHandler
  public:
   typedef RefCountedPtr<RequestResultRpcHandler> RefPtr;
 
-  virtual ~RequestResultRpcHandler() {}
+  ~RequestResultRpcHandler() override {}
 
   // Call this to create a handler and add it to the gRPC event loop. It will
   // free itself.

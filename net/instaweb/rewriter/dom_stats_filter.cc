@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/dom_stats_filter.h"
 
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
@@ -34,7 +33,7 @@
 namespace net_instaweb {
 
 DomStatsFilter::DomStatsFilter(RewriteDriver* driver)
-  : CommonFilter(driver), script_tag_scanner_(driver) {
+    : CommonFilter(driver), script_tag_scanner_(driver) {
   Clear();
 }
 
@@ -48,16 +47,14 @@ void DomStatsFilter::Clear() {
   num_critical_images_used_ = 0;
 }
 
-void DomStatsFilter::StartDocumentImpl() {
-  Clear();
-}
+void DomStatsFilter::StartDocumentImpl() { Clear(); }
 
 void DomStatsFilter::EndElementImpl(HtmlElement* element) {
   if (element->keyword() == HtmlName::kImg) {
     ++num_img_tags_;
 
     HtmlElement::Attribute* src = element->FindAttribute(HtmlName::kSrc);
-    StringPiece url(src == NULL ? "" : src->DecodedValueOrNull());
+    StringPiece url(src == nullptr ? "" : src->DecodedValueOrNull());
     if (!url.empty()) {
       if (IsDataUrl(url)) {
         ++num_inlined_img_tags_;
@@ -73,9 +70,9 @@ void DomStatsFilter::EndElementImpl(HtmlElement* element) {
       }
     }
   } else if (element->keyword() == HtmlName::kLink &&
-      CssTagScanner::IsStylesheetOrAlternate(
-          element->AttributeValue(HtmlName::kRel)) &&
-      element->FindAttribute(HtmlName::kHref) != NULL) {
+             CssTagScanner::IsStylesheetOrAlternate(
+                 element->AttributeValue(HtmlName::kRel)) &&
+             element->FindAttribute(HtmlName::kHref) != nullptr) {
     ++num_external_css_;
   } else {
     HtmlElement::Attribute* src;

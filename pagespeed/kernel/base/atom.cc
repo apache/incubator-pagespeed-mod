@@ -29,7 +29,6 @@ const StringPiece null_sp;
 
 }  // namespace
 
-Atom::Atom() : str_(&null_sp) {
-}
+Atom::Atom() : str_(&null_sp) {}
 
 }  // namespace net_instaweb

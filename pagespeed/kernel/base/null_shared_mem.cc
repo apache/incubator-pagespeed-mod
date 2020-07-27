@@ -27,25 +27,21 @@
 
 namespace net_instaweb {
 
-NullSharedMem::NullSharedMem() {
-}
+NullSharedMem::NullSharedMem() {}
 
-NullSharedMem::~NullSharedMem() {
-}
+NullSharedMem::~NullSharedMem() {}
 
-size_t NullSharedMem::SharedMutexSize() const {
-  return 1;
-}
+size_t NullSharedMem::SharedMutexSize() const { return 1; }
 
 AbstractSharedMemSegment* NullSharedMem::CreateSegment(
     const GoogleString& name, size_t size, MessageHandler* handler) {
   handler->MessageS(kWarning, "Using null shared memory runtime.");
-  return NULL;
+  return nullptr;
 }
 
 AbstractSharedMemSegment* NullSharedMem::AttachToSegment(
     const GoogleString& name, size_t size, MessageHandler* handler) {
-  return NULL;
+  return nullptr;
 }
 
 void NullSharedMem::DestroySegment(const GoogleString& name,

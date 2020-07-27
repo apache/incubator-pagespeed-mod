@@ -17,14 +17,13 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_JS_JS_KEYWORDS_H_
 #define PAGESPEED_KERNEL_JS_JS_KEYWORDS_H_
 
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
-  class JsLexer;
+class JsLexer;
 }
 
 namespace pagespeed {

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 //
 //
 // .h for the HtmlColor class
@@ -30,7 +29,9 @@
 #define WEBUTIL_HTML_HTMLCOLOR_H_
 
 #include <stdlib.h>
+
 #include <string>
+
 #include "string_using.h"
 #include "strings/stringpiece.h"
 

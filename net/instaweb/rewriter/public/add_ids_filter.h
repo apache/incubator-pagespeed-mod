@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_ADD_IDS_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_ADD_IDS_FILTER_H_
 
@@ -45,12 +44,12 @@ class AddIdsFilter : public EmptyHtmlFilter {
   static const char kIdPrefix[];
 
   explicit AddIdsFilter(RewriteDriver* driver);
-  virtual ~AddIdsFilter();
+  ~AddIdsFilter() override;
 
-  virtual void StartDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual const char* Name() const { return "AddIdsFilter"; }
+  void StartDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  const char* Name() const override { return "AddIdsFilter"; }
 
  private:
   GoogleString GetDivCountStackEncoding();

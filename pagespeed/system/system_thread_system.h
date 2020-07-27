@@ -34,7 +34,7 @@ namespace net_instaweb {
 class SystemThreadSystem : public PthreadThreadSystem {
  public:
   SystemThreadSystem();
-  virtual ~SystemThreadSystem();
+  ~SystemThreadSystem() override;
 
   // It's not safe to start threads in a process that will later fork.  In order
   // to enforce this, call PermitThreadStarting() in the child process right
@@ -43,7 +43,7 @@ class SystemThreadSystem : public PthreadThreadSystem {
   void PermitThreadStarting();
 
  protected:
-  virtual void BeforeThreadRunHook();
+  void BeforeThreadRunHook() override;
 
  private:
   bool may_start_threads_;

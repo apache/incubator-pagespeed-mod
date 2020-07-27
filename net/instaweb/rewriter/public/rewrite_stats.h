@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_STATS_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITE_STATS_H_
 
@@ -57,9 +56,9 @@ class RewriteStats {
 
   Variable* cached_output_hits() { return cached_output_hits_; }
   Variable* cached_output_missed_deadline() {
-    return cached_output_missed_deadline_; }
-  Variable* cached_output_misses() { return cached_output_misses_;
+    return cached_output_missed_deadline_;
   }
+  Variable* cached_output_misses() { return cached_output_misses_; }
   Variable* cached_resource_fetches() { return cached_resource_fetches_; }
   Variable* failed_filter_resource_fetches() {
     return failed_filter_resource_fetches_;
@@ -86,9 +85,7 @@ class RewriteStats {
   // Note: page_load_count is a misnomer, it is really beacon count.
   // TODO(sligocki): Rename to something more clear.
   Variable* page_load_count() { return page_load_count_; }
-  Variable* fallback_responses_served() {
-    return fallback_responses_served_;
-  }
+  Variable* fallback_responses_served() { return fallback_responses_served_; }
 
   Variable* num_proactively_freshen_user_facing_request() {
     return num_proactively_freshen_user_facing_request_;

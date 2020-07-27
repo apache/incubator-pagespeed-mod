@@ -17,14 +17,14 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/controller_manager.h"
 
 #include <poll.h>
-#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 #include <cerrno>
+#include <csignal>
 #include <cstdlib>
 
 #include "base/logging.h"
@@ -183,8 +183,7 @@ int ControllerManager::RunController(int controller_read_fd,
 
 void ControllerManager::ForkControllerProcess(
     std::unique_ptr<ControllerProcess>&& process,
-    SystemRewriteDriverFactory* factory,
-    ThreadSystem* thread_system,
+    SystemRewriteDriverFactory* factory, ThreadSystem* thread_system,
     MessageHandler* handler) {
   handler->Message(kInfo, "Forking controller process from PID %d", getpid());
 
@@ -201,11 +200,10 @@ void ControllerManager::ForkControllerProcess(
     ssize_t status;
     do {
       status = write(controller_write_fd_, "Q", 1);
-    } while (status == -1 && (errno == EAGAIN ||
-                              errno == EINTR));
+    } while (status == -1 && (errno == EAGAIN || errno == EINTR));
     if (status == -1) {
       handler->Message(kWarning, "killing old controller failed: %s",
-                        strerror(errno));
+                       strerror(errno));
     }
   }
 
@@ -267,8 +265,8 @@ void ControllerManager::ForkControllerProcess(
       handler->Message(kInfo, "Controller running with PID %d", getpid());
       int exit_status = RunController(controller_read_fd, process.get(),
                                       thread_system, handler);
-      handler->Message(kInfo, "Controller %d exiting with status %d",
-                       getpid(), exit_status);
+      handler->Message(kInfo, "Controller %d exiting with status %d", getpid(),
+                       exit_status);
       exit(exit_status);
     } else {
       // Wait for controller process to die, then continue with the loop by
@@ -278,18 +276,20 @@ void ControllerManager::ForkControllerProcess(
       do {
         child_pid = waitpid(pid, &status, 0);
       } while (child_pid == -1 && errno == EINTR);
-      CHECK(child_pid != -1) << "Call to waitpid failed with status "
-                             << child_pid;
+      CHECK(child_pid != -1)
+          << "Call to waitpid failed with status " << child_pid;
       if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS) {
-        handler->Message(kInfo,
+        handler->Message(
+            kInfo,
             "Controller process %d exited normally, not restarting it. "
-            "Shutting down babysitter.", child_pid);
+            "Shutting down babysitter.",
+            child_pid);
         exit(EXIT_SUCCESS);
       }
       // system/system_test.sh and the nginx system test look at these messages.
-      handler->Message(
-          kWarning, "Controller process %d exited with wait status %d",
-          child_pid, status);
+      handler->Message(kWarning,
+                       "Controller process %d exited with wait status %d",
+                       child_pid, status);
       // If the controller used an unclean exit, it probably had a problem
       // binding to a port or similar. Don't try and restart it immediately.
       if (WIFEXITED(status)) {

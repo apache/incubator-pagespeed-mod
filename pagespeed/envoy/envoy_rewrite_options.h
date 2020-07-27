@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,7 +25,7 @@
 #include "pagespeed/envoy/envoy_rewrite_driver_factory.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
-#include "pagespeed/kernel/base/stl_util.h" // for STLDeleteElements
+#include "pagespeed/kernel/base/stl_util.h"  // for STLDeleteElements
 #include "pagespeed/system/system_rewrite_options.h"
 
 #define ENVOY_PAGESPEED_MAX_ARGS 10
@@ -35,12 +35,13 @@ namespace net_instaweb {
 class EnvoyRewriteDriverFactory;
 
 class EnvoyRewriteOptions : public SystemRewriteOptions {
-public:
+ public:
   // See rewrite_options::Initialize and ::Terminate
   static void Initialize();
   static void Terminate();
 
-  EnvoyRewriteOptions(const StringPiece& description, ThreadSystem* thread_system);
+  EnvoyRewriteOptions(const StringPiece& description,
+                      ThreadSystem* thread_system);
   explicit EnvoyRewriteOptions(ThreadSystem* thread_system);
 
   // Make an identical copy of these options and return it.
@@ -51,14 +52,20 @@ public:
   static const EnvoyRewriteOptions* DynamicCast(const RewriteOptions* instance);
   static EnvoyRewriteOptions* DynamicCast(RewriteOptions* instance);
 
-  const GoogleString& statistics_path() const { return statistics_path_.value(); }
-  const GoogleString& global_statistics_path() const { return global_statistics_path_.value(); }
+  const GoogleString& statistics_path() const {
+    return statistics_path_.value();
+  }
+  const GoogleString& global_statistics_path() const {
+    return global_statistics_path_.value();
+  }
   const GoogleString& console_path() const { return console_path_.value(); }
   const GoogleString& messages_path() const { return messages_path_.value(); }
   const GoogleString& admin_path() const { return admin_path_.value(); }
-  const GoogleString& global_admin_path() const { return global_admin_path_.value(); }
+  const GoogleString& global_admin_path() const {
+    return global_admin_path_.value();
+  }
 
-private:
+ private:
   // Keeps the properties added by this subclass.  These are merged into
   // RewriteOptions::all_properties_ during Initialize().
   //
@@ -72,11 +79,12 @@ private:
   // Add an option to envoy_properties_
   template <class OptionClass>
   static void add_envoy_option(typename OptionClass::ValueType default_value,
-                               OptionClass EnvoyRewriteOptions::*offset, const char* id,
-                               StringPiece option_name, OptionScope scope, const char* help,
+                               OptionClass EnvoyRewriteOptions::*offset,
+                               const char* id, StringPiece option_name,
+                               OptionScope scope, const char* help,
                                bool safe_to_print) {
-    AddProperty(default_value, offset, id, option_name, scope, help, safe_to_print,
-                envoy_properties_);
+    AddProperty(default_value, offset, id, option_name, scope, help,
+                safe_to_print, envoy_properties_);
   }
 
   Option<GoogleString> statistics_path_;
@@ -98,4 +106,4 @@ private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyRewriteOptions);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

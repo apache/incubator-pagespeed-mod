@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 
 #include <vector>
@@ -35,13 +34,12 @@ class WaitUrlAsyncFetcher::DelayedFetch {
  public:
   DelayedFetch(UrlAsyncFetcher* base_fetcher, const GoogleString& url,
                MessageHandler* handler, AsyncFetch* base_fetch)
-      : base_fetcher_(base_fetcher), url_(url), handler_(handler),
-        base_fetch_(base_fetch) {
-  }
+      : base_fetcher_(base_fetcher),
+        url_(url),
+        handler_(handler),
+        base_fetch_(base_fetch) {}
 
-  void FetchNow() {
-    base_fetcher_->Fetch(url_, handler_, base_fetch_);
-  }
+  void FetchNow() { base_fetcher_->Fetch(url_, handler_, base_fetch_); }
 
  private:
   UrlAsyncFetcher* base_fetcher_;

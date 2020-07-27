@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_UTIL_NONCE_GENERATOR_TEST_BASE_H_
 #define PAGESPEED_KERNEL_UTIL_NONCE_GENERATOR_TEST_BASE_H_
 
@@ -35,8 +33,8 @@ extern const int kSmallNumIterations;
 
 class NonceGeneratorTestBase : public testing::Test {
  protected:
-  NonceGeneratorTestBase() { }
-  ~NonceGeneratorTestBase();
+  NonceGeneratorTestBase() {}
+  ~NonceGeneratorTestBase() override;
 
   void DuplicateFreedom();
   void DifferentNonOverlap();

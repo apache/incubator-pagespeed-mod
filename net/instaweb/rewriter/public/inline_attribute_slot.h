@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_INLINE_ATTRIBUTE_SLOT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_INLINE_ATTRIBUTE_SLOT_H_
 
@@ -27,15 +26,13 @@ namespace net_instaweb {
 
 class InlineAttributeSlot : public ResourceSlot {
  public:
-  InlineAttributeSlot(const ResourcePtr& resource,
-                      HtmlElement* element,
-                      HtmlElement::Attribute* attribute,
-                      StringPiece location);
-  virtual ~InlineAttributeSlot();
-  virtual HtmlElement* element() const { return element_; }
-  virtual GoogleString LocationString() const { return location_; }
+  InlineAttributeSlot(const ResourcePtr& resource, HtmlElement* element,
+                      HtmlElement::Attribute* attribute, StringPiece location);
+  ~InlineAttributeSlot() override;
+  HtmlElement* element() const override { return element_; }
+  GoogleString LocationString() const override { return location_; }
 
-  virtual void Render();
+  void Render() override;
 
   const HtmlElement::Attribute* attribute() const { return attribute_; }
 
@@ -55,8 +52,8 @@ class InlineAttributeSlotComparator {
                   const InlineAttributeSlotPtr& q) const;
 };
 
-typedef std::set<InlineAttributeSlotPtr,
-                 InlineAttributeSlotComparator> InlineAttributeSlotSet;
+typedef std::set<InlineAttributeSlotPtr, InlineAttributeSlotComparator>
+    InlineAttributeSlotSet;
 
 }  // namespace net_instaweb
 

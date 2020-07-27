@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/file_input_resource.h"
 
 #include "base/logging.h"
@@ -54,11 +53,9 @@ FileInputResource::FileInputResource(const RewriteDriver* driver,
       load_from_file_cache_ttl_ms_(
           driver->options()->load_from_file_cache_ttl_ms()),
       load_from_file_ttl_set_(
-          driver->options()->load_from_file_cache_ttl_ms_was_set()) {
-}
+          driver->options()->load_from_file_cache_ttl_ms_was_set()) {}
 
-FileInputResource::~FileInputResource() {
-}
+FileInputResource::~FileInputResource() {}
 
 // File input resources don't have expirations, we assume that the resource
 // is valid as long as the FileInputResource lives.
@@ -68,13 +65,14 @@ bool FileInputResource::IsValidAndCacheable() const {
   return response_headers_.status_code() == HttpStatus::kOK;
 }
 
-void FileInputResource::FillInPartitionInputInfo(
-    HashHint include_content_hash, InputInfo* input) {
+void FileInputResource::FillInPartitionInputInfo(HashHint include_content_hash,
+                                                 InputInfo* input) {
   CHECK(loaded());
   input->set_type(InputInfo::FILE_BASED);
   if (last_modified_time_sec_ == kTimestampUnset) {
     LOG(DFATAL) << "We should never have populated FileInputResource without "
-        "a timestamp for " << filename_;
+                   "a timestamp for "
+                << filename_;
 
     // Resources can in theory be preloaded via HTTP cache, in which
     // case we'll have loaded() == true, but last_modified_time_sec_
@@ -93,7 +91,7 @@ void FileInputResource::FillInPartitionInputInfo(
   // If the file is valid and we are using a filesystem metadata cache, save
   // the hash of the file's contents for subsequent storing into it (the cache).
   if (IsValidAndCacheable() &&
-      server_context_->filesystem_metadata_cache() != NULL) {
+      server_context_->filesystem_metadata_cache() != nullptr) {
     input->set_input_content_hash(ContentsHash());
   }
 }
@@ -112,7 +110,7 @@ void FileInputResource::SetDefaultHeaders(const ContentType* content_type,
   header->set_minor_version(1);
   header->SetStatusAndReason(HttpStatus::kOK);
   header->RemoveAll(HttpAttributes::kContentType);
-  if (content_type == NULL) {
+  if (content_type == nullptr) {
     handler->Message(kError, "Loaded resource with no Content-Type %s",
                      url_.c_str());
   } else {
@@ -136,8 +134,7 @@ void FileInputResource::SetDefaultHeaders(const ContentType* content_type,
 // reloaded for every request.
 void FileInputResource::LoadAndCallback(
     NotCacheablePolicy not_cacheable_policy,
-    const RequestContextPtr& request_context,
-    AsyncCallback* callback) {
+    const RequestContextPtr& request_context, AsyncCallback* callback) {
   MessageHandler* handler = server_context()->message_handler();
   if (!loaded()) {
     // Load the file from disk.  Make sure we correctly read a timestamp
@@ -154,8 +151,8 @@ void FileInputResource::LoadAndCallback(
     FileSystem* file_system = server_context_->file_system();
     if (file_system->Mtime(filename_, &last_modified_time_sec_, handler) &&
         last_modified_time_sec_ != kTimestampUnset &&
-        file_system->ReadFile(
-            filename_.c_str(), max_file_size_, &value_, handler)) {
+        file_system->ReadFile(filename_.c_str(), max_file_size_, &value_,
+                              handler)) {
       SetDefaultHeaders(type_, &response_headers_, handler);
       value_.SetHeaders(&response_headers_);
     } else {

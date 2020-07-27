@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/http/response_headers_parser.h"
 
 #include "base/logging.h"

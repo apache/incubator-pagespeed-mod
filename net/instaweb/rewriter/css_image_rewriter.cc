@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_image_rewriter.h"
 
 #include <cstddef>
@@ -47,7 +46,6 @@
 #include "webutil/css/property.h"
 #include "webutil/css/value.h"
 
-
 namespace net_instaweb {
 
 namespace {
@@ -55,9 +53,8 @@ namespace {
 GoogleString CannotImportMessage(StringPiece action, StringPiece url,
                                  bool is_authorized) {
   return StrCat("Cannot ", action, " ", url,
-                (is_authorized
-                 ? " for an unknown reason"
-                 : " as it is on an unauthorized domain"));
+                (is_authorized ? " for an unknown reason"
+                               : " as it is on an unauthorized domain"));
 }
 
 }  // namespace
@@ -83,11 +80,9 @@ CssImageRewriter::CssImageRewriter(CssFilter::Context* root_context,
 
 CssImageRewriter::~CssImageRewriter() {}
 
-bool CssImageRewriter::RewritesEnabled(
-    int64 image_inline_max_bytes) const {
+bool CssImageRewriter::RewritesEnabled(int64 image_inline_max_bytes) const {
   const RewriteOptions* options = driver()->options();
-  return (image_inline_max_bytes > 0 ||
-          options->ImageOptimizationEnabled() ||
+  return (image_inline_max_bytes > 0 || options->ImageOptimizationEnabled() ||
           options->Enabled(RewriteOptions::kLeftTrimUrls) ||
           options->Enabled(RewriteOptions::kExtendCacheImages) ||
           options->Enabled(RewriteOptions::kSpriteImages));
@@ -99,33 +94,29 @@ bool CssImageRewriter::RewriteImport(RewriteContext* parent,
   GoogleUrl import_url(hierarchy->url());
   ResourcePtr resource = driver()->CreateInputResource(
       import_url, RewriteDriver::InputRole::kStyle, is_authorized);
-  if (resource.get() == NULL) {
+  if (resource.get() == nullptr) {
     return false;
   }
 
-  parent->AddNestedContext(
-      filter_->MakeNestedFlatteningContextInNewSlot(
-          resource, driver()->UrlLine(), root_context_, parent, hierarchy));
+  parent->AddNestedContext(filter_->MakeNestedFlatteningContextInNewSlot(
+      resource, driver()->UrlLine(), root_context_, parent, hierarchy));
   return true;
 }
 
 bool CssImageRewriter::RewriteImage(int64 image_inline_max_bytes,
                                     const GoogleUrl& trim_url,
                                     const GoogleUrl& original_url,
-                                    RewriteContext* parent,
-                                    Css::Values* values,
-                                    size_t value_index,
-                                    bool* is_authorized) {
+                                    RewriteContext* parent, Css::Values* values,
+                                    size_t value_index, bool* is_authorized) {
   const RewriteOptions* options = driver()->options();
   ResourcePtr resource = driver()->CreateInputResource(
       original_url, RewriteDriver::InputRole::kImg, is_authorized);
-  if (resource.get() == NULL) {
+  if (resource.get() == nullptr) {
     return false;
   }
 
-  CssResourceSlotPtr slot(
-      root_context_->slot_factory()->GetSlot(resource, trim_url, options,
-                                             values, value_index));
+  CssResourceSlotPtr slot(root_context_->slot_factory()->GetSlot(
+      resource, trim_url, options, values, value_index));
   if (options->image_preserve_urls()) {
     slot->set_preserve_urls(true);
   }
@@ -143,15 +134,13 @@ void CssImageRewriter::RewriteSlot(const ResourceSlotPtr& slot,
     // we allow preemptive rewriting.
     if (!slot->preserve_urls() ||
         options->in_place_preemptive_rewrite_css_images()) {
-      parent->AddNestedContext(
-          image_rewriter_->MakeNestedRewriteContextForCss(
-              image_inline_max_bytes, parent, slot));
+      parent->AddNestedContext(image_rewriter_->MakeNestedRewriteContextForCss(
+          image_inline_max_bytes, parent, slot));
     }
   }
 
   if (driver()->MayCacheExtendImages()) {
-    parent->AddNestedContext(
-        cache_extender_->MakeNestedContext(parent, slot));
+    parent->AddNestedContext(cache_extender_->MakeNestedContext(parent, slot));
   }
 
   // TODO(sligocki): DomainRewriter or is this done automatically?
@@ -160,7 +149,7 @@ void CssImageRewriter::RewriteSlot(const ResourceSlotPtr& slot,
 void CssImageRewriter::InheritChildImageInfo(RewriteContext* context) {
   typedef ImageRewriteFilter::AssociatedImageInfoMap AssociatedImageInfoMap;
   if (!context->Driver()->options()->Enabled(
-      RewriteOptions::kExperimentCollectMobImageInfo)) {
+          RewriteOptions::kExperimentCollectMobImageInfo)) {
     return;
   }
 
@@ -179,9 +168,8 @@ void CssImageRewriter::InheritChildImageInfo(RewriteContext* context) {
       // Image info may be directly included inside the CachedResult, if
       // child_result came from the image filter.
       AssociatedImageInfo from_image_filter;
-      if (ImageRewriteFilter::ExtractAssociatedImageInfo(child_result,
-                                                         nested_context,
-                                                         &from_image_filter)) {
+      if (ImageRewriteFilter::ExtractAssociatedImageInfo(
+              child_result, nested_context, &from_image_filter)) {
         child_image_info[from_image_filter.url()] = from_image_filter;
       }
 
@@ -226,9 +214,8 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
           bool is_authorized;
           if (!RewriteImport(parent, child, &is_authorized)) {
             hierarchy->set_flattening_succeeded(false);
-            hierarchy->AddFlatteningFailureReason(
-                CannotImportMessage("import", child->url_for_humans(),
-                                    is_authorized));
+            hierarchy->AddFlatteningFailureReason(CannotImportMessage(
+                "import", child->url_for_humans(), is_authorized));
           }
         }
       }
@@ -302,13 +289,12 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
                   // image combining filter, so we need to fix that before
                   // testing which URL is correct.
                   if (!image_combiner_->AddCssBackgroundContext(
-                          original_url, hierarchy->css_trim_url(),
-                          values, value_index, root_context_, &decls,
-                          &is_authorized, handler)) {
+                          original_url, hierarchy->css_trim_url(), values,
+                          value_index, root_context_, &decls, &is_authorized,
+                          handler)) {
                     // This doesn't fail flattening but we want to log it.
-                    hierarchy->AddFlatteningFailureReason(
-                        CannotImportMessage("rewrite", original_url.Spec(),
-                                            is_authorized));
+                    hierarchy->AddFlatteningFailureReason(CannotImportMessage(
+                        "rewrite", original_url.Spec(), is_authorized));
                   }
                 }
                 if (!RewriteImage(image_inline_max_bytes,
@@ -316,9 +302,8 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
                                   parent, values, value_index,
                                   &is_authorized)) {
                   // This doesn't fail flattening but we want to log it.
-                  hierarchy->AddFlatteningFailureReason(
-                      CannotImportMessage("rewrite", original_url.Spec(),
-                                          is_authorized));
+                  hierarchy->AddFlatteningFailureReason(CannotImportMessage(
+                      "rewrite", original_url.Spec(), is_authorized));
                 }
               }
             }
@@ -340,7 +325,8 @@ bool CssImageRewriter::RewriteCss(int64 image_inline_max_bytes,
 
     image_combiner_->RegisterOrReleaseContext();
   } else {
-    handler->Message(kInfo, "Image rewriting and cache extension not enabled, "
+    handler->Message(kInfo,
+                     "Image rewriting and cache extension not enabled, "
                      "so not rewriting images in CSS in %s",
                      hierarchy->css_base_url().spec_c_str());
   }

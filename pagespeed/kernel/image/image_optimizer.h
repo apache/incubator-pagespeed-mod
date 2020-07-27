@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_IMAGE_IMAGE_OPTIMIZER_H_
 #define PAGESPEED_KERNEL_IMAGE_IMAGE_OPTIMIZER_H_
 
@@ -54,9 +53,8 @@ namespace image_compression {
 // object can only have the Optimize method called once.
 class ImageOptimizer {
  public:
-  explicit ImageOptimizer(net_instaweb::MessageHandler* message_handler) :
-      message_handler_(message_handler) {
-  }
+  explicit ImageOptimizer(net_instaweb::MessageHandler* message_handler)
+      : message_handler_(message_handler) {}
 
   // Applies all optimizations, for example, removing metadata, reducing chroma
   // sampling, and reducing dimension, to the image.
@@ -64,8 +62,7 @@ class ImageOptimizer {
   // TODO(huibao): Instead of buffering the optimized image contents in a string
   // let the Optimize method take a writer and stream the contents to the output
   // directly.
-  bool Optimize(StringPiece original_contents,
-                GoogleString* optimized_contents,
+  bool Optimize(StringPiece original_contents, GoogleString* optimized_contents,
                 ImageFormat* optimized_format);
 
   void set_options(const pagespeed::image_compression::ImageOptions& options) {
@@ -80,7 +77,7 @@ class ImageOptimizer {
   // dimension of the optimized image by using the OutputDimension method.
   void set_requested_dimension(
       const pagespeed::image_compression::ImageDimensions&
-      requested_dimensions) {
+          requested_dimensions) {
     requested_dim_ = requested_dimensions;
   }
 

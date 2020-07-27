@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_AUTOMATIC_PROXY_INTERFACE_TEST_BASE_H_
 #define PAGESPEED_AUTOMATIC_PROXY_INTERFACE_TEST_BASE_H_
 
@@ -60,12 +59,11 @@ class ProxyUrlNamer : public UrlNamer {
   ProxyUrlNamer() : authorized_(true) {}
 
   // Given the request_url, generate the original url.
-  bool Decode(const GoogleUrl& gurl,
-              const RewriteOptions* rewrite_options,
+  bool Decode(const GoogleUrl& gurl, const RewriteOptions* rewrite_options,
               GoogleString* decoded) const override;
 
-  virtual bool IsAuthorized(const GoogleUrl& gurl,
-                            const RewriteOptions& options) const {
+  bool IsAuthorized(const GoogleUrl& gurl,
+                    const RewriteOptions& options) const override {
     return authorized_;
   }
 
@@ -85,18 +83,15 @@ class ProxyUrlNamer : public UrlNamer {
 class MockFilter : public EmptyHtmlFilter {
  public:
   explicit MockFilter(RewriteDriver* driver)
-      : driver_(driver),
-        num_elements_(0),
-        num_elements_property_(NULL) {
-  }
+      : driver_(driver), num_elements_(0), num_elements_property_(NULL) {}
 
-  virtual void StartDocument();
+  void StartDocument() override;
 
-  virtual void StartElement(HtmlElement* element);
+  void StartElement(HtmlElement* element) override;
 
-  virtual void EndDocument();
+  void EndDocument() override;
 
-  virtual const char* Name() const { return "MockFilter"; }
+  const char* Name() const override { return "MockFilter"; }
 
  private:
   RewriteDriver* driver_;
@@ -111,9 +106,9 @@ class CreateFilterCallback
     : public TestRewriteDriverFactory::CreateFilterCallback {
  public:
   CreateFilterCallback() {}
-  virtual ~CreateFilterCallback() {}
+  ~CreateFilterCallback() override {}
 
-  virtual HtmlFilter* Done(RewriteDriver* driver) {
+  HtmlFilter* Done(RewriteDriver* driver) override {
     return new MockFilter(driver);
   }
 
@@ -126,11 +121,10 @@ class CreateFilterCallback
 class BackgroundFetchCheckingAsyncFetch : public SharedAsyncFetch {
  public:
   explicit BackgroundFetchCheckingAsyncFetch(AsyncFetch* base_fetch)
-      : SharedAsyncFetch(base_fetch),
-        async_fetch_(base_fetch) {}
-  virtual ~BackgroundFetchCheckingAsyncFetch() {}
+      : SharedAsyncFetch(base_fetch), async_fetch_(base_fetch) {}
+  ~BackgroundFetchCheckingAsyncFetch() override {}
 
-  virtual void HandleHeadersComplete() {
+  void HandleHeadersComplete() override {
     SharedAsyncFetch::HandleHeadersComplete();
     response_headers()->Add(kBackgroundFetchHeader,
                             async_fetch_->IsBackgroundFetch() ? "1" : "0");
@@ -138,7 +132,7 @@ class BackgroundFetchCheckingAsyncFetch : public SharedAsyncFetch {
     response_headers()->ComputeCaching();
   }
 
-  virtual void HandleDone(bool success) {
+  void HandleDone(bool success) override {
     SharedAsyncFetch::HandleDone(success);
     delete this;
   }
@@ -153,13 +147,11 @@ class BackgroundFetchCheckingAsyncFetch : public SharedAsyncFetch {
 class BackgroundFetchCheckingUrlAsyncFetcher : public UrlAsyncFetcher {
  public:
   explicit BackgroundFetchCheckingUrlAsyncFetcher(UrlAsyncFetcher* fetcher)
-      : base_fetcher_(fetcher),
-        num_background_fetches_(0) {}
-  virtual ~BackgroundFetchCheckingUrlAsyncFetcher() {}
+      : base_fetcher_(fetcher), num_background_fetches_(0) {}
+  ~BackgroundFetchCheckingUrlAsyncFetcher() override {}
 
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch) {
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override {
     if (fetch->IsBackgroundFetch()) {
       num_background_fetches_++;
     }
@@ -185,43 +177,35 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
   static const int kHtmlCacheTimeSec = 5000;
 
   ProxyInterfaceTestBase();
-  virtual void SetUp();
-  virtual void TearDown();
-
-  void FetchFromProxy(
-      const StringPiece& url,
-      const RequestHeaders& request_headers,
-      bool expect_success,
-      GoogleString* string_out,
-      ResponseHeaders* headers_out,
-      bool proxy_fetch_property_callback_collector_created);
+  void SetUp() override;
+  void TearDown() override;
 
   void FetchFromProxy(const StringPiece& url,
                       const RequestHeaders& request_headers,
-                      bool expect_success,
-                      GoogleString* string_out,
-                      ResponseHeaders* headers_out);
+                      bool expect_success, GoogleString* string_out,
+                      ResponseHeaders* headers_out,
+                      bool proxy_fetch_property_callback_collector_created);
 
   void FetchFromProxy(const StringPiece& url,
-                      bool expect_success,
-                      GoogleString* string_out,
+                      const RequestHeaders& request_headers,
+                      bool expect_success, GoogleString* string_out,
                       ResponseHeaders* headers_out);
 
-  void FetchFromProxyLoggingFlushes(const StringPiece& url,
-                                    bool expect_success,
+  void FetchFromProxy(const StringPiece& url, bool expect_success,
+                      GoogleString* string_out, ResponseHeaders* headers_out);
+
+  void FetchFromProxyLoggingFlushes(const StringPiece& url, bool expect_success,
                                     GoogleString* string_out);
 
   void FetchFromProxyNoWait(const StringPiece& url,
                             const RequestHeaders& request_headers,
-                            bool expect_success,
-                            bool log_flush,
+                            bool expect_success, bool log_flush,
                             ResponseHeaders* headers_out);
 
   void WaitForFetch(bool proxy_fetch_property_callback_collector_created);
 
-  void TestPropertyCache(const StringPiece& url,
-                         bool delay_pcache, bool thread_pcache,
-                         bool expect_success);
+  void TestPropertyCache(const StringPiece& url, bool delay_pcache,
+                         bool thread_pcache, bool expect_success);
 
   void TestPropertyCacheWithHeadersAndOutput(
       const StringPiece& url, bool delay_pcache, bool thread_pcache,
@@ -236,7 +220,7 @@ class ProxyInterfaceTestBase : public RewriteTestBase {
   // created temporarily for the proxy fetch.  This allows us to reset
   // the request-context on each new ProxyFetch, potentially changing
   // request-headers that affect webp/gzip bits in the RequestContext.
-  virtual RequestContextPtr request_context();
+  RequestContextPtr request_context() override;
 
   // Setting a nonzero header-latency advances the scheduler every
   // time we initiate a new request, so that there's a latency

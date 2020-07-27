@@ -33,11 +33,10 @@
 namespace net_instaweb {
 namespace {
 
-class SlowWorkerTest: public WorkerTestBase {
+class SlowWorkerTest : public WorkerTestBase {
  public:
   SlowWorkerTest()
-      : worker_(new SlowWorker("slow_worker_test", thread_runtime_.get())) {
-  }
+      : worker_(new SlowWorker("slow_worker_test", thread_runtime_.get())) {}
 
  protected:
   std::unique_ptr<SlowWorker> worker_;
@@ -61,14 +60,14 @@ TEST_F(SlowWorkerTest, BasicOperation) {
 
   // Make sure we kill the thread now, so we don't get it accessing
   // deleted start_sync after we exit if it's slow to start
-  worker_.reset(NULL);
+  worker_.reset(nullptr);
 }
 
 class WaitCancelFunction : public Function {
  public:
   explicit WaitCancelFunction(WorkerTestBase::SyncPoint* sync) : sync_(sync) {}
 
-  virtual void Run() {
+  void Run() override {
     sync_->Notify();
     while (!quit_requested()) {
       usleep(10);
@@ -92,7 +91,7 @@ TEST_F(SlowWorkerTest, Cancellation) {
   start_sync.Wait();
 
   // Ask for exit and block on that.
-  worker_.reset(NULL);
+  worker_.reset(nullptr);
 }
 
 // Used to check that quit_requested is false by default normally.
@@ -101,7 +100,7 @@ class CheckDefaultCancelFunction : public WorkerTestBase::NotifyRunFunction {
   explicit CheckDefaultCancelFunction(WorkerTestBase::SyncPoint* sync)
       : NotifyRunFunction(sync) {}
 
-  virtual void Run() {
+  void Run() override {
     CHECK(!quit_requested());
     NotifyRunFunction::Run();
   }

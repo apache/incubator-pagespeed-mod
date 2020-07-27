@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_NULL_WRITER_H_
 #define PAGESPEED_KERNEL_BASE_NULL_WRITER_H_
 
@@ -34,10 +33,10 @@ class MessageHandler;
 // constructor.
 class NullWriter : public Writer {
  public:
-  explicit NullWriter() { }
-  virtual ~NullWriter();
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  explicit NullWriter() {}
+  ~NullWriter() override;
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 };
 
 }  // namespace net_instaweb

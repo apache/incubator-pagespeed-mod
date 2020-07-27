@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/css_summarizer_base.h"
 
 #include <cstddef>
@@ -62,7 +61,7 @@ class CssSummarizerBase::Context : public SingleRewriteContext {
  public:
   // pos denotes our position in the filters' summaries_ vector.
   Context(int pos, CssSummarizerBase* filter, RewriteDriver* driver);
-  virtual ~Context();
+  ~Context() override;
 
   // Calls to finish initialization for given rewrite type; should be called
   // soon after construction.
@@ -75,17 +74,17 @@ class CssSummarizerBase::Context : public SingleRewriteContext {
     return true;
   }
 
-  virtual void Render();
-  virtual void WillNotRender();
-  virtual void Cancel();
-  virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs);
-  virtual void RewriteSingle(const ResourcePtr& input,
-                             const OutputResourcePtr& output);
-  virtual const char* id() const { return filter_->id(); }
-  virtual OutputResourceKind kind() const { return kRewrittenResource; }
-  virtual GoogleString CacheKeySuffix() const;
-  virtual const UrlSegmentEncoder* encoder() const {
+  void Render() override;
+  void WillNotRender() override;
+  void Cancel() override;
+  bool Partition(OutputPartitions* partitions,
+                 OutputResourceVector* outputs) override;
+  void RewriteSingle(const ResourcePtr& input,
+                     const OutputResourcePtr& output) override;
+  const char* id() const override { return filter_->id(); }
+  OutputResourceKind kind() const override { return kRewrittenResource; }
+  GoogleString CacheKeySuffix() const override;
+  const UrlSegmentEncoder* encoder() const override {
     return filter_->encoder();
   }
 
@@ -105,19 +104,17 @@ class CssSummarizerBase::Context : public SingleRewriteContext {
   DISALLOW_COPY_AND_ASSIGN(Context);
 };
 
-CssSummarizerBase::Context::Context(int pos,
-                                    CssSummarizerBase* filter,
+CssSummarizerBase::Context::Context(int pos, CssSummarizerBase* filter,
                                     RewriteDriver* driver)
-    : SingleRewriteContext(driver, NULL /*parent*/, NULL /* resource_context*/),
+    : SingleRewriteContext(driver, nullptr /*parent*/,
+                           nullptr /* resource_context*/),
       pos_(pos),
       filter_(filter),
-      element_(NULL),
-      text_(NULL),
-      rewrite_inline_(false) {
-}
+      element_(nullptr),
+      text_(nullptr),
+      rewrite_inline_(false) {}
 
-CssSummarizerBase::Context::~Context() {
-}
+CssSummarizerBase::Context::~Context() {}
 
 void CssSummarizerBase::Context::SetupInlineRewrite(HtmlElement* element,
                                                     HtmlCharactersNode* text) {
@@ -129,7 +126,7 @@ void CssSummarizerBase::Context::SetupInlineRewrite(HtmlElement* element,
 void CssSummarizerBase::Context::SetupExternalRewrite(HtmlElement* element) {
   rewrite_inline_ = false;
   element_ = element;
-  text_ = NULL;
+  text_ = nullptr;
 }
 
 void CssSummarizerBase::Context::ReportDone() {
@@ -204,10 +201,10 @@ void CssSummarizerBase::Context::RewriteSingle(
 
   // Load stylesheet w/o expanding background attributes and preserving as
   // much content as possible from the original document.
-  // XXX(oschaaf): css 
+  // XXX(oschaaf): css
   CssStringPiece tmp(input_contents.data(), input_contents.size());
   Css::Parser parser(tmp);
-  //Css::Parser parser(input_contents);
+  // Css::Parser parser(input_contents);
   parser.set_preservation_mode(true);
 
   // We avoid quirks-mode so that we do not "fix" something we shouldn't have.
@@ -215,7 +212,7 @@ void CssSummarizerBase::Context::RewriteSingle(
 
   std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseRawStylesheet());
   CachedResult* result = mutable_output_partition(0);
-  if (stylesheet.get() == NULL ||
+  if (stylesheet.get() == nullptr ||
       parser.errors_seen_mask() != Css::Parser::kNoError) {
     // TODO(morlovich): do we want a stat here?
     result->clear_inlined_data();
@@ -246,7 +243,7 @@ bool CssSummarizerBase::Context::Partition(OutputPartitions* partitions,
   // We use kOmitInputHash here as this is for content that will be inlined.
   CachedResult* partition = partitions->add_partition();
   resource->AddInputInfoToPartition(Resource::kOmitInputHash, 0, partition);
-  outputs->push_back(OutputResourcePtr(NULL));
+  outputs->push_back(OutputResourcePtr(nullptr));
   return true;
 }
 
@@ -270,9 +267,7 @@ CssSummarizerBase::CssSummarizerBase(RewriteDriver* driver)
   Clear();
 }
 
-CssSummarizerBase::~CssSummarizerBase() {
-  Clear();
-}
+CssSummarizerBase::~CssSummarizerBase() { Clear(); }
 
 void CssSummarizerBase::InitStats(Statistics* statistics) {
   statistics->AddVariable(kNumCssUsedForCriticalCssComputation);
@@ -283,22 +278,19 @@ GoogleString CssSummarizerBase::CacheKeySuffix() const {
   return GoogleString();
 }
 
-void CssSummarizerBase::SummariesDone() {
-}
+void CssSummarizerBase::SummariesDone() {}
 
-void CssSummarizerBase::RenderSummary(
-    int pos, HtmlElement* element, HtmlCharactersNode* char_node,
-    bool* is_element_deleted) {
-}
+void CssSummarizerBase::RenderSummary(int pos, HtmlElement* element,
+                                      HtmlCharactersNode* char_node,
+                                      bool* is_element_deleted) {}
 
-void CssSummarizerBase::WillNotRenderSummary(
-    int pos, HtmlElement* element, HtmlCharactersNode* char_node) {
-}
+void CssSummarizerBase::WillNotRenderSummary(int pos, HtmlElement* element,
+                                             HtmlCharactersNode* char_node) {}
 
 void CssSummarizerBase::Clear() {
   outstanding_rewrites_ = 0;
   saw_end_of_document_ = false;
-  style_element_ = NULL;
+  style_element_ = nullptr;
   summaries_.clear();
   canceled_summaries_.clear();
 }
@@ -328,9 +320,9 @@ void CssSummarizerBase::EndDocument() {
 
 void CssSummarizerBase::StartElementImpl(HtmlElement* element) {
   // HtmlParse should not pass us elements inside a style element.
-  CHECK(style_element_ == NULL);
+  CHECK(style_element_ == nullptr);
   if (element->keyword() == HtmlName::kStyle &&
-      element->FindAttribute(HtmlName::kScoped) == NULL) {
+      element->FindAttribute(HtmlName::kScoped) == nullptr) {
     style_element_ = element;
   }
   // We deal with <link> elements in EndElement.
@@ -341,7 +333,7 @@ void CssSummarizerBase::StartElementImpl(HtmlElement* element) {
 
 void CssSummarizerBase::Characters(HtmlCharactersNode* characters_node) {
   CommonFilter::Characters(characters_node);
-  if (style_element_ != NULL) {
+  if (style_element_ != nullptr) {
     // Note: HtmlParse should guarantee that we only get one CharactersNode
     // per <style> block even if it is split by a flush.
     if (MustSummarize(style_element_)) {
@@ -351,19 +343,19 @@ void CssSummarizerBase::Characters(HtmlCharactersNode* characters_node) {
 }
 
 void CssSummarizerBase::EndElementImpl(HtmlElement* element) {
-  if (style_element_ != NULL) {
+  if (style_element_ != nullptr) {
     // End of an inline style.
     CHECK_EQ(style_element_, element);  // HtmlParse should not pass unmatching.
-    style_element_ = NULL;
+    style_element_ = nullptr;
     return;
   }
   if (element->keyword() == HtmlName::kLink) {
     // Rewrite an external style.
     StringPiece rel = element->AttributeValue(HtmlName::kRel);
     if (CssTagScanner::IsStylesheetOrAlternate(rel)) {
-      HtmlElement::Attribute* element_href = element->FindAttribute(
-          HtmlName::kHref);
-      if (element_href != NULL) {
+      HtmlElement::Attribute* element_href =
+          element->FindAttribute(HtmlName::kHref);
+      if (element_href != nullptr) {
         // If it has a href= attribute
         if (MustSummarize(element)) {
           StartExternalRewrite(element, element_href, rel);
@@ -403,8 +395,8 @@ void CssSummarizerBase::ReportSummariesDone() {
     GoogleString comment = "Summary computation status for ";
     StrAppend(&comment, Name(), "\n");
     for (int i = 0, n = summaries_.size(); i < n; ++i) {
-      StrAppend(&comment, "Resource ", IntegerToString(i),
-                " ", summaries_[i].location, ": ");
+      StrAppend(&comment, "Resource ", IntegerToString(i), " ",
+                summaries_[i].location, ": ");
       switch (summaries_[i].state) {
         case kSummaryOk:
           StrAppend(&comment, "Computed OK\n");
@@ -413,8 +405,9 @@ void CssSummarizerBase::ReportSummariesDone() {
           StrAppend(&comment, "Computation still pending\n");
           break;
         case kSummaryCssParseError:
-          StrAppend(&comment, "Unrecoverable CSS parse error or resource "
-                              "contains closing style tag\n");
+          StrAppend(&comment,
+                    "Unrecoverable CSS parse error or resource "
+                    "contains closing style tag\n");
           break;
         case kSummaryResourceCreationFailed:
           StrAppend(&comment, kCreateResourceFailedDebugMsg, "\n");
@@ -424,14 +417,13 @@ void CssSummarizerBase::ReportSummariesDone() {
                     "Fetch failed or resource not publicly cacheable\n");
           break;
         case kSummarySlotRemoved:
-          StrAppend(&comment,
-                    "Resource removed by another filter\n");
+          StrAppend(&comment, "Resource removed by another filter\n");
           break;
       }
     }
     GoogleString escaped;
     HtmlKeywords::Escape(comment, &escaped);
-    InsertNodeAtBodyEnd(driver()->NewCommentNode(NULL, escaped));
+    InsertNodeAtBodyEnd(driver()->NewCommentNode(nullptr, escaped));
   }
   for (int i = 0, n = summaries_.size(); i < n; ++i) {
     if (summaries_[i].state == kSummaryOk) {
@@ -443,39 +435,38 @@ void CssSummarizerBase::ReportSummariesDone() {
   SummariesDone();
 }
 
-void CssSummarizerBase::StartInlineRewrite(
-    HtmlElement* style, HtmlCharactersNode* text) {
+void CssSummarizerBase::StartInlineRewrite(HtmlElement* style,
+                                           HtmlCharactersNode* text) {
   ResourceSlotPtr slot(MakeSlotForInlineCss(text));
-  Context* context =
-      CreateContextAndSummaryInfo(style, false /* not external */,
-                                  slot, slot->LocationString(),
-                                  driver()->decoded_base(),
-                                  StringPiece() /* rel, none since inline */);
+  Context* context = CreateContextAndSummaryInfo(
+      style, false /* not external */, slot, slot->LocationString(),
+      driver()->decoded_base(), StringPiece() /* rel, none since inline */);
   context->SetupInlineRewrite(style, text);
   driver()->InitiateRewrite(context);
 }
 
-void CssSummarizerBase::StartExternalRewrite(
-    HtmlElement* link, HtmlElement::Attribute* src, StringPiece rel) {
+void CssSummarizerBase::StartExternalRewrite(HtmlElement* link,
+                                             HtmlElement::Attribute* src,
+                                             StringPiece rel) {
   // Create the input resource for the slot.
   bool is_authorized;
-  ResourcePtr input_resource(CreateInputResource(
-      src->DecodedValueOrNull(), RewriteDriver::InputRole::kStyle,
-      &is_authorized));
-  if (input_resource.get() == NULL) {
+  ResourcePtr input_resource(
+      CreateInputResource(src->DecodedValueOrNull(),
+                          RewriteDriver::InputRole::kStyle, &is_authorized));
+  if (input_resource.get() == nullptr) {
     // Record a failure, so the subclass knows of it.
-    summaries_.push_back(SummaryInfo());
+    summaries_.emplace_back();
     summaries_.back().state = kSummaryResourceCreationFailed;
     const char* url = src->DecodedValueOrNull();
-    summaries_.back().location = (url != NULL ? url : driver()->UrlLine());
+    summaries_.back().location = (url != nullptr ? url : driver()->UrlLine());
 
     WillNotRenderSummary(summaries_.size() - 1, link, nullptr /* char_node */);
 
     // TODO(morlovich): Stat?
     if (DebugMode()) {
-      if (is_authorized || url == NULL) {
-        driver()->InsertComment(StrCat(
-            Name(), ": ", kCreateResourceFailedDebugMsg));
+      if (is_authorized || url == nullptr) {
+        driver()->InsertComment(
+            StrCat(Name(), ": ", kCreateResourceFailedDebugMsg));
       } else {
         // Do not write a debug message in this case because that has already
         // been done by the CSS rewriting filter.
@@ -507,19 +498,19 @@ CssSummarizerBase::Context* CssSummarizerBase::CreateContextAndSummaryInfo(
     const GoogleString& location, StringPiece base_for_resources,
     StringPiece rel) {
   int id = summaries_.size();
-  summaries_.push_back(SummaryInfo());
+  summaries_.emplace_back();
   SummaryInfo& new_summary = summaries_.back();
   new_summary.location = location;
   base_for_resources.CopyToString(&new_summary.base);
   const HtmlElement::Attribute* media_attribute =
-        element->FindAttribute(HtmlName::kMedia);
-  if (media_attribute != NULL &&
-      media_attribute->DecodedValueOrNull() != NULL) {
+      element->FindAttribute(HtmlName::kMedia);
+  if (media_attribute != nullptr &&
+      media_attribute->DecodedValueOrNull() != nullptr) {
     new_summary.media_from_html = media_attribute->DecodedValueOrNull();
   }
   rel.CopyToString(&new_summary.rel);
   new_summary.is_external = external;
-  new_summary.is_inside_noscript = (noscript_element() != NULL);
+  new_summary.is_inside_noscript = (noscript_element() != nullptr);
 
   ++outstanding_rewrites_;
 
@@ -533,7 +524,7 @@ RewriteContext* CssSummarizerBase::MakeRewriteContext() {
   // don't expect to answer fetches.
   LOG(DFATAL) << "CssSummarizerBase subclasses should not be registered "
                  "as handling fetches";
-  return NULL;
+  return nullptr;
 }
 
 }  // namespace net_instaweb

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_COMPATIBLE_CENTRAL_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_COMPATIBLE_CENTRAL_CONTROLLER_H_
 
@@ -39,7 +38,7 @@ class CompatibleCentralController : public InProcessCentralController {
                               ThreadSystem* thread_system,
                               NamedLockManager* lock_manager);
 
-  virtual ~CompatibleCentralController();
+  ~CompatibleCentralController() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CompatibleCentralController);

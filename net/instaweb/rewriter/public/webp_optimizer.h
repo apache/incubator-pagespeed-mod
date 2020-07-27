@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_WEBP_OPTIMIZER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_WEBP_OPTIMIZER_H_
 
@@ -46,8 +45,8 @@ bool OptimizeWebp(const GoogleString& original_jpeg, int configured_quality,
 // Reduce the quality of the webp image. Indicates failure by returning false.
 // WebP quality varies from 1 to 100. Original image will be returned if input
 // quality is <1.
-bool ReduceWebpImageQuality(const GoogleString& original_webp,
-                            int quality, GoogleString* compressed_webp);
+bool ReduceWebpImageQuality(const GoogleString& original_webp, int quality,
+                            GoogleString* compressed_webp);
 
 }  // namespace net_instaweb
 

@@ -64,16 +64,13 @@ class MessageHandler;
 class ImageUrlEncoder : public UrlSegmentEncoder {
  public:
   ImageUrlEncoder() {}
-  virtual ~ImageUrlEncoder();
+  ~ImageUrlEncoder() override;
 
-  virtual void Encode(const StringVector& urls,
-                      const ResourceContext* dim,
-                      GoogleString* rewritten_url) const;
+  void Encode(const StringVector& urls, const ResourceContext* dim,
+              GoogleString* rewritten_url) const override;
 
-  virtual bool Decode(const StringPiece& url_segment,
-                      StringVector* urls,
-                      ResourceContext* dim,
-                      MessageHandler* handler) const;
+  bool Decode(const StringPiece& url_segment, StringVector* urls,
+              ResourceContext* dim, MessageHandler* handler) const override;
 
   // Set LibWebp level according to the user agent.
   // TODO(poojatandon): Pass a user agent object with its webp-cabaple bits

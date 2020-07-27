@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_NAMED_LOCK_MANAGER_H_
 #define PAGESPEED_KERNEL_BASE_NAMED_LOCK_MANAGER_H_
 

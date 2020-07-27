@@ -17,12 +17,12 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/image/jpeg_utils.h"
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/image/jpeg_utils.h"
 #include "pagespeed/kernel/image/test_utils.h"
 
 // DO NOT INCLUDE LIBJPEG HEADERS HERE. Doing so causes build errors
@@ -51,27 +51,23 @@ TEST(JpegUtilsTest, GetImageQualityFromImage) {
   MockMessageHandler message_handler(new NullMutex);
   GoogleString src_data;
   ReadTestFile(kJpegTestDir, kGreyScaleJpegFile, "jpg", &src_data);
-  EXPECT_EQ(85, JpegUtils::GetImageQualityFromImage(src_data.data(),
-                                                    src_data.size(),
-                                                    &message_handler));
+  EXPECT_EQ(85, JpegUtils::GetImageQualityFromImage(
+                    src_data.data(), src_data.size(), &message_handler));
 
   src_data.clear();
   ReadTestFile(kJpegTestDir, kColorJpegFile, "jpg", &src_data);
-  EXPECT_EQ(75, JpegUtils::GetImageQualityFromImage(src_data.data(),
-                                                    src_data.size(),
-                                                    &message_handler));
+  EXPECT_EQ(75, JpegUtils::GetImageQualityFromImage(
+                    src_data.data(), src_data.size(), &message_handler));
 
   src_data.clear();
   ReadTestFile(kJpegTestDir, kEmptyJpegFile, "jpg", &src_data);
-  EXPECT_EQ(-1, JpegUtils::GetImageQualityFromImage(src_data.data(),
-                                                    src_data.size(),
-                                                    &message_handler));
+  EXPECT_EQ(-1, JpegUtils::GetImageQualityFromImage(
+                    src_data.data(), src_data.size(), &message_handler));
 
   src_data.clear();
   ReadTestFile(kJpegTestDir, kQuality100JpegFile, "jpg", &src_data);
-  EXPECT_EQ(100, JpegUtils::GetImageQualityFromImage(src_data.data(),
-                                                     src_data.size(),
-                                                     &message_handler));
+  EXPECT_EQ(100, JpegUtils::GetImageQualityFromImage(
+                     src_data.data(), src_data.size(), &message_handler));
 }
 
 }  // namespace

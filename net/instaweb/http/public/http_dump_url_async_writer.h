@@ -17,12 +17,11 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_ASYNC_WRITER_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_DUMP_URL_ASYNC_WRITER_H_
 
-#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/http/public/http_dump_url_fetcher.h"
+#include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -41,8 +40,7 @@ class Timer;
 class HttpDumpUrlAsyncWriter : public UrlAsyncFetcher {
  public:
   HttpDumpUrlAsyncWriter(const StringPiece& root_dir,
-                         UrlAsyncFetcher* base_fetcher,
-                         FileSystem* file_system,
+                         UrlAsyncFetcher* base_fetcher, FileSystem* file_system,
                          Timer* timer)
       : dump_fetcher_(root_dir, file_system, timer),
         base_fetcher_(base_fetcher),
@@ -50,14 +48,13 @@ class HttpDumpUrlAsyncWriter : public UrlAsyncFetcher {
         accept_gzip_(true) {
     root_dir.CopyToString(&root_dir_);
   }
-  virtual ~HttpDumpUrlAsyncWriter();
+  ~HttpDumpUrlAsyncWriter() override;
 
-  virtual bool SupportsHttps() const { return base_fetcher_->SupportsHttps(); }
+  bool SupportsHttps() const override { return base_fetcher_->SupportsHttps(); }
 
   // This is a synchronous/blocking implementation.
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* handler,
-                     AsyncFetch* base_fetch);
+  void Fetch(const GoogleString& url, MessageHandler* handler,
+             AsyncFetch* base_fetch) override;
 
   // Controls whether we will request and save gzipped content to the
   // file system.  Note that http_dump_url_fetcher will inflate on

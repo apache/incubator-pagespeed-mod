@@ -24,8 +24,6 @@
 
 namespace net_instaweb {
 
-int instaweb_htmlparse_core_dummy_function() {
-  return 0;
-}
+int instaweb_htmlparse_core_dummy_function() { return 0; }
 
 }  // namespace net_instaweb

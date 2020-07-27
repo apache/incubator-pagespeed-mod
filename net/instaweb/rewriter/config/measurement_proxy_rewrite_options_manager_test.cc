@@ -49,8 +49,8 @@ class MeasurementProxyRewriteOptionsManagerTest
     ProxyInterfaceTestBase::SetUp();
     options_manager_ = new MeasurementProxyRewriteOptionsManager(
         server_context(), "https://www.example.com", "secret");
-    url_namer_.reset(new MeasurementProxyUrlNamer(
-        "https://www.example.com", "secret"));
+    url_namer_ = std::make_unique<MeasurementProxyUrlNamer>(
+        "https://www.example.com", "secret");
     server_context()->SetRewriteOptionsManager(options_manager_);
     server_context()->set_url_namer(url_namer_.get());
   }
@@ -70,13 +70,10 @@ class MeasurementProxyRewriteOptionsManagerTest
     ASSERT_NE(reported_options_.get(), nullptr);
   }
 
-  void GotOptions(RewriteOptions* options) {
-    reported_options_.reset(options);
-  }
+  void GotOptions(RewriteOptions* options) { reported_options_.reset(options); }
 
   void Expect403(StringPiece base_url) {
-    EXPECT_TRUE(reported_options_->reject_blacklisted())
-        << test_url_;
+    EXPECT_TRUE(reported_options_->reject_blacklisted()) << test_url_;
     EXPECT_FALSE(reported_options_->IsAllowed("http://www.modpagespeed.com"))
         << test_url_;
     SetupResources(base_url);
@@ -84,26 +81,21 @@ class MeasurementProxyRewriteOptionsManagerTest
   }
 
   void ExpectPermitted() {
-    EXPECT_FALSE(reported_options_->reject_blacklisted())
-        << test_url_;
+    EXPECT_FALSE(reported_options_->reject_blacklisted()) << test_url_;
     EXPECT_TRUE(reported_options_->IsAllowed("http://www.modpagespeed.com"))
         << test_url_;
   }
 
   void ExpectBlocking() {
-    EXPECT_EQ(-1, reported_options_->rewrite_deadline_ms())
-        << test_url_;
-    EXPECT_TRUE(reported_options_->in_place_wait_for_optimized())
-        << test_url_;
+    EXPECT_EQ(-1, reported_options_->rewrite_deadline_ms()) << test_url_;
+    EXPECT_TRUE(reported_options_->in_place_wait_for_optimized()) << test_url_;
     EXPECT_EQ(-1, reported_options_->in_place_rewrite_deadline_ms())
         << test_url_;
   }
 
   void ExpectNonBlocking() {
-    EXPECT_LT(0, reported_options_->rewrite_deadline_ms())
-        << test_url_;
-    EXPECT_FALSE(reported_options_->in_place_wait_for_optimized())
-        << test_url_;
+    EXPECT_LT(0, reported_options_->rewrite_deadline_ms()) << test_url_;
+    EXPECT_FALSE(reported_options_->in_place_wait_for_optimized()) << test_url_;
     EXPECT_LT(0, reported_options_->in_place_rewrite_deadline_ms())
         << test_url_;
   }
@@ -117,8 +109,7 @@ class MeasurementProxyRewriteOptionsManagerTest
     SetupResources(base_url);
     GoogleString out = Fetch(StrCat(test_url_, kHtmlUrl), true);
     // Inlined and minified.
-    EXPECT_EQ("<head/><script>var a=42</script>", out)
-        << test_url_;
+    EXPECT_EQ("<head/><script>var a=42</script>", out) << test_url_;
   }
 
   void ExpectPassthrough(StringPiece base_url) {
@@ -128,16 +119,15 @@ class MeasurementProxyRewriteOptionsManagerTest
     SetupResources(base_url);
     GoogleString out = Fetch(StrCat(test_url_, kHtmlUrl), true);
     // Unchanged.
-    EXPECT_EQ(StrCat("<script src=", kJsUrl, "></script>"), out)
-        << test_url_;
+    EXPECT_EQ(StrCat("<script src=", kJsUrl, "></script>"), out) << test_url_;
   }
 
   void SetupResources(StringPiece base_url) {
     GoogleString normalized_base_url = GoogleString(base_url);
     LowerString(&normalized_base_url);
-    SetResponseWithDefaultHeaders(
-        StrCat(normalized_base_url, kJsUrl), kContentTypeJavascript,
-        " var a  =   42", 100);
+    SetResponseWithDefaultHeaders(StrCat(normalized_base_url, kJsUrl),
+                                  kContentTypeJavascript, " var a  =   42",
+                                  100);
     SetResponseWithDefaultHeaders(
         StrCat(normalized_base_url, kHtmlUrl), kContentTypeHtml,
         StrCat("<script src=", kJsUrl, "></script>"), 100);
@@ -207,8 +197,7 @@ TEST_F(MeasurementProxyRewriteOptionsManagerTest, GetRewriteOptions) {
   ExpectRewrites("http://www.google.com/");
 
   // With empty config, too.
-  RunGetRewriteOptionsTest(
-      "https://www.example.com/h//secret/www.google.com/");
+  RunGetRewriteOptionsTest("https://www.example.com/h//secret/www.google.com/");
   ExpectPermitted();
   ExpectNonBlocking();
   ExpectRewrites("http://www.google.com/");

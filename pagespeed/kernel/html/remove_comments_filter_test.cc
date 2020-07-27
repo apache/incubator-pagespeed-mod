@@ -17,14 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/remove_comments_filter.h"
 
-#include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/html/html_parse.h"
+#include "pagespeed/kernel/html/html_parse_test_base.h"
 
 namespace net_instaweb {
 
@@ -32,18 +31,18 @@ namespace {
 
 // Basic default implementation.
 class OptionsImpl : public RemoveCommentsFilter::OptionsInterface {
-  public:
+ public:
   OptionsImpl() {}
 
   void RetainComment(const StringPiece& comment) {
     retain_comments_.Allow(comment);
   }
 
-  virtual bool IsRetainedComment(const StringPiece& comment) const {
+  bool IsRetainedComment(const StringPiece& comment) const override {
     return retain_comments_.Match(comment, false);
   }
 
-  private:
+ private:
   FastWildcardGroup retain_comments_;
 
   DISALLOW_COPY_AND_ASSIGN(OptionsImpl);
@@ -59,7 +58,7 @@ class RemoveCommentsFilterTest : public HtmlParseTestBase {
     html_parse_.AddFilter(&remove_comments_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
  protected:
   // NOTE: The options_ instance is owned by the
@@ -78,8 +77,7 @@ TEST_F(RemoveCommentsFilterTest, NoComments) {
 }
 
 TEST_F(RemoveCommentsFilterTest, RemoveComment) {
-  ValidateExpected("remove_comment",
-                   "<body>hello <!--world--></body>",
+  ValidateExpected("remove_comment", "<body>hello <!--world--></body>",
                    "<body>hello </body>");
 }
 
@@ -101,8 +99,7 @@ TEST_F(RemoveCommentsFilterTest, Retain) {
   ValidateNoChanges("do_not_remove_ad_section",
                     "<body>hello <!-- google_ad_section_start --></body>");
   ValidateExpected("remove_comment_not_matching_retained",
-                   "<body>hello <!--world--></body>",
-                   "<body>hello </body>");
+                   "<body>hello <!--world--></body>", "<body>hello </body>");
 }
 
 TEST_F(RemoveCommentsFilterTest, CommentInTag) {

@@ -17,16 +17,14 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_THREAD_THREAD_SYSTEM_TEST_BASE_H_
 #define PAGESPEED_KERNEL_THREAD_THREAD_SYSTEM_TEST_BASE_H_
-
-#include "pagespeed/kernel/base/thread_system.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
+#include "pagespeed/kernel/base/thread_system.h"
 
 namespace net_instaweb {
 
@@ -59,7 +57,7 @@ class ThreadSystemTestBase : public testing::Test {
 
 // Passes in the appropriate ThreadSystem to ThreadSystemTestBase via a template
 // param to help glue us to the test framework
-template<typename ToTest>
+template <typename ToTest>
 class ThreadSystemTestTemplate : public ThreadSystemTestBase {
  public:
   ThreadSystemTestTemplate() : ThreadSystemTestBase(new ToTest) {}

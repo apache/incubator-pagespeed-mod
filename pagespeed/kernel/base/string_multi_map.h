@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_STRING_MULTI_MAP_H_
 #define PAGESPEED_KERNEL_BASE_STRING_MULTI_MAP_H_
 
@@ -40,16 +39,13 @@ namespace net_instaweb {
 // The keys and values in the map may contain embedded NUL characters.
 // The values can also be the NULL pointer, which the API retains
 // distinctly from empty strings.
-template<class StringCompare> class StringMultiMap {
+template <class StringCompare>
+class StringMultiMap {
  public:
-  StringMultiMap() { }
-  ~StringMultiMap() {
-    Clear();
-  }
+  StringMultiMap() {}
+  ~StringMultiMap() { Clear(); }
 
-  bool empty() const {
-    return vector_.empty();
-  }
+  bool empty() const { return vector_.empty(); }
 
   void Clear() {
     for (int i = 0, n = vector_.size(); i < n; ++i) {
@@ -206,8 +202,7 @@ template<class StringCompare> class StringMultiMap {
   // not be added.
   void AddFromNameValuePairs(const StringPiece& name_value_list,
                              const StringPiece& separators,
-                             char value_separator,
-                             bool omit_if_no_value) {
+                             char value_separator, bool omit_if_no_value) {
     StringPieceVector pairs;
     SplitStringPieceToVector(name_value_list, separators, &pairs, true);
     for (int i = 0, n = pairs.size(); i < n; ++i) {
@@ -238,10 +233,9 @@ template<class StringCompare> class StringMultiMap {
   // how we are managing key storage within the entry.
   class SetEntry {
    public:
-    SetEntry() { }
-    SetEntry(StringPiece key) : key_(key) { }
-    SetEntry(const SetEntry& src)
-        : key_(src.key_) {
+    SetEntry() {}
+    SetEntry(StringPiece key) : key_(key) {}
+    SetEntry(const SetEntry& src) : key_(src.key_) {
       // Note that a copy-construction does occur in Add, but only of
       // the lookup_entry, which will not have a saved key.
       DCHECK(src.values_.empty());
@@ -255,13 +249,9 @@ template<class StringCompare> class StringMultiMap {
       return *this;
     }
 
-    void set_key(StringPiece key) {
-      key_ = key;
-    }
+    void set_key(StringPiece key) { key_ = key; }
 
-    void AddValue(const GoogleString* value) {
-      values_.push_back(value);
-    }
+    void AddValue(const GoogleString* value) { values_.push_back(value); }
 
     // During lookups, key will point to the passed-in StringPiece.
     // However, the persistent entry we put in the map must duplicate
@@ -310,14 +300,16 @@ template<class StringCompare> class StringMultiMap {
 class StringMultiMapInsensitive
     : public StringMultiMap<StringCompareInsensitive> {
  public:
-  StringMultiMapInsensitive() { }
+  StringMultiMapInsensitive() {}
+
  private:
   DISALLOW_COPY_AND_ASSIGN(StringMultiMapInsensitive);
 };
 
 class StringMultiMapSensitive : public StringMultiMap<StringCompareSensitive> {
  public:
-  StringMultiMapSensitive() { }
+  StringMultiMapSensitive() {}
+
  private:
   DISALLOW_COPY_AND_ASSIGN(StringMultiMapSensitive);
 };

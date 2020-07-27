@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -29,20 +28,17 @@
 
 namespace net_instaweb {
 
-void RewriteOptionsManager::GetRewriteOptions(
-    const GoogleUrl& url,
-    const RequestHeaders& headers,
-    OptionsCallback* done) {
+void RewriteOptionsManager::GetRewriteOptions(const GoogleUrl& url,
+                                              const RequestHeaders& headers,
+                                              OptionsCallback* done) {
   done->Run(NULL);
 }
 
 void RewriteOptionsManager::PrepareRequest(
     const RewriteOptions* rewrite_options,
-    const RequestContextPtr& request_context,
-    GoogleString* url,
-    RequestHeaders* request_headers,
-    BoolCallback* callback) {
-  if (rewrite_options == NULL) {
+    const RequestContextPtr& request_context, GoogleString* url,
+    RequestHeaders* request_headers, BoolCallback* callback) {
+  if (rewrite_options == nullptr) {
     callback->Run(true);
     return;
   }

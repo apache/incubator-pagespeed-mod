@@ -17,13 +17,13 @@
  * under the License.
  */
 
+#include "pagespeed/controller/expensive_operation_rpc_handler.h"
 
 #include <memory>
 
-#include "pagespeed/controller/grpc_server_test.h"
 #include "pagespeed/controller/controller.grpc.pb.h"
 #include "pagespeed/controller/controller.pb.h"
-#include "pagespeed/controller/expensive_operation_rpc_handler.h"
+#include "pagespeed/controller/grpc_server_test.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -45,13 +45,9 @@ namespace {
 
 // Free functions to allow use of WithArgs<N>(Invoke(, because gMock doesn't
 // understand our Functions.
-void RunFunction(Function* f) {
-  f->CallRun();
-}
+void RunFunction(Function* f) { f->CallRun(); }
 
-void CancelFunction(Function* f) {
-  f->CallCancel();
-}
+void CancelFunction(Function* f) { f->CallCancel(); }
 
 class MockExpensiveOperationController : public ExpensiveOperationController {
  public:
@@ -59,7 +55,7 @@ class MockExpensiveOperationController : public ExpensiveOperationController {
     EXPECT_CALL(*this, ScheduleExpensiveOperation(_)).Times(0);
     EXPECT_CALL(*this, NotifyExpensiveOperationComplete()).Times(0);
   }
-  virtual ~MockExpensiveOperationController() { }
+  ~MockExpensiveOperationController() override {}
 
   MOCK_METHOD1(ScheduleExpensiveOperation, void(Function* cb));
   MOCK_METHOD0(NotifyExpensiveOperationComplete, void());
@@ -75,7 +71,7 @@ class ExpensiveOperationRpcHandlerTest : public GrpcServerTest {
  public:
   void SetUp() override {
     GrpcServerTest::SetUp();
-    client_.reset(new ClientConnection(ServerAddress()));
+    client_ = std::make_unique<ClientConnection>(ServerAddress());
   }
 
   void RegisterServices(::grpc::ServerBuilder* builder) override {
@@ -100,8 +96,7 @@ class ExpensiveOperationRpcHandlerTest : public GrpcServerTest {
     explicit ClientConnection(const GoogleString& address)
         : BaseClientConnection(address),
           stub_(CentralControllerRpcService::NewStub(channel_)),
-          reader_writer_(stub_->ScheduleExpensiveOperation(&client_ctx_)) {
-    }
+          reader_writer_(stub_->ScheduleExpensiveOperation(&client_ctx_)) {}
 
     std::unique_ptr<CentralControllerRpcService::Stub> stub_;
     std::unique_ptr<::grpc::ClientReaderWriter<
@@ -145,8 +140,7 @@ TEST_F(ExpensiveOperationRpcHandlerTest, ImmediateDeny) {
 TEST_F(ExpensiveOperationRpcHandlerTest, ImmediateAllow) {
   EXPECT_CALL(mock_controller_, ScheduleExpensiveOperation(_))
       .WillOnce(WithArgs<0>(Invoke(&RunFunction)));
-  EXPECT_CALL(mock_controller_, NotifyExpensiveOperationComplete())
-      .Times(1);
+  EXPECT_CALL(mock_controller_, NotifyExpensiveOperationComplete()).Times(1);
   StartHandler();
 
   SendScheduleRequest();
@@ -177,8 +171,7 @@ TEST_F(ExpensiveOperationRpcHandlerTest, AllowRewriteCallbackDelayed) {
   ExpectFinalStatus(::grpc::StatusCode::OK);
 }
 
-TEST_F(ExpensiveOperationRpcHandlerTest,
-       ClientDisconnectDuringOperation) {
+TEST_F(ExpensiveOperationRpcHandlerTest, ClientDisconnectDuringOperation) {
   WorkerTestBase::SyncPoint sync(thread_system_.get());
   EXPECT_CALL(mock_controller_, ScheduleExpensiveOperation(_))
       .WillOnce(WithArgs<0>(Invoke(&RunFunction)));
@@ -264,8 +257,7 @@ TEST_F(ExpensiveOperationRpcHandlerTest, RequestWhileWaiting) {
       .WillOnce(WithArgs<0>(Invoke(
           &mock_controller_, &MockExpensiveOperationController::SaveFunction)));
   EXPECT_CALL(mock_controller_, NotifyExpensiveOperationComplete())
-      .WillOnce(
-          InvokeWithoutArgs(&sync, &WorkerTestBase::SyncPoint::Notify));
+      .WillOnce(InvokeWithoutArgs(&sync, &WorkerTestBase::SyncPoint::Notify));
   StartHandler();
 
   SendScheduleRequest();

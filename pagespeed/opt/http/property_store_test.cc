@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit test for PropertyStore.
 
 #include "pagespeed/opt/http/property_store.h"
@@ -53,11 +52,8 @@ class PropertyStoreTest : public testing::Test {
 
   PropertyStoreGetCallback* GetCallback(bool is_cancellable) {
     return new PropertyStoreGetCallback(
-        thread_system_->NewMutex(),
-        NULL,
-        is_cancellable,
-        NewCallback(this, &PropertyStoreTest::ExpectCallback),
-        &timer_);
+        thread_system_->NewMutex(), nullptr, is_cancellable,
+        NewCallback(this, &PropertyStoreTest::ExpectCallback), &timer_);
   }
 
  protected:
@@ -151,8 +147,7 @@ TEST_F(PropertyStoreTest, TestCancellableFastFinishLookupAfterDoneWithTrue) {
   EXPECT_EQ(1, num_callback_with_true_called_);
 }
 
-TEST_F(PropertyStoreTest,
-       TestCancellableFastFinishLookupAfterDoneWithFalse) {
+TEST_F(PropertyStoreTest, TestCancellableFastFinishLookupAfterDoneWithFalse) {
   PropertyStoreGetCallback* callback = GetCallback(true);
   callback->Done(false);
   callback->FastFinishLookup();
@@ -161,8 +156,7 @@ TEST_F(PropertyStoreTest,
   EXPECT_EQ(0, num_callback_with_true_called_);
 }
 
-TEST_F(PropertyStoreTest,
-       TestCancellableFastFinishLookupBeforeDoneWithTrue) {
+TEST_F(PropertyStoreTest, TestCancellableFastFinishLookupBeforeDoneWithTrue) {
   PropertyStoreGetCallback* callback = GetCallback(true);
   callback->FastFinishLookup();
   callback->Done(true);
@@ -171,8 +165,7 @@ TEST_F(PropertyStoreTest,
   EXPECT_EQ(0, num_callback_with_true_called_);
 }
 
-TEST_F(PropertyStoreTest,
-       TestCancellableFastFinishLookupBeforeDoneWithFalse) {
+TEST_F(PropertyStoreTest, TestCancellableFastFinishLookupBeforeDoneWithFalse) {
   PropertyStoreGetCallback* callback = GetCallback(true);
   callback->FastFinishLookup();
   callback->Done(false);
@@ -181,8 +174,7 @@ TEST_F(PropertyStoreTest,
   EXPECT_EQ(0, num_callback_with_true_called_);
 }
 
-TEST_F(PropertyStoreTest,
-       TestDeleteWhenDoneBeforeDoneWithFalse) {
+TEST_F(PropertyStoreTest, TestDeleteWhenDoneBeforeDoneWithFalse) {
   PropertyStoreGetCallback* callback = GetCallback(true);
   callback->DeleteWhenDone();
   callback->Done(false);

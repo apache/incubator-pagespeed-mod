@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_STDIO_FILE_SYSTEM_H_
 #define PAGESPEED_KERNEL_BASE_STDIO_FILE_SYSTEM_H_
 
@@ -36,48 +35,46 @@ class Timer;
 class StdioFileSystem : public FileSystem {
  public:
   StdioFileSystem();
-  virtual ~StdioFileSystem();
+  ~StdioFileSystem() override;
 
-  virtual int MaxPathLength(const StringPiece& base) const;
+  int MaxPathLength(const StringPiece& base) const override;
 
-  virtual InputFile* OpenInputFile(const char* filename,
-                                   MessageHandler* message_handler);
-  virtual OutputFile* OpenOutputFileHelper(const char* filename,
-                                           bool append,
-                                           MessageHandler* message_handler);
-  virtual OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
-                                         MessageHandler* message_handle);
+  InputFile* OpenInputFile(const char* filename,
+                           MessageHandler* message_handler) override;
+  OutputFile* OpenOutputFileHelper(const char* filename, bool append,
+                                   MessageHandler* message_handler) override;
+  OutputFile* OpenTempFileHelper(const StringPiece& prefix_name,
+                                 MessageHandler* message_handle) override;
 
-  virtual bool ListContents(const StringPiece& dir, StringVector* files,
-                            MessageHandler* handler);
-  virtual bool MakeDir(const char* directory_path, MessageHandler* handler);
-  virtual bool RemoveDir(const char* directory_path, MessageHandler* handler);
-  virtual bool RemoveFile(const char* filename, MessageHandler* handler);
-  virtual bool RenameFileHelper(const char* old_file, const char* new_file,
-                                MessageHandler* handler);
+  bool ListContents(const StringPiece& dir, StringVector* files,
+                    MessageHandler* handler) override;
+  bool MakeDir(const char* directory_path, MessageHandler* handler) override;
+  bool RemoveDir(const char* directory_path, MessageHandler* handler) override;
+  bool RemoveFile(const char* filename, MessageHandler* handler) override;
+  bool RenameFileHelper(const char* old_file, const char* new_file,
+                        MessageHandler* handler) override;
 
-  virtual bool Atime(const StringPiece& path, int64* timestamp_sec,
-                     MessageHandler* handler);
-  virtual bool Mtime(const StringPiece& path, int64* timestamp_sec,
-                     MessageHandler* handler);
+  bool Atime(const StringPiece& path, int64* timestamp_sec,
+             MessageHandler* handler) override;
+  bool Mtime(const StringPiece& path, int64* timestamp_sec,
+             MessageHandler* handler) override;
   // Report the disk utilization of the file specified by path. Note that disk
   // utilization could differ from the apparent size of the file as it depends
   // on the underlying file system and default block size.
-  virtual bool Size(const StringPiece& path, int64* size,
-                    MessageHandler* handler) const;
-  virtual BoolOrError Exists(const char* path, MessageHandler* handler);
-  virtual BoolOrError IsDir(const char* path, MessageHandler* handler);
+  bool Size(const StringPiece& path, int64* size,
+            MessageHandler* handler) const override;
+  BoolOrError Exists(const char* path, MessageHandler* handler) override;
+  BoolOrError IsDir(const char* path, MessageHandler* handler) override;
 
-  virtual BoolOrError TryLock(const StringPiece& lock_name,
-                              MessageHandler* handler);
-  virtual BoolOrError TryLockWithTimeout(const StringPiece& lock_name,
-                                         int64 timeout_ms,
-                                         const Timer* timer,
-                                         MessageHandler* handler);
-  virtual bool BumpLockTimeout(const StringPiece& lock_name,
-                               MessageHandler* handler);
+  BoolOrError TryLock(const StringPiece& lock_name,
+                      MessageHandler* handler) override;
+  BoolOrError TryLockWithTimeout(const StringPiece& lock_name, int64 timeout_ms,
+                                 const Timer* timer,
+                                 MessageHandler* handler) override;
+  bool BumpLockTimeout(const StringPiece& lock_name,
+                       MessageHandler* handler) override;
 
-  virtual bool Unlock(const StringPiece& lock_name, MessageHandler* handler);
+  bool Unlock(const StringPiece& lock_name, MessageHandler* handler) override;
 
   InputFile* Stdin();
   OutputFile* Stdout();

@@ -32,8 +32,7 @@ WorkerTestBase::WorkerTestBase() {
   thread_runtime_.reset(Platform::CreateThreadSystem());
 }
 
-WorkerTestBase::~WorkerTestBase() {
-}
+WorkerTestBase::~WorkerTestBase() {}
 
 WorkerTestBase::SyncPoint::SyncPoint(ThreadSystem* thread_system)
     : done_(false),
@@ -56,15 +55,11 @@ void WorkerTestBase::SyncPoint::Notify() {
 WorkerTestBase::NotifyRunFunction::NotifyRunFunction(SyncPoint* sync)
     : sync_(sync) {}
 
-void WorkerTestBase::NotifyRunFunction::Run() {
-  sync_->Notify();
-}
+void WorkerTestBase::NotifyRunFunction::Run() { sync_->Notify(); }
 
 WorkerTestBase::WaitRunFunction::WaitRunFunction(SyncPoint* sync)
     : sync_(sync) {}
 
-void WorkerTestBase::WaitRunFunction::Run() {
-  sync_->Wait();
-}
+void WorkerTestBase::WaitRunFunction::Run() { sync_->Wait(); }
 
 }  // namespace net_instaweb

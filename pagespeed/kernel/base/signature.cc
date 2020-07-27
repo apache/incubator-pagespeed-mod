@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/signature.h"
 
 #include "pagespeed/kernel/base/base64_util.h"
@@ -39,4 +38,3 @@ GoogleString Signature::Sign(StringPiece key, StringPiece data) const {
 }
 
 }  // namespace net_instaweb
-

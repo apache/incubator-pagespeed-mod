@@ -29,11 +29,9 @@
 
 namespace net_instaweb {
 
-HtmlDetector::HtmlDetector() : already_decided_(false), probable_html_(false) {
-}
+HtmlDetector::HtmlDetector() : already_decided_(false), probable_html_(false) {}
 
-HtmlDetector::~HtmlDetector() {
-}
+HtmlDetector::~HtmlDetector() {}
 
 bool HtmlDetector::ConsiderInput(const StringPiece& data) {
   DCHECK(!already_decided_);

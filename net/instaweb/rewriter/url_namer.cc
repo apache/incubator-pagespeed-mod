@@ -17,10 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/url_namer.h"
 
-#include "base/logging.h"               // for COMPACT_GOOGLE_LOG_FATAL, etc
+#include "base/logging.h"  // for COMPACT_GOOGLE_LOG_FATAL, etc
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -31,12 +30,9 @@
 
 namespace net_instaweb {
 
-UrlNamer::UrlNamer()
-    : proxy_domain_("") {
-}
+UrlNamer::UrlNamer() : proxy_domain_("") {}
 
-UrlNamer::~UrlNamer() {
-}
+UrlNamer::~UrlNamer() {}
 
 // Moved from OutputResource::url()
 GoogleString UrlNamer::Encode(const RewriteOptions* rewrite_options,
@@ -44,13 +40,13 @@ GoogleString UrlNamer::Encode(const RewriteOptions* rewrite_options,
                               EncodeOption encode_option) const {
   GoogleString encoded_leaf(output_resource.full_name().Encode());
   GoogleString encoded_path;
-  if (rewrite_options == NULL) {
+  if (rewrite_options == nullptr) {
     encoded_path = output_resource.resolved_base();
   } else {
     StringPiece hash = output_resource.full_name().hash();
     DCHECK(!hash.empty());
-    uint32 int_hash = HashString<CasePreserve, uint32>(hash.data(),
-                                                       hash.size());
+    uint32 int_hash =
+        HashString<CasePreserve, uint32>(hash.data(), hash.size());
     const DomainLawyer* domain_lawyer = rewrite_options->domain_lawyer();
     GoogleUrl gurl(output_resource.resolved_base());
     GoogleString domain = StrCat(gurl.Origin(), "/");

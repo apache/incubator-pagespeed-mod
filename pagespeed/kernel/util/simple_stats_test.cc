@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the simple statistics implementation.
 
 #include "pagespeed/kernel/util/simple_stats.h"
@@ -42,8 +41,7 @@ class SimpleStatsTest : public testing::Test {
  public:
   SimpleStatsTest()
       : thread_system_(Platform::CreateThreadSystem()),
-        stats_(thread_system_.get()) {
-  }
+        stats_(thread_system_.get()) {}
 
  protected:
   std::unique_ptr<ThreadSystem> thread_system_;
@@ -59,7 +57,7 @@ TEST_F(SimpleStatsTest, TestSimpleUpDownCounters) {
   UpDownCounter* c2 = stats_.AddUpDownCounter("c2");
   EXPECT_EQ(c0, stats_.FindUpDownCounter("c0"));
   EXPECT_EQ(c1, stats_.AddUpDownCounter("c1"));
-  EXPECT_TRUE(stats_.FindUpDownCounter("not_defined") == NULL);
+  EXPECT_TRUE(stats_.FindUpDownCounter("not_defined") == nullptr);
   c0->Set(0);
   c1->Set(1);
   c2->Set(2);
@@ -74,7 +72,7 @@ TEST_F(SimpleStatsTest, TestSimpleVariables) {
   Variable* c2 = stats_.AddVariable("c2");
   EXPECT_EQ(c0, stats_.FindVariable("c0"));
   EXPECT_EQ(c1, stats_.AddVariable("c1"));
-  EXPECT_TRUE(stats_.FindVariable("not_defined") == NULL);
+  EXPECT_TRUE(stats_.FindVariable("not_defined") == nullptr);
   c0->Add(0);
   c1->Add(1);
   c2->Add(2);
@@ -100,7 +98,7 @@ TEST_F(SimpleStatsTest, TestSetReturningPrevious) {
 TEST_F(SimpleStatsTest, CounterHugeValues) {
   UpDownCounter* var = stats_.AddUpDownCounter("c0");
   EXPECT_EQ(kTenBillion, var->Add(kTenBillion));
-  EXPECT_EQ(2*kTenBillion, var->Add(kTenBillion));
+  EXPECT_EQ(2 * kTenBillion, var->Add(kTenBillion));
   EXPECT_EQ(kTenBillion, var->Add(-kTenBillion));
   EXPECT_EQ(0, var->Add(-kTenBillion));
   EXPECT_EQ(-kTenBillion, var->Add(-kTenBillion));
@@ -109,7 +107,7 @@ TEST_F(SimpleStatsTest, CounterHugeValues) {
 TEST_F(SimpleStatsTest, VariableHugeValues) {
   Variable* var = stats_.AddVariable("v0");
   EXPECT_EQ(kTenBillion, var->Add(kTenBillion));
-  EXPECT_EQ(2*kTenBillion, var->Add(kTenBillion));
+  EXPECT_EQ(2 * kTenBillion, var->Add(kTenBillion));
 }
 
 }  // namespace net_instaweb

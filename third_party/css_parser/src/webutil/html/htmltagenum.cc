@@ -17,65 +17,174 @@
  * under the License.
  */
 
-
-
 #include "webutil/html/htmltagenum.h"
 
 #include "absl/strings/str_format.h"
 
-#define arraysize(a)                                                           \
-  ((sizeof(a) / sizeof(*(a))) /                                                \
+#define arraysize(a)            \
+  ((sizeof(a) / sizeof(*(a))) / \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
 
-
-const char* HtmlTagEnumNames[] =
-{    "Unknown",
-     "A", "Abbr", "Acronym", "Address", "Applet",
-     "Area", "B", "Base", "Basefont", "Bdo",
-     "Big", "Blockquote", "Body", "Br", "Button",
-     "Caption", "Center", "Cite", "Code", "Col",
-     "Colgroup", "Dd", "Del", "Dfn", "Dir",
-     "Div", "Dl", "Dt", "Em", "Fieldset",
-     "Font", "Form", "Frame", "Frameset", "H1",
-     "H2", "H3", "H4", "H5", "H6", "Head",
-     "Hr", "Html", "I", "Iframe", "Img",
-     "Input", "Ins", "Isindex", "Kbd", "Label",
-     "Legend", "Li", "Link", "Map", "Menu",
-     "Meta", "Noframes", "Noscript", "Object",
-     "Ol", "Optgroup", "Option", "P", "Param",
-     "Pre", "Q", "S", "Samp", "Script",
-     "Select", "Small", "Span", "Strike",
-     "Strong", "Style", "Sub", "Sup", "Table",
-     "Tbody", "Td", "Textarea", "Tfoot", "Th",
-     "Thead", "Title", "Tr", "Tt",
-     "U", "Ul", "Var",
-  // Empty tag
-     "ZeroLength",
-  // Used in repository/lexer/html_lexer.cc
-     "!--", "Blink",
-  // Used in repository/parsers/base/handler-parser.cc
-     "Embed", "Marquee",
-  // Legacy backwards-compatible tags mentioned in HTML5.
-     "Nobr", "Wbr", "Bgsound", "Image",
-     "Listing", "Noembed", "Plaintext", "Spacer",
-     "Xmp",
-  // From Netscape Navigator 4.0
-     "Ilayer", "Keygen", "Layer", "Multicol", "Nolayer", "Server",
-  // !doctype
-     "!Doctype",
-  // Legacy tag used mostly by Russian sites.
-     "Noindex",
-  // Old style comments,
-     "!Comment",
-  // New tags in HTML5.
-     "Article", "Aside", "Audio", "Bdi", "Canvas", "Command", "Datalist",
-     "Details", "Figcaption", "Figure", "Footer", "Header", "Hgroup", "Mark",
-     "Meter", "Nav", "Output", "Progress", "Rp", "Rt", "Ruby", "Section",
-     "Source", "Summary", "Time", "Track", "Video",
-  // Other HTML5 tags.
-     "Data", "Main", "Rb", "Rtc", "Template",
-  // The HTML5 picture tag.
-     "Picture",
+const char* HtmlTagEnumNames[] = {
+    "Unknown",
+    "A",
+    "Abbr",
+    "Acronym",
+    "Address",
+    "Applet",
+    "Area",
+    "B",
+    "Base",
+    "Basefont",
+    "Bdo",
+    "Big",
+    "Blockquote",
+    "Body",
+    "Br",
+    "Button",
+    "Caption",
+    "Center",
+    "Cite",
+    "Code",
+    "Col",
+    "Colgroup",
+    "Dd",
+    "Del",
+    "Dfn",
+    "Dir",
+    "Div",
+    "Dl",
+    "Dt",
+    "Em",
+    "Fieldset",
+    "Font",
+    "Form",
+    "Frame",
+    "Frameset",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "Head",
+    "Hr",
+    "Html",
+    "I",
+    "Iframe",
+    "Img",
+    "Input",
+    "Ins",
+    "Isindex",
+    "Kbd",
+    "Label",
+    "Legend",
+    "Li",
+    "Link",
+    "Map",
+    "Menu",
+    "Meta",
+    "Noframes",
+    "Noscript",
+    "Object",
+    "Ol",
+    "Optgroup",
+    "Option",
+    "P",
+    "Param",
+    "Pre",
+    "Q",
+    "S",
+    "Samp",
+    "Script",
+    "Select",
+    "Small",
+    "Span",
+    "Strike",
+    "Strong",
+    "Style",
+    "Sub",
+    "Sup",
+    "Table",
+    "Tbody",
+    "Td",
+    "Textarea",
+    "Tfoot",
+    "Th",
+    "Thead",
+    "Title",
+    "Tr",
+    "Tt",
+    "U",
+    "Ul",
+    "Var",
+    // Empty tag
+    "ZeroLength",
+    // Used in repository/lexer/html_lexer.cc
+    "!--",
+    "Blink",
+    // Used in repository/parsers/base/handler-parser.cc
+    "Embed",
+    "Marquee",
+    // Legacy backwards-compatible tags mentioned in HTML5.
+    "Nobr",
+    "Wbr",
+    "Bgsound",
+    "Image",
+    "Listing",
+    "Noembed",
+    "Plaintext",
+    "Spacer",
+    "Xmp",
+    // From Netscape Navigator 4.0
+    "Ilayer",
+    "Keygen",
+    "Layer",
+    "Multicol",
+    "Nolayer",
+    "Server",
+    // !doctype
+    "!Doctype",
+    // Legacy tag used mostly by Russian sites.
+    "Noindex",
+    // Old style comments,
+    "!Comment",
+    // New tags in HTML5.
+    "Article",
+    "Aside",
+    "Audio",
+    "Bdi",
+    "Canvas",
+    "Command",
+    "Datalist",
+    "Details",
+    "Figcaption",
+    "Figure",
+    "Footer",
+    "Header",
+    "Hgroup",
+    "Mark",
+    "Meter",
+    "Nav",
+    "Output",
+    "Progress",
+    "Rp",
+    "Rt",
+    "Ruby",
+    "Section",
+    "Source",
+    "Summary",
+    "Time",
+    "Track",
+    "Video",
+    // Other HTML5 tags.
+    "Data",
+    "Main",
+    "Rb",
+    "Rtc",
+    "Template",
+    // The HTML5 picture tag.
+    "Picture",
 };
 
 COMPILE_ASSERT(arraysize(HtmlTagEnumNames) == kHtmlTagBuiltinMax,
@@ -85,7 +194,7 @@ const char* HtmlTagName(HtmlTagEnum tag) {
   if (tag < kHtmlTagBuiltinMax) {
     return HtmlTagEnumNames[tag];
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 

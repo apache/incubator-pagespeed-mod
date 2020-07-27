@@ -1,27 +1,22 @@
 #ifndef RDESTL_INT_TO_TYPE_H
 #define RDESTL_INT_TO_TYPE_H
 
-namespace rde
-{
+namespace rde {
 
 /**
  * Sample usage:
  *	void fun(int_to_type<true>)  { ... }
  *  void fun(int_to_type<false>) { ... }
- *  template<typename T> void bar() 
- *  { 
+ *  template<typename T> void bar()
+ *  {
  *		fun(int_to_type<std::numeric_limits<T>::is_exact>())
  *  }
  */
-template<int TVal>
-struct int_to_type
-{
-    enum 
-    {
-        value = TVal
-    };
+template <int TVal>
+struct int_to_type {
+  enum { value = TVal };
 };
 
-} // namespaces
+}  // namespace rde
 
-#endif // #ifndef RDESTL_INT_TO_TYPE_H
+#endif  // #ifndef RDESTL_INT_TO_TYPE_H

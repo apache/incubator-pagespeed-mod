@@ -33,8 +33,7 @@
 
 namespace net_instaweb {
 
-DecodeRewrittenUrlsFilter::~DecodeRewrittenUrlsFilter() {
-}
+DecodeRewrittenUrlsFilter::~DecodeRewrittenUrlsFilter() {}
 
 void DecodeRewrittenUrlsFilter::StartElement(HtmlElement* element) {
   resource_tag_scanner::UrlCategoryVector attributes;

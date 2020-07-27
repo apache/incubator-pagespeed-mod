@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_SPRITER_PUBLIC_IMAGE_SPRITER_H_
 #define NET_INSTAWEB_SPRITER_PUBLIC_IMAGE_SPRITER_H_
 
@@ -37,9 +36,8 @@ class ImageSpriter {
   SpriterResult* Sprite(const SpriterInput& spriter_input);
 
  private:
-  bool DrawImagesInVerticalStrip(
-      const SpriterInput& spriter_input,
-      SpriterResult* spriter_result);
+  bool DrawImagesInVerticalStrip(const SpriterInput& spriter_input,
+                                 SpriterResult* spriter_result);
 
   ImageLibraryInterface* image_lib_;
 

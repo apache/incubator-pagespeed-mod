@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/opt/http/fallback_property_page.h"
 
 #include "base/logging.h"
@@ -35,50 +34,46 @@ const char kFallbackPageCacheKeyBasePathSuffix[] = "#fallback";
 FallbackPropertyPage::FallbackPropertyPage(
     PropertyPage* actual_property_page,
     PropertyPage* property_page_with_fallback_values)
-    :  actual_property_page_(actual_property_page),
-       property_page_with_fallback_values_(property_page_with_fallback_values) {
-  CHECK(actual_property_page != NULL);
+    : actual_property_page_(actual_property_page),
+      property_page_with_fallback_values_(property_page_with_fallback_values) {
+  CHECK(actual_property_page != nullptr);
 }
 
-FallbackPropertyPage::~FallbackPropertyPage() {
-}
+FallbackPropertyPage::~FallbackPropertyPage() {}
 
 PropertyValue* FallbackPropertyPage::GetProperty(
-      const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name) {
-  PropertyValue* value = actual_property_page_->GetProperty(
-      cohort, property_name);
-  if (value->has_value() || property_page_with_fallback_values_ == NULL) {
+    const PropertyCache::Cohort* cohort, const StringPiece& property_name) {
+  PropertyValue* value =
+      actual_property_page_->GetProperty(cohort, property_name);
+  if (value->has_value() || property_page_with_fallback_values_ == nullptr) {
     return value;
   }
-  return property_page_with_fallback_values_->GetProperty(
-      cohort, property_name);
+  return property_page_with_fallback_values_->GetProperty(cohort,
+                                                          property_name);
 }
 
 PropertyValue* FallbackPropertyPage::GetFallbackProperty(
-      const PropertyCache::Cohort* cohort,
-      const StringPiece& property_name) {
-  if (property_page_with_fallback_values_ == NULL) {
-    return NULL;
+    const PropertyCache::Cohort* cohort, const StringPiece& property_name) {
+  if (property_page_with_fallback_values_ == nullptr) {
+    return nullptr;
   }
-  return property_page_with_fallback_values_->GetProperty(
-      cohort, property_name);
+  return property_page_with_fallback_values_->GetProperty(cohort,
+                                                          property_name);
 }
 
-void FallbackPropertyPage::UpdateValue(
-    const PropertyCache::Cohort* cohort, const StringPiece& property_name,
-    const StringPiece& value) {
+void FallbackPropertyPage::UpdateValue(const PropertyCache::Cohort* cohort,
+                                       const StringPiece& property_name,
+                                       const StringPiece& value) {
   actual_property_page_->UpdateValue(cohort, property_name, value);
-  if (property_page_with_fallback_values_ != NULL) {
-    property_page_with_fallback_values_->UpdateValue(
-        cohort, property_name, value);
+  if (property_page_with_fallback_values_ != nullptr) {
+    property_page_with_fallback_values_->UpdateValue(cohort, property_name,
+                                                     value);
   }
 }
 
-void FallbackPropertyPage::WriteCohort(
-    const PropertyCache::Cohort* cohort) {
+void FallbackPropertyPage::WriteCohort(const PropertyCache::Cohort* cohort) {
   actual_property_page_->WriteCohort(cohort);
-  if (property_page_with_fallback_values_ != NULL) {
+  if (property_page_with_fallback_values_ != nullptr) {
     property_page_with_fallback_values_->WriteCohort(cohort);
   }
 }
@@ -90,7 +85,7 @@ CacheInterface::KeyState FallbackPropertyPage::GetCacheState(
 
 CacheInterface::KeyState FallbackPropertyPage::GetFallbackCacheState(
     const PropertyCache::Cohort* cohort) {
-  if (property_page_with_fallback_values_ == NULL) {
+  if (property_page_with_fallback_values_ == nullptr) {
     return CacheInterface::kNotFound;
   }
   return property_page_with_fallback_values_->GetCacheState(cohort);
@@ -99,7 +94,7 @@ CacheInterface::KeyState FallbackPropertyPage::GetFallbackCacheState(
 void FallbackPropertyPage::DeleteProperty(const PropertyCache::Cohort* cohort,
                                           const StringPiece& property_name) {
   actual_property_page_->DeleteProperty(cohort, property_name);
-  if (property_page_with_fallback_values_ != NULL) {
+  if (property_page_with_fallback_values_ != nullptr) {
     property_page_with_fallback_values_->DeleteProperty(cohort, property_name);
   }
 }

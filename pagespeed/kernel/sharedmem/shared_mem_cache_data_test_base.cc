@@ -17,10 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/sharedmem/shared_mem_cache_data_test_base.h"
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 #include <set>
 
 #include "pagespeed/kernel/base/function.h"
@@ -34,8 +33,8 @@ using SharedMemCacheData::BlockNum;
 using SharedMemCacheData::BlockVector;
 using SharedMemCacheData::CacheEntry;
 using SharedMemCacheData::EntryNum;
-using SharedMemCacheData::Sector;
 using SharedMemCacheData::kInvalidEntry;
+using SharedMemCacheData::Sector;
 
 namespace {
 
@@ -53,8 +52,7 @@ SharedMemCacheDataTestBase::SharedMemCacheDataTestBase(SharedMemTestEnv* env)
     : test_env_(env),
       shmem_runtime_(env->CreateSharedMemRuntime()),
       thread_system_(Platform::CreateThreadSystem()),
-      handler_(thread_system_->NewMutex()) {
-}
+      handler_(thread_system_->NewMutex()) {}
 
 bool SharedMemCacheDataTestBase::CreateChild(TestMethod method) {
   Function* callback =
@@ -78,7 +76,6 @@ void SharedMemCacheDataTestBase::SanityCheckBlockVector(
 void SharedMemCacheDataTestBase::ExtractAndSanityCheckLRU(
     Sector<SharedMemCacheDataTestBase::kBlockSize>* sector,
     std::vector<EntryNum>* out_lru) {
-
   // collect list starting form oldest.
   std::vector<EntryNum> backwards_lru;
   for (EntryNum e = sector->OldestEntryNum(); e != kInvalidEntry;
@@ -117,8 +114,8 @@ void SharedMemCacheDataTestBase::ExtractAndSanityCheckLRU(
 }
 
 void SharedMemCacheDataTestBase::TestFreeList() NO_THREAD_SAFETY_ANALYSIS {
-  AbstractSharedMemSegment* seg_raw_ptr = NULL;
-  Sector<kBlockSize>* sector_raw_ptr = NULL;
+  AbstractSharedMemSegment* seg_raw_ptr = nullptr;
+  Sector<kBlockSize>* sector_raw_ptr = nullptr;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
   std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
   std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
@@ -172,8 +169,8 @@ void SharedMemCacheDataTestBase::TestFreeList() NO_THREAD_SAFETY_ANALYSIS {
 }
 
 void SharedMemCacheDataTestBase::TestFreeListChild() NO_THREAD_SAFETY_ANALYSIS {
-  AbstractSharedMemSegment* seg_raw_ptr = NULL;
-  Sector<kBlockSize>* sector_raw_ptr = NULL;
+  AbstractSharedMemSegment* seg_raw_ptr = nullptr;
+  Sector<kBlockSize>* sector_raw_ptr = nullptr;
   if (!ChildInit(&seg_raw_ptr, &sector_raw_ptr)) {
     test_env_->ChildFailed();
   }
@@ -191,8 +188,8 @@ void SharedMemCacheDataTestBase::TestFreeListChild() NO_THREAD_SAFETY_ANALYSIS {
 }
 
 void SharedMemCacheDataTestBase::TestLRU() {
-  AbstractSharedMemSegment* seg_raw_ptr = NULL;
-  Sector<kBlockSize>* sector_raw_ptr = NULL;
+  AbstractSharedMemSegment* seg_raw_ptr = nullptr;
+  Sector<kBlockSize>* sector_raw_ptr = nullptr;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
   std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
   std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
@@ -239,17 +236,15 @@ void SharedMemCacheDataTestBase::TestLRU() {
 }
 
 void SharedMemCacheDataTestBase::TestBlockLists() NO_THREAD_SAFETY_ANALYSIS {
-  AbstractSharedMemSegment* seg_raw_ptr = NULL;
-  Sector<kBlockSize>* sector_raw_ptr = NULL;
+  AbstractSharedMemSegment* seg_raw_ptr = nullptr;
+  Sector<kBlockSize>* sector_raw_ptr = nullptr;
   ASSERT_TRUE(ParentInit(&seg_raw_ptr, &sector_raw_ptr));
   std::unique_ptr<AbstractSharedMemSegment> seg(seg_raw_ptr);
   std::unique_ptr<Sector<kBlockSize> > sector(sector_raw_ptr);
 
   // First, let's sanity-check the computation routines
-  EXPECT_EQ(static_cast<size_t>(0),
-            Sector<kBlockSize>::DataBlocksForSize(0));
-  EXPECT_EQ(static_cast<size_t>(1),
-            Sector<kBlockSize>::DataBlocksForSize(1));
+  EXPECT_EQ(static_cast<size_t>(0), Sector<kBlockSize>::DataBlocksForSize(0));
+  EXPECT_EQ(static_cast<size_t>(1), Sector<kBlockSize>::DataBlocksForSize(1));
   EXPECT_EQ(static_cast<size_t>(1),
             Sector<kBlockSize>::DataBlocksForSize(kBlockSize));
   EXPECT_EQ(static_cast<size_t>(2),
@@ -279,8 +274,7 @@ void SharedMemCacheDataTestBase::TestBlockLists() NO_THREAD_SAFETY_ANALYSIS {
   // Now, let's allocate some blocks.
   const int kTestBlocks = 10;
   BlockVector blocks;
-  ASSERT_EQ(kTestBlocks,
-            sector->AllocBlocksFromFreeList(kTestBlocks, &blocks));
+  ASSERT_EQ(kTestBlocks, sector->AllocBlocksFromFreeList(kTestBlocks, &blocks));
 
   // Link them together, and add them to a test entry.
   sector->LinkBlockSuccessors(blocks);
@@ -302,7 +296,7 @@ bool SharedMemCacheDataTestBase::ParentInit(AbstractSharedMemSegment** out_seg,
       Sector<kBlockSize>::RequiredSize(shmem_runtime_.get(), kEntries, kBlocks);
   AbstractSharedMemSegment* seg =
       shmem_runtime_->CreateSegment(kSegment, bytes + kExtra, &handler_);
-  if (seg == NULL) {
+  if (seg == nullptr) {
     return false;
   }
 
@@ -320,7 +314,7 @@ bool SharedMemCacheDataTestBase::ChildInit(AbstractSharedMemSegment** out_seg,
       Sector<kBlockSize>::RequiredSize(shmem_runtime_.get(), kEntries, kBlocks);
   AbstractSharedMemSegment* seg =
       shmem_runtime_->AttachToSegment(kSegment, bytes + kExtra, &handler_);
-  if (seg == NULL) {
+  if (seg == nullptr) {
     return false;
   }
 

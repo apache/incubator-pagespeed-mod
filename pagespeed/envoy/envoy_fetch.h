@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,11 +22,10 @@
 #include <vector>
 
 #include "envoy_url_async_fetcher.h"
+#include "external/envoy_api/envoy/api/v2/core/http_uri.pb.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/pool.h"
-
-#include "external/envoy_api/envoy/api/v2/core/http_uri.pb.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/http/response_headers.h"
@@ -39,7 +38,7 @@ class EnvoyUrlAsyncFetcher;
 class EnvoyFetch;
 
 class PagespeedDataFetcherCallback : public PagespeedRemoteDataFetcherCallback {
-public:
+ public:
   PagespeedDataFetcherCallback(EnvoyFetch* fetch);
 
   /**
@@ -54,16 +53,15 @@ public:
    */
   void onFailure(FailureReason reason) override;
 
-private:
+ private:
   EnvoyFetch* fetch_;
 };
 
 class EnvoyFetch : public PoolElement<EnvoyFetch> {
-public:
- EnvoyFetch(const GoogleString& url,
-           AsyncFetch* async_fetch,
-           MessageHandler* message_handler,
-           EnvoyClusterManager& cluster_manager);
+ public:
+  EnvoyFetch(const GoogleString& url, AsyncFetch* async_fetch,
+             MessageHandler* message_handler,
+             EnvoyClusterManager& cluster_manager);
 
   /**
    * This function starts fetching url by posting an event to dispatcher
@@ -76,15 +74,16 @@ public:
    * @param headers Response header of fetched url
    * @param response_body Response body of fetched url
    */
-  void setResponse(Envoy::Http::HeaderMap& headers, Envoy::Buffer::InstancePtr& response_body);
+  void setResponse(Envoy::Http::HeaderMap& headers,
+                   Envoy::Buffer::InstancePtr& response_body);
 
-private:
+ private:
   // Do the initialized work and start the resolver work.
   bool Init();
 
   // Prepare the request and write it to remote server.
   int InitRequest();
-  
+
   // Create the connection with remote server.
   int Connect();
   void FetchWithEnvoy();

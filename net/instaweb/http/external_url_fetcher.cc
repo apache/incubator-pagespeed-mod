@@ -23,7 +23,7 @@
 #include "net/instaweb/http/public/external_url_fetcher.h"
 
 #include <cerrno>
-#include <cstdio>                      // for pclose, popen, FILE
+#include <cstdio>  // for pclose, popen, FILE
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
@@ -77,32 +77,30 @@ void ExternalUrlFetcher::AppendHeaders(const RequestHeaders& request_headers,
   }
 }
 
-void ExternalUrlFetcher::Fetch(
-    const GoogleString& url, MessageHandler* handler, AsyncFetch* fetch) {
+void ExternalUrlFetcher::Fetch(const GoogleString& url, MessageHandler* handler,
+                               AsyncFetch* fetch) {
   const RequestHeaders& request_headers = *fetch->request_headers();
   ResponseHeaders* response_headers = fetch->response_headers();
 
   // Use default user-agent if none is set in headers.
   ConstStringStarVector values;
   request_headers.Lookup("user-agent", &values);
-  const char* user_agent = values.empty() ? kDefaultUserAgent : NULL;
+  const char* user_agent = values.empty() ? kDefaultUserAgent : nullptr;
 
   StringVector escaped_headers;
   AppendHeaders(request_headers, &escaped_headers);
 
   GoogleString escaped_url;
   BackslashEscape(url, kEscapeChars, &escaped_url);
-  GoogleString cmd = ConstructFetchCommand(escaped_url,
-                                           user_agent,
-                                           escaped_headers);
-
+  GoogleString cmd =
+      ConstructFetchCommand(escaped_url, user_agent, escaped_headers);
 
   handler->Message(kInfo, "%s --... %s\n", GetFetchLabel(), url.c_str());
   VLOG(2) << "Running: " << cmd;
   FILE* cmd_stdout = popen(cmd.c_str(), "r");
 
   bool ret = false;
-  if (cmd_stdout == NULL) {
+  if (cmd_stdout == nullptr) {
     handler->Message(kError, "Fetch command popen failed on url %s: %s",
                      url.c_str(), strerror(errno));
   } else {

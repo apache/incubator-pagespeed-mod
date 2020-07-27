@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/in_process_central_controller.h"
 
 #include "pagespeed/controller/expensive_operation_callback.h"
@@ -46,9 +45,7 @@ class ExpensiveOperationContextImpl : public ExpensiveOperationContext {
                      &ExpensiveOperationContextImpl::CallCancel));
   }
 
-  ~ExpensiveOperationContextImpl() {
-    Done();
-  }
+  ~ExpensiveOperationContextImpl() override { Done(); }
 
   void Done() override {
     if (controller_ != nullptr) {
@@ -58,9 +55,7 @@ class ExpensiveOperationContextImpl : public ExpensiveOperationContext {
   }
 
  private:
-  void CallRun() {
-    callback_->CallRun();
-  }
+  void CallRun() { callback_->CallRun(); }
 
   void CallCancel() {
     controller_ = nullptr;  // Controller denied us, so don't try to release.
@@ -84,9 +79,7 @@ class ScheduleRewriteContextImpl : public ScheduleRewriteContext {
                            &ScheduleRewriteContextImpl::CallCancel));
   }
 
-  ~ScheduleRewriteContextImpl() {
-    MarkSucceeded();
-  }
+  ~ScheduleRewriteContextImpl() override { MarkSucceeded(); }
 
   void MarkSucceeded() override {
     if (controller_ != nullptr) {
@@ -103,9 +96,7 @@ class ScheduleRewriteContextImpl : public ScheduleRewriteContext {
   }
 
  private:
-  void CallRun() {
-    callback_->CallRun();
-  }
+  void CallRun() { callback_->CallRun(); }
 
   void CallCancel() {
     controller_ = nullptr;  // Controller denied us, so don't try to release.
@@ -123,11 +114,9 @@ InProcessCentralController::InProcessCentralController(
     ExpensiveOperationController* expensive_operation_controller,
     ScheduleRewriteController* schedule_rewrite_controller)
     : expensive_operation_controller_(expensive_operation_controller),
-      schedule_rewrite_controller_(schedule_rewrite_controller) {
-}
+      schedule_rewrite_controller_(schedule_rewrite_controller) {}
 
-InProcessCentralController::~InProcessCentralController() {
-}
+InProcessCentralController::~InProcessCentralController() {}
 
 void InProcessCentralController::InitStats(Statistics* statistics) {
   NamedLockScheduleRewriteController::InitStats(statistics);

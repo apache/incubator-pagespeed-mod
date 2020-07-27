@@ -30,14 +30,13 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
-#include "pagespeed/kernel/html/html_parse.h"
-
 #include <algorithm>
 #include <cstdlib>  // for exit
 #include <memory>
 #include <vector>
 
 #include "base/logging.h"
+#include "pagespeed/kernel/html/html_parse.h"
 //#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
@@ -59,9 +58,9 @@ namespace {
 // TODO(jmarantz): this function was duplicated to
 // third_party/pagespeed/automatic/rewriter_speed_test.cc and should possibly
 // be factored out.
-GoogleString* sHtmlText = NULL;
+GoogleString* sHtmlText = nullptr;
 const StringPiece GetHtmlText() {
-  if (sHtmlText == NULL) {
+  if (sHtmlText == nullptr) {
     sHtmlText = new GoogleString;
     StdioFileSystem file_system;
     StringVector files;

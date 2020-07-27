@@ -17,10 +17,10 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/pool.h"
 
 #include <list>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/pool_element.h"
@@ -33,7 +33,7 @@ namespace {
 // Pool element containing an int, for test purposes.
 class IntElement : public PoolElement<IntElement> {
  public:
-  IntElement() { }
+  IntElement() {}
 
   const int num() const { return num_; }
   void set_num(int num) { num_ = num; }
@@ -45,7 +45,7 @@ class IntElement : public PoolElement<IntElement> {
 };
 
 typedef Pool<IntElement> IntPool;
-typedef PoolElement<IntElement>::Position PoolPosition;
+using PoolPosition = PoolElement<IntElement>::Position;
 
 class PoolTest : public testing::Test {
  protected:
@@ -55,9 +55,7 @@ class PoolTest : public testing::Test {
     }
   }
 
-  ~PoolTest() {
-    pool_.Clear();
-  }
+  ~PoolTest() override { pool_.Clear(); }
 
   // Add just the ith element to pool_
   void Add(int i) {
@@ -140,7 +138,7 @@ TEST_F(PoolTest, TestInsertAndOrderedRemoveOldest) {
   ExpectRemoveOldest(2);
   ExpectRemoveOldest(3);
   EXPECT_TRUE(pool_.empty());
-  EXPECT_TRUE(NULL == pool_.RemoveOldest());
+  EXPECT_TRUE(nullptr == pool_.RemoveOldest());
 }
 
 TEST_F(PoolTest, TestInsertAndRemove) {
@@ -181,7 +179,7 @@ TEST_F(PoolTest, TestRemoveAndReinsertMiddle) {
   Adds(4);
   ExpectContains(0, 3);
   Remove(2);
-  const int kMiddleExpected[] = { 0, 1, 3 };
+  const int kMiddleExpected[] = {0, 1, 3};
   ExpectContainsElements(arraysize(kMiddleExpected), kMiddleExpected);
   Add(2);
   ExpectRemoveOldest(0);
@@ -197,9 +195,7 @@ TEST_F(PoolTest, TestClear) {
   EXPECT_TRUE(pool_.empty());
 }
 
-TEST_F(PoolTest, OldestEmpty) {
-  EXPECT_TRUE(NULL == pool_.oldest());
-}
+TEST_F(PoolTest, OldestEmpty) { EXPECT_TRUE(nullptr == pool_.oldest()); }
 
 }  // namespace
 

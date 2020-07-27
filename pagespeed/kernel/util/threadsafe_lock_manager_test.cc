@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit test the ThreadSafeLockManager.
 //
 // TODO(jmarantz): factor out common code between this and
@@ -25,10 +24,12 @@
 
 #include "pagespeed/kernel/util/threadsafe_lock_manager.h"
 
+#include <memory>
+
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/function.h"
+#include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
@@ -40,8 +41,8 @@
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/thread/mock_scheduler.h"
 #include "pagespeed/kernel/thread/scheduler.h"
-#include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/lock_manager_spammer.h"
+#include "pagespeed/kernel/util/platform.h"
 
 namespace net_instaweb {
 
@@ -55,9 +56,7 @@ const int64 kWaitMs = 10000;
 
 class ThreadsafeLockManagerTest : public testing::Test {
  public:
-  void DeleteManager() {
-    lock_manager_.reset(NULL);
-  }
+  void DeleteManager() { lock_manager_.reset(nullptr); }
 
  protected:
   ThreadsafeLockManagerTest()
@@ -66,8 +65,8 @@ class ThreadsafeLockManagerTest : public testing::Test {
         scheduler_(new MockScheduler(thread_system_.get(), &timer_)),
         lock_manager_(new ThreadSafeLockManager(scheduler_.get())),
         tester_(thread_system_.get()) {
-    tester_.set_quiesce(MakeFunction(this,
-                                     &ThreadsafeLockManagerTest::Quiesce));
+    tester_.set_quiesce(
+        MakeFunction(this, &ThreadsafeLockManagerTest::Quiesce));
   }
 
   NamedLock* MakeLock(const StringPiece& name) {
@@ -82,9 +81,7 @@ class ThreadsafeLockManagerTest : public testing::Test {
     EXPECT_FALSE(LockTimedWait(kWaitMs, lock2));
   }
 
-  MockTimer* timer() {
-    return &timer_;
-  }
+  MockTimer* timer() { return &timer_; }
 
   bool TryLock(const std::unique_ptr<NamedLock>& lock) {
     return tester_.TryLock(lock.get());
@@ -112,22 +109,15 @@ class ThreadsafeLockManagerTest : public testing::Test {
     }
   }
 
-  void LogGrant(const char* name) {
-    StrAppend(&log_, name, "(grant) ");
-  }
+  void LogGrant(const char* name) { StrAppend(&log_, name, "(grant) "); }
 
-  void LogDeny(const char* name) {
-    StrAppend(&log_, name, "(deny) ");
-  }
+  void LogDeny(const char* name) { StrAppend(&log_, name, "(deny) "); }
 
   Function* LogFunction(const char* name) {
-    return MakeFunction(this,
-                        &ThreadsafeLockManagerTest::LogGrant,
-                        &ThreadsafeLockManagerTest::LogDeny,
-                        name);
+    return MakeFunction(this, &ThreadsafeLockManagerTest::LogGrant,
+                        &ThreadsafeLockManagerTest::LogDeny, name);
   }
 
- protected:
   std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   std::unique_ptr<Scheduler> scheduler_;
@@ -258,7 +248,8 @@ TEST_F(ThreadsafeLockManagerTest, TimeoutFail) {
   EXPECT_TRUE(TryLock(lock1));
   EXPECT_TRUE(lock1->Held());
   int64 start_ms = timer()->NowMs();
-  std::unique_ptr<NamedLock> lock1a(MakeLock(kLock1));  // Same name, new object.
+  std::unique_ptr<NamedLock> lock1a(
+      MakeLock(kLock1));  // Same name, new object.
   EXPECT_FALSE(LockTimedWait(kWaitMs, lock1a));
   EXPECT_TRUE(lock1->Held());  // was never unlocked...
   int64 end_ms = timer()->NowMs();
@@ -320,7 +311,8 @@ TEST_F(ThreadsafeLockManagerTest, WaitStealOld) {
   EXPECT_TRUE(TryLock(lock1));
   int64 start_ms = timer()->NowMs();
   // If we start now, we'll time out with time to spare.
-  std::unique_ptr<NamedLock> lock1a(MakeLock(kLock1));  // Same name, new object.
+  std::unique_ptr<NamedLock> lock1a(
+      MakeLock(kLock1));  // Same name, new object.
   EXPECT_FALSE(LockTimedWaitStealOld(kWaitMs, kStealMs, lock1a));
   int64 end_ms = timer()->NowMs();
   EXPECT_LE(start_ms + kWaitMs, end_ms);
@@ -400,13 +392,13 @@ TEST_F(ThreadsafeLockManagerTest, UnlockRevealingNewStealer) {
   std::unique_ptr<NamedLock> c(MakeLock(kLock1));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
-  c->LockTimedWaitStealOld(2*kStealMs, kStealMs, LogFunction("c"));
+  c->LockTimedWaitStealOld(2 * kStealMs, kStealMs, LogFunction("c"));
   timer()->SetTimeMs(1);
   scheduler_->Wakeup();
   EXPECT_TRUE(a->Held());
   timer()->SetTimeMs(kStealMs - (kWaitMs / 2) /* 45000 */);
-  a->Unlock();                                // grants B, C is stealer
-  Quiesce();                                  // C steals cause it has long wait
+  a->Unlock();  // grants B, C is stealer
+  Quiesce();    // C steals cause it has long wait
   EXPECT_STREQ("a(grant) b(grant) c(grant) ", log_);
 }
 
@@ -418,7 +410,7 @@ TEST_F(ThreadsafeLockManagerTest, CloseManagerWithActiveLocks) {
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
   c->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("c"));
-  lock_manager_.reset(NULL);  // Locks still active.
+  lock_manager_.reset(nullptr);  // Locks still active.
   EXPECT_STREQ("a(grant) b(deny) c(deny) ", log_);
 }
 
@@ -437,7 +429,7 @@ TEST_F(ThreadsafeLockManagerTest, CloseManagerWithActiveLocks) {
  *   scheduler_.reset(NULL);  // Locks still active.
  *   EXPECT_STREQ("a(grant) b(deny) c(deny) ", log_);
  * }
-*/
+ */
 
 TEST_F(ThreadsafeLockManagerTest, DeletePendingLock) {
   std::unique_ptr<NamedLock> a(MakeLock(kLock1));
@@ -449,15 +441,15 @@ TEST_F(ThreadsafeLockManagerTest, DeletePendingLock) {
   timer()->SetTimeMs(1);
   scheduler_->Wakeup();
   EXPECT_TRUE(a->Held());
-  b.reset(NULL);                              // Denies B.
-  a->Unlock();                                // Grants C.
+  b.reset(nullptr);  // Denies B.
+  a->Unlock();       // Grants C.
   Quiesce();
   EXPECT_STREQ("a(grant) b(deny) c(grant) ", log_);
 }
 
 TEST_F(ThreadsafeLockManagerTest, TryLockWithDeletedManager) {
   std::unique_ptr<NamedLock> lock1(MakeLock(kLock1));
-  lock_manager_.reset(NULL);
+  lock_manager_.reset(nullptr);
   EXPECT_FALSE(TryLock(lock1));
   EXPECT_FALSE(TryLockStealOld(kStealMs, lock1));
 }
@@ -467,7 +459,7 @@ TEST_F(ThreadsafeLockManagerTest, UnlockWithDeletedManager) {
   std::unique_ptr<NamedLock> b(MakeLock(kLock1));
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
-  lock_manager_.reset(NULL);
+  lock_manager_.reset(nullptr);
   a->Unlock();
   EXPECT_STREQ("a(grant) b(deny) ", log_);
 }
@@ -478,8 +470,9 @@ TEST_F(ThreadsafeLockManagerTest, TryStealLockWithDeletedManager) {
   a->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("a"));
   timer()->AdvanceMs(kStealMs - 2);
   ThreadsafeLockManagerTest* test = this;
-  scheduler_->AddAlarmAtUs(timer()->NowUs() + 100, MakeFunction(
-      test, &ThreadsafeLockManagerTest::DeleteManager));
+  scheduler_->AddAlarmAtUs(
+      timer()->NowUs() + 100,
+      MakeFunction(test, &ThreadsafeLockManagerTest::DeleteManager));
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
   Quiesce();
   EXPECT_STREQ("a(grant) b(deny) ", log_);
@@ -492,8 +485,9 @@ TEST_F(ThreadsafeLockManagerTest, RunStolenLockWithDeletedManager) {
   timer()->AdvanceMs(kStealMs - 2);
   ThreadsafeLockManagerTest* test = this;
   b->LockTimedWaitStealOld(kWaitMs, kStealMs, LogFunction("b"));
-  scheduler_->AddAlarmAtUs(timer()->NowUs() + 1, MakeFunction(
-      test, &ThreadsafeLockManagerTest::DeleteManager));
+  scheduler_->AddAlarmAtUs(
+      timer()->NowUs() + 1,
+      MakeFunction(test, &ThreadsafeLockManagerTest::DeleteManager));
   timer()->AdvanceMs(4);  // Advances past steal-time, but not past wait-time.
   Quiesce();
   EXPECT_STREQ("a(grant) b(deny) ", log_);
@@ -507,11 +501,12 @@ TEST_F(ThreadsafeLockManagerTest, RunStolenLockWithDeletedManager) {
 // like this now for reviewability.
 class ThreadsafeLockManagerSpammerTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     timer_.reset(Platform::CreateTimer());
     thread_system_.reset(Platform::CreateThreadSystem());
-    scheduler_.reset(new Scheduler(thread_system_.get(), timer_.get()));
-    lock_manager_.reset(new ThreadSafeLockManager(scheduler_.get()));
+    scheduler_ =
+        std::make_unique<Scheduler>(thread_system_.get(), timer_.get());
+    lock_manager_ = std::make_unique<ThreadSafeLockManager>(scheduler_.get());
   }
 
   std::unique_ptr<Timer> timer_;
@@ -521,37 +516,34 @@ class ThreadsafeLockManagerSpammerTest : public testing::Test {
 };
 
 TEST_F(ThreadsafeLockManagerSpammerTest, NoDelays) {
-  LockManagerSpammer::RunTests(10,                     // num threads
-                               3,                      // num iters
-                               100,                    // num names
-                               false,                  // expecting_denials,
-                               false,                  // delay_unlocks
-                               lock_manager_.get(),
-                               scheduler_.get());
+  LockManagerSpammer::RunTests(10,     // num threads
+                               3,      // num iters
+                               100,    // num names
+                               false,  // expecting_denials,
+                               false,  // delay_unlocks
+                               lock_manager_.get(), scheduler_.get());
 }
 
 TEST_F(ThreadsafeLockManagerSpammerTest, DelaysNoDenials) {
   // By having only 2 threads contenting for locks, even though we are delaying
   // the unlocks, the locks will be stolen before they expire.
-  LockManagerSpammer::RunTests(2,                      // num threads
-                               1,                      // num iters
-                               100,                    // num names
-                               false,                  // expecting_denials,
-                               true,                   // delay_unlocks
-                               lock_manager_.get(),
-                               scheduler_.get());
+  LockManagerSpammer::RunTests(2,      // num threads
+                               1,      // num iters
+                               100,    // num names
+                               false,  // expecting_denials,
+                               true,   // delay_unlocks
+                               lock_manager_.get(), scheduler_.get());
 }
 
 TEST_F(ThreadsafeLockManagerSpammerTest, DelaysAndDenials) {
   // The cumulative delays on the lock-stealing will cause some of the later
   // thread lock requests to be denied.
-  LockManagerSpammer::RunTests(10,                     // num threads
-                               1,                      // num iters
-                               100,                    // num names
-                               true,                   // expecting_denials,
-                               true,                   // delay_unlocks
-                               lock_manager_.get(),
-                               scheduler_.get());
+  LockManagerSpammer::RunTests(10,    // num threads
+                               1,     // num iters
+                               100,   // num names
+                               true,  // expecting_denials,
+                               true,  // delay_unlocks
+                               lock_manager_.get(), scheduler_.get());
 }
 
 }  // namespace

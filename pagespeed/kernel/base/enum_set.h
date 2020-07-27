@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_ENUM_SET_H_
 #define PAGESPEED_KERNEL_BASE_ENUM_SET_H_
 
@@ -27,7 +26,8 @@
 namespace net_instaweb {
 
 // Represents a set of values -- implemented via a bitset.
-template<typename EnumType, size_t NumEnums> class EnumSet {
+template <typename EnumType, size_t NumEnums>
+class EnumSet {
  public:
   bool IsSet(EnumType value) const {
     return bits_.test(static_cast<size_t>(value));
@@ -43,9 +43,7 @@ template<typename EnumType, size_t NumEnums> class EnumSet {
   // Inserts a value; no return value.
   //
   // TODO(jmarantz): change call-sites to Insert and remove this one.
-  void insert(EnumType value) {
-    bits_.set(static_cast<size_t>(value));
-  }
+  void insert(EnumType value) { bits_.set(static_cast<size_t>(value)); }
 
   // Returns true if a change was made.
   bool Erase(EnumType value) {
@@ -72,14 +70,10 @@ template<typename EnumType, size_t NumEnums> class EnumSet {
     return bits_ != save.bits_;
   }
 
-  void EraseSet(const EnumSet& src) {
-    bits_ &= ~src.bits_;
-  }
+  void EraseSet(const EnumSet& src) { bits_ &= ~src.bits_; }
 
   // Sets all the entries to true.
-  void SetAll() {
-    bits_.set();
-  }
+  void SetAll() { bits_.set(); }
 
   // Standard STL-like methods.
   void clear() { bits_.reset(); }
@@ -87,9 +81,7 @@ template<typename EnumType, size_t NumEnums> class EnumSet {
   bool empty() const { return bits_.none(); }
 
   // This overload is required for use in EXPECT_EQ in tests.
-  bool operator==(const EnumSet& that) const {
-    return bits_ == that.bits_;
-  }
+  bool operator==(const EnumSet& that) const { return bits_ == that.bits_; }
 
  private:
   typedef std::bitset<NumEnums> BitSet;

@@ -17,27 +17,20 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/thread_system.h"
 
 namespace net_instaweb {
 
-ThreadSystem::~ThreadSystem() {
-}
+ThreadSystem::~ThreadSystem() {}
 
-ThreadSystem::CondvarCapableMutex::~CondvarCapableMutex() {
-}
+ThreadSystem::CondvarCapableMutex::~CondvarCapableMutex() {}
 
-ThreadSystem::RWLock::~RWLock() {
-}
+ThreadSystem::RWLock::~RWLock() {}
 
-ThreadSystem::ThreadImpl::~ThreadImpl() {
-}
+ThreadSystem::ThreadImpl::~ThreadImpl() {}
 
-void ThreadSystem::RWLock::DCheckReaderLocked() {
-}
+void ThreadSystem::RWLock::DCheckReaderLocked() {}
 
-ThreadSystem::ThreadId::~ThreadId() {
-}
+ThreadSystem::ThreadId::~ThreadId() {}
 
 }  // namespace net_instaweb

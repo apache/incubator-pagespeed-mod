@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MEM_LOCK_MANAGER_H_
 #define PAGESPEED_KERNEL_BASE_MEM_LOCK_MANAGER_H_
 
@@ -45,8 +44,8 @@ class MemLockManager : public NamedLockManager {
   static const int64 kNoWakeupsPending = -1;
 
   explicit MemLockManager(Timer* timer);
-  virtual ~MemLockManager();
-  virtual NamedLock* CreateNamedLock(const StringPiece& name);
+  ~MemLockManager() override;
+  NamedLock* CreateNamedLock(const StringPiece& name) override;
 
   // Returns the absolute time (ms since 1970) of the next interesting
   // event (cancel, steal) for any lock created with this manager.
@@ -72,7 +71,7 @@ class MemLockManager : public NamedLockManager {
   typedef std::map<StringPiece, MemLockState*> MemLockStateMap;
 
   // Helper methods accessed by MemLockState
-  void RemoveLockState(MemLockState* lock_state);
+  void RemoveLockState(MemLockState* name_state);
   void AddPendingLock(MemLock* lock);
   void RemovePendingLock(MemLock* lock);
 

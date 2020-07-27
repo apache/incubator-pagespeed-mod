@@ -38,10 +38,8 @@ class SystemRequestContext : public RequestContext {
  public:
   // There are two ways a request may specify the hostname: with the Host
   // header or on the initial request line.  Callers need to check both places.
-  SystemRequestContext(AbstractMutex* logging_mutex,
-                       Timer* timer,
-                       StringPiece hostname,
-                       int local_port,
+  SystemRequestContext(AbstractMutex* logging_mutex, Timer* timer,
+                       StringPiece hostname, int local_port,
                        StringPiece local_ip);
 
   // Captures the original URL of the request, which is used to help
@@ -57,7 +55,7 @@ class SystemRequestContext : public RequestContext {
   StringPiece url() const { return url_; }
 
  protected:
-  virtual ~SystemRequestContext() {}
+  ~SystemRequestContext() override {}
 
  private:
   int local_port_;

@@ -71,14 +71,10 @@ class MessageHandler;
 class NonceGenerator;
 class RewriteDriver;
 
-enum BeaconStatus {
-  kDoNotBeacon,
-  kBeaconNoNonce,
-  kBeaconWithNonce
-};
+enum BeaconStatus { kDoNotBeacon, kBeaconNoNonce, kBeaconWithNonce };
 
 struct BeaconMetadata {
-  BeaconMetadata() : status(kDoNotBeacon) { }
+  BeaconMetadata() : status(kDoNotBeacon) {}
   BeaconStatus status;
   GoogleString nonce;
 };
@@ -106,9 +102,8 @@ void GetCriticalKeysFromProto(int64 support_percentage,
 // should have been called if required, and the resulting nonce should have been
 // checked.  If require_prior_support then there must be an existing support
 // entry (possibly 0) for new support to be registered.
-void UpdateCriticalKeys(bool require_prior_support,
-                        const StringSet& new_set, int support_value,
-                        CriticalKeys* critical_keys);
+void UpdateCriticalKeys(bool require_prior_support, const StringSet& new_set,
+                        int support_value, CriticalKeys* critical_keys);
 
 bool ShouldBeacon(int64 next_beacon_timestamp_ms, const RewriteDriver& driver);
 
@@ -128,10 +123,9 @@ enum CriticalKeysWriteFlags {
 // !should_replace_prior_result and nonces must be checked.
 void WriteCriticalKeysToPropertyCache(
     const StringSet& new_keys, StringPiece nonce, int support_interval,
-    CriticalKeysWriteFlags flags,
-    StringPiece property_name, const PropertyCache* cache,
-    const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
-    MessageHandler* message_handler, Timer* timer);
+    CriticalKeysWriteFlags flags, StringPiece property_name,
+    const PropertyCache* cache, const PropertyCache::Cohort* cohort,
+    AbstractPropertyPage* page, MessageHandler* message_handler, Timer* timer);
 
 // Given a set of candidate critical keys, decide whether beaconing should take
 // place.  We should *always* beacon if there's new critical key data. Otherwise

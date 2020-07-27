@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
+
+#include <memory>
 
 #include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/mock_url_fetcher.h"
@@ -41,10 +42,10 @@ const char kBody2[] = "Contents.";
 
 class WaitUrlAsyncFetcherTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     thread_system_.reset(Platform::CreateThreadSystem());
-    wait_fetcher_.reset(new WaitUrlAsyncFetcher(
-        &base_fetcher_, thread_system_->NewMutex()));
+    wait_fetcher_ = std::make_unique<WaitUrlAsyncFetcher>(
+        &base_fetcher_, thread_system_->NewMutex());
 
     ResponseHeaders header;
     header.set_first_line(1, 1, 200, "OK");

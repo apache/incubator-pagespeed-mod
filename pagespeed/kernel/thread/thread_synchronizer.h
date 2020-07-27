@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Thread-synchronization utility class for reproducing races in unit tests.
 
 #ifndef PAGESPEED_KERNEL_THREAD_THREAD_SYNCHRONIZER_H__

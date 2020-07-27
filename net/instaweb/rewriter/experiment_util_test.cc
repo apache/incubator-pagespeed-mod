@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the experiment utilities.
 
 #include "net/instaweb/rewriter/public/experiment_util.h"
@@ -38,8 +37,7 @@ namespace net_instaweb {
 
 namespace experiment {
 
-class ExperimentUtilTest : public RewriteOptionsTestBase<RewriteOptions> {
-};
+class ExperimentUtilTest : public RewriteOptionsTestBase<RewriteOptions> {};
 
 TEST_F(ExperimentUtilTest, GetCookieState) {
   RequestHeaders req_headers;

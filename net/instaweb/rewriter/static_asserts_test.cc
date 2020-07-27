@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Compile-time only checks of various properties that don't fit anywhere else.
 //
 // For now this just makes sure that some things are constants so they can be
@@ -36,7 +35,7 @@ COMPILE_ASSERT(Timer::kSecondMs == 1000, seconds_literal);
 COMPILE_ASSERT(Timer::kSecondUs == 1000 * 1000, seconds_us_literal);
 COMPILE_ASSERT(Timer::kSecondNs == 1000 * 1000 * 1000, seconds_ns_literal);
 COMPILE_ASSERT(Timer::kMinuteMs == 60 * 1000, minutes_literal);
-COMPILE_ASSERT(Timer::kHourMs   == 60 * 60 * 1000, hours_literal);
+COMPILE_ASSERT(Timer::kHourMs == 60 * 60 * 1000, hours_literal);
 
 // enumerators can only be initialized to compile-time constants, so this
 // would not build if any of these weren't compile-time defined.
@@ -45,11 +44,11 @@ enum MustBeConstants {
   kSecondUs = Timer::kSecondUs,
   kSecondNs = Timer::kSecondNs,
   kMinuteMs = Timer::kMinuteMs,
-  kHourMs   = Timer::kHourMs,
-  kDayMs    = Timer::kDayMs,
-  kWeekMs   = Timer::kWeekMs,
-  kMonthMs  = Timer::kMonthMs,
-  kYearMs   = Timer::kYearMs
+  kHourMs = Timer::kHourMs,
+  kDayMs = Timer::kDayMs,
+  kWeekMs = Timer::kWeekMs,
+  kMonthMs = Timer::kMonthMs,
+  kYearMs = Timer::kYearMs
 };
 
 }  // namespace

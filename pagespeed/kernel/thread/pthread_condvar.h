@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_THREAD_PTHREAD_CONDVAR_H_
 #define PAGESPEED_KERNEL_THREAD_PTHREAD_CONDVAR_H_
 
@@ -33,18 +32,15 @@ namespace net_instaweb {
 class PthreadCondvar : public ThreadSystem::Condvar {
  public:
   // The mutex is owned by the caller and must outlive the condvar.
-  explicit PthreadCondvar(PthreadMutex* mutex)
-      : mutex_(mutex) {
-    Init();
-  }
-  virtual ~PthreadCondvar();
+  explicit PthreadCondvar(PthreadMutex* mutex) : mutex_(mutex) { Init(); }
+  ~PthreadCondvar() override;
 
-  virtual PthreadMutex* mutex() const { return mutex_; }
+  PthreadMutex* mutex() const override { return mutex_; }
 
-  virtual void Signal();
-  virtual void Broadcast();
-  virtual void Wait();
-  virtual void TimedWait(int64 timeout_ms);
+  void Signal() override;
+  void Broadcast() override;
+  void Wait() override;
+  void TimedWait(int64 timeout_ms) override;
 
  private:
   void Init();

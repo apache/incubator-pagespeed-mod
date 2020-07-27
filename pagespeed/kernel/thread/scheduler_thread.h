@@ -47,13 +47,13 @@ class SchedulerThread : public ThreadSystem::Thread {
   Function* MakeDeleter();
 
  protected:
-  virtual void Run();
+  void Run() override;
 
  private:
   class CleanupFunction;
   friend class CleanupFunction;
 
-  virtual ~SchedulerThread();
+  ~SchedulerThread() override;
 
   bool quit_;
   Scheduler* scheduler_;

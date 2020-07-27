@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/http_dump_url_async_writer.h"
 
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
@@ -42,10 +41,9 @@ class HttpDumpUrlAsyncWriterTest : public FetcherTest {
         mock_timer_(new NullMutex(), 0),
         file_system_(thread_system_.get(), &mock_timer_),
         dump_fetcher_(root_dir_, counting_fetcher(), &file_system_,
-                      &mock_timer_) {
-  }
+                      &mock_timer_) {}
 
-  UrlAsyncFetcher* async_fetcher() { return &dump_fetcher_; }
+  UrlAsyncFetcher* async_fetcher() override { return &dump_fetcher_; }
 
   GoogleString root_dir_;
   MockTimer mock_timer_;

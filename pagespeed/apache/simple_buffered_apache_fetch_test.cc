@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/simple_buffered_apache_fetch.h"
 
 #include <functional>
@@ -43,8 +42,8 @@
 
 namespace {
 
-const char kJsData[]        = "alert ( 'hello, world!' ) ";
-const char kJsUrl[]         = "http://example.com/foo.js";
+const char kJsData[] = "alert ( 'hello, world!' ) ";
+const char kJsUrl[] = "http://example.com/foo.js";
 const char kCacheFragment[] = "";
 const char kExpectedHeaders[] =
     "Content-Type: text/plain\n"
@@ -59,8 +58,7 @@ class SimpleBufferedApacheFetchTest : public RewriteTestBase {
   SimpleBufferedApacheFetchTest()
       : request_headers_(new RequestHeaders()),
         request_ctx_(RequestContext::NewTestRequestContextWithTimer(
-            server_context_->thread_system(), timer())) {
-  }
+            server_context_->thread_system(), timer())) {}
 
   ~SimpleBufferedApacheFetchTest() override {
     MockApache::CleanupRequest(&request_);
@@ -80,9 +78,9 @@ class SimpleBufferedApacheFetchTest : public RewriteTestBase {
 
   void InitFetch(HttpStatus::Code code) {
     // Takes ownership of apache_writer and request_headers.
-    fetch_.reset(new SimpleBufferedApacheFetch(
+    fetch_ = std::make_unique<SimpleBufferedApacheFetch>(
         request_ctx_, request_headers_, server_context()->thread_system(),
-        &request_, message_handler()));
+        &request_, message_handler());
     rewrite_driver_->SetRequestHeaders(*fetch_->request_headers());
     fetch_->response_headers()->SetStatusAndReason(code);
 
@@ -98,7 +96,6 @@ class SimpleBufferedApacheFetchTest : public RewriteTestBase {
     // Nothing should have been passed through to the apache_writer yet
     EXPECT_STREQ("", MockApache::ActionsSinceLastCall());
   }
-
 
   void WaitIproTest() {
     // Run through a successful completion and verify that no issues were
@@ -125,7 +122,8 @@ class SimpleBufferedApacheFetchTest : public RewriteTestBase {
                      "ap_remove_output_filter(MOD_EXPIRES) "
                      "ap_remove_output_filter(FIXUP_HEADERS_OUT) "
                      "ap_set_content_type(application/javascript) "
-                     "ap_rwrite(", kJsData, ")"),
+                     "ap_rwrite(",
+                     kJsData, ")"),
               MockApache::ActionsSinceLastCall());
     fetch_.reset();
   }
@@ -139,13 +137,9 @@ class SimpleBufferedApacheFetchTest : public RewriteTestBase {
       Start();
     }
 
-    ~ThreadRunner() override {
-      Join();
-    }
+    ~ThreadRunner() override { Join(); }
 
-    void Run() override {
-      fn_();
-    }
+    void Run() override { fn_(); }
 
    private:
     std::function<void()> fn_;
@@ -157,16 +151,12 @@ class SimpleBufferedApacheFetchTest : public RewriteTestBase {
   std::unique_ptr<SimpleBufferedApacheFetch> fetch_;
 };
 
-TEST_F(SimpleBufferedApacheFetchTest, WaitIpro) {
-  WaitIproTest();
-}
+TEST_F(SimpleBufferedApacheFetchTest, WaitIpro) { WaitIproTest(); }
 
 TEST_F(SimpleBufferedApacheFetchTest, WaitIpro2) {
   GoogleString key = http_cache()->CompositeKey(kJsUrl, kCacheFragment);
   delay_cache()->DelayKey(key);
-  ThreadRunner t(this, [this, key] {
-    delay_cache()->ReleaseKey(key);
-  });
+  ThreadRunner t(this, [this, key] { delay_cache()->ReleaseKey(key); });
   WaitIproTest();
 }
 

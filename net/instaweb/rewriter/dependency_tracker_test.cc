@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/dependency_tracker.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -192,9 +191,7 @@ TEST_F(DependencyTrackerTest, BasicOperation) {
   EXPECT_EQ("5", tracker.read_in_info()->dependency(3).url());
 }
 
-TEST_F(DependencyTrackerTest, ViaRewriteDriver) {
-  TestInRewriteDriver(true);
-}
+TEST_F(DependencyTrackerTest, ViaRewriteDriver) { TestInRewriteDriver(true); }
 
 TEST_F(DependencyTrackerTest, ViaRewriteDriverOff) {
   TestInRewriteDriver(false);

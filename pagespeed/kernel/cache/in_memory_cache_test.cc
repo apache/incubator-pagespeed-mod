@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test in-memory cache
 
 #include "pagespeed/kernel/cache/in_memory_cache.h"

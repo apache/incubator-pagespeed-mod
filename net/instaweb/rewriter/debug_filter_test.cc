@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/debug_filter.h"
 
 #include "net/instaweb/rewriter/public/mock_critical_images_finder.h"
@@ -47,7 +46,7 @@ const char kScript[] = "x.js";
 
 class DebugFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kDebug);
     options()->EnableFilter(RewriteOptions::kExtendCacheScripts);
@@ -78,19 +77,19 @@ class DebugFilterTest : public RewriteTestBase {
     rewrite_driver()->StartParse(kTestDomain);
     AdvanceTimeUs(1);
     rewrite_driver()->ParseText(kHtmlToken);
-    AdvanceTimeUs(10);                  // 11us elapsed so far.
+    AdvanceTimeUs(10);  // 11us elapsed so far.
     if (do_flush) {
       rewrite_driver()->Flush();
     }
-    AdvanceTimeUs(100);                 // 111us elapsed so far.
+    AdvanceTimeUs(100);  // 111us elapsed so far.
     rewrite_driver()->ParseText(kHtmlToken);
-    AdvanceTimeUs(1000);                // 1111us elapsed so far.
+    AdvanceTimeUs(1000);  // 1111us elapsed so far.
     if (do_flush) {
       rewrite_driver()->Flush();
     }
-    AdvanceTimeUs(10000);               // 11111us elapsed so far.
+    AdvanceTimeUs(10000);  // 11111us elapsed so far.
     rewrite_driver()->ParseText(kHtmlToken);
-    AdvanceTimeUs(100000);              // 111111us elapsed so far.
+    AdvanceTimeUs(100000);  // 111111us elapsed so far.
     rewrite_driver()->FinishParse();
 
     ExtractFlushMessagesFromOutput(kHtmlToken, flush_messages);
@@ -98,12 +97,12 @@ class DebugFilterTest : public RewriteTestBase {
 
   GoogleString OptScriptHtml() {
     return absl::StrFormat(kScriptFormat,
-                        Encode("", "ce", "0", kScript, "js").c_str());
+                           Encode("", "ce", "0", kScript, "js").c_str());
   }
 
   void InitiateScriptRewrite() {
     rewrite_driver()->StartParse(kTestDomain);
-    rewrite_driver()->ParseText (absl::StrFormat(kScriptFormat, kScript));
+    rewrite_driver()->ParseText(absl::StrFormat(kScriptFormat, kScript));
   }
 
   void RewriteScriptToWarmTheCache() {
@@ -130,8 +129,8 @@ class DebugFilterTest : public RewriteTestBase {
   int64 InjectCacheDelay() {
     // Now rewrite the image but make the cache take non-zero time so we measure
     // elapsed time for the Flush.  We stay within the deadline.
-    const int64 deadline_us = rewrite_driver()->rewrite_deadline_ms() *
-        Timer::kMsUs;
+    const int64 deadline_us =
+        rewrite_driver()->rewrite_deadline_ms() * Timer::kMsUs;
     const int64 delay_us = deadline_us / 3;
     SetCacheDelayUs(delay_us);
     return delay_us;
@@ -162,16 +161,15 @@ TEST_F(DebugFilterTest, TwoFlushes) {
   // separately account for the 3 chunks of text before, between, and
   // after the flushes, plus one EndOfDocument message.
   ASSERT_EQ(4, flush_messages.size());
-  EXPECT_EQ(DebugFilter::FormatFlushMessage(11, 0, 0, 11),
-            flush_messages[0]);
+  EXPECT_EQ(DebugFilter::FormatFlushMessage(11, 0, 0, 11), flush_messages[0]);
   EXPECT_EQ(DebugFilter::FormatFlushMessage(1111, 0, 0, 1100),
             flush_messages[1]);
   EXPECT_EQ(DebugFilter::FormatFlushMessage(111111, 0, 0, 110000),
             flush_messages[2]);
   EXPECT_HAS_SUBSTR(DebugFilter::FormatEndDocumentMessage(
-                    111111, 0, 0, 111111, 2, false, StringSet(),
-                    ExpectedDisabledFilters()),
-                flush_messages[3]);
+                        111111, 0, 0, 111111, 2, false, StringSet(),
+                        ExpectedDisabledFilters()),
+                    flush_messages[3]);
 }
 
 // This is the same exact test, except that Flush is not called; despite
@@ -187,9 +185,9 @@ TEST_F(DebugFilterTest, ZeroFlushes) {
   // than 2.
   ASSERT_EQ(1, flush_messages.size());
   EXPECT_HAS_SUBSTR(DebugFilter::FormatEndDocumentMessage(
-                    111111, 0, 0, 111111, 0, false, StringSet(),
-                    ExpectedDisabledFilters()),
-                flush_messages[0]);
+                        111111, 0, 0, 111111, 0, false, StringSet(),
+                        ExpectedDisabledFilters()),
+                    flush_messages[0]);
 }
 
 TEST_F(DebugFilterTest, CheckFiltersAndOptions) {
@@ -219,9 +217,9 @@ TEST_F(DebugFilterTest, FlushWithDelayedCache) {
   EXPECT_STREQ(DebugFilter::FormatFlushMessage(delay_us, 0, 0, 0),
                flush_messages[1]);
   EXPECT_HAS_SUBSTR(DebugFilter::FormatEndDocumentMessage(
-                    delay_us, 0, delay_us, 0, 1, false, StringSet(),
-                    ExpectedDisabledFilters()),
-                flush_messages[2]);
+                        delay_us, 0, delay_us, 0, 1, false, StringSet(),
+                        ExpectedDisabledFilters()),
+                    flush_messages[2]);
 }
 
 TEST_F(DebugFilterTest, EndWithDelayedCache) {
@@ -253,15 +251,15 @@ TEST_F(DebugFilterTest, FlushInStyleTag) {
   AdvanceTimeUs(1);
   rewrite_driver()->ParseText(kStyleStartTag);
   rewrite_driver()->ParseText(kCss1);
-  AdvanceTimeUs(10);                  // 11us elapsed so far.
+  AdvanceTimeUs(10);  // 11us elapsed so far.
   rewrite_driver()->Flush();
-  AdvanceTimeUs(10);                  // 21us elapsed so far.
+  AdvanceTimeUs(10);  // 21us elapsed so far.
   rewrite_driver()->ParseText(kCss2);
-  AdvanceTimeUs(10);                  // 31us elapsed so far.
+  AdvanceTimeUs(10);  // 31us elapsed so far.
   rewrite_driver()->Flush();
-  AdvanceTimeUs(10);                  // 41us elapsed so far.
+  AdvanceTimeUs(10);  // 41us elapsed so far.
   rewrite_driver()->ParseText(kStyleEndTag);
-  AdvanceTimeUs(10);                  // 51us elapsed so far.
+  AdvanceTimeUs(10);  // 51us elapsed so far.
   rewrite_driver()->FinishParse();
   EXPECT_HAS_SUBSTR(
       StrCat(
@@ -271,15 +269,15 @@ TEST_F(DebugFilterTest, FlushInStyleTag) {
           StrCat("<!--", DebugFilter::FormatFlushMessage(51, 0, 0, 20), "-->")),
       output_buffer_);
   EXPECT_HAS_SUBSTR(StrCat(DebugFilter::FormatEndDocumentMessage(
-                           51, 0, 0, 51, 2, false, StringSet(),
-                           ExpectedDisabledFilters()),
-                       "-->"),
-                output_buffer_);
+                               51, 0, 0, 51, 2, false, StringSet(),
+                               ExpectedDisabledFilters()),
+                           "-->"),
+                    output_buffer_);
 }
 
 class DebugFilterWithCriticalImagesTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kDebug);
     options()->EnableFilter(RewriteOptions::kExtendCacheScripts);
@@ -320,7 +318,7 @@ TEST_F(DebugFilterWithCriticalImagesTest, CriticalImageMessageBlankSrc) {
 
 class DebugFilterNoOtherFiltersTest : public DebugFilterTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->set_support_noscript_enabled(false);
     options()->EnableFilter(RewriteOptions::kDebug);
@@ -336,11 +334,11 @@ class DisabledFilter : public EmptyHtmlFilter {
  public:
   explicit DisabledFilter(const GoogleString& name) : name_(name) {}
 
-  virtual void DetermineEnabled(GoogleString* disabled_reason) {
+  void DetermineEnabled(GoogleString* disabled_reason) override {
     set_is_enabled(false);
   }
 
-  virtual const char* Name() const { return name_.c_str(); }
+  const char* Name() const override { return name_.c_str(); }
 
  private:
   GoogleString name_;

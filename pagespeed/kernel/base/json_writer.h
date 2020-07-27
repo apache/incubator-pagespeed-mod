@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_JSON_WRITER_H_
 #define PAGESPEED_KERNEL_BASE_JSON_WRITER_H_
 
@@ -50,10 +49,10 @@ class JsonWriter : public Writer {
   // of the writer
   JsonWriter(Writer* writer,
              const std::vector<ElementJsonPair>* element_json_stack);
-  virtual ~JsonWriter();
+  ~JsonWriter() override;
 
-  virtual bool Write(const StringPiece& str, MessageHandler* message_handler);
-  virtual bool Flush(MessageHandler* message_handler);
+  bool Write(const StringPiece& str, MessageHandler* message_handler) override;
+  bool Flush(MessageHandler* message_handler) override;
   // Updates the json dictionary with the buffer content so far.
   void UpdateDictionary();
 

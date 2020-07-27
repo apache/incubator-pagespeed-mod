@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
 
 namespace net_instaweb {
 
-AbstractSharedMemSegment::~AbstractSharedMemSegment() {
-}
+AbstractSharedMemSegment::~AbstractSharedMemSegment() {}
 
-AbstractSharedMem::~AbstractSharedMem() {
-}
+AbstractSharedMem::~AbstractSharedMem() {}
 
 }  // namespace net_instaweb

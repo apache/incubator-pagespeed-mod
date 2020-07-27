@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_POOL_H_
 #define PAGESPEED_KERNEL_BASE_POOL_H_
 #include <cstddef>
 #include <list>
+
 #include "base/logging.h"  // for DCHECK
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/pool_element.h"
@@ -40,48 +40,34 @@ namespace net_instaweb {
 // default on destruction we delete pool elements using DeleteAll(); if a pool
 // does not acquire object ownership, we should instead .Clear() it before
 // destruction.
-template<class T>
+template <class T>
 class Pool {
  public:
   // We can iterate over a pool using this iterator type.
   typedef typename PoolElement<T>::Position iterator;
   typedef typename std::list<T*>::const_iterator const_iterator;
 
-  Pool() { }
+  Pool() {}
 
-  ~Pool() {
-    DeleteAll();
-  }
+  ~Pool() { DeleteAll(); }
 
   // Is pool empty?
-  bool empty() const {
-    return contents_.empty();
-  }
+  bool empty() const { return contents_.empty(); }
 
   // Size of pool
-  size_t size() const {
-    return contents_.size();
-  }
+  size_t size() const { return contents_.size(); }
 
   // Iterator pointing to beginning of pool
-  iterator begin() {
-    return contents_.begin();
-  }
+  iterator begin() { return contents_.begin(); }
 
   // const Iterator pointing to beginning of pool
-  const_iterator begin() const {
-    return contents_.begin();
-  }
+  const_iterator begin() const { return contents_.begin(); }
 
   // Iterator pointing just past end of pool
-  iterator end() {
-    return contents_.end();
-  }
+  iterator end() { return contents_.end(); }
 
   // Iterator pointing just past end of pool
-  const_iterator end() const {
-    return contents_.end();
-  }
+  const_iterator end() const { return contents_.end(); }
 
   // Add object to pool.  The object must not currently reside in a pool.
   void Add(T* object) {
@@ -128,14 +114,10 @@ class Pool {
   }
 
   // DeleteAll: delete all elements of pool
-  void DeleteAll() {
-    STLDeleteElements(&contents_);
-  }
+  void DeleteAll() { STLDeleteElements(&contents_); }
 
   // Clear: clear pool without deleting elements
-  void Clear() {
-    contents_.clear();
-  }
+  void Clear() { contents_.clear(); }
 
  private:
   std::list<T*> contents_;

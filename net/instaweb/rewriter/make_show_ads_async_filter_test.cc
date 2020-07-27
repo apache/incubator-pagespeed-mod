@@ -19,6 +19,8 @@
 
 #include "net/instaweb/rewriter/public/make_show_ads_async_filter.h"
 
+#include <memory>
+
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -32,8 +34,7 @@ namespace {
 
 // Helper methods for generating test html page / snippet.
 GoogleString GetPage(StringPiece content) {
-  return StrCat("<head><title>Something</title></head><body>",
-                content,
+  return StrCat("<head><title>Something</title></head><body>", content,
                 "</body>");
 }
 
@@ -50,7 +51,8 @@ GoogleString GetPageWithOneAdsByGoogle(StringPiece content) {
 }
 
 // Constants used in input/output.
-const char kAdsByGoogleJs[] = "<script async "
+const char kAdsByGoogleJs[] =
+    "<script async "
     "src=\"//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js\">"
     "</script>";
 const char kAdsByGoogleApiCall[] =
@@ -83,7 +85,7 @@ const char kShowAdsDataContentFormat1[] =
     "google_ad_slot = \"1234567\";"
     "google_ad_width = 728;"
     "google_ad_height = 90;"
-     "%s";
+    "%s";
 
 const char kShowAdsDataContentFormat1Output[] =
     "<ins class=\"adsbygoogle\" "
@@ -104,13 +106,11 @@ GoogleString GetShowAdsDataContent1WithComments() {
 }
 
 GoogleString GetShowAdsDataContent1WithCommentTags() {
-  return absl::StrFormat(kShowAdsDataContentFormat1,
-                      "<!--", "", "//-->");
+  return absl::StrFormat(kShowAdsDataContentFormat1, "<!--", "", "//-->");
 }
 
 GoogleString GetShowAdsDataFormat1Output() {
-  return StrCat(kAdsByGoogleJs,
-                kShowAdsDataContentFormat1Output,
+  return StrCat(kAdsByGoogleJs, kShowAdsDataContentFormat1Output,
                 kAdsByGoogleApiCall);
 }
 
@@ -134,18 +134,17 @@ const char kShowAdsDataContentFormat2Output[] =
     "data-ad-slot=\"1234562\"></ins>";
 
 GoogleString GetShowAdsDataFormat2Output() {
-  return StrCat(kAdsByGoogleJs,
-                kShowAdsDataContentFormat2Output,
+  return StrCat(kAdsByGoogleJs, kShowAdsDataContentFormat2Output,
                 kAdsByGoogleApiCall);
 }
 
 // Help methods for tesing pages with multiple showads snippets.
 GoogleString GetHtmlPageMultipleShowAds() {
-  return GetPage(StrCat(
-      GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
-      kShowAdsApiCall,
-      GetShowAdsDataSnippetWithContent(kShowAdsDataContentFormat2),
-      kShowAdsApiCall));
+  return GetPage(
+      StrCat(GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
+             kShowAdsApiCall,
+             GetShowAdsDataSnippetWithContent(kShowAdsDataContentFormat2),
+             kShowAdsApiCall));
 }
 
 // Test data for ad snippets for which conversion is not applicable.
@@ -175,10 +174,10 @@ const char kShowAdsHtmlPageWithInvalidGoogleAdFormat[] =
 class MakeShowAdsAsyncFilterTest : public RewriteTestBase {
  protected:
   MakeShowAdsAsyncFilterTest() : add_tags_(true) {}
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     MakeShowAdsAsyncFilter::InitStats(rewrite_driver()->statistics());
-    filter_.reset(new MakeShowAdsAsyncFilter(rewrite_driver()));
+    filter_ = std::make_unique<MakeShowAdsAsyncFilter>(rewrite_driver());
     rewrite_driver()->AddFilter(filter_.get());
   }
 
@@ -187,7 +186,7 @@ class MakeShowAdsAsyncFilterTest : public RewriteTestBase {
   }
 
   int GetStatShowAdsSnippetsConverted() {
-     return GetStat(MakeShowAdsAsyncFilter::kShowAdsSnippetsConverted);
+    return GetStat(MakeShowAdsAsyncFilter::kShowAdsSnippetsConverted);
   }
 
   int GetStatShowAdsSnippetsNotConverted() {
@@ -233,73 +232,60 @@ TEST_F(MakeShowAdsAsyncFilterTest, NoAds) {
 TEST_F(MakeShowAdsAsyncFilterTest, OneShowAds) {
   ValidateExpected(
       test_info_->name(),
-      GetPage(StrCat(
-          GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
-          kShowAdsApiCall)),
+      GetPage(StrCat(GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
+                     kShowAdsApiCall)),
       GetPage(GetShowAdsDataFormat1Output()));
   CheckStatForShowAds(1);
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, OneShowAdsWithComments) {
-  ValidateExpected(
-      test_info_->name(),
-      GetPage(StrCat(
-          GetShowAdsDataSnippetWithContent(
-              GetShowAdsDataContent1WithComments()),
-          kShowAdsApiCall)),
-      GetPage(GetShowAdsDataFormat1Output()));
+  ValidateExpected(test_info_->name(),
+                   GetPage(StrCat(GetShowAdsDataSnippetWithContent(
+                                      GetShowAdsDataContent1WithComments()),
+                                  kShowAdsApiCall)),
+                   GetPage(GetShowAdsDataFormat1Output()));
   CheckStatForShowAds(1);
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, OneShowAdsWithEnclosingCommentTags) {
-  ValidateExpected(
-      test_info_->name(),
-      GetPage(StrCat(
-          GetShowAdsDataSnippetWithContent(
-              GetShowAdsDataContent1WithCommentTags()),
-          kShowAdsApiCall)),
-      GetPage(GetShowAdsDataFormat1Output()));
+  ValidateExpected(test_info_->name(),
+                   GetPage(StrCat(GetShowAdsDataSnippetWithContent(
+                                      GetShowAdsDataContent1WithCommentTags()),
+                                  kShowAdsApiCall)),
+                   GetPage(GetShowAdsDataFormat1Output()));
   CheckStatForShowAds(1);
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, OneShowAdsData2) {
-  ValidateExpected(
-      test_info_->name(),
-      GetPage(StrCat(
-          GetShowAdsDataSnippetWithContent(kShowAdsDataContentFormat2),
-          kShowAdsApiCall)),
-      GetPage(GetShowAdsDataFormat2Output()));
+  ValidateExpected(test_info_->name(),
+                   GetPage(StrCat(GetShowAdsDataSnippetWithContent(
+                                      kShowAdsDataContentFormat2),
+                                  kShowAdsApiCall)),
+                   GetPage(GetShowAdsDataFormat2Output()));
   CheckStatForShowAds(1);
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, MultipleShowAds) {
   ValidateExpected(
-      test_info_->name(),
-      GetHtmlPageMultipleShowAds(),
-      GetPage(StrCat(
-            GetShowAdsDataFormat1Output(),
-            kShowAdsDataContentFormat2Output,
-            kAdsByGoogleApiCall)));
+      test_info_->name(), GetHtmlPageMultipleShowAds(),
+      GetPage(StrCat(GetShowAdsDataFormat1Output(),
+                     kShowAdsDataContentFormat2Output, kAdsByGoogleApiCall)));
   CheckStatForShowAds(2);
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, ShowsAdsHtmlGoogleAdOutput) {
   // Hack the <ins> tag to have the data- field for google_ad_output.
   GoogleString output_with_ad_output = kShowAdsDataContentFormat1Output;
-  GlobalReplaceSubstring("data-ad-slot",
-                         "data-ad-output=\"html\" data-ad-slot",
+  GlobalReplaceSubstring("data-ad-slot", "data-ad-output=\"html\" data-ad-slot",
                          &output_with_ad_output);
   ValidateExpected(
       test_info_->name(),
       GetPage(StrCat(
-          GetShowAdsDataSnippetWithContent(
-              absl::StrFormat(kShowAdsDataContentFormat1,
-                           "google_ad_output='html';",
-                           "", "")),
+          GetShowAdsDataSnippetWithContent(absl::StrFormat(
+              kShowAdsDataContentFormat1, "google_ad_output='html';", "", "")),
           kShowAdsApiCall)),
-      GetPage(StrCat(kAdsByGoogleJs,
-                     output_with_ad_output,
-                     kAdsByGoogleApiCall)));
+      GetPage(
+          StrCat(kAdsByGoogleJs, output_with_ad_output, kAdsByGoogleApiCall)));
   CheckStatForShowAds(1);
 }
 
@@ -307,36 +293,30 @@ TEST_F(MakeShowAdsAsyncFilterTest, ShowsAdsHtmlGoogleAdOutput) {
 TEST_F(MakeShowAdsAsyncFilterTest, MixedAds) {
   ValidateExpected(
       test_info_->name(),
-      GetPage(StrCat(
-          kAdsByGoogleJs,
-          // An adsbygoogle snippet.
-          GetAdsByGoogleInsWithContent(kAdsByGoogleContent1),
-          kAdsByGoogleApiCall,
-          // A showads ad.
-          GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
-          kShowAdsApiCall,
-          // An adsbygoogle snippet.
-          GetAdsByGoogleInsWithContent(kAdsByGoogleContent2),
-          kAdsByGoogleApiCall,
-          // A showads ad.
-          GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
-          kShowAdsApiCall)),
-      GetPage(StrCat(
-          kAdsByGoogleJs,
-          // Output for an adsbygoogle snippet.
-          GetAdsByGoogleInsWithContent(
-              kAdsByGoogleContent1),
-          kAdsByGoogleApiCall,
-          // Output for an showads snippet.
-          kShowAdsDataContentFormat1Output,
-          kAdsByGoogleApiCall,
-          // Output for an adsbygoogle snippet.
-          GetAdsByGoogleInsWithContent(
-              kAdsByGoogleContent2),
-          kAdsByGoogleApiCall,
-          // Output for an showads snippet.
-          kShowAdsDataContentFormat1Output,
-          kAdsByGoogleApiCall)));
+      GetPage(StrCat(kAdsByGoogleJs,
+                     // An adsbygoogle snippet.
+                     GetAdsByGoogleInsWithContent(kAdsByGoogleContent1),
+                     kAdsByGoogleApiCall,
+                     // A showads ad.
+                     GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
+                     kShowAdsApiCall,
+                     // An adsbygoogle snippet.
+                     GetAdsByGoogleInsWithContent(kAdsByGoogleContent2),
+                     kAdsByGoogleApiCall,
+                     // A showads ad.
+                     GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
+                     kShowAdsApiCall)),
+      GetPage(StrCat(kAdsByGoogleJs,
+                     // Output for an adsbygoogle snippet.
+                     GetAdsByGoogleInsWithContent(kAdsByGoogleContent1),
+                     kAdsByGoogleApiCall,
+                     // Output for an showads snippet.
+                     kShowAdsDataContentFormat1Output, kAdsByGoogleApiCall,
+                     // Output for an adsbygoogle snippet.
+                     GetAdsByGoogleInsWithContent(kAdsByGoogleContent2),
+                     kAdsByGoogleApiCall,
+                     // Output for an showads snippet.
+                     kShowAdsDataContentFormat1Output, kAdsByGoogleApiCall)));
   CheckStatForShowAds(2);
 }
 
@@ -346,57 +326,47 @@ TEST_F(MakeShowAdsAsyncFilterTest, ShowAdsMissingAPICallFlag) {
   ValidateExpected(
       test_info_->name(),
       GetPage(GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1())),
-      GetPage(StrCat(kAdsByGoogleJs,
-                     kShowAdsDataContentFormat1Output)));
+      GetPage(StrCat(kAdsByGoogleJs, kShowAdsDataContentFormat1Output)));
   CheckStatForShowAdsMissingAPICall(1);
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, MispairedShowAdsFlag) {
   ValidateExpected(
       test_info_->name(),
-      GetPage(StrCat(
-          kShowAdsApiCall,   // Extra showads API call.
-          GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
-          kShowAdsApiCall,
-          kShowAdsApiCall)),  // Extra showads API call.
-      GetPage(StrCat(
-          kShowAdsApiCall,
-          kAdsByGoogleJs,
-          kShowAdsDataContentFormat1Output,
-          kAdsByGoogleApiCall,
-          kShowAdsApiCall)));
+      GetPage(StrCat(kShowAdsApiCall,  // Extra showads API call.
+                     GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
+                     kShowAdsApiCall,
+                     kShowAdsApiCall)),  // Extra showads API call.
+      GetPage(StrCat(kShowAdsApiCall, kAdsByGoogleJs,
+                     kShowAdsDataContentFormat1Output, kAdsByGoogleApiCall,
+                     kShowAdsApiCall)));
   CheckStatForShowAds(1);
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, MixedAdsWithMisplacedSnippet) {
   ValidateExpected(
       test_info_->name(),
-      GetPage(StrCat(
-          kAdsByGoogleJs,
-          // An adsbygoogle snippet.
-          GetAdsByGoogleInsWithContent(kAdsByGoogleContent1),
-          kAdsByGoogleApiCall,
-          // A showads ad missing data
-          kShowAdsApiCall,
-          // An adsbygoogle snippet missing Api call.
-          GetAdsByGoogleInsWithContent(kAdsByGoogleContent2),
-          // A showads ad.
-          GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
-          kShowAdsApiCall)),
-      GetPage(StrCat(
-          kAdsByGoogleJs,
-          // Output for an adsbygoogle snippet.
-          GetAdsByGoogleInsWithContent(
-              kAdsByGoogleContent1),
-          kAdsByGoogleApiCall,
-          // Output for an showads snippet missing data.
-          kShowAdsApiCall,
-          // Output for an adsbygoogle snippet missing Api call.
-          GetAdsByGoogleInsWithContent(
-              kAdsByGoogleContent2),
-          // Output for an showads snippet.
-          kShowAdsDataContentFormat1Output,
-          kAdsByGoogleApiCall)));
+      GetPage(StrCat(kAdsByGoogleJs,
+                     // An adsbygoogle snippet.
+                     GetAdsByGoogleInsWithContent(kAdsByGoogleContent1),
+                     kAdsByGoogleApiCall,
+                     // A showads ad missing data
+                     kShowAdsApiCall,
+                     // An adsbygoogle snippet missing Api call.
+                     GetAdsByGoogleInsWithContent(kAdsByGoogleContent2),
+                     // A showads ad.
+                     GetShowAdsDataSnippetWithContent(GetShowAdsDataContent1()),
+                     kShowAdsApiCall)),
+      GetPage(StrCat(kAdsByGoogleJs,
+                     // Output for an adsbygoogle snippet.
+                     GetAdsByGoogleInsWithContent(kAdsByGoogleContent1),
+                     kAdsByGoogleApiCall,
+                     // Output for an showads snippet missing data.
+                     kShowAdsApiCall,
+                     // Output for an adsbygoogle snippet missing Api call.
+                     GetAdsByGoogleInsWithContent(kAdsByGoogleContent2),
+                     // Output for an showads snippet.
+                     kShowAdsDataContentFormat1Output, kAdsByGoogleApiCall)));
   EXPECT_EQ(1, GetStatShowAdsSnippetsConverted());
   EXPECT_EQ(0, GetStatShowAdsSnippetsNotConverted());
   EXPECT_EQ(1, GetStatShowAdsapiReplaced());
@@ -405,35 +375,31 @@ TEST_F(MakeShowAdsAsyncFilterTest, MixedAdsWithMisplacedSnippet) {
 // Test fixture for non-applicable snippets.
 
 TEST_F(MakeShowAdsAsyncFilterTest, ShowAdsMissingAttribute) {
-  ValidateNoChanges(
-      test_info_->name(),
-      GetPage(GetShowAdsDataSnippetWithContent(
-          kShowAdsHtmlPageWithMissingAttribute)));
+  ValidateNoChanges(test_info_->name(),
+                    GetPage(GetShowAdsDataSnippetWithContent(
+                        kShowAdsHtmlPageWithMissingAttribute)));
   CheckStatForNoApplicableAds();
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, ShowAdsUnexpectedStatement) {
-  ValidateNoChanges(
-      test_info_->name(),
-      GetPage(GetShowAdsDataSnippetWithContent(
-          kShowAdsHtmlPageWithUnexpectedStatement)));
+  ValidateNoChanges(test_info_->name(),
+                    GetPage(GetShowAdsDataSnippetWithContent(
+                        kShowAdsHtmlPageWithUnexpectedStatement)));
   CheckStatForNoApplicableAds();
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, ShowAdsInvalidGoogleAdFormat) {
-  ValidateNoChanges(
-      test_info_->name(),
-      GetPage(GetShowAdsDataSnippetWithContent(
-          kShowAdsHtmlPageWithInvalidGoogleAdFormat)));
+  ValidateNoChanges(test_info_->name(),
+                    GetPage(GetShowAdsDataSnippetWithContent(
+                        kShowAdsHtmlPageWithInvalidGoogleAdFormat)));
 }
 
 TEST_F(MakeShowAdsAsyncFilterTest, ShowsAdsJsGoogleAdOutput) {
   ValidateNoChanges(
       test_info_->name(),
       GetPage(StrCat(
-          GetShowAdsDataSnippetWithContent(
-              absl::StrFormat(kShowAdsDataContentFormat1, "google_ad_output='js';",
-                           "", "")),
+          GetShowAdsDataSnippetWithContent(absl::StrFormat(
+              kShowAdsDataContentFormat1, "google_ad_output='js';", "", "")),
           kShowAdsApiCall)));
 }
 
@@ -442,8 +408,7 @@ TEST_F(MakeShowAdsAsyncFilterTest, FlushInTheMiddleOfShowAdsDataScript) {
   // arbitrary ones.
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText(
-      "<head><title>Something</title></head><body>");
+  rewrite_driver()->ParseText("<head><title>Something</title></head><body>");
   rewrite_driver()->ParseText(
       "<script type=\"text/javascript\"> "
       "google_ad_client = \"test-publishercode-expected\"; "
@@ -481,8 +446,7 @@ TEST_F(MakeShowAdsAsyncFilterTest, FlushInTheMiddleOfShowAdsDataScript) {
 TEST_F(MakeShowAdsAsyncFilterTest, FlushInTheMiddleOfShowAdsApiCall) {
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText(
-      "<head><title>Something</title></head><body>");
+  rewrite_driver()->ParseText("<head><title>Something</title></head><body>");
   rewrite_driver()->ParseText(
       "<script type=\"text/javascript\"> "
       "google_ad_client = \"test-publishercode-expected\"; "
@@ -519,8 +483,7 @@ TEST_F(MakeShowAdsAsyncFilterTest, FlushInTheMiddleOfShowAdsApiCall) {
 TEST_F(MakeShowAdsAsyncFilterTest, FlushInTheMiddleOfShowAdsDataAndApiCall) {
   SetupWriter();
   rewrite_driver()->StartParse(kTestDomain);
-  rewrite_driver()->ParseText(
-      "<head><title>Something</title></head><body>");
+  rewrite_driver()->ParseText("<head><title>Something</title></head><body>");
   rewrite_driver()->ParseText(
       "<script type=\"text/javascript\"> "
       "google_ad_client = \"test-publishercode-expected\"; "

@@ -21,6 +21,8 @@
 
 #include "net/instaweb/rewriter/public/resource.h"
 
+#include <memory>
+
 #include "net/instaweb/http/public/http_cache.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
@@ -64,23 +66,22 @@ Resource::Resource(const RewriteDriver* driver, const ContentType* type)
       disable_rewrite_on_no_transform_(true),
       is_authorized_domain_(true),
       respect_vary_(ResponseHeaders::kRespectVaryOnResources),
-      extracted_state_(kExtractNotComputed) {
-}
+      extracted_state_(kExtractNotComputed) {}
 
-Resource::Resource() : server_context_(NULL), type_(NULL),
-                       response_headers_(kDefaultHttpOptionsForTests),
-                       fetch_response_status_(kFetchStatusNotSet),
-                       is_background_fetch_(true),
-                       enable_cache_purge_(false),
-                       proactive_resource_freshening_(false),
-                       disable_rewrite_on_no_transform_(true),
-                       is_authorized_domain_(true),
-                       respect_vary_(ResponseHeaders::kRespectVaryOnResources),
-                       extracted_state_(kExtractNotComputed)  {
-}
+Resource::Resource()
+    : server_context_(nullptr),
+      type_(nullptr),
+      response_headers_(kDefaultHttpOptionsForTests),
+      fetch_response_status_(kFetchStatusNotSet),
+      is_background_fetch_(true),
+      enable_cache_purge_(false),
+      proactive_resource_freshening_(false),
+      disable_rewrite_on_no_transform_(true),
+      is_authorized_domain_(true),
+      respect_vary_(ResponseHeaders::kRespectVaryOnResources),
+      extracted_state_(kExtractNotComputed) {}
 
-Resource::~Resource() {
-}
+Resource::~Resource() {}
 
 bool Resource::IsValidAndCacheable() const {
   // We don't have to worry about request_headers here since
@@ -129,9 +130,9 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
     }
   } else if (!rewrite_uncacheable && !IsValidAndCacheable()) {
     StrAppend(reason,
-              (server_context_->http_cache()->IsExpired(response_headers_) ?
-               "Cached content expired, " :
-               "Invalid or uncacheable content, "));
+              (server_context_->http_cache()->IsExpired(response_headers_)
+                   ? "Cached content expired, "
+                   : "Invalid or uncacheable content, "));
   } else if (disable_rewrite_on_no_transform_ &&
              response_headers_.HasValue(HttpAttributes::kCacheControl,
                                         "no-transform")) {
@@ -156,10 +157,9 @@ bool Resource::IsSafeToRewrite(bool rewrite_uncacheable,
   return false;
 }
 
-void Resource::LoadAsync(
-    NotCacheablePolicy not_cacheable_policy,
-    const RequestContextPtr& request_context,
-    AsyncCallback* callback) {
+void Resource::LoadAsync(NotCacheablePolicy not_cacheable_policy,
+                         const RequestContextPtr& request_context,
+                         AsyncCallback* callback) {
   DCHECK(callback->resource().get() == this);
   if (loaded()) {
     RefreshIfImminentlyExpiring();
@@ -170,8 +170,7 @@ void Resource::LoadAsync(
   }
 }
 
-void Resource::RefreshIfImminentlyExpiring() {
-}
+void Resource::RefreshIfImminentlyExpiring() {}
 
 GoogleString Resource::ContentsHash() const {
   DCHECK(IsValidAndCacheable());
@@ -208,8 +207,7 @@ void Resource::FillInPartitionInputInfo(HashHint include_content_hash,
 }
 
 void Resource::FillInPartitionInputInfoFromResponseHeaders(
-      const ResponseHeaders& headers,
-      InputInfo* input) {
+    const ResponseHeaders& headers, InputInfo* input) {
   if (headers.has_last_modified_time_ms()) {
     input->set_last_modified_time_ms(headers.last_modified_time_ms());
   }
@@ -228,9 +226,7 @@ int64 Resource::CacheExpirationTimeMs() const {
 }
 
 // Note: OutputResource overrides this to also set the file extension.
-void Resource::SetType(const ContentType* type) {
-  type_ = type;
-}
+void Resource::SetType(const ContentType* type) { type_ = type; }
 
 // Try to determine the content type from the URL extension, or
 // the response headers.
@@ -239,7 +235,7 @@ void Resource::DetermineContentType() {
   const ContentType* content_type;
   response_headers()->DetermineContentTypeAndCharset(&content_type, &charset_);
   // If there is no content type in headers, then guess from extension.
-  if (content_type == NULL && has_url()) {
+  if (content_type == nullptr && has_url()) {
     GoogleString trimmed_url;
     TrimWhitespace(url(), &trimmed_url);
     content_type = NameExtensionToContentType(trimmed_url);
@@ -248,11 +244,9 @@ void Resource::DetermineContentType() {
   SetType(content_type);
 }
 
-Resource::AsyncCallback::~AsyncCallback() {
-}
+Resource::AsyncCallback::~AsyncCallback() {}
 
-Resource::FreshenCallback::~FreshenCallback() {
-}
+Resource::FreshenCallback::~FreshenCallback() {}
 
 bool Resource::Link(HTTPValue* value, MessageHandler* handler) {
   DCHECK(UseHttpCache());
@@ -292,7 +286,7 @@ bool Resource::EnsureExtractedIfNeeded() const {
     if (GzipInflater::Inflate(raw_contents(), GzipInflater::kGzip,
                               &inflate_writer)) {
       extracted_state_ = kExtractUseExtracted;
-      extracted_headers_.reset(new ResponseHeaders());
+      extracted_headers_ = std::make_unique<ResponseHeaders>();
       extracted_headers_->CopyFrom(response_headers_);
       extracted_headers_->Remove(HttpAttributes::kContentEncoding,
                                  HttpAttributes::kGzip);
@@ -308,7 +302,7 @@ bool Resource::EnsureExtractedIfNeeded() const {
 
 void Resource::Freshen(FreshenCallback* callback, MessageHandler* handler) {
   // We don't need Freshining for data urls or output resources.
-  if (callback != NULL) {
+  if (callback != nullptr) {
     callback->Done(false /* lock_failure */, false /* resource_ok */);
   }
 }

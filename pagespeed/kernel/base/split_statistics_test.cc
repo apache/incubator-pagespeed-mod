@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/split_statistics.h"
 
 #include "pagespeed/kernel/base/google_message_handler.h"
@@ -66,17 +65,17 @@ class SplitStatisticsTest : public testing::Test {
     InitStats(split_b_.get());
   }
 
-  ~SplitStatisticsTest() {
+  ~SplitStatisticsTest() override {
     local_b_->GlobalCleanup(&message_handler_);
-    split_b_.reset(NULL);
+    split_b_.reset(nullptr);
     delete local_b_store_;
 
     local_a_->GlobalCleanup(&message_handler_);
-    split_a_.reset(NULL);
+    split_a_.reset(nullptr);
     delete local_a_store_;
 
     global_->GlobalCleanup(&message_handler_);
-    global_.reset(NULL);
+    global_.reset(nullptr);
     delete global_store_;
   }
 
@@ -97,15 +96,11 @@ class SplitStatisticsTest : public testing::Test {
 
   SharedMemStatistics* MakeInMemory(InProcessSharedMem** mem_runtime_out) {
     *mem_runtime_out = new InProcessSharedMem(threads_.get());
-    return new SharedMemStatistics(3000,
-                                   100000,
-                                   "",  // statistics logging file (ignored)
+    return new SharedMemStatistics(3000, 100000,
+                                   "",     // statistics logging file (ignored)
                                    false,  // no statistics logging.
-                                   "in_mem",
-                                   *mem_runtime_out,
-                                   &message_handler_,
-                                   &fs_,
-                                   &timer_);
+                                   "in_mem", *mem_runtime_out,
+                                   &message_handler_, &fs_, &timer_);
   }
 
   GoogleMessageHandler message_handler_;
@@ -128,10 +123,10 @@ TEST_F(SplitStatisticsTest, BasicOperation) {
   Variable* ab = split_a_->GetVariable(kVarB);
   Variable* ba = split_b_->GetVariable(kVarA);
   Variable* bb = split_b_->GetVariable(kVarB);
-  ASSERT_TRUE(aa != NULL);
-  ASSERT_TRUE(ab != NULL);
-  ASSERT_TRUE(ba != NULL);
-  ASSERT_TRUE(bb != NULL);
+  ASSERT_TRUE(aa != nullptr);
+  ASSERT_TRUE(ab != nullptr);
+  ASSERT_TRUE(ba != nullptr);
+  ASSERT_TRUE(bb != nullptr);
 
   aa->Add(1);
   ab->Add(2);
@@ -201,15 +196,15 @@ TEST_F(SplitStatisticsTest, TestSetReturningPrevious) {
 
 TEST_F(SplitStatisticsTest, HistoOps) {
   Histogram* global_h = global_->GetHistogram(kHist);
-  ASSERT_TRUE(global_h != NULL);
+  ASSERT_TRUE(global_h != nullptr);
   Histogram* local_a_h = local_a_->GetHistogram(kHist);
-  ASSERT_TRUE(local_a_h != NULL);
+  ASSERT_TRUE(local_a_h != nullptr);
   Histogram* local_b_h = local_b_->GetHistogram(kHist);
-  ASSERT_TRUE(local_b_h != NULL);
+  ASSERT_TRUE(local_b_h != nullptr);
   Histogram* split_a_h = split_a_->GetHistogram(kHist);
-  ASSERT_TRUE(split_a_h != NULL);
+  ASSERT_TRUE(split_a_h != nullptr);
   Histogram* split_b_h = split_b_->GetHistogram(kHist);
-  ASSERT_TRUE(split_b_h != NULL);
+  ASSERT_TRUE(split_b_h != nullptr);
 
   // test that NumBuckets() forwards properly.
   ASSERT_EQ(local_a_h->NumBuckets(), split_a_h->NumBuckets());
@@ -288,15 +283,15 @@ TEST_F(SplitStatisticsTest, HistoOps) {
 
 TEST_F(SplitStatisticsTest, TimedVars) {
   TimedVariable* global_tv = global_->GetTimedVariable(kTimedVar);
-  ASSERT_TRUE(global_tv != NULL);
+  ASSERT_TRUE(global_tv != nullptr);
   TimedVariable* local_a_tv = local_a_->GetTimedVariable(kTimedVar);
-  ASSERT_TRUE(local_a_tv != NULL);
+  ASSERT_TRUE(local_a_tv != nullptr);
   TimedVariable* local_b_tv = local_b_->GetTimedVariable(kTimedVar);
-  ASSERT_TRUE(local_b_tv != NULL);
+  ASSERT_TRUE(local_b_tv != nullptr);
   TimedVariable* split_a_tv = split_a_->GetTimedVariable(kTimedVar);
-  ASSERT_TRUE(split_a_tv != NULL);
+  ASSERT_TRUE(split_a_tv != nullptr);
   TimedVariable* split_b_tv = split_b_->GetTimedVariable(kTimedVar);
-  ASSERT_TRUE(split_b_tv != NULL);
+  ASSERT_TRUE(split_b_tv != nullptr);
 
   split_a_tv->IncBy(4);
   split_a_tv->IncBy(3);

@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/empty_html_filter.h"
+
 #include "pagespeed/kernel/base/string.h"
 
 namespace net_instaweb {
@@ -30,41 +30,29 @@ class HtmlDirectiveNode;
 class HtmlElement;
 class HtmlIEDirectiveNode;
 
-EmptyHtmlFilter::EmptyHtmlFilter() {
-}
+EmptyHtmlFilter::EmptyHtmlFilter() {}
 
-EmptyHtmlFilter::~EmptyHtmlFilter() {
-}
+EmptyHtmlFilter::~EmptyHtmlFilter() {}
 
-void EmptyHtmlFilter::StartDocument() {
-}
+void EmptyHtmlFilter::StartDocument() {}
 
-void EmptyHtmlFilter::EndDocument() {
-}
+void EmptyHtmlFilter::EndDocument() {}
 
-void EmptyHtmlFilter::StartElement(HtmlElement* element) {
-}
+void EmptyHtmlFilter::StartElement(HtmlElement* element) {}
 
-void EmptyHtmlFilter::EndElement(HtmlElement* element) {
-}
+void EmptyHtmlFilter::EndElement(HtmlElement* element) {}
 
-void EmptyHtmlFilter::Cdata(HtmlCdataNode* cdata) {
-}
+void EmptyHtmlFilter::Cdata(HtmlCdataNode* cdata) {}
 
-void EmptyHtmlFilter::Comment(HtmlCommentNode* comment) {
-}
+void EmptyHtmlFilter::Comment(HtmlCommentNode* comment) {}
 
-void EmptyHtmlFilter::IEDirective(HtmlIEDirectiveNode* directive) {
-}
+void EmptyHtmlFilter::IEDirective(HtmlIEDirectiveNode* directive) {}
 
-void EmptyHtmlFilter::Characters(HtmlCharactersNode* characters) {
-}
+void EmptyHtmlFilter::Characters(HtmlCharactersNode* characters) {}
 
-void EmptyHtmlFilter::Directive(HtmlDirectiveNode* directive) {
-}
+void EmptyHtmlFilter::Directive(HtmlDirectiveNode* directive) {}
 
-void EmptyHtmlFilter::Flush() {
-}
+void EmptyHtmlFilter::Flush() {}
 
 void EmptyHtmlFilter::DetermineEnabled(GoogleString* disabled_reason) {
   set_is_enabled(true);

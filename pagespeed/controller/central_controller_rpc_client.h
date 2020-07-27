@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_CENTRAL_CONTROLLER_RPC_CLIENT_H_
 #define PAGESPEED_CONTROLLER_CENTRAL_CONTROLLER_RPC_CLIENT_H_
 
@@ -60,7 +59,7 @@ class CentralControllerRpcClient : public CentralController {
                              int panic_threshold, ThreadSystem* thread_system,
                              Timer* timer, Statistics* statistics,
                              MessageHandler* handler);
-  virtual ~CentralControllerRpcClient();
+  ~CentralControllerRpcClient() override;
 
   // CentralController implementation.
   void ScheduleExpensiveOperation(

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the AmpDocumentFilter.
 
 #include "pagespeed/kernel/html/amp_document_filter.h"
@@ -32,13 +31,14 @@ namespace net_instaweb {
 
 namespace {
 
-class AmpDocumentFilterTest : public HtmlParseTestBase  {
+class AmpDocumentFilterTest : public HtmlParseTestBase {
  protected:
   static const char kUtf8LightningBolt[];
 
   AmpDocumentFilterTest()
-      : amp_document_filter_(&html_parse_, NewPermanentCallback(
-            this, &AmpDocumentFilterTest::AmpDiscovered)) {
+      : amp_document_filter_(
+            &html_parse_,
+            NewPermanentCallback(this, &AmpDocumentFilterTest::AmpDiscovered)) {
   }
 
   void AmpDiscovered(bool is_amp) {
@@ -93,10 +93,10 @@ TEST_F(AmpDocumentFilterTest, IsaMPHtml) {
 }
 
 TEST_F(AmpDocumentFilterTest, IsAmpLightningBolt) {
-  RunWithEveryFlushPoint(StrCat("<!doctype foo>  <html ",
-                                AmpDocumentFilter::kUtf8LightningBolt,
-                                "><head/><body></body></html>"),
-                         true);
+  RunWithEveryFlushPoint(
+      StrCat("<!doctype foo>  <html ", AmpDocumentFilter::kUtf8LightningBolt,
+             "><head/><body></body></html>"),
+      true);
 }
 
 TEST_F(AmpDocumentFilterTest, IsNotAmp) {
@@ -104,9 +104,7 @@ TEST_F(AmpDocumentFilterTest, IsNotAmp) {
                          false);
 }
 
-TEST_F(AmpDocumentFilterTest, EmptyHtml) {
-  RunWithEveryFlushPoint("", false);
-}
+TEST_F(AmpDocumentFilterTest, EmptyHtml) { RunWithEveryFlushPoint("", false); }
 
 TEST_F(AmpDocumentFilterTest, JustText) {
   RunWithEveryFlushPoint("Hello, world!", false);
@@ -137,23 +135,21 @@ TEST_F(AmpDocumentFilterTest, TwoConsecutiveHtmlTagsAmpInSecond) {
 }
 
 TEST_F(AmpDocumentFilterTest, TooLateForAmpTag) {
-  ValidateExpected(
-      "invalid_amp",
-      "<!doctype foo><other/><html amp><body></body></html>",
-      StrCat("<!doctype foo><other/><!--",
-             AmpDocumentFilter::kInvalidAmpDirectiveComment,
-             "--><html amp><body></body></html>"));
+  ValidateExpected("invalid_amp",
+                   "<!doctype foo><other/><html amp><body></body></html>",
+                   StrCat("<!doctype foo><other/><!--",
+                          AmpDocumentFilter::kInvalidAmpDirectiveComment,
+                          "--><html amp><body></body></html>"));
   EXPECT_FALSE(is_amp_);
   EXPECT_TRUE(disovered_called_);
 }
 
 TEST_F(AmpDocumentFilterTest, TooLateForAmpNonWhitespaceCharacters) {
-  ValidateExpected(
-      "invalid_amp",
-      "<!doctype foo>  stuff <html amp><body></body></html>",
-      StrCat("<!doctype foo>  stuff <!--",
-             AmpDocumentFilter::kInvalidAmpDirectiveComment,
-             "--><html amp><body></body></html>"));
+  ValidateExpected("invalid_amp",
+                   "<!doctype foo>  stuff <html amp><body></body></html>",
+                   StrCat("<!doctype foo>  stuff <!--",
+                          AmpDocumentFilter::kInvalidAmpDirectiveComment,
+                          "--><html amp><body></body></html>"));
   EXPECT_FALSE(is_amp_);
   EXPECT_TRUE(disovered_called_);
 }

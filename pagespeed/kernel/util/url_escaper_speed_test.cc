@@ -29,7 +29,6 @@
 // interleaved runs with the old & new algorithm.
 
 #include "pagespeed/kernel/util/url_escaper.h"
-
 #include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/string.h"
 
@@ -43,15 +42,17 @@ static void BM_EncodeToUrlSegment(benchmark::State& state) {
     // rewriting a slurp of www.att.net with AllFilters
     // (by logging the argument of EncodeToUrlSegment, then just selecting
     //  10 random urls using grep, shuf, cut and head).
-    EncodeToUrlSegment(
-        "http://icds.portal.att.net/test/yModule/GreyDot.jpg", &out);
+    EncodeToUrlSegment("http://icds.portal.att.net/test/yModule/GreyDot.jpg",
+                       &out);
     EncodeToUrlSegment(
         "http://icds.portal.att.net/test/yModule/xGreyDot.jpg.pagespeed."
-        "ic.I6DpW8JR0H.jpg", &out);
+        "ic.I6DpW8JR0H.jpg",
+        &out);
     EncodeToUrlSegment("data-key:RytPS5P4EF@http://www.att.net/", &out);
     EncodeToUrlSegment(
         "http://yrss.api.att.net/cobrand/attportal/css/att_dg_prodGames.css"
-        "+marketPlaceStyle.css.pagespeed.cc.JT5aZ1e05e.css", &out);
+        "+marketPlaceStyle.css.pagespeed.cc.JT5aZ1e05e.css",
+        &out);
     EncodeToUrlSegment("data-key:nm_yrDndPc@http://www.att.net/", &out);
     EncodeToUrlSegment("data-key:SS9cJh2qLi@http://www.att.net/", &out);
     EncodeToUrlSegment("data-key:fOUuiM7UUs@http://www.att.net/", &out);
@@ -61,7 +62,8 @@ static void BM_EncodeToUrlSegment(benchmark::State& state) {
     EncodeToUrlSegment("data-key:fOUuiM7UUs@http://www.att.net/", &out);
     EncodeToUrlSegment(
         "http://icds.portal.att.net/oberon/images/24png/xOrg_button.png."
-        "pagespeed.ic.tN-0QmjlGb.png", &out);
+        "pagespeed.ic.tN-0QmjlGb.png",
+        &out);
     EncodeToUrlSegment("data-key:yfVl4rtykl@http://www.att.net/", &out);
     EncodeToUrlSegment(
         "http://icds.portal.att.net/oberon/images/24png/Org_button.png", &out);
@@ -69,7 +71,8 @@ static void BM_EncodeToUrlSegment(benchmark::State& state) {
         "http://icds.portal.att.net/oberon/plants_vs_zombies130x75.gif", &out);
     EncodeToUrlSegment(
         "http://l.yimg.com/a/i/ww/news/2010/12/08/74x42xlennon_imagine3_sm.jpg."
-        "pagespeed.ic.SfRHRwKi7r.jpg", &out);
+        "pagespeed.ic.SfRHRwKi7r.jpg",
+        &out);
   }
 }
 

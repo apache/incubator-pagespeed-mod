@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/null_thread_system.h"
 
 #include <vector>
@@ -35,13 +34,13 @@ namespace {
 class NullRWLock : public ThreadSystem::RWLock {
  public:
   NullRWLock() {}
-  virtual ~NullRWLock();
-  virtual bool ReaderTryLock() { return true; }
-  virtual void ReaderLock() {}
-  virtual void ReaderUnlock() {}
-  virtual bool TryLock() { return true; }
-  virtual void Lock() {}
-  virtual void Unlock() {}
+  ~NullRWLock() override;
+  bool ReaderTryLock() override { return true; }
+  void ReaderLock() override {}
+  void ReaderUnlock() override {}
+  bool TryLock() override { return true; }
+  void Lock() override {}
+  void Unlock() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NullRWLock);
@@ -50,17 +49,15 @@ class NullRWLock : public ThreadSystem::RWLock {
 class NullThreadId : public ThreadSystem::ThreadId {
  public:
   explicit NullThreadId(const NullThreadSystem* system)
-      : id_(system->current_thread()),
-        system_(system) {
-  }
+      : id_(system->current_thread()), system_(system) {}
 
-  virtual ~NullThreadId() {}
+  ~NullThreadId() override {}
 
-  virtual bool IsEqual(const ThreadId& that) const {
+  bool IsEqual(const ThreadId& that) const override {
     return (id_ == dynamic_cast<const NullThreadId&>(that).id_);
   }
 
-  virtual bool IsCurrentThread() const {
+  bool IsCurrentThread() const override {
     return id_ == system_->current_thread();
   }
 
@@ -73,22 +70,17 @@ class NullThreadId : public ThreadSystem::ThreadId {
 
 }  // namespace
 
-NullCondvarCapableMutex::~NullCondvarCapableMutex() {
-}
+NullCondvarCapableMutex::~NullCondvarCapableMutex() {}
 
-NullRWLock::~NullRWLock() {
-}
+NullRWLock::~NullRWLock() {}
 
-NullThreadSystem::~NullThreadSystem() {
-}
+NullThreadSystem::~NullThreadSystem() {}
 
 NullCondvarCapableMutex* NullThreadSystem::NewMutex() {
   return new NullCondvarCapableMutex();
 }
 
-ThreadSystem::RWLock* NullThreadSystem::NewRWLock() {
-  return new NullRWLock;
-}
+ThreadSystem::RWLock* NullThreadSystem::NewRWLock() { return new NullRWLock; }
 
 Timer* NullThreadSystem::NewTimer() {
   // TODO(jmarantz): consider removing the responsibility of creating timers
@@ -103,7 +95,7 @@ ThreadSystem::ThreadId* NullThreadSystem::GetThreadId() const {
 ThreadSystem::ThreadImpl* NullThreadSystem::NewThreadImpl(Thread* wrapper,
                                                           ThreadFlags flags) {
   LOG(FATAL) << "Creating threads in null thread system not supported";
-  return NULL;
+  return nullptr;
 }
 
 NullCondvar::~NullCondvar() {
@@ -113,14 +105,14 @@ NullCondvar::~NullCondvar() {
   }
   // If caller set a callback for TimedWait() then they should also have
   // called TimedWait().
-  CHECK(timed_wait_callback_ == NULL);
+  CHECK(timed_wait_callback_ == nullptr);
 }
 
 void NullCondvar::TimedWait(int64 timeout_ms) {
   actions_.push_back(StrCat("TimedWait(", IntegerToString(timeout_ms), ")"));
-  if (timed_wait_callback_ != NULL) {
+  if (timed_wait_callback_ != nullptr) {
     timed_wait_callback_->Call();
-    timed_wait_callback_ = NULL;
+    timed_wait_callback_ = nullptr;
   }
 }
 

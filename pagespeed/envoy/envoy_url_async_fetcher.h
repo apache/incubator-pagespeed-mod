@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,14 +25,14 @@
 #pragma once
 #include <vector>
 
+#include "envoy_cluster_manager.h"
+#include "envoy_fetch.h"
+#include "envoy_logger.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/pool.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "envoy_fetch.h"
-#include "envoy_cluster_manager.h"
-#include "envoy_logger.h"
 
 namespace net_instaweb {
 
@@ -67,11 +67,12 @@ struct EnvoyStats {
 };
 
 class EnvoyUrlAsyncFetcher : public UrlAsyncFetcher {
-public:
-  EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thread_system, Statistics* statistics,
-                       Timer* timer, int64 timeout_ms, MessageHandler* handler);
+ public:
+  EnvoyUrlAsyncFetcher(const char* proxy, ThreadSystem* thread_system,
+                       Statistics* statistics, Timer* timer, int64 timeout_ms,
+                       MessageHandler* handler);
 
-  ~EnvoyUrlAsyncFetcher();
+  ~EnvoyUrlAsyncFetcher() override;
   static void InitStats(Statistics* statistics);
 
   // It should be called in the module init_process callback function. Do some
@@ -84,7 +85,7 @@ public:
   bool SupportsHttps() const override { return false; }
 
   void Fetch(const GoogleString& url, MessageHandler* message_handler,
-                     AsyncFetch* callback) override;
+             AsyncFetch* callback) override;
 
   // Remove the completed fetch from the active fetch set, and put it into a
   // completed fetch list to be cleaned up.
@@ -93,8 +94,12 @@ public:
 
   // Indicates that it should track the original content length for
   // fetched resources.
-  bool track_original_content_length() { return track_original_content_length_; }
-  void set_track_original_content_length(bool x) { track_original_content_length_ = x; }
+  bool track_original_content_length() {
+    return track_original_content_length_;
+  }
+  void set_track_original_content_length(bool x) {
+    track_original_content_length_ = x;
+  }
 
   // AnyPendingFetches is accurate only at the time of call; this is
   // used conservatively during shutdown.  It counts fetches that have been
@@ -112,10 +117,10 @@ public:
   bool shutdown() const { return shutdown_; }
   void set_shutdown(bool s) { shutdown_ = s; }
 
-protected:
+ protected:
   typedef Pool<EnvoyFetch> EnvoyFetchPool;
 
-private:
+ private:
   void FetchWithEnvoy();
 
   static void TimeoutHandler();
@@ -146,4 +151,4 @@ private:
   DISALLOW_COPY_AND_ASSIGN(EnvoyUrlAsyncFetcher);
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

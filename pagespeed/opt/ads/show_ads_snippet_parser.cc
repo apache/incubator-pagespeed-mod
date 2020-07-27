@@ -68,8 +68,7 @@ StringPiece StripAnyEnclosingQuotes(StringPiece input) {
 // Advances to the next token, skipping whitespaces and comments. The state of
 // token and type is updated when moving to the next token.
 void AdvanceToNextNoneWhiteSpaceCommentToken(
-    pagespeed::js::JsTokenizer* tokenizer,
-    StringPiece* token,
+    pagespeed::js::JsTokenizer* tokenizer, StringPiece* token,
     pagespeed::JsKeywords::Type* type) {
   do {
     (*type) = tokenizer->NextToken(token);

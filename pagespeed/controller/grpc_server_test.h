@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_GRPC_SERVER_TEST_H_
 #define PAGESPEED_CONTROLLER_GRPC_SERVER_TEST_H_
 
@@ -28,10 +27,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/base/thread_system.h"
-
 #include "pagespeed/kernel/util/grpc.h"
-
-
 
 namespace net_instaweb {
 
@@ -40,7 +36,7 @@ namespace net_instaweb {
 class GrpcServerTest : public testing::Test {
  public:
   GrpcServerTest();
-  virtual ~GrpcServerTest();
+  ~GrpcServerTest() override;
 
   // Binds server_ to the address returned by ListenAddress().
   void SetUp() override;
@@ -60,8 +56,7 @@ class GrpcServerTest : public testing::Test {
    public:
     BaseClientConnection(const GoogleString& address)
         : channel_(::grpc::CreateChannel(
-              address, ::grpc::InsecureChannelCredentials())) {
-    }
+              address, ::grpc::InsecureChannelCredentials())) {}
 
     ::grpc::ClientContext client_ctx_;
     std::shared_ptr<::grpc::Channel> channel_;
@@ -75,7 +70,7 @@ class GrpcServerTest : public testing::Test {
    public:
     GrpcServerThread(::grpc::CompletionQueue* queue,
                      ThreadSystem* thread_system);
-    virtual ~GrpcServerThread();
+    ~GrpcServerThread() override;
     void Stop();
 
    private:

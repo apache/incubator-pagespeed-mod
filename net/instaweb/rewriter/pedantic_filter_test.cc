@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/pedantic_filter.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -29,12 +28,11 @@ namespace net_instaweb {
 
 class PedanticFilterTest : public HtmlParseTestBase {
  protected:
-  PedanticFilterTest()
-      : pedantic_filter_(&html_parse_) {
+  PedanticFilterTest() : pedantic_filter_(&html_parse_) {
     html_parse_.AddFilter(&pedantic_filter_);
   }
 
-  virtual bool AddBody() const { return false; }
+  bool AddBody() const override { return false; }
 
  private:
   PedanticFilter pedantic_filter_;

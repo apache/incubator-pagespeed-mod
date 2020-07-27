@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_JS_JS_TOKENIZER_H_
 #define PAGESPEED_KERNEL_JS_JS_TOKENIZER_H_
 
@@ -97,7 +96,7 @@ class JsTokenizer {
   enum ParseState {
     kStartOfInput,  // For convenience, the bottom of the stack is always this.
     kExpression,
-    kOperator,      // A prefix or binary operator (including some keywords).
+    kOperator,  // A prefix or binary operator (including some keywords).
     kPeriod,
     kQuestionMark,
     kOpenBrace,
@@ -144,13 +143,11 @@ class JsTokenizer {
   // For each of these methods, if the start of the input is that kind of
   // token, consumes the token and returns true, otherwise returns false
   // without making changes.
-  bool TryConsumeComment(
-      JsKeywords::Type* type_out, StringPiece* token_out);
-  bool TryConsumeIdentifierOrKeyword(
-      JsKeywords::Type* type_out, StringPiece* token_out);
-  bool TryConsumeWhitespace(
-      bool allow_semicolon_insertion,
-      JsKeywords::Type* type_out, StringPiece* token_out);
+  bool TryConsumeComment(JsKeywords::Type* type_out, StringPiece* token_out);
+  bool TryConsumeIdentifierOrKeyword(JsKeywords::Type* type_out,
+                                     StringPiece* token_out);
+  bool TryConsumeWhitespace(bool allow_semicolon_insertion,
+                            JsKeywords::Type* type_out, StringPiece* token_out);
 
   // Sets error_ to true and returns an error token.
   JsKeywords::Type Error(StringPiece* token_out);

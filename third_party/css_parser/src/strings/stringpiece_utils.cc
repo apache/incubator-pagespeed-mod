@@ -20,6 +20,7 @@
 #include "strings/stringpiece_utils.h"
 
 #include <vector>
+
 #include "strings/ascii_ctype.h"
 
 namespace strings {

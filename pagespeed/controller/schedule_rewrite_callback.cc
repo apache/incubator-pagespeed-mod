@@ -17,23 +17,18 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/schedule_rewrite_callback.h"
 
 namespace net_instaweb {
 
-ScheduleRewriteContext::ScheduleRewriteContext() {
-}
+ScheduleRewriteContext::ScheduleRewriteContext() {}
 
-ScheduleRewriteContext::~ScheduleRewriteContext() {
-}
+ScheduleRewriteContext::~ScheduleRewriteContext() {}
 
-ScheduleRewriteCallback::ScheduleRewriteCallback(
-    const GoogleString& key, Sequence* sequence)
-    : CentralControllerCallback<ScheduleRewriteContext>(sequence), key_(key) {
-}
+ScheduleRewriteCallback::ScheduleRewriteCallback(const GoogleString& key,
+                                                 Sequence* sequence)
+    : CentralControllerCallback<ScheduleRewriteContext>(sequence), key_(key) {}
 
-ScheduleRewriteCallback::~ScheduleRewriteCallback() {
-}
+ScheduleRewriteCallback::~ScheduleRewriteCallback() {}
 
 }  // namespace net_instaweb

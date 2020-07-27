@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "base/logging.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"

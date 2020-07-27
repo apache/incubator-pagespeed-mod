@@ -17,9 +17,9 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/dedup_inlined_images_filter.h"
 
 #include "net/instaweb/public/global_constants.h"
-#include "net/instaweb/rewriter/public/dedup_inlined_images_filter.h"
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -97,12 +97,11 @@ constexpr char kHtmlWrapperFormat[] =
 class DedupInlinedImagesTest : public RewriteTestBase,
                                public ::testing::WithParamInterface<bool> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     SetFiltersAndOptions();
     rewrite_driver()->AddFilters();
-    SetCurrentUserAgent(
-        UserAgentMatcherTestBase::kChrome18UserAgent);
+    SetCurrentUserAgent(UserAgentMatcherTestBase::kChrome18UserAgent);
 
     AddFileToMockFetcher(StrCat(kTestDomain, kCuppaPngFilename),
                          kCuppaPngFilename, kContentTypePng, 100);
@@ -116,8 +115,7 @@ class DedupInlinedImagesTest : public RewriteTestBase,
         StrCat("<script type=\"text/javascript\" data-pagespeed-no-defer>",
                static_asset_manager->GetAsset(
                    StaticAssetEnum::DEDUP_INLINED_IMAGES_JS, options()),
-               DedupInlinedImagesFilter::kDiiInitializer,
-               "</script>");
+               DedupInlinedImagesFilter::kDiiInitializer, "</script>");
   }
 
   virtual void SetFiltersAndOptions() {
@@ -131,14 +129,14 @@ class DedupInlinedImagesTest : public RewriteTestBase,
                        const GoogleString& head_html_out,
                        const GoogleString& body_html_in,
                        const GoogleString& body_html_out) {
-    GoogleString url(StrCat(
-        "http://test.com/", case_id, ".html?PageSpeed=noscript"));
-    GoogleString html_in (absl::StrFormat(
+    GoogleString url(
+        StrCat("http://test.com/", case_id, ".html?PageSpeed=noscript"));
+    GoogleString html_in(absl::StrFormat(
         kHtmlWrapperFormat, head_html_in.c_str(), body_html_in.c_str()));
-    GoogleString body_out(StrCat (absl::StrFormat(kNoScriptRedirectFormatter,
-                                              url.c_str(), url.c_str()),
-                                 body_html_out));
-    GoogleString html_out (absl::StrFormat(
+    GoogleString body_out(StrCat(
+        absl::StrFormat(kNoScriptRedirectFormatter, url.c_str(), url.c_str()),
+        body_html_out));
+    GoogleString html_out(absl::StrFormat(
         kHtmlWrapperFormat, head_html_out.c_str(), body_out.c_str()));
 
     Parse(case_id, html_in);
@@ -161,10 +159,10 @@ TEST_F(DedupInlinedImagesTest, Simple) {
 
 TEST_F(DedupInlinedImagesTest, InlineSingleSmallImage) {
   // Add an id to the first occurence.
-  TestDedupImages("inline_single_small_image", "", "",
-                  StrCat("<img src='", kCuppaPngFilename, "'>"),
-                  StrCat("<img src='", kCuppaPngInlineData,
-                         "' id=\"pagespeed_img_01\">"));
+  TestDedupImages(
+      "inline_single_small_image", "", "",
+      StrCat("<img src='", kCuppaPngFilename, "'>"),
+      StrCat("<img src='", kCuppaPngInlineData, "' id=\"pagespeed_img_01\">"));
 }
 
 TEST_F(DedupInlinedImagesTest, DontInlineLargeImage) {
@@ -177,10 +175,9 @@ TEST_F(DedupInlinedImagesTest, DedupSecondSmallImage) {
   // Add an id to the first occurence and convert the second to JavaScript.
   TestDedupImages(
       "dedup_second_small_image", "", "",
-      StrCat("<img src='", kCuppaPngFilename, "'>\n",
-             "<img src='", kCuppaPngFilename, "'>"),
-      StrCat("<img src='", kCuppaPngInlineData,
-             "' id=\"pagespeed_img_01\">\n",
+      StrCat("<img src='", kCuppaPngFilename, "'>\n", "<img src='",
+             kCuppaPngFilename, "'>"),
+      StrCat("<img src='", kCuppaPngInlineData, "' id=\"pagespeed_img_01\">\n",
              InsertScriptBefore(
                  StrCat("<img id=\"pagespeed_img_02\">",
                         absl::StrFormat(kInlinedScriptFormat, 3, 1, 2, 3)))));
@@ -202,52 +199,49 @@ TEST_F(DedupInlinedImagesTest, DedupManySmallImages) {
 
 TEST_F(DedupInlinedImagesTest, DedupSecondSmallImageWithId) {
   // Keep the id on the first occurence and convert the second to JavaScript.
-  TestDedupImages("dedup_second_small_image_with_id", "", "",
-                  StrCat("<img src='", kCuppaPngFilename, "' id='xyzzy'>\n",
-                         "<img src='", kCuppaPngFilename, "'>"),
-                  StrCat("<img src='", kCuppaPngInlineData, "' id='xyzzy'>\n",
-                         InsertScriptBefore(
-                             "<img id=\"pagespeed_img_01\">"
-                             "<script type=\"text/javascript\""
-                             " id=\"pagespeed_script_2\""
-                             " data-pagespeed-no-defer>"
-                             "pagespeed.dedupInlinedImages.inlineImg("
-                             "'xyzzy',"
-                             "'pagespeed_img_01',"
-                             "'pagespeed_script_2');"
-                             "</script>")));
+  TestDedupImages(
+      "dedup_second_small_image_with_id", "", "",
+      StrCat("<img src='", kCuppaPngFilename, "' id='xyzzy'>\n", "<img src='",
+             kCuppaPngFilename, "'>"),
+      StrCat("<img src='", kCuppaPngInlineData, "' id='xyzzy'>\n",
+             InsertScriptBefore("<img id=\"pagespeed_img_01\">"
+                                "<script type=\"text/javascript\""
+                                " id=\"pagespeed_script_2\""
+                                " data-pagespeed-no-defer>"
+                                "pagespeed.dedupInlinedImages.inlineImg("
+                                "'xyzzy',"
+                                "'pagespeed_img_01',"
+                                "'pagespeed_script_2');"
+                                "</script>")));
 }
 
 TEST_F(DedupInlinedImagesTest, DedupSecondSmallImageWithAttributes) {
   // Keep all the attributes.
-  TestDedupImages("dedup_second_small_image_with_attributes", "", "",
-                  StrCat("<img src='", kCuppaPngFilename, "'>\n",
-                         "<img src='", kCuppaPngFilename,
-                         "' alt='xyzzy' id='plugh'>"),
-                  StrCat("<img src='", kCuppaPngInlineData,
-                         "' id=\"pagespeed_img_01\">\n",
-                         InsertScriptBefore(
-                             "<img alt='xyzzy' id='plugh'>"
-                             "<script type=\"text/javascript\""
-                             " id=\"pagespeed_script_2\""
-                             " data-pagespeed-no-defer>"
-                             "pagespeed.dedupInlinedImages.inlineImg("
-                             "'pagespeed_img_01',"
-                             "'plugh',"
-                             "'pagespeed_script_2');"
-                             "</script>")));
+  TestDedupImages(
+      "dedup_second_small_image_with_attributes", "", "",
+      StrCat("<img src='", kCuppaPngFilename, "'>\n", "<img src='",
+             kCuppaPngFilename, "' alt='xyzzy' id='plugh'>"),
+      StrCat("<img src='", kCuppaPngInlineData, "' id=\"pagespeed_img_01\">\n",
+             InsertScriptBefore("<img alt='xyzzy' id='plugh'>"
+                                "<script type=\"text/javascript\""
+                                " id=\"pagespeed_script_2\""
+                                " data-pagespeed-no-defer>"
+                                "pagespeed.dedupInlinedImages.inlineImg("
+                                "'pagespeed_img_01',"
+                                "'plugh',"
+                                "'pagespeed_script_2');"
+                                "</script>")));
 }
 
 TEST_F(DedupInlinedImagesTest, DisabledForOldBlackberry) {
   // This UA doesn't support LazyloadImages so nor does it support deduping.
-  SetCurrentUserAgent(
-      UserAgentMatcherTestBase::kBlackBerryOS5UserAgent);
+  SetCurrentUserAgent(UserAgentMatcherTestBase::kBlackBerryOS5UserAgent);
   GoogleString case_id("disabled_for_old_blackberry");
-  GoogleString repeated_inlined_image = StrCat(
-      "<img src='", kCuppaPngFilename, "'>\n",
-      "<img src='", kCuppaPngFilename, "'>");
-  GoogleString html_in_out (absl::StrFormat(
-      kHtmlWrapperFormat, "", repeated_inlined_image.c_str()));
+  GoogleString repeated_inlined_image =
+      StrCat("<img src='", kCuppaPngFilename, "'>\n", "<img src='",
+             kCuppaPngFilename, "'>");
+  GoogleString html_in_out(
+      absl::StrFormat(kHtmlWrapperFormat, "", repeated_inlined_image.c_str()));
   Parse(case_id, html_in_out);
   GoogleString expected_out = doctype_string_ + AddHtmlBody(html_in_out);
   EXPECT_EQ(expected_out, output_buffer_) << "Test id:" << case_id;
@@ -258,7 +252,7 @@ class DedupInlinePreviewImagesTest : public DedupInlinedImagesTest {
  public:
   DedupInlinePreviewImagesTest() : DedupInlinedImagesTest() {}
 
-  virtual void SetFiltersAndOptions() {
+  void SetFiltersAndOptions() override {
     options()->EnableFilter(RewriteOptions::kDedupInlinedImages);
     options()->EnableFilter(RewriteOptions::kDelayImages);
     options()->set_min_image_size_low_resolution_bytes(1 * 1024);
@@ -274,58 +268,56 @@ class DedupInlinePreviewImagesTest : public DedupInlinedImagesTest {
 
   GoogleString GetImageOnloadScriptBlock() const {
     return StrCat("<script data-pagespeed-no-defer type=\"text/javascript\">",
-                  DelayImagesFilter::kImageOnloadJsSnippet,
-                  "</script>");
+                  DelayImagesFilter::kImageOnloadJsSnippet, "</script>");
   }
 
   GoogleString GenerateRewrittenImageTag(const GoogleString& url,
                                          const GoogleString& low_res_src) {
-    return StrCat("<img data-pagespeed-high-res-src='", url, "'",
-                  " src='", low_res_src, "'"
-                  " onload='", DelayImagesFilter::kImageOnloadCode, "'/>");
+    return StrCat("<img data-pagespeed-high-res-src='", url, "'", " src='",
+                  low_res_src,
+                  "'"
+                  " onload='",
+                  DelayImagesFilter::kImageOnloadCode, "'/>");
   }
 };
 
 TEST_F(DedupInlinePreviewImagesTest, DedupInlinePreviewImages) {
   GoogleString image_filename = StrCat(kTestDomain, kCuppaPngFilename);
   GoogleString input_img = StrCat("<img src='", image_filename, "'/>");
-  GoogleString inlined_img =
-      StrCat("<img data-pagespeed-high-res-src='", image_filename,
-             "' src=\"", kCuppaPngWildcardData,
-             "\" onload=\"", DelayImagesFilter::kImageOnloadCode,
-             "\" onerror=\"this.onerror=null;",
-             DelayImagesFilter::kImageOnloadCode,
-             "\" id=\"pagespeed_img_01\"/>");
-  GoogleString scripted_img_fmt =
-      StrCat("<img data-pagespeed-high-res-src='", image_filename,
-             "' onload=\"", DelayImagesFilter::kImageOnloadCode,
-             "\" onerror=\"this.onerror=null;",
-             DelayImagesFilter::kImageOnloadCode,
-             "\" id=\"pagespeed_img_0%d\"/>");
-  GoogleString scripted_img_1 = absl::StrFormat(*absl::ParsedFormat<'d'>::New(scripted_img_fmt), 2);
-  GoogleString scripted_img_2 = absl::StrFormat(*absl::ParsedFormat<'d'>::New(scripted_img_fmt), 4);
+  GoogleString inlined_img = StrCat(
+      "<img data-pagespeed-high-res-src='", image_filename, "' src=\"",
+      kCuppaPngWildcardData, "\" onload=\"",
+      DelayImagesFilter::kImageOnloadCode, "\" onerror=\"this.onerror=null;",
+      DelayImagesFilter::kImageOnloadCode, "\" id=\"pagespeed_img_01\"/>");
+  GoogleString scripted_img_fmt = StrCat(
+      "<img data-pagespeed-high-res-src='", image_filename, "' onload=\"",
+      DelayImagesFilter::kImageOnloadCode, "\" onerror=\"this.onerror=null;",
+      DelayImagesFilter::kImageOnloadCode, "\" id=\"pagespeed_img_0%d\"/>");
+  GoogleString scripted_img_1 =
+      absl::StrFormat(*absl::ParsedFormat<'d'>::New(scripted_img_fmt), 2);
+  GoogleString scripted_img_2 =
+      absl::StrFormat(*absl::ParsedFormat<'d'>::New(scripted_img_fmt), 4);
   GoogleString script_1 = absl::StrFormat(kInlinedScriptFormat, 3, 1, 2, 3);
   GoogleString script_2 = absl::StrFormat(kInlinedScriptFormat, 5, 1, 4, 5);
-  GoogleString input_html = StrCat("<head></head>"
-                                   "<body>",
-                                   input_img, input_img, input_img,
-                                   "</body>");
-  GoogleString output_html = StrCat("<head></head>"
-                                    "<body>",
-                                    GetNoscript(),
-                                    GetImageOnloadScriptBlock(),
-                                    inlined_img,
-                                    InsertScriptBefore(
-                                        StrCat(scripted_img_1, script_1,
-                                               scripted_img_2, script_2)),
-                                    "</body>");
+  GoogleString input_html = StrCat(
+      "<head></head>"
+      "<body>",
+      input_img, input_img, input_img, "</body>");
+  GoogleString output_html = StrCat(
+      "<head></head>"
+      "<body>",
+      GetNoscript(), GetImageOnloadScriptBlock(), inlined_img,
+      InsertScriptBefore(
+          StrCat(scripted_img_1, script_1, scripted_img_2, script_2)),
+      "</body>");
 
   // Since the preview image has been resized use a wildcard to match it.
   Parse("dedup_inline_preview_images", input_html);
   GoogleString full_html = StrCat(doctype_string_, AddHtmlBody(output_html));
-  EXPECT_TRUE(Wildcard(full_html).Match(output_buffer_))
-      << "Output_Html:\n" << full_html << "\n"
-      << "Got:\n" << output_buffer_;
+  EXPECT_TRUE(Wildcard(full_html).Match(output_buffer_)) << "Output_Html:\n"
+                                                         << full_html << "\n"
+                                                         << "Got:\n"
+                                                         << output_buffer_;
 }
 
 }  // namespace

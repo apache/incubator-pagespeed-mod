@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_FINDER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CRITICAL_IMAGES_FINDER_H_
 
@@ -52,15 +51,13 @@ typedef std::map<GoogleString, std::pair<int32, int32> >
 // RewriteDriver and eliminate CriticalImagesInfo. Revisit this when updating
 // this class to support multiple beacon responses.
 struct CriticalImagesInfo {
-  CriticalImagesInfo()
-      : is_critical_image_info_present(false) {}
+  CriticalImagesInfo() : is_critical_image_info_present(false) {}
   StringSet html_critical_images;
   StringSet css_critical_images;
   CriticalImages proto;
   bool is_critical_image_info_present;
   RenderedImageDimensionsMap rendered_images_map;
 };
-
 
 // Finds critical images i.e. images which are above the fold for a given url.
 // This information may be used by DelayImagesFilter.
@@ -105,9 +102,7 @@ class CriticalImagesFinder {
   // criticality.  By default, SupportInteval() = 1 and we only store one beacon
   // result. The beacon critical image finder should override this to store a
   // larger number of sets.
-  virtual int SupportInterval() const {
-    return kDefaultImageSupportInterval;
-  }
+  virtual int SupportInterval() const { return kDefaultImageSupportInterval; }
 
   // Checks whether the requested image is present in the critical set or not.
   // Users of this function should also check Available() to see if the
@@ -125,10 +120,9 @@ class CriticalImagesFinder {
 
   // Returns true if rendered dimensions exist for the image_src_url and
   // populates dimensions in the std::pair.
-  bool GetRenderedImageDimensions(
-      RewriteDriver* driver,
-      const GoogleUrl& image_src_gurl,
-      std::pair<int32, int32>* dimensions);
+  bool GetRenderedImageDimensions(RewriteDriver* driver,
+                                  const GoogleUrl& image_src_gurl,
+                                  std::pair<int32, int32>* dimensions);
 
   // Get the critical image sets. Returns an empty set if there is no critical
   // image information.
@@ -160,8 +154,7 @@ class CriticalImagesFinder {
   // one of the html or css sets is being updated, but not the other.
   bool UpdateCriticalImagesCacheEntryFromDriver(
       const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      RewriteDriver* driver);
+      const StringSet* css_critical_images_set, RewriteDriver* driver);
 
   // Setup the HTML and CSS critical image sets in critical_images_info from the
   // property_value. Return true if property_value had a value, and
@@ -176,10 +169,8 @@ class CriticalImagesFinder {
   static bool UpdateCriticalImagesCacheEntry(
       const StringSet* html_critical_images_set,
       const StringSet* css_critical_images_set,
-      const RenderedImages* rendered_images_set,
-      int support_interval,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page);
+      const RenderedImages* rendered_images_set, int support_interval,
+      const PropertyCache::Cohort* cohort, AbstractPropertyPage* page);
 
   // Returns true if the critical images are available, false otherwise. This is
   // virtual only to be overridden in tests.
@@ -190,8 +181,7 @@ class CriticalImagesFinder {
       RewriteDriver* driver);
 
   // Adds the given url to the html critical image set for the driver.
-  void AddHtmlCriticalImage(const GoogleString& url,
-                            RewriteDriver* driver);
+  void AddHtmlCriticalImage(const GoogleString& url, RewriteDriver* driver);
 
   // Parses Json map returned from beacon js and populates RenderedImages proto.
   // Caller takes ownership of the returned pointer.
@@ -227,10 +217,8 @@ class CriticalImagesFinder {
   static bool UpdateAndWriteBackCriticalImagesCacheEntry(
       const StringSet* html_critical_images_set,
       const StringSet* css_critical_images_set,
-      const RenderedImages* rendered_images_set,
-      int support_interval,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page,
+      const RenderedImages* rendered_images_set, int support_interval,
+      const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
       CriticalImages* critical_images);
 
   // Gets critical images if present in the property cache and updates the
@@ -245,8 +233,7 @@ class CriticalImagesFinder {
   // critical_images_info, after checking if the property value is still valid
   // using the provided TTL.  It also updates stats variables.
   CriticalImagesInfo* ExtractCriticalImagesFromCache(
-      RewriteDriver* driver,
-      const PropertyValue* property_value);
+      RewriteDriver* driver, const PropertyValue* property_value);
 
  private:
   friend class CriticalImagesFinderTestBase;

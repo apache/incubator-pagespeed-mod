@@ -17,32 +17,28 @@
  * under the License.
  */
 
-
 #include "pagespeed/apache/header_util.h"
 
+#include "http_request.h"  // NOLINT
 #include "pagespeed/apache/mock_apache.h"
 #include "pagespeed/kernel/base/callback.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 
-#include "http_request.h"                                            // NOLINT
-
 namespace net_instaweb {
 
 class HeaderUtilTest : public testing::Test {
  public:
-  void PredicateMatchingA(StringPiece name, bool* ok) {
-    *ok = (name == "a");
-  }
+  void PredicateMatchingA(StringPiece name, bool* ok) { *ok = (name == "a"); }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     MockApache::Initialize();
     MockApache::PrepareRequest(&request_);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     MockApache::CleanupRequest(&request_);
     MockApache::Terminate();
   }
@@ -94,8 +90,7 @@ TEST_F(HeaderUtilTest, DisablePublicCaching) {
 TEST_F(HeaderUtilTest, DisableNostore) {
   SetCacheControl("must-revalidate, private, no-store");
   DisableCacheControlHeader(&request_);
-  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0,
-                      ", must-revalidate, ",
+  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0, ", must-revalidate, ",
                       HttpAttributes::kNoStore),
                GetCacheControl());
 }
@@ -104,8 +99,7 @@ TEST_F(HeaderUtilTest, DisableNostoreRetainNoCache) {
   SetCacheControl("no-cache, must-revalidate, private, no-store");
   SetLastModified("some random string");
   DisableCacheControlHeader(&request_);
-  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0,
-                      ", must-revalidate, ",
+  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0, ", must-revalidate, ",
                       HttpAttributes::kNoStore),
                GetCacheControl());
   EXPECT_STREQ("some random string", GetLastModified());
@@ -116,9 +110,8 @@ TEST_F(HeaderUtilTest, DisableCachingRelatedHeaders) {
   SetLastModified("some random string");
   DisableCachingRelatedHeaders(&request_);
   DisableCacheControlHeader(&request_);
-  EXPECT_EQ(NULL, GetLastModified());
-  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0,
-                      ", must-revalidate, ",
+  EXPECT_EQ(nullptr, GetLastModified());
+  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0, ", must-revalidate, ",
                       HttpAttributes::kNoStore),
                GetCacheControl());
 }
@@ -132,11 +125,11 @@ TEST_F(HeaderUtilTest, SelectiveRequestHeaders) {
   EXPECT_STREQ("d", all.Lookup1("c"));
   EXPECT_EQ(2, all.NumAttributes());
   HeaderUtilTest* test = this;
-  std::unique_ptr<HeaderPredicateFn> predicate(NewPermanentCallback(
-      test, &HeaderUtilTest::PredicateMatchingA));
+  std::unique_ptr<HeaderPredicateFn> predicate(
+      NewPermanentCallback(test, &HeaderUtilTest::PredicateMatchingA));
   ApacheRequestToRequestHeaders(request_, &selective, predicate.get());
   EXPECT_STREQ("b", selective.Lookup1("a"));
-  EXPECT_TRUE(selective.Lookup1("c") == NULL);
+  EXPECT_TRUE(selective.Lookup1("c") == nullptr);
   EXPECT_EQ(1, selective.NumAttributes());
 }
 

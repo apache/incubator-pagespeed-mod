@@ -24,6 +24,8 @@
 
 #include "pagespeed/kernel/cache/cache_stats.h"
 
+#include <memory>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_timer.h"
@@ -41,8 +43,6 @@
 
 namespace {
 const int kMaxSize = 100;
-const int kNumThreads = 4;
-const int kNumInserts = 10;
 }
 
 namespace net_instaweb {
@@ -56,8 +56,8 @@ class CacheStatsTest : public testing::Test {
         timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
         stats_(thread_system_.get()) {
     CacheStats::InitStats("test", &stats_);
-    cache_stats_.reset(new CacheStats("test", delay_cache_.get(), &timer_,
-                                      &stats_));
+    cache_stats_ = std::make_unique<CacheStats>("test", delay_cache_.get(),
+                                                &timer_, &stats_);
   }
 
   LRUCache lru_cache_;

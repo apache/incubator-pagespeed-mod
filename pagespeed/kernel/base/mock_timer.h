@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MOCK_TIMER_H_
 #define PAGESPEED_KERNEL_BASE_MOCK_TIMER_H_
 
-#include <vector>                       // for vector
+#include <vector>  // for vector
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -41,7 +40,7 @@ class MockTimer : public Timer {
 
   // Takes ownership of mutex.
   MockTimer(AbstractMutex* mutex, int64 time_ms);
-  virtual ~MockTimer();
+  ~MockTimer() override;
 
   // Sets the time as in microseconds, calling any outstanding alarms
   // with wakeup times up to and including time_us.
@@ -62,16 +61,15 @@ class MockTimer : public Timer {
   // Set time advances in microseconds for the next calls to
   // NowUs/NowMs, with the corresponding callback to execute right
   // before that time is returned.
-  void SetTimeDeltaUsWithCallback(int64 delta_us,
-                                  Function* callback);
+  void SetTimeDeltaUsWithCallback(int64 delta_us, Function* callback);
 
   // Set time advances in milliseconds for the next calls to NowUs/NowMs.
   void SetTimeDeltaMs(int64 delta_ms) { SetTimeDeltaUs(1000 * delta_ms); }
 
   // Returns number of microseconds since 1970.
-  virtual int64 NowUs() const;
-  virtual void SleepUs(int64 us) { AdvanceUs(us); }
-  virtual void SleepMs(int64 ms) { AdvanceUs(1000 * ms); }
+  int64 NowUs() const override;
+  void SleepUs(int64 us) override { AdvanceUs(us); }
+  void SleepMs(int64 ms) override { AdvanceUs(1000 * ms); }
 
  private:
   typedef struct {

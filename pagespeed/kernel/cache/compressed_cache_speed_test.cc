@@ -55,8 +55,8 @@ namespace {
 class EmptyCallback : public net_instaweb::CacheInterface::Callback {
  public:
   EmptyCallback() {}
-  virtual ~EmptyCallback() {}
-  virtual void Done(net_instaweb::CacheInterface::KeyState state) {}
+  ~EmptyCallback() override {}
+  void Done(net_instaweb::CacheInterface::KeyState state) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyCallback);
@@ -85,7 +85,7 @@ void TestCachePayload(int payload_size, int chunk_size, int iters) {
 }
 
 static void BM_Compress1MHighEntropy(benchmark::State& state) {
-  TestCachePayload(1000*1000, 1000*1000, state.iterations());
+  TestCachePayload(1000 * 1000, 1000 * 1000, state.iterations());
 }
 
 static void BM_Compress1KHighEntropy(benchmark::State& state) {
@@ -93,7 +93,7 @@ static void BM_Compress1KHighEntropy(benchmark::State& state) {
 }
 
 static void BM_Compress1MLowEntropy(benchmark::State& state) {
-  TestCachePayload(1000*1000, 1000, state.iterations());
+  TestCachePayload(1000 * 1000, 1000, state.iterations());
 }
 
 static void BM_Compress1KLowEntropy(benchmark::State& state) {

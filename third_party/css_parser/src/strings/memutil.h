@@ -23,28 +23,27 @@
 #include "strings/ascii_ctype.h"
 
 // The ""'s catch people who don't pass in a literal for "str"
-#define strliterallen(str) (sizeof("" str "")-1)
+#define strliterallen(str) (sizeof("" str "") - 1)
 
-inline int memcasecmp(const char *s1, const char *s2, size_t len) {
-  const unsigned char *us1 = reinterpret_cast<const unsigned char *>(s1);
-  const unsigned char *us2 = reinterpret_cast<const unsigned char *>(s2);
+inline int memcasecmp(const char* s1, const char* s2, size_t len) {
+  const unsigned char* us1 = reinterpret_cast<const unsigned char*>(s1);
+  const unsigned char* us2 = reinterpret_cast<const unsigned char*>(s2);
 
-  for ( int i = 0; i < len; i++ ) {
+  for (int i = 0; i < len; i++) {
     const int diff =
-      static_cast<int>(static_cast<unsigned char>(ascii_tolower(us1[i]))) -
-      static_cast<int>(static_cast<unsigned char>(ascii_tolower(us2[i])));
+        static_cast<int>(static_cast<unsigned char>(ascii_tolower(us1[i]))) -
+        static_cast<int>(static_cast<unsigned char>(ascii_tolower(us2[i])));
     if (diff != 0) return diff;
   }
   return 0;
 }
 
-#define memcaseis(str, len, literal)                            \
-   ( (((len) == strliterallen(literal))                         \
-      && memcasecmp(str, literal, strliterallen(literal)) == 0) )
+#define memcaseis(str, len, literal)     \
+  ((((len) == strliterallen(literal)) && \
+    memcasecmp(str, literal, strliterallen(literal)) == 0))
 
-#define memis(str, len, literal)                                \
-   ( (((len) == strliterallen(literal))                         \
-      && memcmp(str, literal, strliterallen(literal)) == 0) )
-
+#define memis(str, len, literal)         \
+  ((((len) == strliterallen(literal)) && \
+    memcmp(str, literal, strliterallen(literal)) == 0))
 
 #endif  // MEMUTIL_H_

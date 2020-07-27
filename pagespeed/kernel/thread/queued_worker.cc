@@ -29,19 +29,15 @@ namespace net_instaweb {
 class Function;
 
 QueuedWorker::QueuedWorker(StringPiece thread_name, ThreadSystem* runtime)
-    : Worker(thread_name, runtime) {
-}
+    : Worker(thread_name, runtime) {}
 
-QueuedWorker::~QueuedWorker() {
-}
+QueuedWorker::~QueuedWorker() {}
 
 void QueuedWorker::RunInWorkThread(Function* closure) {
   bool ok = QueueIfPermitted(closure);
   CHECK(ok);
 }
 
-bool QueuedWorker::IsPermitted(Function* closure) {
-  return true;
-}
+bool QueuedWorker::IsPermitted(Function* closure) { return true; }
 
 }  // namespace net_instaweb

@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_HTTP_HEADERS_H_
 #define PAGESPEED_KERNEL_HTTP_HEADERS_H_
 
@@ -39,7 +37,8 @@ class StringMultiMapInsensitive;
 class Writer;
 
 // Read/write API for HTTP headers (shared base class)
-template<class Proto> class Headers {
+template <class Proto>
+class Headers {
  public:
   // typedef's for manipulating the cookie multimap.
   typedef std::pair<StringPiece, StringPiece> ValueAndAttributes;
@@ -136,15 +135,13 @@ template<class Proto> class Headers {
 
   // Removes all headers whose name is in |names|, which must be in
   // case-insensitive sorted order.
-  bool RemoveAllFromSortedArray(const StringPiece* names,
-                                int names_size);
+  bool RemoveAllFromSortedArray(const StringPiece* names, int names_size);
 
   // Removes all headers whose name is in |names|, which must be in
   // string-insensitive sorted order.  Returns true if anything was
   // removed.
-  template<class StringType>
-  static bool RemoveFromHeaders(const StringType* names,
-                                int names_size,
+  template <class StringType>
+  static bool RemoveFromHeaders(const StringType* names, int names_size,
                                 protobuf::RepeatedPtrField<NameValue>* headers);
 
   // Removes all headers whose name starts with prefix.  Returns true if

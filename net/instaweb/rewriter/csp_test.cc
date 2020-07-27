@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/csp.h"
 
 #include <iostream>
@@ -45,204 +44,162 @@ namespace net_instaweb {
 namespace {
 
 TEST(CspParseSourceTest, Quoted) {
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kSelf),
-      CspSourceExpression::Parse("'self' "));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kSelf),
+            CspSourceExpression::Parse("'self' "));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kSelf),
-      CspSourceExpression::Parse("   'sElf' "));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kSelf),
+            CspSourceExpression::Parse("   'sElf' "));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kStrictDynamic),
-      CspSourceExpression::Parse("  \t 'strict-dynamic' "));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kStrictDynamic),
+            CspSourceExpression::Parse("  \t 'strict-dynamic' "));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("  \t 'strictly-unknown' "));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("  \t 'strictly-unknown' "));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnsafeInline),
-      CspSourceExpression::Parse("'unsafe-inline'"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnsafeInline),
+            CspSourceExpression::Parse("'unsafe-inline'"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnsafeEval),
-      CspSourceExpression::Parse("'unsafe-eval'"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnsafeEval),
+            CspSourceExpression::Parse("'unsafe-eval'"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("'unsafe-eviiiiiil'"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("'unsafe-eviiiiiil'"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnsafeHashedAttributes),
-      CspSourceExpression::Parse("'unsafe-hashed-attribUtes'"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnsafeHashedAttributes),
+            CspSourceExpression::Parse("'unsafe-hashed-attribUtes'"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kHashOrNonce),
-      CspSourceExpression::Parse("'nonce-qwertyu12345'"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kHashOrNonce),
+            CspSourceExpression::Parse("'nonce-qwertyu12345'"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kHashOrNonce),
-      CspSourceExpression::Parse("'sha256-qwertyu12345='"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kHashOrNonce),
+            CspSourceExpression::Parse("'sha256-qwertyu12345='"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kHashOrNonce),
-      CspSourceExpression::Parse("'sha256-qwertyu12345/=='"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kHashOrNonce),
+            CspSourceExpression::Parse("'sha256-qwertyu12345/=='"));
 
   // Some base64 errors.
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("'sha256-'"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("'sha256-'"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("'sha256-qwertyu12345========'"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("'sha256-qwertyu12345========'"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("'sha256-qwertyu1.2345'"));
-
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("'sha256-qwertyu1.2345'"));
 
   // Not a valid hashing algorithm.
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("'sha1-qwertyu12345'"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("'sha1-qwertyu12345'"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("''"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("''"));
 }
 
 TEST(CspParseSourceTest, NonQuoted) {
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("   "));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("   "));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kSchemeSource,
                           CspSourceExpression::UrlData("https", "", "", "")),
       CspSourceExpression::Parse(" https:"));
 
-  EXPECT_EQ(
-      CspSourceExpression(
-            CspSourceExpression::kSchemeSource,
-            CspSourceExpression::UrlData("weird-scheme+-1.0", "", "", "")),
-      CspSourceExpression::Parse("weird-scheme+-1.0:"));
+  EXPECT_EQ(CspSourceExpression(
+                CspSourceExpression::kSchemeSource,
+                CspSourceExpression::UrlData("weird-scheme+-1.0", "", "", "")),
+            CspSourceExpression::Parse("weird-scheme+-1.0:"));
 
-  EXPECT_EQ(
-      CspSourceExpression(
-            CspSourceExpression::kHostSource,
-            CspSourceExpression::UrlData("", "*.example.com", "", "")),
-      CspSourceExpression::Parse("*.example.com"));
+  EXPECT_EQ(CspSourceExpression(
+                CspSourceExpression::kHostSource,
+                CspSourceExpression::UrlData("", "*.example.com", "", "")),
+            CspSourceExpression::Parse("*.example.com"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("*example.com"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("*example.com"));
 
   // w/o a colon this is a hostname, not a scheme.
   EXPECT_EQ(
-      CspSourceExpression(
-          CspSourceExpression::kHostSource,
-          CspSourceExpression::UrlData("", "http", "", "")),
+      CspSourceExpression(CspSourceExpression::kHostSource,
+                          CspSourceExpression::UrlData("", "http", "", "")),
       CspSourceExpression::Parse("http"));
 
   EXPECT_EQ(
-      CspSourceExpression(
-            CspSourceExpression::kHostSource,
-            CspSourceExpression::UrlData("http", "www.example.com", "",
-                                         "/dir", true)),
+      CspSourceExpression(CspSourceExpression::kHostSource,
+                          CspSourceExpression::UrlData(
+                              "http", "www.example.com", "", "/dir", true)),
       CspSourceExpression::Parse("http://www.example.com/dir"));
 
   EXPECT_EQ(
-      CspSourceExpression(
-            CspSourceExpression::kHostSource,
-            CspSourceExpression::UrlData("http", "www.example.com", "",
-                                         "/dir", false)),
+      CspSourceExpression(CspSourceExpression::kHostSource,
+                          CspSourceExpression::UrlData(
+                              "http", "www.example.com", "", "/dir", false)),
       CspSourceExpression::Parse("http://www.example.com/dir/"));
 
-
-  EXPECT_EQ(
-      CspSourceExpression(
-            CspSourceExpression::kHostSource,
-            CspSourceExpression::UrlData("http", "www.example.com", "",
-                                         "/dir/file.js", true)),
-      CspSourceExpression::Parse("http://www.example.com/dir/file.js"));
-
-  EXPECT_EQ(
-      CspSourceExpression(
-            CspSourceExpression::kHostSource,
-            CspSourceExpression::UrlData("", "www.example.com", "",
-                                         "/dir/file.js", true)),
-      CspSourceExpression::Parse("www.example.com/dir/file.js"));
+  EXPECT_EQ(CspSourceExpression(
+                CspSourceExpression::kHostSource,
+                CspSourceExpression::UrlData("http", "www.example.com", "",
+                                             "/dir/file.js", true)),
+            CspSourceExpression::Parse("http://www.example.com/dir/file.js"));
 
   EXPECT_EQ(
       CspSourceExpression(CspSourceExpression::kHostSource,
-                          CspSourceExpression::UrlData("", "*", "", "")),
-      CspSourceExpression::Parse("*"));
+                          CspSourceExpression::UrlData(
+                              "", "www.example.com", "", "/dir/file.js", true)),
+      CspSourceExpression::Parse("www.example.com/dir/file.js"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("http:!/example.com"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kHostSource,
+                                CspSourceExpression::UrlData("", "*", "", "")),
+            CspSourceExpression::Parse("*"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("http://"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("http:!/example.com"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("http:/"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("http://"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("http:/example.com"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("http:/"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("?example.com/dir/file.js"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("http:/example.com"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("http:///dir/file.js"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("?example.com/dir/file.js"));
 
-  EXPECT_EQ(
-      CspSourceExpression(
-          CspSourceExpression::kHostSource,
-          CspSourceExpression::UrlData("https", "*", "*", "/foo.js", true)),
-      CspSourceExpression::Parse("https://*:*/foo.js"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("http:///dir/file.js"));
+
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kHostSource,
+                                CspSourceExpression::UrlData("https", "*", "*",
+                                                             "/foo.js", true)),
+            CspSourceExpression::Parse("https://*:*/foo.js"));
 
   // Test for no port after :. Note that this needs an explicit scheme, since
   // www.example.com: would be a valid scheme-source!
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("http://www.example.com:"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("http://www.example.com:"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("www.example.com:/foo"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("www.example.com:/foo"));
 
-  EXPECT_EQ(
-      CspSourceExpression(
-          CspSourceExpression::kHostSource,
-          CspSourceExpression::UrlData("https", "*", "443", "/foo.js", true)),
-      CspSourceExpression::Parse("https://*:443/foo.js"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kHostSource,
+                                CspSourceExpression::UrlData(
+                                    "https", "*", "443", "/foo.js", true)),
+            CspSourceExpression::Parse("https://*:443/foo.js"));
 
-  EXPECT_EQ(
-      CspSourceExpression(CspSourceExpression::kUnknown),
-      CspSourceExpression::Parse("https://*:443?foo.js"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kUnknown),
+            CspSourceExpression::Parse("https://*:443?foo.js"));
 
   // Case normalization.
-  EXPECT_EQ(
-      CspSourceExpression(
-          CspSourceExpression::kHostSource,
-          CspSourceExpression::UrlData("https", "www.example.com", "", "")),
-      CspSourceExpression::Parse(" HttPs://www.EXAMPLE.com"));
+  EXPECT_EQ(CspSourceExpression(CspSourceExpression::kHostSource,
+                                CspSourceExpression::UrlData(
+                                    "https", "www.example.com", "", "")),
+            CspSourceExpression::Parse(" HttPs://www.EXAMPLE.com"));
 }
 
 class CspMatchSourceTest : public ::testing::Test {
  protected:
-  void CheckMatch(bool expectation,
-                  StringPiece expression,
-                  StringPiece origin,
+  void CheckMatch(bool expectation, StringPiece expression, StringPiece origin,
                   StringPiece url) {
     GoogleUrl origin_gurl(origin);
     GoogleUrl url_gurl(url);
@@ -282,8 +239,7 @@ TEST_F(CspMatchSourceTest, Universal) {
   CheckMatch(false, "*", "gopher://origin", "wss://www.example.com");
 
   // Note that data: in particular is not intended to be matched by *
-  CheckMatch(false, "*", "http://www.example.com",
-                         "data:text/plain,stuff");
+  CheckMatch(false, "*", "http://www.example.com", "data:text/plain,stuff");
 
   // Other schemes have to match origin to be permitted.
   CheckMatch(true, "*", "gopher://origin", "gopher://www.example.com");
@@ -337,9 +293,9 @@ TEST_F(CspMatchSourceTest, Schemeless) {
   // TODO(oschaaf): Fails. Take a closer look at this.
   // Probably related to the upgraded GURL version, but we should
   // make sure.
-  //CheckMatch(true, "www.example.com", "gopher://whatever",
+  // CheckMatch(true, "www.example.com", "gopher://whatever",
   //           "gopher://www.example.com/foo.js");
-  
+
   CheckMatch(false, "www.example.com", "alpha://whatever",
              "beta://www.example.com/foo.js");
 
@@ -363,8 +319,7 @@ TEST_F(CspMatchSourceTest, Host) {
              "http://www.example.com/foo.js");
   CheckMatch(false, "http://*.exAmple.com", "http://whatever",
              "http://example.com/foo.js");
-  CheckMatch(true, "http://*", "http://whatever",
-             "http://example.com/foo.js");
+  CheckMatch(true, "http://*", "http://whatever", "http://example.com/foo.js");
 }
 
 TEST_F(CspMatchSourceTest, Port) {
@@ -438,7 +393,6 @@ TEST_F(CspMatchSourceTest, CaseSensitivity) {
   CheckMatch(false, "http://www.example.com/a.js", "gopher://whatever",
              "http://www.example.com/A.JS");
 
-
   // Make sure the logic about default ports works correctly with
   // weird case, too.
   CheckMatch(true, "'self'", "http://www.example.com",
@@ -492,8 +446,7 @@ TEST(CspParseSourceListTest, Flags) {
   }
 
   {
-    std::unique_ptr<CspSourceList> s4(
-        CspSourceList::Parse("'strict-dynamic'"));
+    std::unique_ptr<CspSourceList> s4(CspSourceList::Parse("'strict-dynamic'"));
     EXPECT_FALSE(s4->saw_unsafe_inline());
     EXPECT_FALSE(s4->saw_unsafe_eval());
     EXPECT_TRUE(s4->saw_strict_dynamic());
@@ -502,8 +455,7 @@ TEST(CspParseSourceListTest, Flags) {
   }
 
   {
-    std::unique_ptr<CspSourceList> s5(
-        CspSourceList::Parse("'sha256-01234'"));
+    std::unique_ptr<CspSourceList> s5(CspSourceList::Parse("'sha256-01234'"));
     EXPECT_FALSE(s5->saw_unsafe_inline());
     EXPECT_FALSE(s5->saw_unsafe_eval());
     EXPECT_FALSE(s5->saw_strict_dynamic());
@@ -600,15 +552,15 @@ TEST(CspPolicyTest, Eval) {
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "default-src *; script-src 'unsafe-eval'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("default-src *; script-src 'unsafe-eval'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_TRUE(p->PermitsEval());
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "default-src 'unsafe-eval'; script-src *"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("default-src 'unsafe-eval'; script-src *"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_FALSE(p->PermitsEval());
   }
@@ -637,24 +589,24 @@ TEST(CspPolicyTest, InlineScript) {
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "script-src 'unsafe-inline'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("script-src 'unsafe-inline'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_TRUE(p->PermitsInlineScript());
     EXPECT_TRUE(p->PermitsInlineScriptAttribute());
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "script-src 'unsafe-inline' 'sha256-123467ab'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("script-src 'unsafe-inline' 'sha256-123467ab'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_FALSE(p->PermitsInlineScript());
     EXPECT_FALSE(p->PermitsInlineScriptAttribute());
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "script-src 'unsafe-inline' 'strict-dynamic'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("script-src 'unsafe-inline' 'strict-dynamic'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_FALSE(p->PermitsInlineScript());
     EXPECT_FALSE(p->PermitsInlineScriptAttribute());
@@ -663,9 +615,9 @@ TEST(CspPolicyTest, InlineScript) {
   {
     // TODO(morlovich): This behavior seems to follow from the spec, but doesn't
     // make much sense, verify and file spec feedback?
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "script-src 'unsafe-inline' 'strict-dynamic' "
-        "'unsafe-hashed-attributes'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("script-src 'unsafe-inline' 'strict-dynamic' "
+                         "'unsafe-hashed-attributes'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_FALSE(p->PermitsInlineScript());
     EXPECT_TRUE(p->PermitsInlineScriptAttribute());
@@ -695,33 +647,32 @@ TEST(CspPolicyTest, InlineStyle) {
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "style-src 'unsafe-inline'"));
+    std::unique_ptr<CspPolicy> p(CspPolicy::Parse("style-src 'unsafe-inline'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_TRUE(p->PermitsInlineStyle());
     EXPECT_TRUE(p->PermitsInlineStyleAttribute());
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "style-src 'unsafe-inline' 'sha256-123467ab'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("style-src 'unsafe-inline' 'sha256-123467ab'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_FALSE(p->PermitsInlineStyle());
     EXPECT_FALSE(p->PermitsInlineStyleAttribute());
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "style-src 'unsafe-inline' 'strict-dynamic'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("style-src 'unsafe-inline' 'strict-dynamic'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_FALSE(p->PermitsInlineStyle());
     EXPECT_FALSE(p->PermitsInlineStyleAttribute());
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "style-src 'unsafe-inline' 'strict-dynamic' "
-        "'unsafe-hashed-attributes'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("style-src 'unsafe-inline' 'strict-dynamic' "
+                         "'unsafe-hashed-attributes'"));
     ASSERT_TRUE(p != nullptr);
     EXPECT_FALSE(p->PermitsInlineStyle());
     EXPECT_FALSE(p->PermitsInlineStyleAttribute());
@@ -758,8 +709,8 @@ TEST(CspPolicyTest, CanLoadUrl) {
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "default-src *; img-src 'self'"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("default-src *; img-src 'self'"));
     EXPECT_FALSE(p->CanLoadUrl(CspDirective::kImgSrc,
                                GoogleUrl("http://www.example.com/"),
                                GoogleUrl("http://www.example.org/foo.png")));
@@ -800,8 +751,8 @@ TEST(CspParseTest, BaseUri) {
   }
 
   {
-    std::unique_ptr<CspPolicy> p(CspPolicy::Parse(
-        "base-uri *.example.com *.example.org"));
+    std::unique_ptr<CspPolicy> p(
+        CspPolicy::Parse("base-uri *.example.com *.example.org"));
     EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),
                                    GoogleUrl("https://sub.example.com")));
     EXPECT_TRUE(p->IsBasePermitted(GoogleUrl("http://example.com"),

@@ -17,15 +17,12 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/central_controller.h"
 
 namespace net_instaweb {
 
-CentralController::CentralController() {
-}
+CentralController::CentralController() {}
 
-CentralController::~CentralController() {
-}
+CentralController::~CentralController() {}
 
 }  // namespace net_instaweb

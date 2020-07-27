@@ -61,8 +61,8 @@ TEST(IsShowAdsApiCallJsSrcTest, MatchWithParameter) {
 }
 
 TEST(IsAdsByGoogleJsSrcTest, NoMatch) {
-  EXPECT_FALSE(IsAdsByGoogleJsSrc(
-      "//pagead2.googlesyndication.com/pagead/showads.js"));
+  EXPECT_FALSE(
+      IsAdsByGoogleJsSrc("//pagead2.googlesyndication.com/pagead/showads.js"));
 }
 
 }  // namespace

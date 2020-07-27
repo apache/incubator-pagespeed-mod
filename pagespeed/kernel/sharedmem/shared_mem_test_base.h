@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_TEST_BASE_H_
 #define PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_TEST_BASE_H_
 
@@ -132,11 +131,10 @@ class SharedMemTestBase : public testing::Test {
 
 // Passes in the SharedMemTestEnv to SharedMemTestBase via a template param
 // to help glue us to the test framework
-template<typename ConcreteTestEnv>
+template <typename ConcreteTestEnv>
 class SharedMemTestTemplate : public SharedMemTestBase {
  public:
-  SharedMemTestTemplate() : SharedMemTestBase(new ConcreteTestEnv) {
-  }
+  SharedMemTestTemplate() : SharedMemTestBase(new ConcreteTestEnv) {}
 };
 
 TYPED_TEST_SUITE_P(SharedMemTestTemplate);
@@ -174,9 +172,9 @@ TYPED_TEST_P(SharedMemTestTemplate, TestMutex) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(SharedMemTestTemplate, TestRewrite,
-                           TestRewriteReattach, TestLarge, TestDistinct,
-                           TestDestroy, TestCreateTwice, TestTwoKids,
-                           TestMutex);
+                            TestRewriteReattach, TestLarge, TestDistinct,
+                            TestDestroy, TestCreateTwice, TestTwoKids,
+                            TestMutex);
 
 }  // namespace net_instaweb
 

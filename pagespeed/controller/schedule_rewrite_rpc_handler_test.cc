@@ -17,13 +17,13 @@
  * under the License.
  */
 
+#include "pagespeed/controller/schedule_rewrite_rpc_handler.h"
 
 #include <memory>
 
-#include "pagespeed/controller/grpc_server_test.h"
 #include "pagespeed/controller/controller.grpc.pb.h"
 #include "pagespeed/controller/controller.pb.h"
-#include "pagespeed/controller/schedule_rewrite_rpc_handler.h"
+#include "pagespeed/controller/grpc_server_test.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -45,13 +45,9 @@ namespace {
 
 // Free functions to allow use of WithArgs<N>(Invoke(, because gMock doesn't
 // understand our Functions.
-void RunFunction(Function* f) {
-  f->CallRun();
-}
+void RunFunction(Function* f) { f->CallRun(); }
 
-void CancelFunction(Function* f) {
-  f->CallCancel();
-}
+void CancelFunction(Function* f) { f->CallCancel(); }
 
 class MockScheduleRewriteController : public ScheduleRewriteController {
  public:
@@ -60,7 +56,7 @@ class MockScheduleRewriteController : public ScheduleRewriteController {
     EXPECT_CALL(*this, NotifyRewriteComplete(_)).Times(0);
     EXPECT_CALL(*this, NotifyRewriteFailed(_)).Times(0);
   }
-  virtual ~MockScheduleRewriteController() { }
+  ~MockScheduleRewriteController() override {}
 
   MOCK_METHOD2(ScheduleRewrite, void(const GoogleString& key, Function* cb));
   MOCK_METHOD1(NotifyRewriteComplete, void(const GoogleString& key));
@@ -77,7 +73,7 @@ class ScheduleRewriteRpcHandlerTest : public GrpcServerTest {
  public:
   void SetUp() override {
     GrpcServerTest::SetUp();
-    client_.reset(new ClientConnection(ServerAddress()));
+    client_ = std::make_unique<ClientConnection>(ServerAddress());
   }
 
   void RegisterServices(::grpc::ServerBuilder* builder) override {
@@ -102,8 +98,7 @@ class ScheduleRewriteRpcHandlerTest : public GrpcServerTest {
     explicit ClientConnection(const GoogleString& address)
         : BaseClientConnection(address),
           stub_(CentralControllerRpcService::NewStub(channel_)),
-          reader_writer_(stub_->ScheduleRewrite(&client_ctx_)) {
-    }
+          reader_writer_(stub_->ScheduleRewrite(&client_ctx_)) {}
 
     std::unique_ptr<CentralControllerRpcService::Stub> stub_;
     std::unique_ptr<::grpc::ClientReaderWriter<ScheduleRewriteRequest,
@@ -299,8 +294,7 @@ TEST_F(ScheduleRewriteRpcHandlerTest, StatusWhileWaiting) {
       .WillOnce(WithArgs<1>(Invoke(
           &mock_controller_, &MockScheduleRewriteController::SaveFunction)));
   EXPECT_CALL(mock_controller_, NotifyRewriteFailed("hello"))
-      .WillOnce(
-          InvokeWithoutArgs(&sync, &WorkerTestBase::SyncPoint::Notify));
+      .WillOnce(InvokeWithoutArgs(&sync, &WorkerTestBase::SyncPoint::Notify));
   StartHandler();
 
   SendStartRewrite("hello");

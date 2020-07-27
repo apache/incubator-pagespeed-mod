@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/util/nonce_generator_test_base.h"
 
 #include <set>
@@ -28,15 +26,13 @@
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
 
-
 namespace net_instaweb {
 
 // Number of iterations of nonce generation to check.
 const int kNumIterations = 10000;
 const int kSmallNumIterations = 100;
 
-NonceGeneratorTestBase::~NonceGeneratorTestBase() {
-}
+NonceGeneratorTestBase::~NonceGeneratorTestBase() {}
 
 // Make sure we don't see duplicates in first segment of results.  The intent
 // here is to catch coding errors that cause trivial duplication.
@@ -61,10 +57,10 @@ void NonceGeneratorTestBase::DifferentNonOverlap() {
     seen_main.insert(nonce_main);
     uint64 nonce_other = other_generator_->NewNonce();
     seen_other.insert(nonce_other);
-    EXPECT_EQ(seen_main.end(), seen_main.find(nonce_other)) <<
-        nonce_other << " collides with main generator";
-    EXPECT_EQ(seen_other.end(), seen_other.find(nonce_main)) <<
-        nonce_main << " collides with other generator";
+    EXPECT_EQ(seen_main.end(), seen_main.find(nonce_other))
+        << nonce_other << " collides with main generator";
+    EXPECT_EQ(seen_other.end(), seen_other.find(nonce_main))
+        << nonce_main << " collides with other generator";
   }
 }
 
@@ -77,8 +73,7 @@ void NonceGeneratorTestBase::AllBitsUsed() {
   uint64 ones_found = 0;
   uint64 zeros_found = 0;
   for (int i = 0;
-       (i < kSmallNumIterations) &&
-           ((~ones_found != 0) || (~zeros_found != 0));
+       (i < kSmallNumIterations) && ((~ones_found != 0) || (~zeros_found != 0));
        ++i) {
     uint64 nonce = main_generator_->NewNonce();
     ones_found |= nonce;

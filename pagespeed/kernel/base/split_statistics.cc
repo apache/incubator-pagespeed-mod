@@ -29,11 +29,9 @@
 namespace net_instaweb {
 
 SplitUpDownCounter::SplitUpDownCounter(UpDownCounter* rw, UpDownCounter* w)
-    : rw_(rw), w_(w) {
-}
+    : rw_(rw), w_(w) {}
 
-SplitUpDownCounter::~SplitUpDownCounter() {
-}
+SplitUpDownCounter::~SplitUpDownCounter() {}
 
 void SplitUpDownCounter::Set(int64 value) {
   w_->Set(value);
@@ -45,51 +43,38 @@ int64 SplitUpDownCounter::SetReturningPreviousValue(int64 value) {
   return rw_->SetReturningPreviousValue(value);
 }
 
-int64 SplitUpDownCounter::Get() const {
-  return rw_->Get();
-}
+int64 SplitUpDownCounter::Get() const { return rw_->Get(); }
 
-StringPiece SplitUpDownCounter::GetName() const {
-  return rw_->GetName();
-}
+StringPiece SplitUpDownCounter::GetName() const { return rw_->GetName(); }
 
 int64 SplitUpDownCounter::AddHelper(int64 delta) {
   w_->Add(delta);
   return rw_->Add(delta);
 }
 
-SplitVariable::SplitVariable(Variable* rw, Variable* w)
-    : rw_(rw), w_(w) {
-}
+SplitVariable::SplitVariable(Variable* rw, Variable* w) : rw_(rw), w_(w) {}
 
-SplitVariable::~SplitVariable() {
-}
+SplitVariable::~SplitVariable() {}
 
-int64 SplitVariable::Get() const {
-  return rw_->Get();
-}
+int64 SplitVariable::Get() const { return rw_->Get(); }
 
 void SplitVariable::Clear() {
   w_->Clear();
   rw_->Clear();
 }
 
-StringPiece SplitVariable::GetName() const {
-  return rw_->GetName();
-}
+StringPiece SplitVariable::GetName() const { return rw_->GetName(); }
 
 int64 SplitVariable::AddHelper(int64 delta) {
   w_->Add(delta);
   return rw_->Add(delta);
 }
 
-SplitHistogram::SplitHistogram(
-    ThreadSystem* threads, Histogram* rw, Histogram* w)
-    : lock_(threads->NewMutex()), rw_(rw), w_(w) {
-}
+SplitHistogram::SplitHistogram(ThreadSystem* threads, Histogram* rw,
+                               Histogram* w)
+    : lock_(threads->NewMutex()), rw_(rw), w_(w) {}
 
-SplitHistogram::~SplitHistogram() {
-}
+SplitHistogram::~SplitHistogram() {}
 
 void SplitHistogram::Add(double value) {
   w_->Add(value);
@@ -107,9 +92,7 @@ void SplitHistogram::Render(int index, Writer* writer,
   rw_->Render(index, writer, handler);
 }
 
-int SplitHistogram::NumBuckets() {
-  return rw_->NumBuckets();
-}
+int SplitHistogram::NumBuckets() { return rw_->NumBuckets(); }
 
 void SplitHistogram::EnableNegativeBuckets() {
   w_->EnableNegativeBuckets();
@@ -143,9 +126,7 @@ double SplitHistogram::BucketCount(int index) {
   return rw_->BucketCount(index);
 }
 
-double SplitHistogram::AverageInternal() {
-  return rw_->Average();
-}
+double SplitHistogram::AverageInternal() { return rw_->Average(); }
 
 double SplitHistogram::PercentileInternal(const double perc) {
   return rw_->Percentile(perc);
@@ -155,37 +136,25 @@ double SplitHistogram::StandardDeviationInternal() {
   return rw_->StandardDeviation();
 }
 
-double SplitHistogram::CountInternal() {
-  return rw_->Count();
-}
+double SplitHistogram::CountInternal() { return rw_->Count(); }
 
-double SplitHistogram::MaximumInternal() {
-  return rw_->Maximum();
-}
+double SplitHistogram::MaximumInternal() { return rw_->Maximum(); }
 
-double SplitHistogram::MinimumInternal() {
-  return rw_->Minimum();
-}
+double SplitHistogram::MinimumInternal() { return rw_->Minimum(); }
 
-AbstractMutex* SplitHistogram::lock() {
-  return lock_.get();
-}
+AbstractMutex* SplitHistogram::lock() { return lock_.get(); }
 
 SplitTimedVariable::SplitTimedVariable(TimedVariable* rw, TimedVariable* w)
-    : rw_(rw), w_(w) {
-}
+    : rw_(rw), w_(w) {}
 
-SplitTimedVariable::~SplitTimedVariable() {
-}
+SplitTimedVariable::~SplitTimedVariable() {}
 
 void SplitTimedVariable::IncBy(int64 delta) {
   w_->IncBy(delta);
   rw_->IncBy(delta);
 }
 
-int64 SplitTimedVariable::Get(int level) {
-  return rw_->Get(level);
-}
+int64 SplitTimedVariable::Get(int level) { return rw_->Get(level); }
 
 void SplitTimedVariable::Clear() {
   // Clear only resets local on purpose, in case it's tied to a clear button
@@ -193,22 +162,18 @@ void SplitTimedVariable::Clear() {
   rw_->Clear();
 }
 
-SplitStatistics::SplitStatistics(
-    ThreadSystem* thread_system, Statistics* local, Statistics* global)
-    : thread_system_(thread_system),
-      local_(local),
-      global_(global) {
-}
+SplitStatistics::SplitStatistics(ThreadSystem* thread_system, Statistics* local,
+                                 Statistics* global)
+    : thread_system_(thread_system), local_(local), global_(global) {}
 
-SplitStatistics::~SplitStatistics() {
-}
+SplitStatistics::~SplitStatistics() {}
 
 SplitUpDownCounter* SplitStatistics::NewUpDownCounter(StringPiece name) {
   UpDownCounter* local_var = local_->FindUpDownCounter(name);
-  CHECK(local_var != NULL);
+  CHECK(local_var != nullptr);
 
   UpDownCounter* global_var = global_->FindUpDownCounter(name);
-  CHECK(global_var != NULL);
+  CHECK(global_var != nullptr);
 
   return new SplitUpDownCounter(local_var /* read/write */,
                                 global_var /* write only */);
@@ -216,10 +181,10 @@ SplitUpDownCounter* SplitStatistics::NewUpDownCounter(StringPiece name) {
 
 SplitVariable* SplitStatistics::NewVariable(StringPiece name) {
   Variable* local_var = local_->FindVariable(name);
-  CHECK(local_var != NULL);
+  CHECK(local_var != nullptr);
 
   Variable* global_var = global_->FindVariable(name);
-  CHECK(global_var != NULL);
+  CHECK(global_var != nullptr);
 
   return new SplitVariable(local_var /* read/write */,
                            global_var /* write only */);
@@ -227,10 +192,10 @@ SplitVariable* SplitStatistics::NewVariable(StringPiece name) {
 
 SplitUpDownCounter* SplitStatistics::NewGlobalUpDownCounter(StringPiece name) {
   UpDownCounter* local_var = local_->FindUpDownCounter(name);
-  CHECK(local_var != NULL);
+  CHECK(local_var != nullptr);
 
   UpDownCounter* global_var = global_->FindUpDownCounter(name);
-  CHECK(global_var != NULL);
+  CHECK(global_var != nullptr);
 
   // For NewGlobalUpDownCounter we reverse global and local from their usual
   // behavior in NewVariable, doing reads from the global/aggregate.
@@ -240,22 +205,21 @@ SplitUpDownCounter* SplitStatistics::NewGlobalUpDownCounter(StringPiece name) {
 
 SplitHistogram* SplitStatistics::NewHistogram(StringPiece name) {
   Histogram* local_histo = local_->FindHistogram(name);
-  CHECK(local_histo != NULL);
+  CHECK(local_histo != nullptr);
 
   Histogram* global_histo = global_->FindHistogram(name);
-  CHECK(global_histo != NULL);
+  CHECK(global_histo != nullptr);
 
-  return new SplitHistogram(thread_system_,
-                            local_histo /* read/write */,
+  return new SplitHistogram(thread_system_, local_histo /* read/write */,
                             global_histo /* write only */);
 }
 
 SplitTimedVariable* SplitStatistics::NewTimedVariable(StringPiece name) {
   TimedVariable* local_timed_var = local_->FindTimedVariable(name);
-  CHECK(local_timed_var != NULL);
+  CHECK(local_timed_var != nullptr);
 
   TimedVariable* global_timed_var = global_->FindTimedVariable(name);
-  CHECK(global_timed_var != NULL);
+  CHECK(global_timed_var != nullptr);
 
   return new SplitTimedVariable(local_timed_var /* read/write */,
                                 global_timed_var /* write only */);

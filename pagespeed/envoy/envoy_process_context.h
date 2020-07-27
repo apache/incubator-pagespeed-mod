@@ -34,21 +34,23 @@ class EnvoyRewriteDriverFactory;
 class ProxyFetchFactory;
 class EnvoyServerContext;
 
-class EnvoyProcessContext : ProcessContext {
-public:
+class EnvoyProcessContext : public ProcessContext {
+ public:
   explicit EnvoyProcessContext();
-  ~EnvoyProcessContext() override {};
+  ~EnvoyProcessContext() override{};
 
   MessageHandler* message_handler() { return message_handler_.get(); }
   EnvoyRewriteDriverFactory* driver_factory() { return driver_factory_.get(); }
-  ProxyFetchFactory* proxy_fetch_factory() { return proxy_fetch_factory_.get(); }
+  ProxyFetchFactory* proxy_fetch_factory() {
+    return proxy_fetch_factory_.get();
+  }
   EnvoyServerContext* server_context() { return server_context_; }
 
-private:
+ private:
   std::unique_ptr<GoogleMessageHandler> message_handler_;
   std::unique_ptr<EnvoyRewriteDriverFactory> driver_factory_;
   std::unique_ptr<ProxyFetchFactory> proxy_fetch_factory_;
   EnvoyServerContext* server_context_;
 };
 
-} // namespace net_instaweb
+}  // namespace net_instaweb

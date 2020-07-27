@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #ifndef PAGESPEED_KERNEL_UTIL_HASHED_NONCE_GENERATOR_H_
 #define PAGESPEED_KERNEL_UTIL_HASHED_NONCE_GENERATOR_H_
 
@@ -46,12 +44,12 @@ class HashedNonceGenerator : public NonceGenerator {
  public:
   // key must be at least 2*hasher->RawHashSizeInBytes() in length.
   // Takes ownership of mutex, but not of hasher.
-  HashedNonceGenerator(
-      const Hasher* hasher, StringPiece key, AbstractMutex* mutex);
-  virtual ~HashedNonceGenerator();
+  HashedNonceGenerator(const Hasher* hasher, StringPiece key,
+                       AbstractMutex* mutex);
+  ~HashedNonceGenerator() override;
 
  protected:
-  virtual uint64 NewNonceImpl();
+  uint64 NewNonceImpl() override;
 
  private:
   const Hasher* hasher_;

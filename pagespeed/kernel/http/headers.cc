@@ -17,13 +17,12 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/http/headers.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <map>
+#include <memory>
 #include <set>
 #include <utility>
 #include <vector>
@@ -120,85 +119,99 @@ bool RemoveUnneeded(const std::vector<bool>& needed,
 
 class MessageHandler;
 
-template<class Proto> Headers<Proto>::Headers() {
+template <class Proto>
+Headers<Proto>::Headers() {
   proto_.reset(new Proto);
   Clear();
 }
 
-template<class Proto> Headers<Proto>::~Headers() {
+template <class Proto>
+Headers<Proto>::~Headers() {
   Clear();
 }
 
-template<class Proto> void Headers<Proto>::Clear() {
+template <class Proto>
+void Headers<Proto>::Clear() {
   proto_->clear_major_version();
   proto_->clear_minor_version();
-  map_.reset(NULL);
-  cookies_.reset(NULL);
+  map_.reset(nullptr);
+  cookies_.reset(nullptr);
 }
 
-template<class Proto> void Headers<Proto>::SetProto(Proto* proto) {
+template <class Proto>
+void Headers<Proto>::SetProto(Proto* proto) {
   proto_.reset(proto);
 }
 
-template<class Proto> void Headers<Proto>::CopyProto(const Proto& proto) {
+template <class Proto>
+void Headers<Proto>::CopyProto(const Proto& proto) {
   proto_->CopyFrom(proto);
 }
 
-template<class Proto> int Headers<Proto>::major_version() const {
+template <class Proto>
+int Headers<Proto>::major_version() const {
   return proto_->major_version();
 }
 
-template<class Proto> bool Headers<Proto>::has_major_version() const {
+template <class Proto>
+bool Headers<Proto>::has_major_version() const {
   return proto_->has_major_version();
 }
 
-template<class Proto> int Headers<Proto>::minor_version() const {
+template <class Proto>
+int Headers<Proto>::minor_version() const {
   return proto_->minor_version();
 }
 
-template<class Proto> void Headers<Proto>::set_major_version(
-    int major_version) {
+template <class Proto>
+void Headers<Proto>::set_major_version(int major_version) {
   proto_->set_major_version(major_version);
 }
 
-template<class Proto> void Headers<Proto>::set_minor_version(
-    int minor_version) {
+template <class Proto>
+void Headers<Proto>::set_minor_version(int minor_version) {
   proto_->set_minor_version(minor_version);
 }
 
-template<class Proto> int Headers<Proto>::NumAttributes() const {
+template <class Proto>
+int Headers<Proto>::NumAttributes() const {
   return proto_->header_size();
 }
 
-template<class Proto> const GoogleString& Headers<Proto>::Name(int i) const {
+template <class Proto>
+const GoogleString& Headers<Proto>::Name(int i) const {
   return proto_->header(i).name();
 }
 
-template<class Proto> const GoogleString& Headers<Proto>::Value(int i) const {
+template <class Proto>
+const GoogleString& Headers<Proto>::Value(int i) const {
   return proto_->header(i).value();
 }
 
-template<class Proto> void Headers<Proto>::SetValue(int i, StringPiece value) {
+template <class Proto>
+void Headers<Proto>::SetValue(int i, StringPiece value) {
   value.CopyToString(proto_->mutable_header(i)->mutable_value());
-  map_.reset(NULL);
-  cookies_.reset(NULL);
+  map_.reset(nullptr);
+  cookies_.reset(nullptr);
 }
 
-template<class Proto> void Headers<Proto>::PopulateMap() const {
-  if (map_.get() == NULL) {
-    map_.reset(new StringMultiMapInsensitive);
-    cookies_.reset(NULL);
+template <class Proto>
+void Headers<Proto>::PopulateMap() const {
+  if (map_.get() == nullptr) {
+    map_ = std::make_unique<StringMultiMapInsensitive>();
+    cookies_.reset(nullptr);
     for (int i = 0, n = NumAttributes(); i < n; ++i) {
       AddToMap(Name(i), Value(i));
     }
   }
 }
 
-template<class Proto> const typename Headers<Proto>::CookieMultimap*
+template <class Proto>
+const typename Headers<Proto>::CookieMultimap*
 Headers<Proto>::PopulateCookieMap(StringPiece header_name) const {
-  if (cookies_.get() == NULL) {
+  if (cookies_.get() == nullptr) {
     PopulateMap();  // Since this resets cookies_ if map_ is NULL.
-    cookies_.reset(new CookieMultimap);
+    cookies_ = std::make_unique<CookieMultimap>();
     ConstStringStarVector cookies;
     if (Lookup(header_name, &cookies)) {
       bool has_attributes = (header_name == HttpAttributes::kSetCookie);
@@ -220,10 +233,8 @@ Headers<Proto>::PopulateCookieMap(StringPiece header_name) const {
           StringPiece cookie_name;
           StringPiece cookie_value;
           ExtractNameAndValue(name_value_pairs[j], &cookie_name, &cookie_value);
-          cookies_->insert(
-              CookieMultimap::value_type(cookie_name,
-                                         ValueAndAttributes(cookie_value,
-                                                            all_attributes)));
+          cookies_->insert(CookieMultimap::value_type(
+              cookie_name, ValueAndAttributes(cookie_value, all_attributes)));
         }
       }
     }
@@ -231,33 +242,37 @@ Headers<Proto>::PopulateCookieMap(StringPiece header_name) const {
   return cookies_.get();
 }
 
-template<class Proto> int Headers<Proto>::NumAttributeNames() const {
+template <class Proto>
+int Headers<Proto>::NumAttributeNames() const {
   PopulateMap();
   return map_->num_names();
 }
 
-template<class Proto> bool Headers<Proto>::Lookup(
-    const StringPiece& name, ConstStringStarVector* values) const {
+template <class Proto>
+bool Headers<Proto>::Lookup(const StringPiece& name,
+                            ConstStringStarVector* values) const {
   PopulateMap();
   return map_->Lookup(name, values);
 }
 
-template<class Proto> const char* Headers<Proto>::Lookup1(
-    const StringPiece& name) const {
+template <class Proto>
+const char* Headers<Proto>::Lookup1(const StringPiece& name) const {
   ConstStringStarVector v;
   if (Lookup(name, &v) && (v.size() == 1)) {
     return v[0]->c_str();
   }
-  return NULL;
+  return nullptr;
 }
 
-template<class Proto> bool Headers<Proto>::Has(const StringPiece& name) const {
+template <class Proto>
+bool Headers<Proto>::Has(const StringPiece& name) const {
   PopulateMap();
   return map_->Has(name);
 }
 
-template<class Proto> bool Headers<Proto>::HasValue(
-    const StringPiece& name, const StringPiece& value) const {
+template <class Proto>
+bool Headers<Proto>::HasValue(const StringPiece& name,
+                              const StringPiece& value) const {
   ConstStringStarVector values;
   Lookup(name, &values);
   for (ConstStringStarVector::const_iterator iter = values.begin();
@@ -309,8 +324,8 @@ void SplitValues(StringPiece name, StringPiece comma_separated_values,
 
 }  // namespace
 
-template<class Proto> void Headers<Proto>::Add(
-    const StringPiece& name, const StringPiece& value) {
+template <class Proto>
+void Headers<Proto>::Add(const StringPiece& name, const StringPiece& value) {
   NameValue* name_value = proto_->add_header();
   name_value->set_name(name.data(), name.size());
   name_value->set_value(value.data(), value.size());
@@ -318,20 +333,21 @@ template<class Proto> void Headers<Proto>::Add(
   UpdateHook();
 }
 
-template<class Proto> void Headers<Proto>::AddToMap(
-    const StringPiece& name, const StringPiece& value) const {
-  if (map_.get() != NULL) {
+template <class Proto>
+void Headers<Proto>::AddToMap(const StringPiece& name,
+                              const StringPiece& value) const {
+  if (map_.get() != nullptr) {
     StringPieceVector split;
     SplitValues(name, value, &split);
     for (int i = 0, n = split.size(); i < n; ++i) {
       map_->Add(name, split[i]);
     }
-    cookies_.reset(NULL);  // Pessimistically assume this.
+    cookies_.reset(nullptr);  // Pessimistically assume this.
   }
 }
 
-template<class Proto> void Headers<Proto>::RemoveCookie(
-    const StringPiece& cookie_name) {
+template <class Proto>
+void Headers<Proto>::RemoveCookie(const StringPiece& cookie_name) {
   ConstStringStarVector values;
   if (Lookup(HttpAttributes::kCookie, &values)) {
     StringVector new_cookie_lines;
@@ -339,13 +355,13 @@ template<class Proto> void Headers<Proto>::RemoveCookie(
     for (int i = 0, n = values.size(); i < n; ++i) {
       StringPiece cookie_header = *values[i];
       new_cookie_lines.push_back(GoogleString());
-      bool removed = RemoveCookieString(cookie_name, cookie_header,
-                                        &new_cookie_lines[i]);
+      bool removed =
+          RemoveCookieString(cookie_name, cookie_header, &new_cookie_lines[i]);
       remove_cookie |= removed;
     }
 
     if (remove_cookie) {
-      cookies_.reset(NULL);
+      cookies_.reset(nullptr);
       RemoveAll(HttpAttributes::kCookie);
       for (int i = 0, n = new_cookie_lines.size(); i < n; ++i) {
         if (!new_cookie_lines[i].empty()) {
@@ -363,15 +379,15 @@ template<class Proto> void Headers<Proto>::RemoveCookie(
 // Then add back in the ones that were not the 'value'.
 // The string manipulation makes this horrendous, but hopefully no one has
 // listed a header with 100 (or more) values.
-template<class Proto> bool Headers<Proto>::Remove(const StringPiece& name,
-                                                  const StringPiece& value) {
+template <class Proto>
+bool Headers<Proto>::Remove(const StringPiece& name, const StringPiece& value) {
   PopulateMap();
   ConstStringStarVector values;
   bool found = map_->Lookup(name, &values);
   if (found) {
     std::set<int> indexes;
     for (int i = values.size() - 1; i >= 0; --i) {
-      if (values[i] != NULL) {
+      if (values[i] != nullptr) {
         if (StringCaseEqual(*values[i], value)) {
           indexes.insert(i);
         }
@@ -383,7 +399,7 @@ template<class Proto> bool Headers<Proto>::Remove(const StringPiece& name,
       GoogleString combined;
       StringPiece separator("", 0);  // change to "," after first entry.
       for (int i = 0, n = values.size(); i < n; ++i) {
-        if (values[i] != NULL) {
+        if (values[i] != nullptr) {
           StringPiece val(*values[i]);
           if ((indexes.find(i) == indexes.end()) && !val.empty()) {
             if (concat) {
@@ -412,12 +428,14 @@ template<class Proto> bool Headers<Proto>::Remove(const StringPiece& name,
   return false;
 }
 
-template<class Proto> bool Headers<Proto>::RemoveAll(const StringPiece& name) {
+template <class Proto>
+bool Headers<Proto>::RemoveAll(const StringPiece& name) {
   return RemoveAllFromSortedArray(&name, 1);
 }
 
-template<class Proto> bool Headers<Proto>::RemoveAllFromSortedArray(
-    const StringPiece* names, int names_size) {
+template <class Proto>
+bool Headers<Proto>::RemoveAllFromSortedArray(const StringPiece* names,
+                                              int names_size) {
   // First, we update the map.
   PopulateMap();
   bool removed_anything = map_->RemoveAllFromSortedArray(names, names_size);
@@ -444,14 +462,15 @@ template<class Proto> bool Headers<Proto>::RemoveAllFromSortedArray(
     // Instead, we call this helper, which re-implements StringMultiMap
     // functionality in the protobuf.
     RemoveFromHeaders(names, names_size, headers);
-    cookies_.reset(NULL);  // Pessimistically assume this.
+    cookies_.reset(nullptr);  // Pessimistically assume this.
     UpdateHook();
   }
 
   return removed_anything;
 }
 
-template<class Proto> template<class StringType>
+template <class Proto>
+template <class StringType>
 bool Headers<Proto>::RemoveFromHeaders(
     const StringType* names, int names_size,
     protobuf::RepeatedPtrField<NameValue>* headers) {
@@ -461,14 +480,14 @@ bool Headers<Proto>::RemoveFromHeaders(
 
   StringCompareInsensitive compare;
   for (int i = 0, n = headers->size(); i < n; ++i) {
-    to_keep.push_back(!std::binary_search(
-        names, names + names_size, headers->Get(i).name(), compare));
+    to_keep.push_back(!std::binary_search(names, names + names_size,
+                                          headers->Get(i).name(), compare));
   }
   return RemoveUnneeded(to_keep, headers);
 }
 
-template<class Proto> bool Headers<Proto>::RemoveAllWithPrefix(
-    const StringPiece& prefix) {
+template <class Proto>
+bool Headers<Proto>::RemoveAllWithPrefix(const StringPiece& prefix) {
   protobuf::RepeatedPtrField<NameValue>* headers = proto_->mutable_header();
   std::vector<bool> to_keep;
   to_keep.reserve(headers->size());
@@ -478,14 +497,16 @@ template<class Proto> bool Headers<Proto>::RemoveAllWithPrefix(
   }
   bool ret = RemoveUnneeded(to_keep, headers);
   if (ret) {
-    map_.reset(NULL);  // Map must be repopulated before next lookup operation.
-    cookies_.reset(NULL);
+    map_.reset(
+        nullptr);  // Map must be repopulated before next lookup operation.
+    cookies_.reset(nullptr);
     UpdateHook();
   }
   return ret;
 }
 
-template<class Proto> bool Headers<Proto>::RemoveIfNotIn(const Headers& keep) {
+template <class Proto>
+bool Headers<Proto>::RemoveIfNotIn(const Headers& keep) {
   // There are two removal scenarios: removing every value for a header, and
   // leaving some behind.  We don't use this->map_ to do this operation, but
   // we must invalidate the map if we make any mutations.  However we do use
@@ -501,7 +522,7 @@ template<class Proto> bool Headers<Proto>::RemoveIfNotIn(const Headers& keep) {
   std::vector<bool> to_keep;
   bool ret = false;
   typedef std::map<StringPiece, int> StringPieceBag;
-  typedef std::map<StringPiece, StringPieceBag> ValueBagMap;
+  using ValueBagMap = std::map<StringPiece, StringPieceBag>;
   ValueBagMap value_bag_map;
 
   for (int a = 0, na = NumAttributes(); a < na; ++a) {
@@ -566,22 +587,23 @@ template<class Proto> bool Headers<Proto>::RemoveIfNotIn(const Headers& keep) {
   // Finally, if we did any mutations, clear the map_.  We didn't use this->map_
   // to execute the removals, but we may have invalidated it.
   if (ret) {
-    map_.reset(NULL);
-    cookies_.reset(NULL);
+    map_.reset(nullptr);
+    cookies_.reset(nullptr);
     UpdateHook();
   }
   return ret;
 }
 
-template<class Proto> void Headers<Proto>::Replace(
-    const StringPiece& name, const StringPiece& value) {
+template <class Proto>
+void Headers<Proto>::Replace(const StringPiece& name,
+                             const StringPiece& value) {
   // TODO(jmarantz): This could be arguably be implemented more efficiently.
   RemoveAll(name);
   Add(name, value);
 }
 
-template<class Proto> void Headers<Proto>::UpdateFrom(
-    const Headers<Proto>& other) {
+template <class Proto>
+void Headers<Proto>::UpdateFrom(const Headers<Proto>& other) {
   // Get set of names to remove.
   int n = other.NumAttributes();
   scoped_array<StringPiece> removing_names(new StringPiece[n]);
@@ -599,8 +621,8 @@ template<class Proto> void Headers<Proto>::UpdateFrom(
   }
 }
 
-template<class Proto> bool Headers<Proto>::WriteAsBinary(
-    Writer* writer, MessageHandler* handler) {
+template <class Proto>
+bool Headers<Proto>::WriteAsBinary(Writer* writer, MessageHandler* handler) {
   GoogleString buf;
   {
     StringOutputStream sstream(&buf);
@@ -609,15 +631,17 @@ template<class Proto> bool Headers<Proto>::WriteAsBinary(
   return writer->Write(buf, handler);
 }
 
-template<class Proto> bool Headers<Proto>::ReadFromBinary(
-    const StringPiece& buf, MessageHandler* message_handler) {
+template <class Proto>
+bool Headers<Proto>::ReadFromBinary(const StringPiece& buf,
+                                    MessageHandler* message_handler) {
   Clear();
   ArrayInputStream input(buf.data(), buf.size());
   return proto_->ParseFromZeroCopyStream(&input);
 }
 
-template<class Proto> bool Headers<Proto>::WriteAsHttp(
-    Writer* writer, MessageHandler* handler) const {
+template <class Proto>
+bool Headers<Proto>::WriteAsHttp(Writer* writer,
+                                 MessageHandler* handler) const {
   bool ret = true;
   for (int i = 0, n = NumAttributes(); ret && (i < n); ++i) {
     ret &= writer->Write(Name(i), handler);
@@ -629,13 +653,15 @@ template<class Proto> bool Headers<Proto>::WriteAsHttp(
   return ret;
 }
 
-template<class Proto> void Headers<Proto>::CopyToProto(Proto* proto) const {
+template <class Proto>
+void Headers<Proto>::CopyToProto(Proto* proto) const {
   proto->CopyFrom(*proto_);
 }
 
-template<class Proto> bool Headers<Proto>::FindValueForName(
-    const StringPieceVector& name_equals_value_vec,
-    StringPiece name_to_find, StringPiece* optional_retval) {
+template <class Proto>
+bool Headers<Proto>::FindValueForName(
+    const StringPieceVector& name_equals_value_vec, StringPiece name_to_find,
+    StringPiece* optional_retval) {
   for (int i = 0, n = name_equals_value_vec.size(); i < n; ++i) {
     StringPiece name;
     ExtractNameAndValue(name_equals_value_vec[i], &name, optional_retval);
@@ -646,13 +672,14 @@ template<class Proto> bool Headers<Proto>::FindValueForName(
   return false;
 }
 
-template<class Proto> bool Headers<Proto>::ExtractNameAndValue(
-    StringPiece input, StringPiece* name, StringPiece* optional_retval) {
+template <class Proto>
+bool Headers<Proto>::ExtractNameAndValue(StringPiece input, StringPiece* name,
+                                         StringPiece* optional_retval) {
   *name = input;
   stringpiece_ssize_type equals_pos = name->find('=');
   if (equals_pos != StringPiece::npos) {
     *name = input.substr(0, equals_pos);
-    if (optional_retval != NULL) {
+    if (optional_retval != nullptr) {
       *optional_retval = input.substr(equals_pos + 1);
       TrimWhitespace(optional_retval);
     }
@@ -661,11 +688,11 @@ template<class Proto> bool Headers<Proto>::ExtractNameAndValue(
   return equals_pos != StringPiece::npos;
 }
 
-template<class Proto> void Headers<Proto>::UpdateHook() {
-}
+template <class Proto>
+void Headers<Proto>::UpdateHook() {}
 
-template<class Proto> GoogleString Headers<Proto>::LookupJoined(
-    StringPiece name) const {
+template <class Proto>
+GoogleString Headers<Proto>::LookupJoined(StringPiece name) const {
   ConstStringStarVector values;
   if (!Lookup(name, &values)) {
     return "";
@@ -676,17 +703,14 @@ template<class Proto> GoogleString Headers<Proto>::LookupJoined(
 // Explicit template class instantiation.
 // See http://www.cplusplus.com/forum/articles/14272/
 template bool Headers<HttpResponseHeaders>::RemoveFromHeaders<StringPiece>(
-    const StringPiece* names,
-    int names_size,
+    const StringPiece* names, int names_size,
     protobuf::RepeatedPtrField<NameValue>* headers);
 
 template bool Headers<HttpResponseHeaders>::RemoveFromHeaders<GoogleString>(
-    const GoogleString* names,
-    int names_size,
+    const GoogleString* names, int names_size,
     protobuf::RepeatedPtrField<NameValue>* headers);
 
 template class Headers<HttpResponseHeaders>;
 template class Headers<HttpRequestHeaders>;
-
 
 }  // namespace net_instaweb

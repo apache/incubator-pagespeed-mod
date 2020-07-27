@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/file_message_handler.h"
 
 #include <cstdarg>
@@ -28,8 +27,7 @@
 
 namespace net_instaweb {
 
-FileMessageHandler::FileMessageHandler(FILE* file) : file_(file) {
-}
+FileMessageHandler::FileMessageHandler(FILE* file) : file_(file) {}
 
 void FileMessageHandler::MessageVImpl(MessageType type, const char* msg,
                                       va_list args) {
@@ -59,7 +57,7 @@ void FileMessageHandler::MessageSImpl(MessageType type,
 
 void FileMessageHandler::FileMessageVImpl(MessageType type,
                                           const char* filename, int line,
-                                          const char *msg, va_list args) {
+                                          const char* msg, va_list args) {
   fprintf(file_, "%s: %s:%d: ", MessageTypeToString(type), filename, line);
   vfprintf(file_, msg, args);
   fputc('\n', file_);
@@ -69,9 +67,9 @@ void FileMessageHandler::FileMessageVImpl(MessageType type,
   }
 }
 
-void FileMessageHandler::FileMessageSImpl(
-    MessageType type, const char* filename, int line,
-    const GoogleString& message) {
+void FileMessageHandler::FileMessageSImpl(MessageType type,
+                                          const char* filename, int line,
+                                          const GoogleString& message) {
   fprintf(file_, "%s: %s:%d: ", MessageTypeToString(type), filename, line);
   fputs(message.c_str(), file_);
   fputc('\n', file_);

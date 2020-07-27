@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // A set of utility functions for handling character sets/encodings and
 // related concepts like byte-order-marks (BOM). Currently the only methods
 // relate to BOMs.
@@ -30,18 +29,18 @@
 namespace net_instaweb {
 
 // The charsets we understand. Currently only those that have BOMs below.
-const char kUtf8Charset[]                  = "utf-8";
-const char kUtf16BigEndianCharset[]        = "utf-16be";
-const char kUtf16LittleEndianCharset[]     = "utf-16le";
-const char kUtf32BigEndianCharset[]        = "utf-32be";
-const char kUtf32LittleEndianCharset[]     = "utf-32le";
+const char kUtf8Charset[] = "utf-8";
+const char kUtf16BigEndianCharset[] = "utf-16be";
+const char kUtf16LittleEndianCharset[] = "utf-16le";
+const char kUtf32BigEndianCharset[] = "utf-32be";
+const char kUtf32LittleEndianCharset[] = "utf-32le";
 
 // The Byte-Order-Mark (BOM) for the various UTF encodings.
-const char kUtf8Bom[]                  = "\xEF\xBB\xBF";
-const char kUtf16BigEndianBom[]        = "\xFE\xFF";
-const char kUtf16LittleEndianBom[]     = "\xFF\xFE";
-const char kUtf32BigEndianBom[]        = "\x00\x00\xFE\xFF";
-const char kUtf32LittleEndianBom[]     = "\xFF\xFE\x00\x00";
+const char kUtf8Bom[] = "\xEF\xBB\xBF";
+const char kUtf16BigEndianBom[] = "\xFE\xFF";
+const char kUtf16LittleEndianBom[] = "\xFF\xFE";
+const char kUtf32BigEndianBom[] = "\x00\x00\xFE\xFF";
+const char kUtf32LittleEndianBom[] = "\xFF\xFE\x00\x00";
 
 // Strips any initial UTF-8 BOM (Byte Order Mark) from the given contents.
 // Returns true if a BOM was stripped, false if not.

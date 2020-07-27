@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/central_controller_rpc_client.h"
 
 #include <utility>
@@ -210,8 +209,8 @@ void CentralControllerRpcClient::ConsiderConnecting(
       client_thread_ = std::move(thread);
       state_ = RUNNING;
     } else {
-      handler_->Message(
-          kError, "Couldn't start thread for talking to the controller!");
+      handler_->Message(kError,
+                        "Couldn't start thread for talking to the controller!");
       // This is the local variable, not the statistic. We don't want to
       // force everyone to reconnect just because we had trouble starting a
       // thread.

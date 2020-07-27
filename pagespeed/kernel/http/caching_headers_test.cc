@@ -17,8 +17,9 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/http/caching_headers.h"
+
+#include <memory>
 
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -32,10 +33,9 @@ class TestCachingHeaders : public CachingHeaders {
       : CachingHeaders(HttpStatus::kOK),
         cache_control_(cache_control),
         likely_static_resource_type_(true),
-        cacheable_resource_status_code_(true) {
-  }
+        cacheable_resource_status_code_(true) {}
 
-  virtual bool Lookup(const StringPiece& key, StringPieceVector* values) {
+  bool Lookup(const StringPiece& key, StringPieceVector* values) override {
     if (key == HttpAttributes::kCacheControl) {
       SplitStringPieceToVector(cache_control_, ",", values, true);
       for (int i = 0, n = values->size(); i < n; ++i) {
@@ -47,11 +47,11 @@ class TestCachingHeaders : public CachingHeaders {
     }
   }
 
-  virtual bool IsLikelyStaticResourceType() const {
+  bool IsLikelyStaticResourceType() const override {
     return likely_static_resource_type_;
   }
 
-  virtual bool IsCacheableResourceStatusCode() const {
+  bool IsCacheableResourceStatusCode() const override {
     return cacheable_resource_status_code_;
   }
 
@@ -74,7 +74,7 @@ class TestCachingHeaders : public CachingHeaders {
 class CachingHeadersTest : public testing::Test {
  protected:
   void SetCacheControl(const char* cache_control) {
-    headers_.reset(new TestCachingHeaders(cache_control));
+    headers_ = std::make_unique<TestCachingHeaders>(cache_control);
   }
 
   GoogleString DisableCacheControl() {
@@ -106,16 +106,14 @@ TEST_F(CachingHeadersTest, DisablePublicCaching) {
 
 TEST_F(CachingHeadersTest, DisableNostore) {
   SetCacheControl("must-revalidate, private, no-store");
-  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0,
-                      ", must-revalidate, ",
+  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0, ", must-revalidate, ",
                       HttpAttributes::kNoStore),
                DisableCacheControl());
 }
 
 TEST_F(CachingHeadersTest, DisableNostoreRetainNoCache) {
   SetCacheControl("no-cache, must-revalidate, private, no-store");
-  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0,
-                      ", must-revalidate, ",
+  EXPECT_STREQ(StrCat(HttpAttributes::kNoCacheMaxAge0, ", must-revalidate, ",
                       HttpAttributes::kNoStore),
                DisableCacheControl());
 }

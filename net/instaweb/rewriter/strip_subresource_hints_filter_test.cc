@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include <memory>
 
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -45,10 +46,7 @@ namespace net_instaweb {
 
 class CanModifyUrlsFilter : public EmptyHtmlFilter {
  public:
-  CanModifyUrlsFilter():
-    EmptyHtmlFilter(),
-    can_modify_urls_(false) {
-  }
+  CanModifyUrlsFilter() : EmptyHtmlFilter(), can_modify_urls_(false) {}
   void set_can_modify_urls(bool value) { can_modify_urls_ = value; }
   bool CanModifyUrls() override { return can_modify_urls_; }
   const char* Name() const override { return "CMURLS"; }
@@ -69,7 +67,7 @@ class StripSubresourceHintsFilterTestBase : public RewriteTestBase {
                                     &message_handler_);
     lawyer->AddShard(kTo2Domain, StrCat(kTo2ADomain, ",", kTo2BDomain),
                      &message_handler_);
-    can_modify_urls_filter_.reset(new CanModifyUrlsFilter());
+    can_modify_urls_filter_ = std::make_unique<CanModifyUrlsFilter>();
     rewrite_driver()->AddFilter(can_modify_urls_filter_.get());
     CustomSetup();
     rewrite_driver()->AddFilters();
@@ -88,14 +86,14 @@ class StripSubresourceHintsFilterTestBase : public RewriteTestBase {
   std::unique_ptr<CanModifyUrlsFilter> can_modify_urls_filter_;
 };
 
-class StripSubresourceHintsFilterTest :
-  public StripSubresourceHintsFilterTestBase {
+class StripSubresourceHintsFilterTest
+    : public StripSubresourceHintsFilterTestBase {
  protected:
   void CustomSetup() override {}
 };
 
-class StripSubresourceHintsFilterTestPreserveStyle :
-      public StripSubresourceHintsFilterTestBase {
+class StripSubresourceHintsFilterTestPreserveStyle
+    : public StripSubresourceHintsFilterTestBase {
  protected:
   void CustomSetup() override {
     options()->set_css_preserve_urls(true);
@@ -104,8 +102,8 @@ class StripSubresourceHintsFilterTestPreserveStyle :
   }
 };
 
-class StripSubresourceHintsFilterTestPreserveScript :
-      public StripSubresourceHintsFilterTestBase {
+class StripSubresourceHintsFilterTestPreserveScript
+    : public StripSubresourceHintsFilterTestBase {
  protected:
   void CustomSetup() override {
     options()->set_css_preserve_urls(false);
@@ -114,8 +112,8 @@ class StripSubresourceHintsFilterTestPreserveScript :
   }
 };
 
-class StripSubresourceHintsFilterTestPreserveImage :
-      public StripSubresourceHintsFilterTestBase {
+class StripSubresourceHintsFilterTestPreserveImage
+    : public StripSubresourceHintsFilterTestBase {
  protected:
   void CustomSetup() override {
     options()->set_css_preserve_urls(false);
@@ -124,8 +122,8 @@ class StripSubresourceHintsFilterTestPreserveImage :
   }
 };
 
-class StripSubresourceHintsFilterTestFullPreserve : public
-  StripSubresourceHintsFilterTestBase {
+class StripSubresourceHintsFilterTestFullPreserve
+    : public StripSubresourceHintsFilterTestBase {
  protected:
   void CustomSetup() override {
     options()->set_css_preserve_urls(true);
@@ -134,24 +132,24 @@ class StripSubresourceHintsFilterTestFullPreserve : public
   }
 };
 
-class StripSubresourceHintsFilterTestDisabled :
-  public StripSubresourceHintsFilterTestBase {
+class StripSubresourceHintsFilterTestDisabled
+    : public StripSubresourceHintsFilterTestBase {
  protected:
   void CustomSetup() override {
     options()->set_preserve_subresource_hints(true);
   }
 };
 
-class StripSubresourceHintsFilterTestRewriteLevelPassthrough :
-  public StripSubresourceHintsFilterTestBase {
+class StripSubresourceHintsFilterTestRewriteLevelPassthrough
+    : public StripSubresourceHintsFilterTestBase {
  protected:
   void CustomSetup() override {
     options()->SetRewriteLevel(RewriteOptions::kPassThrough);
   }
 };
 
-class StripSubresourceHintsFilterTestRewriteLevelCoreFilters :
-  public StripSubresourceHintsFilterTestBase {
+class StripSubresourceHintsFilterTestRewriteLevelCoreFilters
+    : public StripSubresourceHintsFilterTestBase {
  protected:
   void CustomSetup() override {
     options()->SetRewriteLevel(RewriteOptions::kCoreFilters);
@@ -164,88 +162,89 @@ TEST_F(StripSubresourceHintsFilterTest, PreserveSubResourceHintsIsFalse) {
 
 TEST_F(StripSubresourceHintsFilterTest, SingleResourceNoLink) {
   static const char source[] =
-    "<head><link rel=\"subresource\"/></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head><link rel=\"subresource\"/></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
 TEST_F(StripSubresourceHintsFilterTest, SingleResourceSrcLink) {
   static const char source[] =
-    "<head><link rel=\"subresource\" src=\"/test.gif\"/></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head><link rel=\"subresource\" src=\"/test.gif\"/></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
 TEST_F(StripSubresourceHintsFilterTest, SingleResourceValidLink) {
   static const char source[] =
-    "<head><link rel=\"subresource\" href=\"/test.gif\"/></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head><link rel=\"subresource\" href=\"/test.gif\"/></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
 TEST_F(StripSubresourceHintsFilterTest, SingleResourceValidPreloadLink) {
   static const char source[] =
-    "<head><link rel=\"preload\" href=\"/test.gif\" as=\"image\"/></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head><link rel=\"preload\" href=\"/test.gif\" as=\"image\"/></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
 TEST_F(StripSubresourceHintsFilterTest, SingleResourceExternalLink) {
   static const char source[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, source);
 }
 
 TEST_F(StripSubresourceHintsFilterTest, MultiResourceMixedLinks) {
   static const char source[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
 TEST_F(StripSubresourceHintsFilterTest, SingleResourceRewriteDomain) {
   static const char source[] =
-    "<head><link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head><link rel=\"subresource\" "
+      "href=\"http://from1.test.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head></head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head></head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
 TEST_F(StripSubresourceHintsFilterTest, SingleResourceDisallow) {
   static const char source[] =
-    "<head><link rel=\"subresource\" href=\"/dontdropme/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head><link rel=\"subresource\" href=\"/dontdropme/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head><link rel=\"subresource\" href=\"/dontdropme/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head><link rel=\"subresource\" href=\"/dontdropme/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
@@ -254,40 +253,40 @@ TEST_F(StripSubresourceHintsFilterTest, SingleResourceDisallow) {
 TEST_F(StripSubresourceHintsFilterTestPreserveImage,
        MultiSubresourcePreserveImages) {
   static const char source[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
 TEST_F(StripSubresourceHintsFilterTestFullPreserve,
        MultiSubresourcePreserveAll) {
   static const char source[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   static const char rewritten[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
@@ -297,8 +296,7 @@ TEST_F(StripSubresourceHintsFilterTestPreserveImage, ImagesPreserved) {
       "<link rel=preload as=image href=a.jpg>"
       "<link rel=preload as=script href=a.js>"
       "<link rel=preload as=style href=a.css>";
-  static const char rewritten[] =
-      "<link rel=preload as=image href=a.jpg>";
+  static const char rewritten[] = "<link rel=preload as=image href=a.jpg>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 TEST_F(StripSubresourceHintsFilterTestPreserveScript, ScriptsPreserved) {
@@ -306,8 +304,7 @@ TEST_F(StripSubresourceHintsFilterTestPreserveScript, ScriptsPreserved) {
       "<link rel=preload as=image href=a.jpg>"
       "<link rel=preload as=script href=a.js>"
       "<link rel=preload as=style href=a.css>";
-  static const char rewritten[] =
-      "<link rel=preload as=script href=a.js>";
+  static const char rewritten[] = "<link rel=preload as=script href=a.js>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 TEST_F(StripSubresourceHintsFilterTestPreserveStyle, StylesPreserved) {
@@ -315,8 +312,7 @@ TEST_F(StripSubresourceHintsFilterTestPreserveStyle, StylesPreserved) {
       "<link rel=preload as=image href=a.jpg>"
       "<link rel=preload as=script href=a.js>"
       "<link rel=preload as=style href=a.css>";
-  static const char rewritten[] =
-      "<link rel=preload as=style href=a.css>";
+  static const char rewritten[] = "<link rel=preload as=style href=a.css>";
   ValidateStripSubresourceHint(source, rewritten);
 }
 
@@ -335,51 +331,51 @@ TEST_F(StripSubresourceHintsFilterTestDisabled,
 TEST_F(StripSubresourceHintsFilterTestDisabled, MultiResourcePreserveAll) {
   can_modify_urls_filter_->set_can_modify_urls(true);
   static const char source[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body><img src=\"1.jpg\"/></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body><img src=\"1.jpg\"/></body>";
   ValidateStripSubresourceHint(source, source);
 }
 
 TEST_F(StripSubresourceHintsFilterTestRewriteLevelPassthrough, MultiResource) {
   static const char source[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body></body>";
   static const char rewritten[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body></body>";
   ValidateExpected("multi_resource", source, rewritten);
 }
 
 TEST_F(StripSubresourceHintsFilterTestRewriteLevelCoreFilters, MultiResource) {
   static const char source[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://from1.test.com/test.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body></body>";
   static const char rewritten[] =
-    "<head>"
-    "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
-    "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
-    "</head>"
-    "<body></body>";
+      "<head>"
+      "<link rel=\"subresource\" href=\"/dontdropme.gif\"/>"
+      "<link rel=\"subresource\" href=\"http://www.example.com/test.gif\"/>"
+      "</head>"
+      "<body></body>";
   ValidateExpected("multi_resource", source, rewritten);
 }
 

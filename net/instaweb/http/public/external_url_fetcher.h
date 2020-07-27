@@ -42,20 +42,18 @@ class RequestHeaders;
 class ExternalUrlFetcher : public UrlAsyncFetcher {
  public:
   ExternalUrlFetcher() {}
-  virtual ~ExternalUrlFetcher() {}
+  ~ExternalUrlFetcher() override {}
 
   // TODO(sligocki): Allow protocol version number (e.g. HTTP/1.1)
   // and request type (e.g. GET, POST, etc.) to be specified.
-  virtual void Fetch(const GoogleString& url,
-                     MessageHandler* message_handler,
-                     AsyncFetch* fetch);
+  void Fetch(const GoogleString& url, MessageHandler* message_handler,
+             AsyncFetch* fetch) override;
 
   // Default user agent to use.
   static const char kDefaultUserAgent[];
 
   // Sets the path to "binary" when fetching using "how".
   void set_binary(const GoogleString& binary);
-
 
  protected:
   // Appends to escaped_headers one header line for each Name, Value
@@ -74,8 +72,7 @@ class ExternalUrlFetcher : public UrlAsyncFetcher {
   // specified headers, the User-Agent is also explicitly set to the
   // value of user_agent, unless the latter is NULL.
   virtual GoogleString ConstructFetchCommand(
-      const GoogleString& escaped_url,
-      const char* user_agent,
+      const GoogleString& escaped_url, const char* user_agent,
       const StringVector& escaped_headers) = 0;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalUrlFetcher);

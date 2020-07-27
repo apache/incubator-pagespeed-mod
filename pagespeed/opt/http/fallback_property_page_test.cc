@@ -17,13 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/opt/http/fallback_property_page.h"
 
 #include <cstddef>
+#include <memory>
 
-#include "gtest/gtest.h"
 #include "pagespeed/kernel/base/basictypes.h"
+#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
@@ -54,11 +54,9 @@ class FallbackPropertyPageTest : public testing::Test {
         thread_system_(Platform::CreateThreadSystem()),
         timer_(thread_system_->NewMutex(), MockTimer::kApr_5_2010_ms),
         stats_(thread_system_.get()),
-        cache_property_store_(
-            "test/", &lru_cache_, &timer_, &stats_, thread_system_.get()),
-        property_cache_(&cache_property_store_,
-                        &timer_,
-                        &stats_,
+        cache_property_store_("test/", &lru_cache_, &timer_, &stats_,
+                              thread_system_.get()),
+        property_cache_(&cache_property_store_, &timer_, &stats_,
                         thread_system_.get()) {
     PropertyCache::InitCohortStats(kCohortName1, &stats_);
     PropertyStoreGetCallback::InitStats(&stats_);
@@ -68,20 +66,14 @@ class FallbackPropertyPageTest : public testing::Test {
 
   // Sets both actual and fallback property page.
   void SetupFallbackPage() {
-    PropertyPage* actual_property_page = new MockPropertyPage(
-        thread_system_.get(),
-        &property_cache_,
-        kCacheKey1,
-        kOptionsSignatureHash,
-        kCacheKeySuffix);
-    PropertyPage* fallback_property_page = new MockPropertyPage(
-        thread_system_.get(),
-        &property_cache_,
-        kCacheKey2,
-        kOptionsSignatureHash,
-        kCacheKeySuffix);
-    fallback_page_.reset(new FallbackPropertyPage(
-        actual_property_page, fallback_property_page));
+    PropertyPage* actual_property_page =
+        new MockPropertyPage(thread_system_.get(), &property_cache_, kCacheKey1,
+                             kOptionsSignatureHash, kCacheKeySuffix);
+    PropertyPage* fallback_property_page =
+        new MockPropertyPage(thread_system_.get(), &property_cache_, kCacheKey2,
+                             kOptionsSignatureHash, kCacheKeySuffix);
+    fallback_page_ = std::make_unique<FallbackPropertyPage>(
+        actual_property_page, fallback_property_page);
     property_cache_.Read(actual_property_page);
     property_cache_.Read(fallback_property_page);
   }
@@ -134,13 +126,11 @@ class FallbackPropertyPageTest : public testing::Test {
 };
 
 TEST_F(FallbackPropertyPageTest, TestIfNoFallbackPageSet) {
-  PropertyPage* actual_property_page = new MockPropertyPage(
-      thread_system_.get(),
-      &property_cache_,
-      kCacheKey1,
-      kOptionsSignatureHash,
-      kCacheKeySuffix);
-  fallback_page_.reset(new FallbackPropertyPage(actual_property_page, NULL));
+  PropertyPage* actual_property_page =
+      new MockPropertyPage(thread_system_.get(), &property_cache_, kCacheKey1,
+                           kOptionsSignatureHash, kCacheKeySuffix);
+  fallback_page_ =
+      std::make_unique<FallbackPropertyPage>(actual_property_page, nullptr);
   property_cache_.Read(actual_property_page);
   fallback_page_->UpdateValue(cohort_, kPropertyName1, kValue1);
   fallback_page_->WriteCohort(cohort_);
@@ -198,8 +188,8 @@ TEST_F(FallbackPropertyPageTest, TestGetPropertyIfFallbackPageIsSet) {
   EXPECT_EQ(kValue1, property->value());
 
   // Update actual page with different value.
-  fallback_page_->actual_property_page()->UpdateValue(
-      cohort_, kPropertyName1, kValue2);
+  fallback_page_->actual_property_page()->UpdateValue(cohort_, kPropertyName1,
+                                                      kValue2);
   // GetProperty will return value from actual page.
   property = fallback_page_->GetProperty(cohort_, kPropertyName1);
   EXPECT_TRUE(property->has_value());

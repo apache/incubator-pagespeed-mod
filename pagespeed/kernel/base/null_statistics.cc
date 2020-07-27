@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/base/null_statistics.h"
 
 #include "pagespeed/kernel/base/null_mutex.h"
@@ -26,11 +24,9 @@
 
 namespace net_instaweb {
 
-NullStatistics::NullStatistics() {
-}
+NullStatistics::NullStatistics() {}
 
-NullStatistics::~NullStatistics() {
-}
+NullStatistics::~NullStatistics() {}
 
 CountHistogram* NullStatistics::NewHistogram(StringPiece /*name*/) {
   return new CountHistogram(new NullMutex);

@@ -17,17 +17,13 @@
  * under the License.
  */
 
-
-
 #include "webutil/css/property.h"
 
 #include "pagespeed/kernel/base/gtest.h"
-#include "gtest/gtest.h"
 
 namespace {
 
-class PropertyTest : public testing::Test {
-};
+class PropertyTest : public testing::Test {};
 
 TEST_F(PropertyTest, PropFromText) {
   string s("border-width");
@@ -41,7 +37,7 @@ TEST_F(PropertyTest, TextFromProp) {
 }
 
 TEST_F(PropertyTest, Inverses) {
-  for(int i = 0; i < Css::Property::OTHER; ++i) {
+  for (int i = 0; i < Css::Property::OTHER; ++i) {
     string s(Css::Property::TextFromProp(static_cast<Css::Property::Prop>(i)));
     EXPECT_EQ(static_cast<Css::Property::Prop>(i),
               Css::Property::PropFromText(s.c_str(), s.length()));

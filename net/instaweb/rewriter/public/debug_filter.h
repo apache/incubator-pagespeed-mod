@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_DEBUG_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_DEBUG_FILTER_H_
 
@@ -38,12 +37,12 @@ class Timer;
 class DebugFilter : public EmptyHtmlFilter {
  public:
   explicit DebugFilter(RewriteDriver* driver);
-  virtual ~DebugFilter();
+  ~DebugFilter() override;
 
-  virtual void EndDocument();
-  virtual void Flush();
+  void EndDocument() override;
+  void Flush() override;
 
-  virtual const char* Name() const { return "Debug"; }
+  const char* Name() const override { return "Debug"; }
 
   // Special entry-points needed for measuring timing.  The timing
   // of StartDocument/EndDocument does not capture the correct timing,
@@ -57,7 +56,7 @@ class DebugFilter : public EmptyHtmlFilter {
   void StartRender();
   void EndRender();
 
-  virtual void EndElement(HtmlElement* element);
+  void EndElement(HtmlElement* element) override;
 
   // Formats Flush/EndOfDocument messages that will be easy to read from
   // View->PageSource in a browser.
@@ -103,7 +102,7 @@ class DebugFilter : public EmptyHtmlFilter {
 
   RewriteDriver* driver_;
   Timer* timer_;
-  bool end_document_seen_;   // Set at EndOfDocument, checked at Flush.
+  bool end_document_seen_;  // Set at EndOfDocument, checked at Flush.
   int num_flushes_;
   int64 start_doc_time_us_;  // Established at InitParse.
   Event parse_;              // Tracks how much time is spent parsing.

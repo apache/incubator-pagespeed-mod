@@ -17,22 +17,19 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/null_writer.h"
+
 #include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 class MessageHandler;
 
-NullWriter::~NullWriter() {
-}
+NullWriter::~NullWriter() {}
 
 bool NullWriter::Write(const StringPiece& str, MessageHandler* handler) {
   return true;
 }
 
-bool NullWriter::Flush(MessageHandler* handler) {
-  return true;
-}
+bool NullWriter::Flush(MessageHandler* handler) { return true; }
 
 }  // namespace net_instaweb

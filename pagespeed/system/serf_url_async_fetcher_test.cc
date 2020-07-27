@@ -17,12 +17,13 @@
  * under the License.
  */
 
-
 #include "pagespeed/system/serf_url_async_fetcher.h"
 
 #include <unistd.h>
+
 #include <cstddef>
 #include <cstdlib>
+#include <memory>
 #include <vector>
 
 #include "apr_network_io.h"
@@ -93,19 +94,17 @@ const int kNextTestcaseIndex = 7;  // Should always be last.
 class SerfTestFetch : public AsyncFetch {
  public:
   explicit SerfTestFetch(const RequestContextPtr& ctx, AbstractMutex* mutex)
-      : AsyncFetch(ctx),
-        mutex_(mutex), success_(false), done_(false) {
-  }
-  virtual ~SerfTestFetch() {}
+      : AsyncFetch(ctx), mutex_(mutex), success_(false), done_(false) {}
+  ~SerfTestFetch() override {}
 
-  virtual bool HandleWrite(const StringPiece& content,
-                           MessageHandler* handler) {
+  bool HandleWrite(const StringPiece& content,
+                   MessageHandler* handler) override {
     content.AppendToString(&buffer_);
     return true;
   }
-  virtual bool HandleFlush(MessageHandler* handler) { return true; }
-  virtual void HandleHeadersComplete() {}
-  virtual void HandleDone(bool success) {
+  bool HandleFlush(MessageHandler* handler) override { return true; }
+  void HandleHeadersComplete() override {}
+  void HandleDone(bool success) override {
     ScopedMutex lock(mutex_);
     EXPECT_FALSE(done_);
     success_ = success;
@@ -119,7 +118,7 @@ class SerfTestFetch : public AsyncFetch {
     return done_;
   }
 
-  virtual void Reset() {
+  void Reset() override {
     ScopedMutex lock(mutex_);
     AsyncFetch::Reset();
     done_ = false;
@@ -141,7 +140,7 @@ class SerfTestFetch : public AsyncFetch {
 
 class SerfUrlAsyncFetcherTest : public ::testing::Test {
  public:
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     // Run once, before all SerfUrlAsyncFetcherTest tests.
     apr_initialize();
     atexit(apr_terminate);
@@ -152,12 +151,9 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
       : thread_system_(Platform::CreateThreadSystem()),
         message_handler_(thread_system_->NewMutex()),
         flaky_retries_(0),
-        fetcher_timeout_ms_(FetcherTimeoutMs()) {
-  }
+        fetcher_timeout_ms_(FetcherTimeoutMs()) {}
 
-  virtual void SetUp() {
-    SetUpWithProxy("");
-  }
+  void SetUp() override { SetUpWithProxy(""); }
 
   static int64 FetcherTimeoutMs() {
     return RunningOnValgrind() ? kFetcherTimeoutValgrindMs : kFetcherTimeoutMs;
@@ -165,42 +161,43 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
 
   void SetUpWithProxy(const char* proxy) {
     const char* env_host = getenv("PAGESPEED_TEST_HOST");
-    if (env_host != NULL) {
+    if (env_host != nullptr) {
       test_host_ = env_host;
     }
     if (test_host_.empty()) {
       test_host_ = kFetchHost;
     }
     GoogleString fetch_test_domain = StrCat("//", test_host_);
-    apr_pool_create(&pool_, NULL);
+    apr_pool_create(&pool_, nullptr);
     timer_.reset(Platform::CreateTimer());
-    statistics_.reset(new SimpleStats(thread_system_.get()));
+    statistics_ = std::make_unique<SimpleStats>(thread_system_.get());
     SerfUrlAsyncFetcher::InitStats(statistics_.get());
-    serf_url_async_fetcher_.reset(
-        new SerfUrlAsyncFetcher(proxy, pool_, thread_system_.get(),
-                                statistics_.get(), timer_.get(),
-                                fetcher_timeout_ms_, &message_handler_));
+    serf_url_async_fetcher_ = std::make_unique<SerfUrlAsyncFetcher>(
+        proxy, pool_, thread_system_.get(), statistics_.get(), timer_.get(),
+        fetcher_timeout_ms_, &message_handler_);
     mutex_.reset(thread_system_->NewMutex());
-    AddTestUrl(StrCat("http:", fetch_test_domain,
-                      "/mod_pagespeed_example/index.html"),
-               "<!doctype html>");
+    AddTestUrl(
+        StrCat("http:", fetch_test_domain, "/mod_pagespeed_example/index.html"),
+        "<!doctype html>");
     // Note: We store resources in www.modpagespeed.com/do_not_modify and
     // with content hash so that we can make sure the files don't change
     // from under us and cause our tests to fail.
-    GoogleString favicon_domain_and_path = StrCat(
-        fetch_test_domain,
-        "/do_not_modify/favicon.d034f46c06475a27478e98ef5dff965e.ico");
+    GoogleString favicon_domain_and_path =
+        StrCat(fetch_test_domain,
+               "/do_not_modify/favicon.d034f46c06475a27478e98ef5dff965e.ico");
     static const char kFaviconHead[] = "\000\000\001\001\002\000\020";
     favicon_head_.append(kFaviconHead, STATIC_STRLEN(kFaviconHead));
     https_favicon_url_ = StrCat("https:", favicon_domain_and_path);
     AddTestUrl(StrCat("http:", favicon_domain_and_path), favicon_head_);
-    AddTestUrl(StrCat("http:", fetch_test_domain, "/do_not_modify/"
-                      "logo.e80d1c59a673f560785784fb1ac10959.gif"), "GIF");
     AddTestUrl(StrCat("http:", fetch_test_domain,
-                      "/do_not_modify/cgi/slow_js.cgi"),
-               "alert('hello world');");
-    AddTestUrl(StrCat("http:", fetch_test_domain,
-                      "/mod_pagespeed_beacon?ets=42"), "");
+                      "/do_not_modify/"
+                      "logo.e80d1c59a673f560785784fb1ac10959.gif"),
+               "GIF");
+    AddTestUrl(
+        StrCat("http:", fetch_test_domain, "/do_not_modify/cgi/slow_js.cgi"),
+        "alert('hello world');");
+    AddTestUrl(
+        StrCat("http:", fetch_test_domain, "/mod_pagespeed_beacon?ets=42"), "");
     AddTestUrl(StrCat("http:", fetch_test_domain, ":1023/refused.jpg"), "");
     AddTestUrl(StrCat("http:", fetch_test_domain, "/no_content"), "");
 
@@ -208,11 +205,11 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
 
 #if SERF_HTTPS_FETCHING
     const char* ssl_cert_dir = getenv("SSL_CERT_DIR");
-    if (ssl_cert_dir != NULL) {
+    if (ssl_cert_dir != nullptr) {
       serf_url_async_fetcher_->SetSslCertificatesDir(ssl_cert_dir);
     }
     const char* ssl_cert_file = getenv("SSL_CERT_FILE");
-    if (ssl_cert_file != NULL) {
+    if (ssl_cert_file != nullptr) {
       serf_url_async_fetcher_->SetSslCertificatesFile(ssl_cert_file);
     }
 #endif
@@ -222,10 +219,10 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
         ->Set(timer_->NowMs());
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Need to free the fetcher before destroy the pool.
-    serf_url_async_fetcher_.reset(NULL);
-    timer_.reset(NULL);
+    serf_url_async_fetcher_.reset(nullptr);
+    timer_.reset(nullptr);
     STLDeleteElements(&fetches_);
     if (pool_ != nullptr) {
       apr_pool_destroy(pool_);
@@ -239,17 +236,16 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
     urls_.push_back(url);
     content_starts_.push_back(content_start);
     int index = fetches_.size();
-    fetches_.push_back(
-        new SerfTestFetch(
-            RequestContext::NewTestRequestContext(thread_system_.get()),
-            mutex_.get()));
+    fetches_.push_back(new SerfTestFetch(
+        RequestContext::NewTestRequestContext(thread_system_.get()),
+        mutex_.get()));
     return index;
   }
 
   void StartFetch(int idx) {
     fetches_[idx]->Reset();
-    serf_url_async_fetcher_->Fetch(
-        urls_[idx], &message_handler_, fetches_[idx]);
+    serf_url_async_fetcher_->Fetch(urls_[idx], &message_handler_,
+                                   fetches_[idx]);
   }
 
   void StartFetches(size_t first, size_t last) {
@@ -259,8 +255,8 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   }
 
   int ActiveFetches() {
-    return statistics_->GetUpDownCounter(
-        SerfStats::kSerfFetchActiveCount)->Get();
+    return statistics_->GetUpDownCounter(SerfStats::kSerfFetchActiveCount)
+        ->Get();
   }
 
   int CountCompletedFetches(size_t first, size_t last) {
@@ -298,11 +294,9 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
 
       if (content_starts_[idx].empty()) {
         EXPECT_TRUE(contents(idx).empty());
-        EXPECT_EQ(HttpStatus::kNoContent,
-                  response_headers(idx)->status_code());
+        EXPECT_EQ(HttpStatus::kNoContent, response_headers(idx)->status_code());
       } else {
-        EXPECT_LT(static_cast<size_t>(0), contents(idx).size())
-            << urls_[idx];
+        EXPECT_LT(static_cast<size_t>(0), contents(idx).size()) << urls_[idx];
         EXPECT_EQ(HttpStatus::kOK, response_headers(idx)->status_code())
             << urls_[idx];
       }
@@ -312,16 +306,16 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
   }
 
   void ValidateMonitoringStats(int64 expect_success, int64 expect_failure) {
-    EXPECT_EQ(expect_success, statistics_->GetVariable(
-        SerfStats::kSerfFetchUltimateSuccess)->Get());
-    EXPECT_EQ(expect_failure, statistics_->GetVariable(
-        SerfStats::kSerfFetchUltimateFailure)->Get());
+    EXPECT_EQ(
+        expect_success,
+        statistics_->GetVariable(SerfStats::kSerfFetchUltimateSuccess)->Get());
+    EXPECT_EQ(
+        expect_failure,
+        statistics_->GetVariable(SerfStats::kSerfFetchUltimateFailure)->Get());
   }
 
   // Valgrind will not allow the async-fetcher thread to run without a sleep.
-  void YieldToThread() {
-    usleep(1);
-  }
+  void YieldToThread() { usleep(1); }
 
   int WaitTillDone(size_t first, size_t last) {
     bool done = false;
@@ -378,11 +372,12 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
     // If we have enabled https, we should be counting our cert-failures.
     // Otherwise we shouldn't even be checking.
     if (serf_url_async_fetcher_->SupportsHttps()) {
-      EXPECT_EQ(num_fetches, statistics_->GetVariable(
-          SerfStats::kSerfFetchCertErrors)->Get());
+      EXPECT_EQ(
+          num_fetches,
+          statistics_->GetVariable(SerfStats::kSerfFetchCertErrors)->Get());
     } else {
-      EXPECT_EQ(0, statistics_->GetVariable(
-          SerfStats::kSerfFetchCertErrors)->Get());
+      EXPECT_EQ(
+          0, statistics_->GetVariable(SerfStats::kSerfFetchCertErrors)->Get());
     }
   }
 
@@ -408,8 +403,8 @@ class SerfUrlAsyncFetcherTest : public ::testing::Test {
     ASSERT_FALSE(content_starts_[index].empty());
     EXPECT_FALSE(contents(index).empty());
     EXPECT_EQ(HttpStatus::kOK, response_headers(index)->status_code());
-    EXPECT_EQ(0, statistics_->GetVariable(
-        SerfStats::kSerfFetchCertErrors)->Get());
+    EXPECT_EQ(0,
+              statistics_->GetVariable(SerfStats::kSerfFetchCertErrors)->Get());
     EXPECT_STREQ(content_starts_[index],
                  contents(index).substr(0, content_starts_[index].size()));
   }
@@ -470,8 +465,8 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchUsingDifferentRequestMethod) {
   EXPECT_EQ(501,  // PURGE method not implemented in test apache servers.
             response_headers(kModpagespeedSite)->status_code());
   EXPECT_TRUE(
-      contents(kModpagespeedSite).find(
-          "PURGE to /mod_pagespeed_example/index.html not supported.") !=
+      contents(kModpagespeedSite)
+          .find("PURGE to /mod_pagespeed_example/index.html not supported.") !=
       GoogleString::npos);
   ValidateMonitoringStats(0, 1);
 }
@@ -479,8 +474,8 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchUsingDifferentRequestMethod) {
 // Tests that when the fetcher requests gzipped data it gets it.  Note
 // that the callback is delivered content that must be explicitly unzipped.
 TEST_F(SerfUrlAsyncFetcherTest, FetchOneURLGzipped) {
-  request_headers(kModpagespeedSite)->Add(HttpAttributes::kAcceptEncoding,
-                                          HttpAttributes::kGzip);
+  request_headers(kModpagespeedSite)
+      ->Add(HttpAttributes::kAcceptEncoding, HttpAttributes::kGzip);
   StartFetches(kModpagespeedSite, kModpagespeedSite);
   ASSERT_EQ(1, WaitTillDone(kModpagespeedSite, kModpagespeedSite));
   ASSERT_TRUE(fetches_[kModpagespeedSite]->IsDone());
@@ -551,12 +546,10 @@ TEST_F(SerfUrlAsyncFetcherTest, TestCancelThreeThreaded) {
 
   // Some of the fetches may succeed in the tiny window above, but none should
   // be considered failed due to the quick shutdown cancelling them.
-  EXPECT_LE(statistics_->GetVariable(
-                SerfStats::kSerfFetchUltimateSuccess)->Get(),
-            3);
-  EXPECT_EQ(0,
-            statistics_->GetVariable(
-                SerfStats::kSerfFetchUltimateFailure)->Get());
+  EXPECT_LE(
+      statistics_->GetVariable(SerfStats::kSerfFetchUltimateSuccess)->Get(), 3);
+  EXPECT_EQ(
+      0, statistics_->GetVariable(SerfStats::kSerfFetchUltimateFailure)->Get());
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestWaitThreeThreaded) {
@@ -599,8 +592,7 @@ TEST_F(SerfUrlAsyncFetcherTest, TestThreeThreadedAsync) {
   const int kPollsPerSecond = 1000000 / kPollTimeUs;
   const int kMaxIters = kMaxSeconds * kPollsPerSecond;
   int completed = 0;
-  for (int i = kModpagespeedSite;
-       (completed <= kGoogleLogo) && (i < kMaxIters);
+  for (int i = kModpagespeedSite; (completed <= kGoogleLogo) && (i < kMaxIters);
        ++i) {
     usleep(kPollTimeUs);
     completed = CountCompletedFetches(kModpagespeedSite, kGoogleLogo);
@@ -693,8 +685,8 @@ TEST_F(SerfUrlAsyncFetcherTest, TestHttpsWithExplicitHost) {
   // our test domain. We cheat a little, and just append a dot, since
   // for a fully-qualified domain DNS will ignore it.
   GoogleUrl original_url(https_favicon_url_);
-  GoogleUrl alt_url(StrCat("https://", original_url.Host(), ".",
-                           original_url.PathAndLeaf()));
+  GoogleUrl alt_url(
+      StrCat("https://", original_url.Host(), ".", original_url.PathAndLeaf()));
 
   serf_url_async_fetcher_->SetHttpsOptions("enable,allow_self_signed");
   int index = AddTestUrl(alt_url.Spec().as_string(), favicon_head_);
@@ -718,8 +710,8 @@ TEST_F(SerfUrlAsyncFetcherTest, TestHttpsWithExplicitHostPort) {
   // 400 it.
   serf_url_async_fetcher_->SetHttpsOptions("enable,allow_self_signed");
   GoogleUrl original_url(https_favicon_url_);
-  GoogleString with_port = StrCat(original_url.Origin(), ":443",
-                                  original_url.PathAndLeaf());
+  GoogleString with_port =
+      StrCat(original_url.Origin(), ":443", original_url.PathAndLeaf());
   int index = AddTestUrl(with_port, favicon_head_);
   request_headers(index)->Add(HttpAttributes::kHost,
                               StrCat(original_url.Host(), ":443"));
@@ -810,8 +802,8 @@ TEST_F(SerfUrlAsyncFetcherTest,
   GoogleString text;
   StringWriter text_writer(&text);
   message_handler_.Dump(&text_writer);
-  GoogleString msg = StrCat(urls_[kConnectionRefused],
-                            " (connecting to:127.0.0.1:1023)");
+  GoogleString msg =
+      StrCat(urls_[kConnectionRefused], " (connecting to:127.0.0.1:1023)");
   EXPECT_TRUE(text.find(msg) != GoogleString::npos) << text;
   ValidateMonitoringStats(0, 1);
 }
@@ -823,9 +815,10 @@ TEST_F(SerfUrlAsyncFetcherTest, TestTrackOriginalContentLength) {
   StartFetch(kModpagespeedSite);
   WaitTillDone(kModpagespeedSite, kModpagespeedSite);
   FlakyRetry(kModpagespeedSite);
-  const char* ocl_header = response_headers(kModpagespeedSite)->Lookup1(
-      HttpAttributes::kXOriginalContentLength);
-  ASSERT_TRUE(ocl_header != NULL);
+  const char* ocl_header =
+      response_headers(kModpagespeedSite)
+          ->Lookup1(HttpAttributes::kXOriginalContentLength);
+  ASSERT_TRUE(ocl_header != nullptr);
   int bytes_count =
       statistics_->GetVariable(SerfStats::kSerfFetchByteCount)->Get();
   int64 ocl_value;
@@ -841,18 +834,18 @@ TEST_F(SerfUrlAsyncFetcherTest, TestHostConstruction) {
                SerfUrlAsyncFetcher::ExtractHostHeader(uri1, pool_));
 
   apr_uri_t uri2;
-  EXPECT_EQ(APR_SUCCESS,
-            apr_uri_parse(pool_,
-                          "http://me:password@www.example.com/example.css",
-                          &uri2));
+  EXPECT_EQ(
+      APR_SUCCESS,
+      apr_uri_parse(pool_, "http://me:password@www.example.com/example.css",
+                    &uri2));
   EXPECT_STREQ("www.example.com",
                SerfUrlAsyncFetcher::ExtractHostHeader(uri2, pool_));
 
   apr_uri_t uri3;
-  EXPECT_EQ(APR_SUCCESS,
-            apr_uri_parse(pool_,
-                          "http://me:password@www.example.com:42/example.css",
-                          &uri3));
+  EXPECT_EQ(
+      APR_SUCCESS,
+      apr_uri_parse(pool_, "http://me:password@www.example.com:42/example.css",
+                    &uri3));
   EXPECT_STREQ("www.example.com:42",
                SerfUrlAsyncFetcher::ExtractHostHeader(uri3, pool_));
 }
@@ -860,24 +853,18 @@ TEST_F(SerfUrlAsyncFetcherTest, TestHostConstruction) {
 TEST_F(SerfUrlAsyncFetcherTest, TestPortRemoval) {
   // Tests our little helper for removing port numbers, which is needed to
   // compute SNI headers from Host: headers.
-  EXPECT_EQ(
-      "www.example.com",
-      SerfUrlAsyncFetcher::RemovePortFromHostHeader("www.example.com"));
-  EXPECT_EQ(
-      "www.example.com",
-      SerfUrlAsyncFetcher::RemovePortFromHostHeader("www.example.com:80"));
-  EXPECT_EQ(
-      "[::1]",
-      SerfUrlAsyncFetcher::RemovePortFromHostHeader("[::1]"));
-  EXPECT_EQ(
-      "[::1]",
-      SerfUrlAsyncFetcher::RemovePortFromHostHeader("[::1]:80"));
+  EXPECT_EQ("www.example.com",
+            SerfUrlAsyncFetcher::RemovePortFromHostHeader("www.example.com"));
+  EXPECT_EQ("www.example.com", SerfUrlAsyncFetcher::RemovePortFromHostHeader(
+                                   "www.example.com:80"));
+  EXPECT_EQ("[::1]", SerfUrlAsyncFetcher::RemovePortFromHostHeader("[::1]"));
+  EXPECT_EQ("[::1]", SerfUrlAsyncFetcher::RemovePortFromHostHeader("[::1]:80"));
 }
 
 TEST_F(SerfUrlAsyncFetcherTest, TestPost) {
-  int index = AddTestUrl(StrCat("http://", test_host_,
-                                "/do_not_modify/cgi/verify_post.cgi"),
-                         "PASS");
+  int index = AddTestUrl(
+      StrCat("http://", test_host_, "/do_not_modify/cgi/verify_post.cgi"),
+      "PASS");
   request_headers(index)->set_method(RequestHeaders::kPost);
   request_headers(index)->set_message_body("a=b&c=d");
   StartFetches(index, index);
@@ -890,25 +877,24 @@ class SerfFetchTest : public SerfUrlAsyncFetcherTest {
  protected:
   SerfFetchTest()
       : async_fetch_(new StringAsyncFetch(
-            RequestContext::NewTestRequestContext(thread_system_.get()))) {
-  }
+            RequestContext::NewTestRequestContext(thread_system_.get()))) {}
 
-  virtual void TearDown() {
+  void TearDown() override {
     async_fetch_->response_headers()->set_status_code(200);
     serf_fetch_->CallbackDone(SerfCompletionResult::kSuccess);
     // Fetch must be deleted before fetcher because it has a child pool.
-    serf_fetch_.reset(NULL);
+    serf_fetch_.reset(nullptr);
     SerfUrlAsyncFetcherTest::TearDown();
   }
 
   bool ParseUrl(const GoogleString& url) {
-    serf_fetch_.reset(new SerfFetch(
-        url, async_fetch_.get(), &message_handler_, timer_.get()));
+    serf_fetch_ = std::make_unique<SerfFetch>(url, async_fetch_.get(),
+                                              &message_handler_, timer_.get());
     serf_fetch_->SetFetcherForTesting(serf_url_async_fetcher_.get());
 
     bool status;
-    serf_fetch_->ParseUrlForTesting(
-        &status, &parsed_url_, &host_header_, &sni_host_);
+    serf_fetch_->ParseUrlForTesting(&status, &parsed_url_, &host_header_,
+                                    &sni_host_);
 
     return status;
   }
@@ -980,8 +966,8 @@ TEST_F(SerfFetchTest, TestParseUrlDoubleSlash) {
 }
 
 TEST_F(SerfFetchTest, TestParseUrlDoubleSlashEncodedSpace) {
-  ASSERT_TRUE(ParseUrl(
-      "http://www.example.com//foo/bar/baz/BDKL%20319652.JPG"));
+  ASSERT_TRUE(
+      ParseUrl("http://www.example.com//foo/bar/baz/BDKL%20319652.JPG"));
   EXPECT_EQ("www.example.com", StringPiece(host_header_));
   EXPECT_EQ("www.example.com", StringPiece(parsed_url_->hostinfo));
   EXPECT_EQ("", StringPiece(sni_host_));
@@ -1002,7 +988,7 @@ TEST_F(SerfFetchTest, TestParseUrlDoubleSlashRawSpace) {
 
 class SerfUrlAsyncFetcherTestWithProxy : public SerfUrlAsyncFetcherTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // We don't expect this to be a working proxy; this is only used for
     // just covering a crash bug.
     SetUpWithProxy("127.0.0.1:8080");
@@ -1027,7 +1013,7 @@ class SerfUrlAsyncFetcherTestFakeWebServer : public SerfUrlAsyncFetcherTest {
                         ThreadSystem* thread_system)
         : TcpServerThreadForTesting(desired_listen_port_, "fake_webserver",
                                     thread_system) {}
-    virtual ~FakeWebServerThread() { ShutDown(); }
+    ~FakeWebServerThread() override { ShutDown(); }
 
     void HandleClientConnection(apr_socket_t* sock) override {
       char request_buffer[kStackBufferSize];
@@ -1061,7 +1047,7 @@ This text is less than 500 bytes.
       ASSERT_EQ(APR_SUCCESS, status);
 
       // Populate pollfd and add it to pollset.
-      apr_pollfd_t pollfd = { 0 };
+      apr_pollfd_t pollfd = {nullptr};
       pollfd.desc_type = APR_POLL_SOCKET;
       pollfd.desc.s = socket;
       pollfd.reqevents = APR_POLLHUP | APR_POLLERR | APR_POLLIN;
@@ -1083,13 +1069,13 @@ This text is less than 500 bytes.
     }
   };
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     TcpServerThreadForTesting::PickListenPortOnce(&desired_listen_port_);
   }
 
   void SetUp() override {
-    thread_.reset(
-        new FakeWebServerThread(desired_listen_port_, thread_system_.get()));
+    thread_ = std::make_unique<FakeWebServerThread>(desired_listen_port_,
+                                                    thread_system_.get());
     ASSERT_TRUE(thread_->Start());
     // This blocks until the thread is actually listening.
     int port = thread_->GetListeningPort();

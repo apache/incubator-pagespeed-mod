@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_MEM_LOCK_STATE_H_
 #define PAGESPEED_KERNEL_BASE_MEM_LOCK_STATE_H_
 
@@ -73,7 +72,7 @@ class MemLockState {
 
   // Called by MemLock::~MemLock to let us know it doesn't exist anymore.
   // When the last lock is removed, the MemLockState is deleted.
-  void RemoveLock(MemLock* lock);      // Called when lock is deleted
+  void RemoveLock(MemLock* lock);  // Called when lock is deleted
 
   // Removes a lock from the current schedule.  This is done when
   // lock is granted or denied.
@@ -105,7 +104,7 @@ class MemLockState {
   // used for ordering the maps while the lock is in one.
   bool IsHeldInOrderedSet(MemLock* lock) const;
 
-  template<typename T>
+  template <typename T>
   static int Compare(const T& a, const T& b) {
     if (a < b) {
       return -1;

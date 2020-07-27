@@ -53,32 +53,28 @@ class StdioFileSystemTest : public FileSystemTest {
     EXPECT_TRUE(file_system()->WriteFile(tmpfile.c_str(), "", &handler_));
     EXPECT_TRUE(file_system()->Size(tmpfile, &default_file_size_, &handler_));
   }
-  virtual ~StdioFileSystemTest() {}
+  ~StdioFileSystemTest() override {}
 
-  virtual void DeleteRecursively(const StringPiece& filename) {
+  void DeleteRecursively(const StringPiece& filename) override {
     GoogleString filename_string;
     filename.CopyToString(&filename_string);
-    if (stdio_file_system_.Exists(
-        filename_string.c_str(), &handler_).is_false()) {
+    if (stdio_file_system_.Exists(filename_string.c_str(), &handler_)
+            .is_false()) {
       // OK if just not there.
       return;
     }
     DeleteRecursivelyImpl(filename.as_string());
   }
-  virtual FileSystem* file_system() {
-    return &stdio_file_system_;
-  }
-  virtual Timer* timer()  { return &timer_; }
+  FileSystem* file_system() override { return &stdio_file_system_; }
+  Timer* timer() override { return &timer_; }
 
   // Disk based file systems should return the number of disk blocks allocated
   // for a file, not the size of the contents.
-  virtual int FileSize(StringPiece contents) const {
+  int FileSize(StringPiece contents) const override {
     return FileBlockSize(contents, default_file_size_);
   }
 
-  virtual int DefaultDirSize() const {
-    return default_dir_size_;
-  }
+  int DefaultDirSize() const override { return default_dir_size_; }
 
  private:
   // This expects the file to not exist, for better error-checking.
@@ -93,8 +89,7 @@ class StdioFileSystemTest : public FileSystemTest {
         DeleteRecursivelyImpl(files[i]);
       }
 
-      EXPECT_TRUE(
-          stdio_file_system_.RemoveDir(filename.c_str(), &handler_));
+      EXPECT_TRUE(stdio_file_system_.RemoveDir(filename.c_str(), &handler_));
     } else {
       EXPECT_TRUE(stdio_file_system_.RemoveFile(filename.c_str(), &handler_));
     }
@@ -109,54 +104,34 @@ class StdioFileSystemTest : public FileSystemTest {
 };
 
 // Write a named file, then read it.
-TEST_F(StdioFileSystemTest, TestWriteRead) {
-  TestWriteRead();
-}
+TEST_F(StdioFileSystemTest, TestWriteRead) { TestWriteRead(); }
 
 // Write a temp file, then read it.
-TEST_F(StdioFileSystemTest, TestTemp) {
-  TestTemp();
-}
+TEST_F(StdioFileSystemTest, TestTemp) { TestTemp(); }
 
 // Write a temp file, close it, append to it, then read it.
-TEST_F(StdioFileSystemTest, TestAppend) {
-  TestAppend();
-}
+TEST_F(StdioFileSystemTest, TestAppend) { TestAppend(); }
 
 // Write a temp file, rename it, then read it.
-TEST_F(StdioFileSystemTest, TestRename) {
-  TestRename();
-}
+TEST_F(StdioFileSystemTest, TestRename) { TestRename(); }
 
 // Write a file and successfully delete it.
-TEST_F(StdioFileSystemTest, TestRemove) {
-  TestRemove();
-}
+TEST_F(StdioFileSystemTest, TestRemove) { TestRemove(); }
 
 // Write a file and check that it exists.
-TEST_F(StdioFileSystemTest, TestExists) {
-  TestExists();
-}
+TEST_F(StdioFileSystemTest, TestExists) { TestExists(); }
 
 // Create a file along with its directory which does not exist.
-TEST_F(StdioFileSystemTest, TestCreateFileInDir) {
-  TestCreateFileInDir();
-}
+TEST_F(StdioFileSystemTest, TestCreateFileInDir) { TestCreateFileInDir(); }
 
 // Make a directory and check that files may be placed in it.
-TEST_F(StdioFileSystemTest, TestMakeDir) {
-  TestMakeDir();
-}
+TEST_F(StdioFileSystemTest, TestMakeDir) { TestMakeDir(); }
 
 // Create a directory and verify removing it.
-TEST_F(StdioFileSystemTest, TestRemoveDir) {
-  TestRemoveDir();
-}
+TEST_F(StdioFileSystemTest, TestRemoveDir) { TestRemoveDir(); }
 
 // Make a directory and check that it is a directory.
-TEST_F(StdioFileSystemTest, TestIsDir) {
-  TestIsDir();
-}
+TEST_F(StdioFileSystemTest, TestIsDir) { TestIsDir(); }
 
 // Recursively make directories and check that it worked.
 TEST_F(StdioFileSystemTest, TestRecursivelyMakeDir) {
@@ -175,28 +150,16 @@ TEST_F(StdioFileSystemTest, TestRecursivelyMakeDir_FileInPath) {
 }
 
 // Check that we cannot create a directory below a file.
-TEST_F(StdioFileSystemTest, TestListContents) {
-  TestListContents();
-}
+TEST_F(StdioFileSystemTest, TestListContents) { TestListContents(); }
 
-TEST_F(StdioFileSystemTest, TestMtime) {
-  TestMtime();
-}
+TEST_F(StdioFileSystemTest, TestMtime) { TestMtime(); }
 
-TEST_F(StdioFileSystemTest, TestDirInfo) {
-  TestDirInfo();
-}
+TEST_F(StdioFileSystemTest, TestDirInfo) { TestDirInfo(); }
 
-TEST_F(StdioFileSystemTest, TestLock) {
-  TestLock();
-}
+TEST_F(StdioFileSystemTest, TestLock) { TestLock(); }
 
-TEST_F(StdioFileSystemTest, TestLockTimeout) {
-  TestLockTimeout();
-}
+TEST_F(StdioFileSystemTest, TestLockTimeout) { TestLockTimeout(); }
 
-TEST_F(StdioFileSystemTest, TestLockBumping) {
-  TestLockBumping();
-}
+TEST_F(StdioFileSystemTest, TestLockBumping) { TestLockBumping(); }
 
 }  // namespace net_instaweb

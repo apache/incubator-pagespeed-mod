@@ -17,9 +17,9 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/util/input_file_nonce_generator.h"
+
+#include <memory>
 
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -34,29 +34,25 @@ namespace {
 class InputFileNonceGeneratorTest : public NonceGeneratorTestBase {
  protected:
   InputFileNonceGeneratorTest() {
-    main_generator_.reset(new InputFileNonceGenerator(
-        file_system_.OpenInputFile("/dev/urandom", &handler_),
-        &file_system_, new NullMutex, &handler_));
-    other_generator_.reset(new InputFileNonceGenerator(
-        file_system_.OpenInputFile("/dev/urandom", &handler_),
-        &file_system_, new NullMutex, &handler_));
+    main_generator_ = std::make_unique<InputFileNonceGenerator>(
+        file_system_.OpenInputFile("/dev/urandom", &handler_), &file_system_,
+        new NullMutex, &handler_);
+    other_generator_ = std::make_unique<InputFileNonceGenerator>(
+        file_system_.OpenInputFile("/dev/urandom", &handler_), &file_system_,
+        new NullMutex, &handler_);
   }
 
   GoogleMessageHandler handler_;
   StdioFileSystem file_system_;
 };
 
-TEST_F(InputFileNonceGeneratorTest, DuplicateFreedom) {
-  DuplicateFreedom();
-}
+TEST_F(InputFileNonceGeneratorTest, DuplicateFreedom) { DuplicateFreedom(); }
 
 TEST_F(InputFileNonceGeneratorTest, DifferentNonOverlap) {
   DifferentNonOverlap();
 }
 
-TEST_F(InputFileNonceGeneratorTest, AllBitsUsed) {
-  AllBitsUsed();
-}
+TEST_F(InputFileNonceGeneratorTest, AllBitsUsed) { AllBitsUsed(); }
 
 }  // namespace
 }  // namespace net_instaweb

@@ -53,7 +53,7 @@ class EmptyHtmlFilter : public HtmlFilter {
 
   // This filter and derived classes will not rewrite urls.  If a derived filter
   // wants to rewrite urls, override this function.
-  virtual bool CanModifyUrls()  override { return false; }
+  bool CanModifyUrls() override { return false; }
 
   // Invoked by the rewrite driver to query whether this filter may
   // inject scripts.

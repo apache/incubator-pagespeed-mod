@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_INLINE_REWRITE_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_INLINE_REWRITE_CONTEXT_H_
 
@@ -44,7 +43,7 @@ class InlineRewriteContext : public RewriteContext {
   // Note that you should also call StartInlining() to do the work.
   InlineRewriteContext(CommonFilter* filter, HtmlElement* element,
                        HtmlElement::Attribute* src);
-  virtual ~InlineRewriteContext();
+  ~InlineRewriteContext() override;
 
   // Starts the actual inlining process, and takes over memory management
   // of this object.
@@ -62,8 +61,7 @@ class InlineRewriteContext : public RewriteContext {
   virtual bool ShouldInline(const ResourcePtr& resource,
                             GoogleString* explanation) const = 0;
   virtual void RenderInline(const ResourcePtr& resource,
-                            const StringPiece& text,
-                            HtmlElement* element) = 0;
+                            const StringPiece& text, HtmlElement* element) = 0;
   virtual RewriteDriver::InputRole InputRole() const = 0;
 
   // Subclasses of InlineRewriteContext may override this to customize
@@ -73,13 +71,12 @@ class InlineRewriteContext : public RewriteContext {
   virtual ResourcePtr CreateResource(const char* url, bool* is_authorized);
 
   // InlineRewriteContext takes care of these methods from RewriteContext;
-  virtual bool Partition(OutputPartitions* partitions,
-                         OutputResourceVector* outputs);
-  virtual void Rewrite(int partition_index,
-                       CachedResult* partition,
-                       const OutputResourcePtr& output);
-  virtual void Render();
-  virtual OutputResourceKind kind() const;
+  bool Partition(OutputPartitions* partitions,
+                 OutputResourceVector* outputs) override;
+  void Rewrite(int partition_index, CachedResult* partition,
+               const OutputResourcePtr& output) override;
+  void Render() override;
+  OutputResourceKind kind() const override;
 
   HtmlElement* get_element() const { return element_; }
 

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Utility functions for operating on CssStringPieces
 // Collected here for convenience
 
@@ -25,6 +24,7 @@
 #define STRINGS_STRINGPIECE_UTILS_H_
 
 #include <vector>
+
 #include "strings/stringpiece.h"
 
 namespace strings {

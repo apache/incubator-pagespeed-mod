@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-test the FlushHtmlFilter.
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -38,9 +37,9 @@ const char kCssFormat[] = "<link rel='stylesheet' href='%s' type='text/css'/>";
 const char kImgFormat[] = "<img src='%s'/>";
 const char kScriptFormat[] = "<script type=text/javascript src='%s'></script>";
 
-class FlushFilterTest : public RewriteTestBase  {
+class FlushFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     options()->set_flush_html(true);
     RewriteTestBase::SetUp();
     rewrite_driver()->AddFilters();
@@ -48,14 +47,14 @@ class FlushFilterTest : public RewriteTestBase  {
     html_parse()->StartParse("http://example.com");
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     html_parse()->FinishParse();
     RewriteTestBase::TearDown();
   }
 };
 
 TEST_F(FlushFilterTest, NoExtraFlushes) {
-  html_parse()->ParseText(StrCat (absl::StrFormat(kCssFormat, "a.css"),
+  html_parse()->ParseText(StrCat(absl::StrFormat(kCssFormat, "a.css"),
                                  absl::StrFormat(kImgFormat, "b.png")));
   html_parse()->ExecuteFlushIfRequested();
   EXPECT_EQ(0, server_context()->rewrite_stats()->num_flushes()->Get());
@@ -64,11 +63,9 @@ TEST_F(FlushFilterTest, NoExtraFlushes) {
 TEST_F(FlushFilterTest, InduceFlushes) {
   GoogleString lots_of_links;
   for (int i = 0; i < 7; ++i) {
-    StrAppend(&lots_of_links,
-              absl::StrFormat(kCssFormat, "a.css"));
+    StrAppend(&lots_of_links, absl::StrFormat(kCssFormat, "a.css"));
   }
-  StrAppend(&lots_of_links,
-            absl::StrFormat(kScriptFormat, "b.js"));
+  StrAppend(&lots_of_links, absl::StrFormat(kScriptFormat, "b.js"));
   html_parse()->ParseText(lots_of_links);
   html_parse()->ExecuteFlushIfRequested();
   EXPECT_EQ(1, server_context()->rewrite_stats()->num_flushes()->Get());
@@ -77,11 +74,9 @@ TEST_F(FlushFilterTest, InduceFlushes) {
 TEST_F(FlushFilterTest, NotEnoughToInduceFlushes) {
   GoogleString lots_of_links;
   for (int i = 0; i < 7; ++i) {
-    StrAppend(&lots_of_links,
-              absl::StrFormat(kCssFormat, "a.css"));
+    StrAppend(&lots_of_links, absl::StrFormat(kCssFormat, "a.css"));
   }
-  StrAppend(&lots_of_links,
-            absl::StrFormat(kImgFormat, "b.png"));
+  StrAppend(&lots_of_links, absl::StrFormat(kImgFormat, "b.png"));
   html_parse()->ParseText(lots_of_links);
   html_parse()->ExecuteFlushIfRequested();
   EXPECT_EQ(0, server_context()->rewrite_stats()->num_flushes()->Get());

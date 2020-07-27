@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/schedule_rewrite_rpc_handler.h"
 
 #include "base/logging.h"

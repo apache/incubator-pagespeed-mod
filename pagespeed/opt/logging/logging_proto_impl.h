@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // This header should be included (in addition to log_record.h) whenever
 // code needs access to the implementations of the logging_info protobuf
 // This file needs to be separate from log_record.h because both apache's
@@ -26,9 +25,6 @@
 #ifndef PAGESPEED_OPT_LOGGING_LOGGING_PROTO_IMPL_H_
 #define PAGESPEED_OPT_LOGGING_LOGGING_PROTO_IMPL_H_
 
-
 #include "pagespeed/opt/logging/logging.pb.h"
-
-
 
 #endif  // PAGESPEED_OPT_LOGGING_LOGGING_PROTO_IMPL_H_

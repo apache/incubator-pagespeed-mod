@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/hostname_util.h"
 
 #include <unistd.h>

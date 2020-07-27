@@ -17,11 +17,11 @@
  * under the License.
  */
 
+#include "net/instaweb/rewriter/public/flush_html_filter.h"
 
 #include <memory>
 
 #include "net/instaweb/rewriter/public/common_filter.h"
-#include "net/instaweb/rewriter/public/flush_html_filter.h"
 #include "net/instaweb/rewriter/public/resource_tag_scanner.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "pagespeed/kernel/http/semantic_type.h"
@@ -46,19 +46,13 @@ namespace net_instaweb {
 class HtmlElement;
 
 FlushHtmlFilter::FlushHtmlFilter(RewriteDriver* driver)
-    : CommonFilter(driver),
-      score_(0) {
-}
+    : CommonFilter(driver), score_(0) {}
 
 FlushHtmlFilter::~FlushHtmlFilter() {}
 
-void FlushHtmlFilter::StartDocumentImpl() {
-  score_ = 0;
-}
+void FlushHtmlFilter::StartDocumentImpl() { score_ = 0; }
 
-void FlushHtmlFilter::Flush() {
-  score_ = 0;
-}
+void FlushHtmlFilter::Flush() { score_ = 0; }
 
 void FlushHtmlFilter::StartElementImpl(HtmlElement* element) {
   resource_tag_scanner::UrlCategoryVector attributes;

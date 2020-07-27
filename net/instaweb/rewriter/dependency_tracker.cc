@@ -37,9 +37,7 @@ namespace net_instaweb {
 
 const char kDepProp[] = "dependencies";
 
-DependencyTracker::DependencyTracker(RewriteDriver* driver)
-    : driver_(driver) {
-}
+DependencyTracker::DependencyTracker(RewriteDriver* driver) : driver_(driver) {}
 
 DependencyTracker::~DependencyTracker() {
   DCHECK_EQ(outstanding_candidates_, 0);
@@ -69,12 +67,10 @@ void DependencyTracker::Start() {
   if (driver_->options()->NeedsDependenciesCohort()) {
     PropertyCacheDecodeResult status;
     read_in_info_.reset(DecodeFromPropertyCache<Dependencies>(
-          driver_->server_context()->page_property_cache(),
-          driver_->fallback_property_page(),
-          driver_->server_context()->dependencies_cohort(),
-          kDepProp,
-          -1 /* no ttl checking*/,
-          &status));
+        driver_->server_context()->page_property_cache(),
+        driver_->fallback_property_page(),
+        driver_->server_context()->dependencies_cohort(), kDepProp,
+        -1 /* no ttl checking*/, &status));
   }
 }
 
@@ -90,8 +86,8 @@ int DependencyTracker::RegisterDependencyCandidate() {
   return next_id_++;
 }
 
-void DependencyTracker::ReportDependencyCandidate(
-    int id, const Dependency* dep) {
+void DependencyTracker::ReportDependencyCandidate(int id,
+                                                  const Dependency* dep) {
   ScopedMutex hold(mutex_.get());
   if (dep != nullptr) {
     computed_info_[id] = *dep;
@@ -121,8 +117,8 @@ void DependencyTracker::WriteToPropertyCacheIfDone() {
   ClearLockHeld();
 }
 
-bool DependencyOrderCompator::operator()(
-    const Dependency& a, const Dependency& b) {
+bool DependencyOrderCompator::operator()(const Dependency& a,
+                                         const Dependency& b) {
   int pos = 0;
   while (pos < a.order_key_size() && pos < b.order_key_size()) {
     if (a.order_key(pos) < b.order_key(pos)) {

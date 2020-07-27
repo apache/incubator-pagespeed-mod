@@ -68,7 +68,7 @@ bool GetExperimentCookieState(const RequestHeaders& headers, int* value);
 
 // Removes the experiment cookie from the request headers so we don't
 // send it to the origin.
-void RemoveExperimentCookie(RequestHeaders *headers);
+void RemoveExperimentCookie(RequestHeaders* headers);
 
 // Add a Set-Cookie header for the experiment on the domain of url, expiring at
 // expiration_time_ms (specified as ms since the epoch), putting it on the side

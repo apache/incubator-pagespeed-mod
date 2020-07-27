@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/js_outline_filter.h"
 
 #include "net/instaweb/rewriter/public/debug_filter.h"
@@ -59,8 +58,7 @@ class JsOutlineFilterTest : public RewriteTestBase {
 
     debug_message.CopyToString(&debug_message_);
     debug_suffix_ = DebugFilter::FormatEndDocumentMessage(
-        0, 0, 0, 0, 0, false, StringSet(),
-        expected_disabled_filters);
+        0, 0, 0, 0, 0, false, StringSet(), expected_disabled_filters);
   }
 
   // Test outlining scripts with options to write headers.
@@ -71,18 +69,20 @@ class JsOutlineFilterTest : public RewriteTestBase {
     outline_text += script_text;
 
     GoogleString hash = hasher()->Hash(script_text);
-    GoogleString outline_url = Encode(
-        kTestDomain, JsOutlineFilter::kFilterId, hash, "_", "js");
+    GoogleString outline_url =
+        Encode(kTestDomain, JsOutlineFilter::kFilterId, hash, "_", "js");
 
-    GoogleString wrong_hash_outline_url = Encode(
-        kTestDomain, JsOutlineFilter::kFilterId, StrCat("not", hash),
-        "_", "js");
+    GoogleString wrong_hash_outline_url =
+        Encode(kTestDomain, JsOutlineFilter::kFilterId, StrCat("not", hash),
+               "_", "js");
 
     GoogleString html_input = StrCat(
         "<head>\n"
         "  <title>Example style outline</title>\n"
         "  <!-- Script starts here -->\n"
-        "  <script type='text/javascript'>", script_text, "</script>\n"
+        "  <script type='text/javascript'>",
+        script_text,
+        "</script>\n"
         "  <!-- Script ends here -->\n"
         "</head>");
     GoogleString expected_output;
@@ -92,7 +92,9 @@ class JsOutlineFilterTest : public RewriteTestBase {
           "  <title>Example style outline</title>\n"
           "  <!-- Script starts here -->\n"
           "  <script type='text/javascript'"
-          " src=\"", outline_url, "\"></script>\n"
+          " src=\"",
+          outline_url,
+          "\"></script>\n"
           "  <!-- Script ends here -->\n"
           "</head>");
     } else {
@@ -100,8 +102,8 @@ class JsOutlineFilterTest : public RewriteTestBase {
           "<head>\n"
           "  <title>Example style outline</title>\n"
           "  <!-- Script starts here -->\n"
-          "  <script type='text/javascript'>", script_text, "</script>",
-          debug_message_,
+          "  <script type='text/javascript'>",
+          script_text, "</script>", debug_message_,
           "\n"
           "  <!-- Script ends here -->\n"
           "</head>");
@@ -151,10 +153,9 @@ TEST_F(JsOutlineFilterTest, OutlineScriptWithBase) {
   const char kInput[] =
       "<base href='http://cdn.example.com/file.html'><script>42;</script>";
   GoogleString expected_output =
-      StrCat("<base href='http://cdn.example.com/file.html'>",
-             "<script src=\"",
-             EncodeWithBase("http://cdn.example.com/", kTestDomain,
-                            "jo", "0", "_", "js"),
+      StrCat("<base href='http://cdn.example.com/file.html'>", "<script src=\"",
+             EncodeWithBase("http://cdn.example.com/", kTestDomain, "jo", "0",
+                            "_", "js"),
              "\"></script>");
   ValidateExpected("test.html", kInput, expected_output);
 }
@@ -177,7 +178,6 @@ TEST_F(JsOutlineFilterTest, NoOutlineScript) {
       "</head>";
   ValidateNoChanges("no_outline_script", html_input);
 }
-
 
 // By default we succeed at outlining.
 TEST_F(JsOutlineFilterTest, UrlNotTooLong) {
@@ -225,8 +225,7 @@ TEST_F(JsOutlineFilterTest, RewriteDomain) {
 
   // Check that CSS gets outlined to the rewritten domain.
   GoogleString expected_url = Encode("http://cdn.com/", "jo", "0", "_", "js");
-  ValidateExpected("rewrite_domain",
-                   "<script>alert('foo');</script>",
+  ValidateExpected("rewrite_domain", "<script>alert('foo');</script>",
                    StrCat("<script src=\"", expected_url, "\"></script>"));
 
   // And check that it serves correctly from that domain.

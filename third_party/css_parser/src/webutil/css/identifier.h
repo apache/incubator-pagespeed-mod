@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 //
 // Identifier represents the value of a CSS identifier (e.g.,
 // normal, repeat, small, inherit).  If we recognize the ident,
@@ -40,67 +39,170 @@ class Identifier {
     // UNKNOWN identifiers. Reserved for internal use.
     GOOG_UNKNOWN,
     // common values
-    INHERIT, NONE, AUTO, NORMAL, VISIBLE, HIDDEN, ALWAYS, AVOID, MEDIUM,
-    REPEAT, COLLAPSE, LEFT, CENTER, RIGHT, TOP, BOTTOM, BOTH,
-    SCROLL, FIXED,
+    INHERIT,
+    NONE,
+    AUTO,
+    NORMAL,
+    VISIBLE,
+    HIDDEN,
+    ALWAYS,
+    AVOID,
+    MEDIUM,
+    REPEAT,
+    COLLAPSE,
+    LEFT,
+    CENTER,
+    RIGHT,
+    TOP,
+    BOTTOM,
+    BOTH,
+    SCROLL,
+    FIXED,
     // background-color
     TRANSPARENT,
     // background-repeat
-    REPEAT_X, REPEAT_Y, NO_REPEAT,
+    REPEAT_X,
+    REPEAT_Y,
+    NO_REPEAT,
     // border-collapse
     SEPARATE,
     // border-style
-    DOTTED, DASHED, SOLID, DOUBLE, GROOVE, RIDGE, INSET, OUTSET,
+    DOTTED,
+    DASHED,
+    SOLID,
+    DOUBLE,
+    GROOVE,
+    RIDGE,
+    INSET,
+    OUTSET,
     // border-width
-    THIN, THICK,
+    THIN,
+    THICK,
     // content
-    OPEN_QUOTE, CLOSE_QUOTE, NO_OPEN_QUOTE, NO_CLOSE_QUOTE,
+    OPEN_QUOTE,
+    CLOSE_QUOTE,
+    NO_OPEN_QUOTE,
+    NO_CLOSE_QUOTE,
     // cursor
-    CROSSHAIR, DEFAULT, POINTER, MOVE, E_RESIZE, NE_RESIZE, NW_RESIZE,
-    N_RESIZE, SE_RESIZE, SW_RESIZE, S_RESIZE, W_RESIZE, TEXT, WAIT, HELP,
+    CROSSHAIR,
+    DEFAULT,
+    POINTER,
+    MOVE,
+    E_RESIZE,
+    NE_RESIZE,
+    NW_RESIZE,
+    N_RESIZE,
+    SE_RESIZE,
+    SW_RESIZE,
+    S_RESIZE,
+    W_RESIZE,
+    TEXT,
+    WAIT,
+    HELP,
     PROGRESS,
     // direction,
-    LTR, RTL,
+    LTR,
+    RTL,
     // display
-    INLINE, BLOCK, LIST_ITEM, RUN_IN, INLINE_BLOCK, TABLE, INLINE_TABLE,
-    TABLE_ROW_GROUP, TABLE_HEADER_GROUP, TABLE_FOOTER_GROUP, TABLE_ROW,
-    TABLE_COLUMN_GROUP, TABLE_COLUMN, TABLE_CELL, TABLE_CAPTION,
+    INLINE,
+    BLOCK,
+    LIST_ITEM,
+    RUN_IN,
+    INLINE_BLOCK,
+    TABLE,
+    INLINE_TABLE,
+    TABLE_ROW_GROUP,
+    TABLE_HEADER_GROUP,
+    TABLE_FOOTER_GROUP,
+    TABLE_ROW,
+    TABLE_COLUMN_GROUP,
+    TABLE_COLUMN,
+    TABLE_CELL,
+    TABLE_CAPTION,
     // empty-cells
-    SHOW, HIDE,
+    SHOW,
+    HIDE,
     // font-family
-    SERIF, SANS_SERIF, CURSIVE, FANTASY, MONOSPACE,
+    SERIF,
+    SANS_SERIF,
+    CURSIVE,
+    FANTASY,
+    MONOSPACE,
     // font-size
-    XX_SMALL, X_SMALL, SMALL, LARGE, X_LARGE, XX_LARGE, SMALLER, LARGER,
+    XX_SMALL,
+    X_SMALL,
+    SMALL,
+    LARGE,
+    X_LARGE,
+    XX_LARGE,
+    SMALLER,
+    LARGER,
     // font-style
-    ITALIC, OBLIQUE,
+    ITALIC,
+    OBLIQUE,
     // font-variant
     SMALL_CAPS,
     // font-weight
-    BOLD, BOLDER, LIGHTER,
+    BOLD,
+    BOLDER,
+    LIGHTER,
     // font
-    CAPTION, ICON, MENU, MESSAGE_BOX, SMALL_CAPTION, STATUS_BAR,
+    CAPTION,
+    ICON,
+    MENU,
+    MESSAGE_BOX,
+    SMALL_CAPTION,
+    STATUS_BAR,
     // list-style-position
-    INSIDE, OUTSIDE,
+    INSIDE,
+    OUTSIDE,
     // list-style-type
-    DISC, CIRCLE, SQUARE, DECIMAL, DECIMAL_LEADING_ZERO, LOWER_ROMAN,
-    UPPER_ROMAN, LOWER_GREEK, LOWER_LATIN, UPPER_LATIN, ARMENIAN, GEORGIAN,
-    LOWER_ALPHA, UPPER_ALPHA,
+    DISC,
+    CIRCLE,
+    SQUARE,
+    DECIMAL,
+    DECIMAL_LEADING_ZERO,
+    LOWER_ROMAN,
+    UPPER_ROMAN,
+    LOWER_GREEK,
+    LOWER_LATIN,
+    UPPER_LATIN,
+    ARMENIAN,
+    GEORGIAN,
+    LOWER_ALPHA,
+    UPPER_ALPHA,
     // outline-color
     INVERT,
     // position
-    STATIC, RELATIVE, ABSOLUTE,
+    STATIC,
+    RELATIVE,
+    ABSOLUTE,
     // text-align
     JUSTIFY,
     // text-decoration
-    UNDERLINE, OVERLINE, LINE_THROUGH, BLINK,
+    UNDERLINE,
+    OVERLINE,
+    LINE_THROUGH,
+    BLINK,
     // text-transform
-    CAPITALIZE, UPPERCASE, LOWERCASE,
+    CAPITALIZE,
+    UPPERCASE,
+    LOWERCASE,
     // unicode-bidi
-    EMBED, BIDI_OVERRIDE,
+    EMBED,
+    BIDI_OVERRIDE,
     // vertical-align
-    BASELINE, SUB, SUPER, TEXT_TOP, MIDDLE, TEXT_BOTTOM,
+    BASELINE,
+    SUB,
+    SUPER,
+    TEXT_TOP,
+    MIDDLE,
+    TEXT_BOTTOM,
     // white-space
-    PRE, NOWRAP, PRE_WRAP, PRE_LINE,
+    PRE,
+    NOWRAP,
+    PRE_WRAP,
+    PRE_LINE,
     // google specific. Internal use only.
     // For property with context-dependent initial values. such as border-color
     // and text-align.
@@ -111,14 +213,15 @@ class Identifier {
     GOOG_BODY_LINK_COLOR,
     // identifier reserved for font-size in <big> and <small>. IE has special
     // semantics for them.
-    GOOG_BIG, GOOG_SMALL,
+    GOOG_BIG,
+    GOOG_SMALL,
     OTHER
   };
 
   // Constructor.
-  Identifier() : ident_(GOOG_UNKNOWN) { }
+  Identifier() : ident_(GOOG_UNKNOWN) {}
   explicit Identifier(const UnicodeText& s);
-  explicit Identifier(Ident ident) : ident_(ident) { }
+  explicit Identifier(Ident ident) : ident_(ident) {}
 
   // Accessors.
   //
@@ -148,6 +251,6 @@ class Identifier {
   UnicodeText other_;  // valid if ident_ is OTHER.
 };
 
-}  // namespace
+}  // namespace Css
 
 #endif  // WEBUTIL_CSS_IDENTIFIER_H__

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_CSS_OUTLINE_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_CSS_OUTLINE_FILTER_H_
 
@@ -42,19 +41,19 @@ class CssOutlineFilter : public CommonFilter {
   static const char kFilterId[];
 
   explicit CssOutlineFilter(RewriteDriver* driver);
-  virtual ~CssOutlineFilter();
+  ~CssOutlineFilter() override;
 
-  virtual void StartDocumentImpl();
+  void StartDocumentImpl() override;
 
-  virtual void StartElementImpl(HtmlElement* element);
-  virtual void EndElementImpl(HtmlElement* element);
+  void StartElementImpl(HtmlElement* element) override;
+  void EndElementImpl(HtmlElement* element) override;
 
-  virtual void Flush();
+  void Flush() override;
 
   // HTML Events we expect to be in <style> elements.
-  virtual void Characters(HtmlCharactersNode* characters);
+  void Characters(HtmlCharactersNode* characters) override;
 
-  virtual const char* Name() const { return "OutlineCss"; }
+  const char* Name() const override { return "OutlineCss"; }
 
  private:
   bool WriteResource(const StringPiece& content, OutputResource* resource,

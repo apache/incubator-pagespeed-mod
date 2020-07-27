@@ -17,10 +17,9 @@
  * under the License.
  */
 
+#include <cstdarg>
 
 #include "pagespeed/kernel/base/message_handler.h"
-
-#include <cstdarg>
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 
@@ -34,13 +33,13 @@ class TestMessageHandler : public net_instaweb::MessageHandler {
   const StringVector& messages() { return messages_; }
 
  protected:
-  virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageVImpl(MessageType type, const char* msg, va_list args) override;
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageVImpl(MessageType type, const char* filename,
-                                int line, const char* msg, va_list args);
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageVImpl(MessageType type, const char* filename, int line,
+                        const char* msg, va_list args) override;
+  void FileMessageSImpl(MessageType type, const char* filename, int line,
+                        const GoogleString& message) override;
 
  private:
   StringVector messages_;

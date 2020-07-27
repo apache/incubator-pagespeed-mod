@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_HTML_ATTRIBUTE_QUOTE_REMOVAL_H_
 #define PAGESPEED_KERNEL_HTML_HTML_ATTRIBUTE_QUOTE_REMOVAL_H_
 
@@ -44,16 +43,14 @@ class HtmlParse;
 class HtmlAttributeQuoteRemoval : public EmptyHtmlFilter {
  public:
   explicit HtmlAttributeQuoteRemoval(HtmlParse* html_parse);
-  virtual ~HtmlAttributeQuoteRemoval();
+  ~HtmlAttributeQuoteRemoval() override;
   // Given context in object, does attribute value val require quotes?
-  bool NeedsQuotes(const char *val);
-  virtual void StartElement(HtmlElement* element);
+  bool NeedsQuotes(const char* val);
+  void StartElement(HtmlElement* element) override;
   // # of quote pairs removed from attributes in *all* documents processed.
-  int total_quotes_removed() const {
-    return total_quotes_removed_;
-  }
+  int total_quotes_removed() const { return total_quotes_removed_; }
 
-  virtual const char* Name() const { return "HtmlAttributeQuoteRemoval"; }
+  const char* Name() const override { return "HtmlAttributeQuoteRemoval"; }
 
  private:
   int total_quotes_removed_;

@@ -17,18 +17,14 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/html/html_filter.h"
 
 namespace net_instaweb {
 
-HtmlFilter::HtmlFilter() : is_enabled_(true) {
-}
+HtmlFilter::HtmlFilter() : is_enabled_(true) {}
 
-HtmlFilter::~HtmlFilter() {
-}
+HtmlFilter::~HtmlFilter() {}
 
-void HtmlFilter::RenderDone() {
-}
+void HtmlFilter::RenderDone() {}
 
 }  // namespace net_instaweb

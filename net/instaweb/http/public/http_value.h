@@ -17,11 +17,10 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_VALUE_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_VALUE_H_
 
-#include <cstddef>                     // for size_t
+#include <cstddef>  // for size_t
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/shared_string.h"
@@ -62,8 +61,8 @@ class HTTPValue : public Writer {
   // multiple times to append more data, and can be called before
   // or after SetHeaders.  However, SetHeaders cannot be interleaved
   // in between calls to Write.
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 
   // Retrieves the headers, returning false if empty.
   bool ExtractHeaders(ResponseHeaders* headers, MessageHandler* handler) const;

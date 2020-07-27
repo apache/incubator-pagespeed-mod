@@ -20,7 +20,6 @@
 #define NET_INSTAWEB_REWRITER_PUBLIC_IMAGE_TEST_BASE_H_
 
 #include "net/instaweb/rewriter/public/image.h"
-
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/mock_message_handler.h"
@@ -49,31 +48,24 @@ class ImageTestBase : public testing::Test {
 
   typedef std::unique_ptr<Image> ImagePtr;
 
-  ImageTestBase() :
-    timer_(new NullMutex, 0),
-    message_handler_(new NullMutex) {
-  }
+  ImageTestBase() : timer_(new NullMutex, 0), message_handler_(new NullMutex) {}
 
-  virtual ~ImageTestBase();
+  ~ImageTestBase() override;
 
   // We use the output_type (ultimate expected output type after image
   // processing) to set up rewrite permissions for the resulting Image object.
-  Image* ImageFromString(ImageType output_type,
-                         const GoogleString& name,
-                         const GoogleString& contents,
-                         bool progressive);
+  Image* ImageFromString(ImageType output_type, const GoogleString& name,
+                         const GoogleString& contents, bool progressive);
 
   // Read an image with given filename and compression options. This also
   // transfers the ownership of options to image object.
-  Image* ReadFromFileWithOptions(
-      const char* name, GoogleString* contents,
-      Image::CompressionOptions* options);
+  Image* ReadFromFileWithOptions(const char* name, GoogleString* contents,
+                                 Image::CompressionOptions* options);
 
   // We use the output_type (ultimate expected output type after image
   // processing) to set up rewrite permissions for the resulting Image object.
-  Image* ReadImageFromFile(ImageType output_type,
-                           const char* filename, GoogleString* buffer,
-                           bool progressive);
+  Image* ReadImageFromFile(ImageType output_type, const char* filename,
+                           GoogleString* buffer, bool progressive);
 
   MockTimer timer_;
   StdioFileSystem file_system_;

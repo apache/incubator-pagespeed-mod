@@ -17,9 +17,9 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/util/hashed_nonce_generator.h"
+
+#include <memory>
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/gtest.h"
@@ -37,21 +37,19 @@ const char kOtherGeneratorKey[] = "other hashed nonce generator test key";
 class HashedNonceGeneratorTest : public NonceGeneratorTestBase {
  protected:
   HashedNonceGeneratorTest() {
-    main_generator_.reset(new HashedNonceGenerator(
-        &hasher_, kMainGeneratorKey, new NullMutex));
-    duplicate_generator_.reset(new HashedNonceGenerator(
-        &hasher_, kMainGeneratorKey, new NullMutex));
-    other_generator_.reset(new HashedNonceGenerator(
-        &hasher_, kOtherGeneratorKey, new NullMutex));
+    main_generator_ = std::make_unique<HashedNonceGenerator>(
+        &hasher_, kMainGeneratorKey, new NullMutex);
+    duplicate_generator_ = std::make_unique<HashedNonceGenerator>(
+        &hasher_, kMainGeneratorKey, new NullMutex);
+    other_generator_ = std::make_unique<HashedNonceGenerator>(
+        &hasher_, kOtherGeneratorKey, new NullMutex);
   }
 
   MD5Hasher hasher_;
   std::unique_ptr<NonceGenerator> duplicate_generator_;
 };
 
-TEST_F(HashedNonceGeneratorTest, DuplicateFreedom) {
-  DuplicateFreedom();
-}
+TEST_F(HashedNonceGeneratorTest, DuplicateFreedom) { DuplicateFreedom(); }
 
 // Show that two identically-constructed generators will produce duplicate
 // results.  Not a requirement, but an important caveat for this generator.
@@ -62,18 +60,14 @@ TEST_F(HashedNonceGeneratorTest, DuplicateGeneration) {
   }
 }
 
-TEST_F(HashedNonceGeneratorTest, DifferentNonOverlap) {
-  DifferentNonOverlap();
-}
+TEST_F(HashedNonceGeneratorTest, DifferentNonOverlap) { DifferentNonOverlap(); }
 
 // Show that all bits change state at some point reasonably early in the
 // generation of nonces.  We do this by making sure we see a 0 and a 1 in each
 // bit position.  We do that by setting bits in a pair of bit masks for each 0
 // and 1 found.  When we're done, any remaining clear bits correspond to bit
 // positions that didn't change.
-TEST_F(HashedNonceGeneratorTest, AllBitsUsed) {
-  AllBitsUsed();
-}
+TEST_F(HashedNonceGeneratorTest, AllBitsUsed) { AllBitsUsed(); }
 
 }  // namespace
 }  // namespace net_instaweb

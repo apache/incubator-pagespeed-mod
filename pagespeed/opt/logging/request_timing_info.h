@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_OPT_LOGGING_REQUEST_TIMING_INFO_H_
 #define PAGESPEED_OPT_LOGGING_REQUEST_TIMING_INFO_H_
 
@@ -65,9 +64,7 @@ class RequestTimingInfo {
   void FirstByteReturned();
 
   // This should be called when a PropertyCache lookup is initiated.
-  void PropertyCacheLookupStarted() {
-    SetToNow(&pcache_lookup_start_ts_ms_);
-  }
+  void PropertyCacheLookupStarted() { SetToNow(&pcache_lookup_start_ts_ms_); }
 
   // This should be called when a PropertyCache lookup completes.
   void PropertyCacheLookupFinished() { SetToNow(&pcache_lookup_end_ts_ms_); }

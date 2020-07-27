@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 // Using the _impl header so we always get the open source version.
-#include "pagespeed/kernel/base/proto_matcher_impl.h"
-
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
+#include "pagespeed/kernel/base/proto_matcher_impl.h"
 #include "pagespeed/kernel/base/proto_matcher_test.pb.h"
 #include "pagespeed/kernel/base/string.h"
 

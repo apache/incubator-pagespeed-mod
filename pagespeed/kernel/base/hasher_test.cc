@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/hasher.h"
 
 #include "base/logging.h"
@@ -31,14 +30,12 @@ namespace {
 class DummyHasher : public Hasher {
  public:
   DummyHasher() : Hasher(10) {}
-  virtual ~DummyHasher() {}
+  ~DummyHasher() override {}
 
   // Arbitrary number of bytes to return (> 8).
-  virtual int RawHashSizeInBytes() const {
-    return 16;
-  }
+  int RawHashSizeInBytes() const override { return 16; }
 
-  virtual GoogleString RawHash(const StringPiece& content) const {
+  GoogleString RawHash(const StringPiece& content) const override {
     GoogleString result = content.as_string();
     result.resize(RawHashSizeInBytes());
     CHECK_EQ(RawHashSizeInBytes(), result.size());
@@ -57,8 +54,7 @@ TEST(HasherTest, HashToUint64) {
             hasher.HashToUint64("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"));
   EXPECT_EQ(0x0123456789ABCDEFull,
             hasher.HashToUint64("\x01\x23\x45\x67\x89\xAB\xCD\xEF"));
-  EXPECT_EQ(0xDEADBEEF00000000ull,
-            hasher.HashToUint64("\xDE\xAD\xBE\xEF"));
+  EXPECT_EQ(0xDEADBEEF00000000ull, hasher.HashToUint64("\xDE\xAD\xBE\xEF"));
   EXPECT_EQ(0x3133703133703133ull,
             hasher.HashToUint64("\x31\x33\x70\x31\x33\x70"
                                 "\x31\x33\x70\x31\x33\x70"));

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_URL_NAMER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_URL_NAMER_H_
 
@@ -39,10 +38,7 @@ class RewriteOptions;
 // '.pagespeed.<filter>.<hash>.<extension>'
 class UrlNamer {
  public:
-  enum EncodeOption {
-    kSharded,
-    kUnsharded
-  };
+  enum EncodeOption { kSharded, kUnsharded };
 
   // This encodes whether we do some sort of mapping of resources to a
   // separate proxy domain
@@ -97,7 +93,7 @@ class UrlNamer {
   virtual bool IsProxyEncoded(const GoogleUrl& url) const { return false; }
 
   // Prepare Fetch for cross-domain request.
-  virtual void PrepForCrossDomain(AsyncFetch*) const { }
+  virtual void PrepForCrossDomain(AsyncFetch*) const {}
 
   const GoogleString& proxy_domain() const { return proxy_domain_; }
 

@@ -17,8 +17,6 @@
  * under the License.
  */
 
-
-
 #include "util/utf8/public/unilib.h"
 
 #include "third_party/utf/utf.h"
@@ -34,9 +32,8 @@ namespace UniLib {
 //   Non-characters: U+FDD0 to U+FDEF and U+xxFFFE to U+xxFFFF for all xx
 bool IsInterchangeValid(char32 c) {
   return !((c >= 0x00 && c <= 0x08) || c == 0x0B || (c >= 0x0E && c <= 0x1F) ||
-           (c >= 0x7F && c <= 0x9F) ||
-           (c >= 0xD800 && c <= 0xDFFF) ||
-           (c >= 0xFDD0 && c <= 0xFDEF) || (c&0xFFFE) == 0xFFFE);
+           (c >= 0x7F && c <= 0x9F) || (c >= 0xD800 && c <= 0xDFFF) ||
+           (c >= 0xFDD0 && c <= 0xFDEF) || (c & 0xFFFE) == 0xFFFE);
 }
 
 int SpanInterchangeValid(const char* begin, int byte_length) {

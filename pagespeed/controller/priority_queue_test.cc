@@ -17,8 +17,8 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/priority_queue.h"
+
 #include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"

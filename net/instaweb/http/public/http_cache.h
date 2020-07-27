@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_HTTP_PUBLIC_HTTP_CACHE_H_
 #define NET_INSTAWEB_HTTP_PUBLIC_HTTP_CACHE_H_
 
@@ -98,21 +97,17 @@ class HTTPCache {
 
   // When a lookup is done in the HTTP Cache, it returns one of these values.
   struct FindResult {
-    FindResult()
-        : status(kNotFound), failure_details(kFetchStatusNotSet) {}
+    FindResult() : status(kNotFound), failure_details(kFetchStatusNotSet) {}
 
     FindResult(FindResultClassification in_status,
                FetchResponseStatus in_failure_details)
         : status(in_status), failure_details(in_failure_details) {}
 
     bool operator==(const FindResult& other) const {
-      return status == other.status &&
-             failure_details == other.failure_details;
+      return status == other.status && failure_details == other.failure_details;
     }
 
-    bool operator!=(const FindResult& other) const {
-      return !(*this == other);
-    }
+    bool operator!=(const FindResult& other) const { return !(*this == other); }
 
     FindResultClassification status;
 
@@ -145,8 +140,7 @@ class HTTPCache {
           owns_response_headers_(false),
           request_ctx_(request_ctx),
           cache_level_(0),
-          is_background_(false) {
-    }
+          is_background_(false) {}
 
     // The 2-arg constructor can be used in situations where we are confident
     // that the cookies and authorization in the request-headers are valid.
@@ -157,8 +151,7 @@ class HTTPCache {
           owns_response_headers_(false),
           request_ctx_(request_ctx),
           cache_level_(0),
-          is_background_(false) {
-    }
+          is_background_(false) {}
 
     virtual ~Callback();
     virtual void Done(FindResult find_result) = 0;
@@ -259,31 +252,26 @@ class HTTPCache {
 
   // Non-blocking Find.  Calls callback when done.  'handler' must all
   // stay valid until callback->Done() is called.
-  void Find(const GoogleString& key,
-                    const GoogleString& fragment,
-                    MessageHandler* handler,
-                    Callback* callback);
+  void Find(const GoogleString& key, const GoogleString& fragment,
+            MessageHandler* handler, Callback* callback);
 
   // Note that Put takes a non-const pointer for HTTPValue so it can
   // bump the reference count.
-  void Put(const GoogleString& key,
-           const GoogleString& fragment,
+  void Put(const GoogleString& key, const GoogleString& fragment,
            RequestHeaders::Properties req_properties,
-           const HttpOptions& http_options,
-           HTTPValue* value,
+           const HttpOptions& http_options, HTTPValue* value,
            MessageHandler* handler);
 
   // Note that Put takes a non-const pointer for ResponseHeaders* so it
   // can update the caching fields prior to storing.
   // If you call this method, you must be certain that the outgoing
   // request was not sent with Authorization:.
-  void Put(const GoogleString& key,
-           const GoogleString& fragment,
+  void Put(const GoogleString& key, const GoogleString& fragment,
            RequestHeaders::Properties req_properties,
            // TODO(sligocki): Remove this arg and use headers->http_options().
            ResponseHeaders::VaryOption respect_vary_on_resources,
-           ResponseHeaders* headers,
-           const StringPiece& content, MessageHandler* handler);
+           ResponseHeaders* headers, const StringPiece& content,
+           MessageHandler* handler);
 
   // Deletes an element in the cache.
   void Delete(const GoogleString& key, const GoogleString& fragment);
@@ -300,8 +288,7 @@ class HTTPCache {
   // failed for some reason (such an error, or being uncacheable, or
   // load shedding, etc). This will be cached according to
   // remember_failure_policy(). This can save work for our backends and us.
-  void RememberFailure(const GoogleString& key,
-                       const GoogleString& fragment,
+  void RememberFailure(const GoogleString& key, const GoogleString& fragment,
                        FetchResponseStatus the_failure,
                        MessageHandler* handler);
 
@@ -330,13 +317,13 @@ class HTTPCache {
   bool IsExpired(const ResponseHeaders& headers, int64 now_ms);
 
   // Stats for the HTTP cache.
-  Variable* cache_time_us()     { return cache_time_us_; }
-  Variable* cache_hits()        { return cache_hits_; }
-  Variable* cache_misses()      { return cache_misses_; }
-  Variable* cache_fallbacks()   { return cache_fallbacks_; }
+  Variable* cache_time_us() { return cache_time_us_; }
+  Variable* cache_hits() { return cache_hits_; }
+  Variable* cache_misses() { return cache_misses_; }
+  Variable* cache_fallbacks() { return cache_fallbacks_; }
   Variable* cache_expirations() { return cache_expirations_; }
-  Variable* cache_inserts()     { return cache_inserts_; }
-  Variable* cache_deletes()     { return cache_deletes_; }
+  Variable* cache_inserts() { return cache_inserts_; }
+  Variable* cache_deletes() { return cache_deletes_; }
 
   int failure_caching_ttl_sec(FetchResponseStatus kind) const {
     return remember_failure_policy_.ttl_sec_for_status[kind];
@@ -386,12 +373,9 @@ class HTTPCache {
 
   // If headers is passed as NULL, the response headers will be extracted from
   // the HTTPValue. Otherwise, the headers passed in will be used.
-  void PutInternal(bool preserve_response_headers,
-                   const GoogleString& key,
-                   const GoogleString& fragment,
-                   int64 start_us,
-                   HTTPValue* value,
-                   ResponseHeaders* headers,
+  void PutInternal(bool preserve_response_headers, const GoogleString& key,
+                   const GoogleString& fragment, int64 start_us,
+                   HTTPValue* value, ResponseHeaders* headers,
                    MessageHandler* handler);
   void DeleteInternal(const GoogleString& key_fragment);
 
@@ -406,15 +390,19 @@ class HTTPCache {
   // Applies changes to headers. If the headers are actually changed or if value
   // is NULL then it builds and returns a new HTTPValue. If content is NULL
   // then content is extracted from value.
-  HTTPValue* ApplyHeaderChangesForPut(
-      int64 start_us, const StringPiece* content, ResponseHeaders* headers,
-      HTTPValue* value, MessageHandler* handler);
+  HTTPValue* ApplyHeaderChangesForPut(int64 start_us,
+                                      const StringPiece* content,
+                                      ResponseHeaders* headers,
+                                      HTTPValue* value,
+                                      MessageHandler* handler);
   void UpdateStats(const GoogleString& key, const GoogleString& fragment,
                    CacheInterface::KeyState backend_state, FindResult result,
                    bool has_fallback, bool is_expired, MessageHandler* handler);
-  void RememberFetchFailedOrNotCacheableHelper(
-      const GoogleString& key, const GoogleString& fragment,
-      MessageHandler* handler, HttpStatus::Code code, int64 ttl_sec);
+  void RememberFetchFailedOrNotCacheableHelper(const GoogleString& key,
+                                               const GoogleString& fragment,
+                                               MessageHandler* handler,
+                                               HttpStatus::Code code,
+                                               int64 ttl_sec);
 
   CacheInterface* cache_;  // Owned by the caller.
   Timer* timer_;

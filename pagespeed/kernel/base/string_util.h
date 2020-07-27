@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,7 +20,7 @@
 #ifndef PAGESPEED_KERNEL_BASE_STRING_UTIL_H_
 #define PAGESPEED_KERNEL_BASE_STRING_UTIL_H_
 
-#include <cctype> // for isascii
+#include <cctype>  // for isascii
 #include <cstddef>
 #include <map>
 #include <set>
@@ -32,7 +32,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/strings/internal/memutil.h" // StripAsciiWhitespace
+#include "absl/strings/internal/memutil.h"  // StripAsciiWhitespace
 #include "absl/strings/match.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
@@ -42,17 +42,17 @@
 #include "fmt/printf.h"
 #include "base/logging.h"
 
-#include <cstdlib> // NOLINT
-#include <string>  // NOLINT
+#include <cstdlib>  // NOLINT
+#include <string>   // NOLINT
 
 static const int32 kint32max = 0x7FFFFFFF;
 static const int32 kint32min = -kint32max - 1;
 
-using absl::StrCat;
 using absl::StrAppend;
+using absl::StrCat;
 
 class StringPiece : public absl::string_view {
-public:
+ public:
   // We accept nullptr for historical reasons.
   StringPiece(const char* c) : absl::string_view(absl::NullSafeStringView(c)) {}
   StringPiece(const absl::string_view& s) : absl::string_view(s) {}
@@ -61,18 +61,16 @@ public:
   using absl::string_view::string_view;
 
   // We accept nullptr for historical reasons.
-  constexpr bool operator==(const char* rhs) noexcept {
+  constexpr bool operator==(const char* rhs) const noexcept {
     return absl::NullSafeStringView(rhs) == *this;
   }
-  
+
   // We accept nullptr for historical reasons.
-  constexpr bool operator!=(const char* rhs) noexcept {
+  constexpr bool operator!=(const char* rhs) const noexcept {
     return absl::NullSafeStringView(rhs) != *this;
   }
 
-  void CopyToString(GoogleString* dest) const {
-    *dest = std::string(*this);
-  }
+  void CopyToString(GoogleString* dest) const { *dest = std::string(*this); }
 
   void AppendToString(GoogleString* dest) const {
     (*dest).append(this->data(), this->size());
@@ -109,9 +107,9 @@ void StringAppendV(std::string* dst, const char* format, va_list ap);
 typedef size_t stringpiece_ssize_type;
 
 namespace strings {
-using absl::StartsWith;
 using absl::EndsWith;
-} // namespace strings
+using absl::StartsWith;
+}  // namespace strings
 
 // Quick macro to get the size of a static char[] without trailing '\0'.
 // Note: Cannot be used for char*, std::string, etc.
@@ -128,9 +126,9 @@ typedef std::set<GoogleString> StringSet;
 typedef std::set<GoogleString, StringCompareInsensitive> StringSetInsensitive;
 typedef std::vector<GoogleString> StringVector;
 typedef std::vector<StringPiece> StringPieceVector;
-typedef std::vector<const GoogleString *> ConstStringStarVector;
-typedef std::vector<GoogleString *> StringStarVector;
-typedef std::vector<const char *> CharStarVector;
+typedef std::vector<const GoogleString*> ConstStringStarVector;
+typedef std::vector<GoogleString*> StringStarVector;
+typedef std::vector<const char*> CharStarVector;
 
 inline GoogleString IntegerToString(int i) { return fmt::format("{}", i); }
 
@@ -140,43 +138,43 @@ inline GoogleString UintToString(unsigned int i) {
 
 inline GoogleString Integer64ToString(int64 i) { return fmt::format("{}", i); }
 
-inline GoogleString PointerToString(void *pointer) {
+inline GoogleString PointerToString(void* pointer) {
   return fmt::format("{}", pointer);
 }
 
 // NOTE: For a string of the form "45x", this sets *out = 45 but returns false.
 // It sets *out = 0 given "Junk45" or "".
-inline bool StringToInt(StringPiece in, int *out) {
+inline bool StringToInt(StringPiece in, int* out) {
   return absl::SimpleAtoi<int>(in, out);
 }
 
-inline bool StringToInt(const char* in, int *out) {
+inline bool StringToInt(const char* in, int* out) {
   return absl::SimpleAtoi<int>(in, out);
 }
 
-inline bool StringToInt64(const char* in, int64 *out) {
+inline bool StringToInt64(const char* in, int64* out) {
   return absl::SimpleAtoi<int64>(StringPiece(in), out);
 }
 
-inline bool StringToInt64(StringPiece in, int64 *out) {
+inline bool StringToInt64(StringPiece in, int64* out) {
   return absl::SimpleAtoi<int64>(in, out);
 }
 
-inline bool StringToInt(const GoogleString &in, int *out) {
+inline bool StringToInt(const GoogleString& in, int* out) {
   return absl::SimpleAtoi<int>(in, out);
 }
 
-inline bool StringToInt64(const GoogleString &in, int64 *out) {
+inline bool StringToInt64(const GoogleString& in, int64* out) {
   return absl::SimpleAtoi<int64>(in, out);
 }
 
 // Parses valid floating point number and returns true if string contains only
 // that floating point number (ignoring leading/trailing whitespace).
 // Note: This also parses hex and exponential float notation.
-bool StringToDouble(const char *in, double *out);
+bool StringToDouble(const char* in, double* out);
 
-inline bool StringToDouble(GoogleString in, double *out) {
-  const char *in_c_str = in.c_str();
+inline bool StringToDouble(GoogleString in, double* out) {
+  const char* in_c_str = in.c_str();
   if (strlen(in_c_str) != in.size()) {
     // If there are embedded nulls, always fail.
     return false;
@@ -184,7 +182,7 @@ inline bool StringToDouble(GoogleString in, double *out) {
   return StringToDouble(in_c_str, out);
 }
 
-inline bool StringToDouble(StringPiece in, double *out) {
+inline bool StringToDouble(StringPiece in, double* out) {
   return StringToDouble(GoogleString(in), out);
 }
 
@@ -196,16 +194,16 @@ StringPiece PieceAfterEquals(StringPiece piece);
 // Split sp into pieces that are separated by any character in the given string
 // of separators, and push those pieces in order onto components.
 void SplitStringPieceToVector(StringPiece sp, StringPiece separators,
-                              StringPieceVector *components,
+                              StringPieceVector* components,
                               bool omit_empty_strings);
 
 // Splits string 'full' using substr by searching it incrementally from
 // left. Empty tokens are removed from the final result.
 void SplitStringUsingSubstr(StringPiece full, StringPiece substr,
-                            StringPieceVector *result);
+                            StringPieceVector* result);
 
 void BackslashEscape(StringPiece src, StringPiece to_escape,
-                     GoogleString *dest);
+                     GoogleString* dest);
 
 GoogleString CEscape(StringPiece src);
 
@@ -215,11 +213,11 @@ GoogleString CEscape(StringPiece src);
 
 bool HasPrefixString(StringPiece str, StringPiece prefix);
 
-void UpperString(GoogleString *str);
+void UpperString(GoogleString* str);
 
-void LowerString(GoogleString *str);
+void LowerString(GoogleString* str);
 
-inline bool OnlyWhitespace(const GoogleString &str) {
+inline bool OnlyWhitespace(const GoogleString& str) {
   return absl::StripAsciiWhitespace(str).empty();
 }
 
@@ -229,7 +227,7 @@ inline bool OnlyWhitespace(const GoogleString &str) {
 //
 // NOTE: The string pieces must not overlap 's'.
 int GlobalReplaceSubstring(StringPiece substring, StringPiece replacement,
-                           GoogleString *s);
+                           GoogleString* s);
 
 // Returns the index of the start of needle in haystack, or
 // StringPiece::npos if it's not present.
@@ -240,12 +238,12 @@ StringPiece::size_type FindIgnoreCase(StringPiece haystack, StringPiece needle);
 // ("[", "]", "abc[def]g[h]i]j[k") -> "abcgi]j[k"
 // Returns the number of substrings erased.
 int GlobalEraseBracketedSubstring(StringPiece left, StringPiece right,
-                                  GoogleString *string);
+                                  GoogleString* string);
 
 // Output a string which is the combination of all values in vector, separated
 // by delim. Does not ignore empty strings in vector. So:
 // JoinStringStar({"foo", "", "bar"}, ", ") == "foo, , bar". (Pseudocode)
-GoogleString JoinStringStar(const ConstStringStarVector &vector,
+GoogleString JoinStringStar(const ConstStringStarVector& vector,
                             StringPiece delim);
 
 // See also: ./src/third_party/css_parser/src/strings/ascii_ctype.h
@@ -304,43 +302,43 @@ inline bool IsDecimalDigit(char c) { return (c >= '0' && c <= '9'); }
 
 // In-place removal of leading and trailing HTML whitespace.  Returns true if
 // any whitespace was trimmed.
-bool TrimWhitespace(StringPiece *str);
+bool TrimWhitespace(StringPiece* str);
 
 // In-place removal of leading and trailing quote.  Removes whitespace as well.
-void TrimQuote(StringPiece *str);
+void TrimQuote(StringPiece* str);
 
 // In-place removal of multiple levels of leading and trailing quotes,
 // include url-escaped quotes, optionally backslashed.  Removes
 // whitespace as well.
-void TrimUrlQuotes(StringPiece *str);
+void TrimUrlQuotes(StringPiece* str);
 
 // Trims leading HTML whitespace.  Returns true if any whitespace was trimmed.
-bool TrimLeadingWhitespace(StringPiece *str);
+bool TrimLeadingWhitespace(StringPiece* str);
 
 // Trims trailing HTML whitespace.  Returns true if any whitespace was trimmed.
-bool TrimTrailingWhitespace(StringPiece *str);
+bool TrimTrailingWhitespace(StringPiece* str);
 
 // Non-destructive TrimWhitespace.
 // WARNING: in should not point inside output!
-inline void TrimWhitespace(StringPiece in, GoogleString *output) {
+inline void TrimWhitespace(StringPiece in, GoogleString* output) {
   DCHECK((in.data() < output->data()) ||
          (in.data() >= (output->data() + output->length())))
       << "Illegal argument aliasing in TrimWhitespace";
-  StringPiece temp(in);  // Mutable copy
-  TrimWhitespace(&temp); // Modifies temp
+  StringPiece temp(in);   // Mutable copy
+  TrimWhitespace(&temp);  // Modifies temp
   *output = GoogleString(temp);
 }
 
 // Accumulates a decimal value from 'c' into *value.
 // Returns false and leaves *value unchanged if c is not a decimal digit.
-bool AccumulateDecimalValue(char c, uint32 *value);
+bool AccumulateDecimalValue(char c, uint32* value);
 
 // Accumulates a hex value from 'c' into *value
 // Returns false and leaves *value unchanged if c is not a hex digit.
-bool AccumulateHexValue(char c, uint32 *value);
+bool AccumulateHexValue(char c, uint32* value);
 
 // Return true iff the two strings are equal, ignoring case.
-bool MemCaseEqual(const char *s1, size_t size1, const char *s2, size_t size2);
+bool MemCaseEqual(const char* s1, size_t size1, const char* s2, size_t size2);
 inline bool StringCaseEqual(StringPiece s1, StringPiece s2) {
   return MemCaseEqual(s1.data(), s1.size(), s2.data(), s2.size());
 }
@@ -360,13 +358,13 @@ bool StringEqualConcat(StringPiece str, StringPiece first, StringPiece second);
 int CountCharacterMismatches(StringPiece s1, StringPiece s2);
 
 struct CharStarCompareInsensitive {
-  bool operator()(const char *s1, const char *s2) const {
+  bool operator()(const char* s1, const char* s2) const {
     return (StringCaseCompare(s1, s2) < 0);
   }
 };
 
 struct CharStarCompareSensitive {
-  bool operator()(const char *s1, const char *s2) const {
+  bool operator()(const char* s1, const char* s2) const {
     return (strcmp(s1, s2) < 0);
   }
 };
@@ -384,15 +382,13 @@ struct StringCompareInsensitive {
 // Parse a list of integers into a vector. Empty values are ignored.
 // Returns true if all non-empty values are converted into integers.
 bool SplitStringPieceToIntegerVector(StringPiece src, StringPiece separators,
-                                     std::vector<int> *ints);
+                                     std::vector<int>* ints);
 
 // Does a path end in slash?
-inline bool EndsInSlash(StringPiece path) {
-  return absl::EndsWith(path, "/");
-}
+inline bool EndsInSlash(StringPiece path) { return absl::EndsWith(path, "/"); }
 
 // Make sure directory's path ends in '/'.
-inline void EnsureEndsInSlash(GoogleString *dir) {
+inline void EnsureEndsInSlash(GoogleString* dir) {
   if (!EndsInSlash(*dir)) {
     dir->append("/");
   }
@@ -402,7 +398,7 @@ inline void EnsureEndsInSlash(GoogleString *dir) {
 // Parse it into a vector:  ["a", "b", "c d", "e", "f g"]
 // NOTE: actually used for html doctype recognition,
 // so assumes HtmlSpace separation.
-void ParseShellLikeString(StringPiece input, std::vector<GoogleString> *output);
+void ParseShellLikeString(StringPiece input, std::vector<GoogleString>* output);
 
 // Counts the number of times that substring appears in text
 // Note: for a substring that can overlap itself, it counts not necessarily
@@ -411,20 +407,20 @@ void ParseShellLikeString(StringPiece input, std::vector<GoogleString> *output);
 int CountSubstring(StringPiece text, StringPiece substring);
 
 // Appends new empty string to a StringVector and returns a pointer to it.
-inline GoogleString *StringVectorAdd(StringVector *v) {
+inline GoogleString* StringVectorAdd(StringVector* v) {
   v->push_back(GoogleString());
   return &v->back();
 }
 
 // Append string-like objects accessed through an iterator.
 template <typename I>
-void AppendJoinIterator(GoogleString *dest, I start, I end, StringPiece sep) {
+void AppendJoinIterator(GoogleString* dest, I start, I end, StringPiece sep) {
   if (start == end) {
     // Skip a lot of set-up and tear-down in empty case.
     return;
   }
   size_t size = dest->size();
-  size_t sep_size = 0; // No separator before initial element
+  size_t sep_size = 0;  // No separator before initial element
   for (I str = start; str != end; ++str) {
     size += str->size() + sep_size;
     sep_size = sep.size();
@@ -442,20 +438,20 @@ void AppendJoinIterator(GoogleString *dest, I start, I end, StringPiece sep) {
 // given initial and final strings.  Argument order chosen to be consistent
 // with StrAppend.
 template <typename C>
-void AppendJoinCollection(GoogleString *dest, const C &collection,
+void AppendJoinCollection(GoogleString* dest, const C& collection,
                           StringPiece sep) {
   AppendJoinIterator(dest, collection.begin(), collection.end(), sep);
 }
 
 template <typename C>
-GoogleString JoinCollection(const C &collection, StringPiece sep) {
+GoogleString JoinCollection(const C& collection, StringPiece sep) {
   GoogleString result;
   AppendJoinCollection(&result, collection, sep);
   return result;
 }
 
 // Converts a boolean to string.
-inline const char *BoolToString(bool b) { return (b ? "true" : "false"); }
+inline const char* BoolToString(bool b) { return (b ? "true" : "false"); }
 
 // Using isascii with signed chars is unfortunately undefined.
 inline bool IsAscii(char c) { return isascii(static_cast<unsigned char>(c)); }
@@ -464,6 +460,6 @@ inline bool IsAscii(char c) { return isascii(static_cast<unsigned char>(c)); }
 // Note: This does not include TAB (0x09), LF (0x0A) or CR (0x0D).
 inline bool IsNonControlAscii(char c) { return ('\x20' <= c) && (c <= '\x7E'); }
 
-} // namespace net_instaweb
+}  // namespace net_instaweb
 
-#endif // PAGESPEED_KERNEL_BASE_STRING_UTIL_H_
+#endif  // PAGESPEED_KERNEL_BASE_STRING_UTIL_H_

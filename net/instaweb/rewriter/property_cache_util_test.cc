@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/property_cache_util.h"
 
 #include "net/instaweb/http/public/request_context.h"
@@ -42,7 +41,7 @@ const char kRequestUrl[] = "http://www.example.com/";
 // NameValue from http.proto as the stored proto type.
 class PropertyCacheUtilTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     pcache_ = rewrite_driver()->server_context()->page_property_cache();
     dom_cohort_ = SetupCohort(pcache_, RewriteDriver::kDomCohort);
@@ -68,18 +67,16 @@ TEST_F(PropertyCacheUtilTest, WriteRead) {
   NameValue to_write;
   to_write.set_name("name");
   to_write.set_value("value");
-  PropertyCacheUpdateResult write_status =
-      UpdateInPropertyCache(
-          to_write, rewrite_driver(), dom_cohort_, kTestProp, false);
+  PropertyCacheUpdateResult write_status = UpdateInPropertyCache(
+      to_write, rewrite_driver(), dom_cohort_, kTestProp, false);
   EXPECT_EQ(kPropertyCacheUpdateOk, write_status);
 
   PropertyCacheDecodeResult read_status;
-  std::unique_ptr<NameValue> result(
-      DecodeFromPropertyCache<NameValue>(
-          rewrite_driver(), dom_cohort_, kTestProp,
-          -1 /*no ttl check*/, &read_status));
+  std::unique_ptr<NameValue> result(DecodeFromPropertyCache<NameValue>(
+      rewrite_driver(), dom_cohort_, kTestProp, -1 /*no ttl check*/,
+      &read_status));
   EXPECT_EQ(kPropertyCacheDecodeOk, read_status);
-  ASSERT_TRUE(result.get() != NULL);
+  ASSERT_TRUE(result.get() != nullptr);
   EXPECT_STREQ("name", result->name());
   EXPECT_STREQ("value", result->value());
 }
@@ -89,8 +86,7 @@ TEST_F(PropertyCacheUtilTest, WritePersistence) {
   to_write.set_name("name");
   to_write.set_value("value");
   PropertyCacheUpdateResult write_status =
-      UpdateInPropertyCache(to_write, rewrite_driver(),
-                            dom_cohort_, kTestProp,
+      UpdateInPropertyCache(to_write, rewrite_driver(), dom_cohort_, kTestProp,
                             false /* don't write out cohort*/);
   EXPECT_EQ(kPropertyCacheUpdateOk, write_status);
 
@@ -100,27 +96,25 @@ TEST_F(PropertyCacheUtilTest, WritePersistence) {
   // so the read should fail.
 
   PropertyCacheDecodeResult read_status;
-  std::unique_ptr<NameValue> result(
-      DecodeFromPropertyCache<NameValue>(
-          rewrite_driver(), dom_cohort_, kTestProp,
-          -1 /*no ttl check*/, &read_status));
+  std::unique_ptr<NameValue> result(DecodeFromPropertyCache<NameValue>(
+      rewrite_driver(), dom_cohort_, kTestProp, -1 /*no ttl check*/,
+      &read_status));
   EXPECT_EQ(kPropertyCacheDecodeNotFound, read_status);
-  EXPECT_TRUE(result.get() == NULL);
+  EXPECT_TRUE(result.get() == nullptr);
 
   // Now write again, but ask the routine to write out.
-  write_status = UpdateInPropertyCache(
-      to_write, rewrite_driver(), dom_cohort_, kTestProp,
-      true /* do write out cohort */);
+  write_status =
+      UpdateInPropertyCache(to_write, rewrite_driver(), dom_cohort_, kTestProp,
+                            true /* do write out cohort */);
   EXPECT_EQ(kPropertyCacheUpdateOk, write_status);
 
   // Reset the driver, and re-read: should succeed.
   ResetDriver();
-  result.reset(
-      DecodeFromPropertyCache<NameValue>(
-          rewrite_driver(), dom_cohort_, kTestProp,
-          -1 /*no ttl check*/, &read_status));
+  result.reset(DecodeFromPropertyCache<NameValue>(
+      rewrite_driver(), dom_cohort_, kTestProp, -1 /*no ttl check*/,
+      &read_status));
   EXPECT_EQ(kPropertyCacheDecodeOk, read_status);
-  ASSERT_TRUE(result.get() != NULL);
+  ASSERT_TRUE(result.get() != nullptr);
   EXPECT_STREQ("name", result->name());
   EXPECT_STREQ("value", result->value());
 }
@@ -129,28 +123,25 @@ TEST_F(PropertyCacheUtilTest, DecodeExpired) {
   NameValue to_write;
   to_write.set_name("name");
   to_write.set_value("value");
-  PropertyCacheUpdateResult write_status =
-      UpdateInPropertyCache(to_write, rewrite_driver(),
-                            dom_cohort_, kTestProp, false);
+  PropertyCacheUpdateResult write_status = UpdateInPropertyCache(
+      to_write, rewrite_driver(), dom_cohort_, kTestProp, false);
   EXPECT_EQ(kPropertyCacheUpdateOk, write_status);
 
   AdvanceTimeMs(200);
 
   PropertyCacheDecodeResult read_status;
-  std::unique_ptr<NameValue> result(
-      DecodeFromPropertyCache<NameValue>(
-          rewrite_driver(), dom_cohort_, kTestProp,
-          100 /* ttl check */, &read_status));
+  std::unique_ptr<NameValue> result(DecodeFromPropertyCache<NameValue>(
+      rewrite_driver(), dom_cohort_, kTestProp, 100 /* ttl check */,
+      &read_status));
   EXPECT_EQ(kPropertyCacheDecodeExpired, read_status);
-  ASSERT_TRUE(result.get() == NULL);
+  ASSERT_TRUE(result.get() == nullptr);
 }
 
 TEST_F(PropertyCacheUtilTest, DecodeMissing) {
   PropertyCacheDecodeResult status;
-  std::unique_ptr<NameValue> result(
-      DecodeFromPropertyCache<NameValue>(
-          rewrite_driver(), dom_cohort_, kTestProp, -1, &status));
-  EXPECT_TRUE(result.get() == NULL);
+  std::unique_ptr<NameValue> result(DecodeFromPropertyCache<NameValue>(
+      rewrite_driver(), dom_cohort_, kTestProp, -1, &status));
+  EXPECT_TRUE(result.get() == nullptr);
   EXPECT_EQ(kPropertyCacheDecodeNotFound, status);
 }
 
@@ -159,10 +150,9 @@ TEST_F(PropertyCacheUtilTest, DecodeError) {
   rewrite_driver()->UpdatePropertyValueInDomCohort(
       rewrite_driver()->property_page(), kTestProp, "@(#(@(#@(");
   PropertyCacheDecodeResult status;
-  std::unique_ptr<NameValue> result(
-      DecodeFromPropertyCache<NameValue>(
-          rewrite_driver(), dom_cohort_, kTestProp, -1, &status));
-  EXPECT_TRUE(result.get() == NULL);
+  std::unique_ptr<NameValue> result(DecodeFromPropertyCache<NameValue>(
+      rewrite_driver(), dom_cohort_, kTestProp, -1, &status));
+  EXPECT_TRUE(result.get() == nullptr);
   EXPECT_EQ(kPropertyCacheDecodeParseError, status);
 }
 

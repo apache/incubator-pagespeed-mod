@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_REQUEST_TRACE_H_
 #define PAGESPEED_KERNEL_BASE_REQUEST_TRACE_H_
 

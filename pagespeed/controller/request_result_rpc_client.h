@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_REQUEST_RESULT_RPC_CLIENT_H_
 #define PAGESPEED_CONTROLLER_REQUEST_RESULT_RPC_CLIENT_H_
 
@@ -126,9 +125,9 @@ class RequestResultRpcClient {
   typedef ::grpc::ClientAsyncReaderWriterInterface<RequestT, ResponseT>
       ReaderWriter;
 
-  RequestResultRpcClient(
-      ::grpc::CompletionQueue* queue, ThreadSystem* thread_system,
-      MessageHandler* handler, CallbackT* callback)
+  RequestResultRpcClient(::grpc::CompletionQueue* queue,
+                         ThreadSystem* thread_system, MessageHandler* handler,
+                         CallbackT* callback)
       : mutex_(thread_system->NewMutex()),
         queue_(queue),
         callback_(callback),

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_CONTROLLER_POPULARITY_CONTEST_SCHEDULE_REWRITE_CONTROLLER_H_
 #define PAGESPEED_CONTROLLER_POPULARITY_CONTEST_SCHEDULE_REWRITE_CONTROLLER_H_
 
@@ -35,7 +34,6 @@
 #include "pagespeed/kernel/base/thread_annotations.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
-
 
 // Implementation of ScheduleRewriteController that uses priority queue to
 // process rewrites in the order of most requested. Gurantees that at most one
@@ -101,7 +99,7 @@ class PopularityContestScheduleRewriteController
                                              Timer* timer,
                                              int max_running_rewrites,
                                              int max_queued_rewrites);
-  virtual ~PopularityContestScheduleRewriteController();
+  ~PopularityContestScheduleRewriteController() override;
 
   // ScheduleRewriteController interface.
   void ScheduleRewrite(const GoogleString& key, Function* callback) override;
@@ -139,8 +137,8 @@ class PopularityContestScheduleRewriteController
     }
   };
 
-  typedef std::unordered_map<const GoogleString*, Rewrite*,
-                             StringPtrHash, StringPtrEq>
+  typedef std::unordered_map<const GoogleString*, Rewrite*, StringPtrHash,
+                             StringPtrEq>
       RewriteMap;
 
   // Consider starting the next rewrite in queue_, depending on available

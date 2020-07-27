@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_SIMPLE_TEXT_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_SIMPLE_TEXT_FILTER_H_
 
@@ -50,8 +49,7 @@ class SimpleTextFilter : public RewriteFilter {
   class Rewriter : public RefCounted<Rewriter> {
    public:
     Rewriter() {}
-    virtual bool RewriteText(const StringPiece& url,
-                             const StringPiece& in,
+    virtual bool RewriteText(const StringPiece& url, const StringPiece& in,
                              GoogleString* out,
                              ServerContext* server_context) = 0;
     virtual HtmlElement::Attribute* FindResourceAttribute(
@@ -78,19 +76,17 @@ class SimpleTextFilter : public RewriteFilter {
    public:
     Context(const RewriterPtr& rewriter, RewriteDriver* driver,
             RewriteContext* parent);
-    virtual ~Context();
-    virtual void RewriteSingle(
-        const ResourcePtr& input, const OutputResourcePtr& output);
+    ~Context() override;
+    void RewriteSingle(const ResourcePtr& input,
+                       const OutputResourcePtr& output) override;
 
    protected:
-    virtual const char* id() const { return rewriter_->id(); }
-    virtual OutputResourceKind kind() const { return rewriter_->kind(); }
-    virtual bool OptimizationOnly() const {
+    const char* id() const override { return rewriter_->id(); }
+    OutputResourceKind kind() const override { return rewriter_->kind(); }
+    bool OptimizationOnly() const override {
       return rewriter_->OptimizationOnly();
     }
-    bool PolicyPermitsRendering() const override {
-      return true;
-    }
+    bool PolicyPermitsRendering() const override { return true; }
 
    private:
     RewriterPtr rewriter_;
@@ -99,20 +95,20 @@ class SimpleTextFilter : public RewriteFilter {
   };
 
   SimpleTextFilter(Rewriter* rewriter, RewriteDriver* driver);
-  virtual ~SimpleTextFilter();
+  ~SimpleTextFilter() override;
 
-  virtual void StartDocumentImpl() {}
-  virtual void EndElementImpl(HtmlElement* element) {}
-  virtual void StartElementImpl(HtmlElement* element);
+  void StartDocumentImpl() override {}
+  void EndElementImpl(HtmlElement* element) override {}
+  void StartElementImpl(HtmlElement* element) override;
 
-  virtual RewriteContext* MakeRewriteContext();
-  virtual RewriteContext* MakeNestedRewriteContext(
-      RewriteContext* parent, const ResourceSlotPtr& slot);
+  RewriteContext* MakeRewriteContext() override;
+  RewriteContext* MakeNestedRewriteContext(
+      RewriteContext* parent, const ResourceSlotPtr& slot) override;
 
  protected:
-  virtual const char* id() const { return rewriter_->id(); }
-  virtual const char* Name() const { return rewriter_->name(); }
-  virtual bool ComputeOnTheFly() const {
+  const char* id() const override { return rewriter_->id(); }
+  const char* Name() const override { return rewriter_->name(); }
+  bool ComputeOnTheFly() const override {
     return rewriter_->kind() == kOnTheFlyResource;
   }
 

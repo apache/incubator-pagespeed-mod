@@ -20,8 +20,8 @@
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_MOCK_CRITICAL_IMAGES_FINDER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_MOCK_CRITICAL_IMAGES_FINDER_H_
 
-#include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 #include "net/instaweb/rewriter/public/critical_images_finder.h"
+#include "net/instaweb/rewriter/public/critical_images_finder_test_base.h"
 #include "net/instaweb/rewriter/rendered_image.pb.h"
 #include "net/instaweb/util/public/property_cache.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -44,19 +44,17 @@ class MockCriticalImagesFinder : public TestCriticalImagesFinder {
                            Statistics* stats)
       : TestCriticalImagesFinder(cohort, stats), compute_calls_(0) {}
 
-  ~MockCriticalImagesFinder();
+  ~MockCriticalImagesFinder() override;
 
-  virtual Availability Available(RewriteDriver* driver) {
-    return kAvailable;
-  }
+  Availability Available(RewriteDriver* driver) override { return kAvailable; }
 
-  virtual void UpdateCriticalImagesSetInDriver(RewriteDriver* driver);
+  void UpdateCriticalImagesSetInDriver(RewriteDriver* driver) override;
 
   // Extracts rendered image dimensions from property cache.
-  virtual RenderedImages* ExtractRenderedImageDimensionsFromCache(
-      RewriteDriver* driver);
+  RenderedImages* ExtractRenderedImageDimensionsFromCache(
+      RewriteDriver* driver) override;
 
-  virtual void ComputeCriticalImages(RewriteDriver* driver) {
+  void ComputeCriticalImages(RewriteDriver* driver) override {
     ++compute_calls_;
   }
 
@@ -74,7 +72,7 @@ class MockCriticalImagesFinder : public TestCriticalImagesFinder {
     rendered_images_.reset(rendered_images);
   }
 
-  virtual bool IsCriticalImageInfoPresent(RewriteDriver* driver) {
+  bool IsCriticalImageInfoPresent(RewriteDriver* driver) override {
     return true;
   }
 

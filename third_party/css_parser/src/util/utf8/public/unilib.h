@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Routines to do manipulation of Unicode characters or text
 //
 // The StructurallyValid routines accept buffers of arbitrary bytes.
@@ -36,6 +35,7 @@
 #define UTIL_UTF8_UNILIB_H__
 
 #include <string>
+
 #include "base/integral_types.h"
 
 // We export OneCharLen, IsValidCodepoint, and IsTrailByte from here,

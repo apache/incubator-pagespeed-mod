@@ -22,15 +22,13 @@
 #include "glog/logging.h"
 
 namespace logging {
-  constexpr int LOG_INFO = google::GLOG_INFO;
-  constexpr int LOG_ERROR = google::GLOG_ERROR;
-  constexpr int LOG_WARNING = google::GLOG_WARNING;
-  constexpr int LOG_FATAL = google::GLOG_FATAL;
-}
+constexpr int LOG_INFO = google::GLOG_INFO;
+constexpr int LOG_ERROR = google::GLOG_ERROR;
+constexpr int LOG_WARNING = google::GLOG_WARNING;
+constexpr int LOG_FATAL = google::GLOG_FATAL;
+}  // namespace logging
 
 // TODO(oschaaf): move this out of here.
-#ifndef DISALLOW_COPY_AND_ASSIGN
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-TypeName(const TypeName&);                 \
-void operator=(const TypeName&)
-#endif
+  TypeName(const TypeName&);               \
+  void operator=(const TypeName&)

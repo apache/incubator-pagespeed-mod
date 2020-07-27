@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/thread/scheduler_thread.h"
 
 #include "pagespeed/kernel/base/function.h"

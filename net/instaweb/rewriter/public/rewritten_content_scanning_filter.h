@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_REWRITTEN_CONTENT_SCANNING_FILTER_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_REWRITTEN_CONTENT_SCANNING_FILTER_H_
 
@@ -36,13 +35,13 @@ class RewrittenContentScanningFilter : public EmptyHtmlFilter {
   static const char kNumProxiedRewrittenResourcesProperty[];
 
   explicit RewrittenContentScanningFilter(RewriteDriver* driver);
-  virtual ~RewrittenContentScanningFilter();
+  ~RewrittenContentScanningFilter() override;
 
-  virtual void StartDocument();
-  virtual void EndDocument();
-  virtual void StartElement(HtmlElement* element);
+  void StartDocument() override;
+  void EndDocument() override;
+  void StartElement(HtmlElement* element) override;
 
-  virtual const char* Name() const { return "RewrittenContentScanningFilter"; }
+  const char* Name() const override { return "RewrittenContentScanningFilter"; }
 
  private:
   RewriteDriver* driver_;

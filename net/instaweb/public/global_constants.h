@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Header file that includes global constants to be used in net/instaweb.
 
 #ifndef NET_INSTAWEB_PUBLIC_GLOBAL_CONSTANTS_H_
@@ -81,7 +80,6 @@ const char kNoScriptRedirectFormatter[] =
 // considered canonical.
 const char kLinkRelCanonicalFormatter[] =
     "<link rel=\"canonical\" href=\"%s\"/>";
-
 
 }  // namespace
 

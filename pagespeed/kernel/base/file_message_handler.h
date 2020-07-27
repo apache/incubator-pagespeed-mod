@@ -17,12 +17,12 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_FILE_MESSAGE_HANDLER_H_
 #define PAGESPEED_KERNEL_BASE_FILE_MESSAGE_HANDLER_H_
 
 #include <cstdarg>
 #include <cstdio>
+
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/string.h"
@@ -36,13 +36,13 @@ class FileMessageHandler : public MessageHandler {
   explicit FileMessageHandler(FILE* file);
 
  protected:
-  virtual void MessageVImpl(MessageType type, const char* msg, va_list args);
-  virtual void MessageSImpl(MessageType type, const GoogleString& message);
+  void MessageVImpl(MessageType type, const char* msg, va_list args) override;
+  void MessageSImpl(MessageType type, const GoogleString& message) override;
 
-  virtual void FileMessageVImpl(MessageType type, const char* filename,
-                                int line, const char* msg, va_list args);
-  virtual void FileMessageSImpl(MessageType type, const char* filename,
-                                int line, const GoogleString& message);
+  void FileMessageVImpl(MessageType type, const char* filename, int line,
+                        const char* msg, va_list args) override;
+  void FileMessageSImpl(MessageType type, const char* filename, int line,
+                        const GoogleString& message) override;
 
  private:
   FILE* file_;

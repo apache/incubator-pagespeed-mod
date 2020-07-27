@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/controller/work_bound_expensive_operation_controller.h"
 
 namespace net_instaweb {
@@ -30,18 +29,18 @@ WorkBoundExpensiveOperationController::WorkBoundExpensiveOperationController(
     int max_expensive_operations, Statistics* stats)
     : bound_(max_expensive_operations),
       counter_(bound_ > 0 ? stats->GetUpDownCounter(kCurrentExpensiveOperations)
-                          : NULL) {}
+                          : nullptr) {}
 
 WorkBoundExpensiveOperationController::
     ~WorkBoundExpensiveOperationController() {}
 
 void WorkBoundExpensiveOperationController::InitStats(Statistics* statistics) {
-    statistics->AddGlobalUpDownCounter(kCurrentExpensiveOperations);
+  statistics->AddGlobalUpDownCounter(kCurrentExpensiveOperations);
 }
 
 bool WorkBoundExpensiveOperationController::TryToWork() {
   bool can_work = true;
-  if (counter_ != NULL) {
+  if (counter_ != nullptr) {
     // We conservatively increment, then test, and decrement on failure.  This
     // guarantees that two incrementors don't both get through when we're within
     // 1 of the bound, at the cost of occasionally rejecting them both.
@@ -66,7 +65,7 @@ void WorkBoundExpensiveOperationController::ScheduleExpensiveOperation(
 }
 
 void WorkBoundExpensiveOperationController::NotifyExpensiveOperationComplete() {
-  if (counter_ != NULL) {
+  if (counter_ != nullptr) {
     counter_->Add(-1);
   }
 }

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_test_base.h"
@@ -27,7 +26,7 @@ namespace net_instaweb {
 
 class BaseTagFilterTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
     options()->EnableFilter(RewriteOptions::kAddBaseTag);
     rewrite_driver()->AddFilters();
@@ -36,35 +35,34 @@ class BaseTagFilterTest : public RewriteTestBase {
 
 TEST_F(BaseTagFilterTest, SingleHead) {
   ValidateExpected("single_head",
-      "<head></head>"
-      "<body><img src=\"1.jpg\" /></body>",
-      "<head>"
-      "<base href=\"http://test.com/single_head.html\">"
-      "</head>"
-      "<body><img src=\"1.jpg\"/></body>");
+                   "<head></head>"
+                   "<body><img src=\"1.jpg\" /></body>",
+                   "<head>"
+                   "<base href=\"http://test.com/single_head.html\">"
+                   "</head>"
+                   "<body><img src=\"1.jpg\"/></body>");
 }
 
 TEST_F(BaseTagFilterTest, NoHeadTag) {
-  ValidateExpected("no_head",
-      "<body><img src=\"1.jpg\" /></body>",
-      "<head>"
-      "<base href=\"http://test.com/no_head.html\">"
-      "</head>"
-      "<body><img src=\"1.jpg\"/></body>");
+  ValidateExpected("no_head", "<body><img src=\"1.jpg\" /></body>",
+                   "<head>"
+                   "<base href=\"http://test.com/no_head.html\">"
+                   "</head>"
+                   "<body><img src=\"1.jpg\"/></body>");
 }
 
 TEST_F(BaseTagFilterTest, MultipleHeadTags) {
   ValidateExpected("multiple_heads",
-      "<head></head>"
-      "<head></head>"
-      "<body>"
-      "</body>",
-      "<head>"
-      "<base href=\"http://test.com/multiple_heads.html\">"
-      "</head>"
-      "<head></head>"
-      "<body>"
-      "</body>");
+                   "<head></head>"
+                   "<head></head>"
+                   "<body>"
+                   "</body>",
+                   "<head>"
+                   "<base href=\"http://test.com/multiple_heads.html\">"
+                   "</head>"
+                   "<head></head>"
+                   "<body>"
+                   "</body>");
 }
 
 }  // namespace net_instaweb

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/htmlparse/public/file_statistics_log.h"
 
 #include "pagespeed/kernel/base/file_system.h"
@@ -31,14 +30,11 @@ class MessageHandler;
 
 FileStatisticsLog::FileStatisticsLog(FileSystem::OutputFile* file,
                                      MessageHandler* message_handler)
-  : file_(file),
-    message_handler_(message_handler) {
-}
+    : file_(file), message_handler_(message_handler) {}
 
-FileStatisticsLog::~FileStatisticsLog() {
-}
+FileStatisticsLog::~FileStatisticsLog() {}
 
-void FileStatisticsLog::LogStat(const char *stat_name, int value) {
+void FileStatisticsLog::LogStat(const char* stat_name, int value) {
   // Buffer whole log entry before writing, in case there's interleaving going
   // on (ie avoid multiple writes for single log entry)
   GoogleString buf(stat_name);

@@ -42,26 +42,24 @@ BeaconCriticalImagesFinder::BeaconCriticalImagesFinder(
     Statistics* stats)
     : CriticalImagesFinder(cohort, stats), nonce_generator_(nonce_generator) {}
 
-BeaconCriticalImagesFinder::~BeaconCriticalImagesFinder() {
-}
+BeaconCriticalImagesFinder::~BeaconCriticalImagesFinder() {}
 
 bool BeaconCriticalImagesFinder::UpdateCriticalImagesCacheEntry(
-      const StringSet* html_critical_images_set,
-      const StringSet* css_critical_images_set,
-      const RenderedImages* rendered_images_set,
-      const StringPiece& nonce,
-      const PropertyCache::Cohort* cohort,
-      AbstractPropertyPage* page, Timer* timer) {
-  DCHECK(cohort != NULL);
-  DCHECK(page != NULL);
+    const StringSet* html_critical_images_set,
+    const StringSet* css_critical_images_set,
+    const RenderedImages* rendered_images_set, const StringPiece& nonce,
+    const PropertyCache::Cohort* cohort, AbstractPropertyPage* page,
+    Timer* timer) {
+  DCHECK(cohort != nullptr);
+  DCHECK(page != nullptr);
   PropertyValue* property_value =
       page->GetProperty(cohort, kCriticalImagesPropertyName);
-  if (property_value == NULL) {
+  if (property_value == nullptr) {
     return false;
   }
   CriticalImages critical_images;
-  if (!PopulateCriticalImagesFromPropertyValue(
-          property_value, &critical_images)) {
+  if (!PopulateCriticalImagesFromPropertyValue(property_value,
+                                               &critical_images)) {
     return false;
   }
   if (!ValidateAndExpireNonce(
@@ -94,9 +92,9 @@ bool BeaconCriticalImagesFinder::ShouldBeacon(RewriteDriver* driver) {
   UpdateCriticalImagesSetInDriver(driver);
   int64 next_beacon_timestamp_ms = 0;
   CriticalImagesInfo* critical_images = driver->critical_images_info();
-  DCHECK(critical_images != NULL)
+  DCHECK(critical_images != nullptr)
       << "UpdateCriticalImagesSetInDriver must be called before ShouldBeacon";
-  if (critical_images != NULL) {
+  if (critical_images != nullptr) {
     const CriticalImages& proto = critical_images->proto;
     if (proto.has_html_critical_image_support()) {
       next_beacon_timestamp_ms =

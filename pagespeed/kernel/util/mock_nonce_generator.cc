@@ -17,18 +17,14 @@
  * under the License.
  */
 
-
-
 #include "pagespeed/kernel/util/mock_nonce_generator.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
 
 namespace net_instaweb {
 
-MockNonceGenerator::~MockNonceGenerator() { }
+MockNonceGenerator::~MockNonceGenerator() {}
 
-uint64 MockNonceGenerator::NewNonceImpl() {
-  return counter_++;
-}
+uint64 MockNonceGenerator::NewNonceImpl() { return counter_++; }
 
 }  // namespace net_instaweb

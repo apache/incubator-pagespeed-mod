@@ -20,9 +20,9 @@
 /*
 ** The following macros control what features APRUTIL will use
 */
-#define APU_USE_SDBM    1
-#define APU_USE_NDBM    0
-#define APU_USE_GDBM    0
-#define APU_USE_DB      0
+#define APU_USE_SDBM 1
+#define APU_USE_NDBM 0
+#define APU_USE_GDBM 0
+#define APU_USE_DB 0
 
-#endif	/* !APU_SELECT_DBM_H */
+#endif /* !APU_SELECT_DBM_H */

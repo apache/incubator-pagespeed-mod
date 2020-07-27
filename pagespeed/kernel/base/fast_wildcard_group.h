@@ -17,11 +17,11 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_FAST_WILDCARD_GROUP_H_
 #define PAGESPEED_KERNEL_BASE_FAST_WILDCARD_GROUP_H_
 
 #include <vector>
+
 #include "pagespeed/kernel/base/atomic_int32.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
@@ -100,8 +100,7 @@ class FastWildcardGroup {
   // open-source dependency reasons).
   static const int kMinPatterns = 11;
 
-  FastWildcardGroup()
-      : rolling_hash_length_(kUncompiled) { }
+  FastWildcardGroup() : rolling_hash_length_(kUncompiled) {}
   FastWildcardGroup(const FastWildcardGroup& src)
       : rolling_hash_length_(kUncompiled) {
     CopyFrom(src);
@@ -155,10 +154,10 @@ class FastWildcardGroup {
   std::vector<bool> allow_;  // parallel array (actually a bitvector)
 
   // Information that is computed during compilation.
-  mutable std::vector<uint64> rolling_hashes_;  // One per wildcard
-  mutable std::vector<int> effective_indices_;  // One per wildcard
+  mutable std::vector<uint64> rolling_hashes_;      // One per wildcard
+  mutable std::vector<int> effective_indices_;      // One per wildcard
   mutable std::vector<int> wildcard_only_indices_;  // Reverse order
-  mutable std::vector<int> pattern_hash_index_;  // hash table
+  mutable std::vector<int> pattern_hash_index_;     // hash table
   mutable AtomicInt32 rolling_hash_length_;
 
   // This is copyable, since we want to use this with CopyOnWrite<>

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 //
 // Useful string utils.
 
@@ -33,9 +32,7 @@ class UnicodeText;
 namespace Css {
 
 // Using isascii with signed chars is unfortunately undefined.
-inline bool IsAscii(char c) {
-  return isascii(static_cast<unsigned char>(c));
-}
+inline bool IsAscii(char c) { return isascii(static_cast<unsigned char>(c)); }
 
 // Convert a given block of chars to a double.
 bool ParseDouble(const char* str, int len, double* dest);

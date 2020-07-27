@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/rewrite_driver_pool.h"
 
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -29,9 +28,7 @@ const int RewriteDriverPool::kMaxDriversInPool;
 
 RewriteDriverPool::RewriteDriverPool() {}
 
-RewriteDriverPool::~RewriteDriverPool() {
-  STLDeleteElements(&drivers_);
-}
+RewriteDriverPool::~RewriteDriverPool() { STLDeleteElements(&drivers_); }
 
 RewriteDriver* RewriteDriverPool::PopDriver() {
   if (!drivers_.empty()) {
@@ -39,7 +36,7 @@ RewriteDriver* RewriteDriverPool::PopDriver() {
     drivers_.pop_back();
     return driver;
   }
-  return NULL;
+  return nullptr;
 }
 
 void RewriteDriverPool::RecycleDriver(RewriteDriver* driver) {

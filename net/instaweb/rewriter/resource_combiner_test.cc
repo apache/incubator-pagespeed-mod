@@ -27,7 +27,6 @@
 
 #include "net/instaweb/rewriter/public/resource_combiner.h"
 
-
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/rewriter/public/output_resource.h"
 #include "net/instaweb/rewriter/public/resource.h"
@@ -61,7 +60,7 @@ const char kTestCombinerExt[] = "tcc";
 const char kTestPiece1[] = "piece1.tcc";
 const char kTestPiece2[] = "piece2.tcc";
 const char kTestPiece3[] = "piece3.tcc";
-const char kPathPiece[]  = "path/piece.tcc";
+const char kPathPiece[] = "path/piece.tcc";
 const char kNoSuchPiece[] = "nopiece.tcc";
 const char kVetoPiece[] = "veto.tcc";
 const char kVetoText[] = "veto";
@@ -80,8 +79,7 @@ class TestCombineFilter : public RewriteFilter {
   class TestCombiner : public ResourceCombiner {
    public:
     explicit TestCombiner(RewriteDriver* driver, RewriteFilter* filter)
-        : ResourceCombiner(driver, kTestCombinerExt, filter) {
-    }
+        : ResourceCombiner(driver, kTestCombinerExt, filter) {}
 
     // Provides the test access to the protected method so we can
     // directly test combining without setting up a complete filter
@@ -91,23 +89,22 @@ class TestCombineFilter : public RewriteFilter {
     }
 
    protected:
-    virtual bool WritePiece(int index, int num_pieces, const Resource* input,
-                            OutputResource* combination, Writer* writer,
-                            MessageHandler* handler) {
-      ResourceCombiner::WritePiece(index, num_pieces, input,
-                                   combination, writer, handler);
+    bool WritePiece(int index, int num_pieces, const Resource* input,
+                    OutputResource* combination, Writer* writer,
+                    MessageHandler* handler) override {
+      ResourceCombiner::WritePiece(index, num_pieces, input, combination,
+                                   writer, handler);
       writer->Write("|", handler);
       return true;
     }
 
    private:
-    virtual const ContentType* CombinationContentType() {
+    const ContentType* CombinationContentType() override {
       return &kContentTypeText;
     }
 
-    virtual bool ResourceCombinable(Resource* resource,
-                                    GoogleString* failure_reason,
-                                    MessageHandler* /*handler*/) {
+    bool ResourceCombinable(Resource* resource, GoogleString* failure_reason,
+                            MessageHandler* /*handler*/) override {
       EXPECT_TRUE(resource->HttpStatusOk());
       if (resource->ExtractUncompressedContents() == kVetoText) {
         *failure_reason = "Contents match veto text";
@@ -118,21 +115,17 @@ class TestCombineFilter : public RewriteFilter {
   };
 
   explicit TestCombineFilter(RewriteDriver* driver)
-      : RewriteFilter(driver),
-        combiner_(driver, this) {
-  }
+      : RewriteFilter(driver), combiner_(driver, this) {}
 
-  virtual void StartDocumentImpl() {
-    combiner_.Reset();
-  }
+  void StartDocumentImpl() override { combiner_.Reset(); }
 
-  virtual void StartElementImpl(HtmlElement* element) {}
-  virtual void EndElementImpl(HtmlElement* element) {}
-  virtual const char* Name() const { return "TestCombine"; }
-  virtual const char* id() const { return kTestCombinerId; }
+  void StartElementImpl(HtmlElement* element) override {}
+  void EndElementImpl(HtmlElement* element) override {}
+  const char* Name() const override { return "TestCombine"; }
+  const char* id() const override { return kTestCombinerId; }
 
   TestCombineFilter::TestCombiner* combiner() { return &combiner_; }
-  virtual const UrlSegmentEncoder* encoder() const { return &encoder_; }
+  const UrlSegmentEncoder* encoder() const override { return &encoder_; }
 
  private:
   TestCombineFilter::TestCombiner combiner_;
@@ -144,7 +137,7 @@ class TestCombineFilter : public RewriteFilter {
 // Test fixture.
 class ResourceCombinerTest : public RewriteTestBase {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RewriteTestBase::SetUp();
 
     filter_ = new TestCombineFilter(rewrite_driver());
@@ -183,7 +176,7 @@ class ResourceCombinerTest : public RewriteTestBase {
 
   enum FetchFlags {
     kFetchNormal = 0,
-    kFetchAsync  = 1,
+    kFetchAsync = 1,
   };
 
   // Fetches a resource, optionally permitting asynchronous loading (delayed
@@ -234,9 +227,7 @@ class ResourceCombinerTest : public RewriteTestBase {
               options()->max_url_size() - UrlSlack());
   }
 
-  int UrlSlack() const {
-    return ResourceCombiner::kUrlSlack;
-  }
+  int UrlSlack() const { return ResourceCombiner::kUrlSlack; }
 
   GoogleString StringOfLength(int n, char fill) {
     GoogleString out;
@@ -248,8 +239,7 @@ class ResourceCombinerTest : public RewriteTestBase {
   // resource name, counting what will be spent on the hash, id, etc.
   int LeafLength(int resource_len) {
     ResourceNamer namer;
-    namer.set_hash(
-        StringOfLength(hasher()->HashSizeInChars(), '#'));
+    namer.set_hash(StringOfLength(hasher()->HashSizeInChars(), '#'));
     namer.set_name(StringOfLength(resource_len, 'P'));
     namer.set_id(kTestCombinerId);
     namer.set_ext("tcc");
@@ -263,7 +253,7 @@ class ResourceCombinerTest : public RewriteTestBase {
         url, RewriteDriver::InputRole::kUnknown, &unused));
     bool ret = false;
 
-    if (resource.get() == NULL) {
+    if (resource.get() == nullptr) {
       // Resource is not creatable, and never will be.
       handler->MessageS(kInfo, "Cannot combine: null resource");
       return ret;
@@ -457,7 +447,7 @@ TEST_F(ResourceCombinerTest, TestRebaseOverflow) {
   // Test to make sure that we notice when we go over the limit when
   // we rebase - we lower the segment size limit just for that.
   options()->set_max_url_segment_size(LeafLength(strlen(kPathCombined) - 1) +
-                                    UrlSlack());
+                                      UrlSlack());
   EXPECT_TRUE(AddResource(kPathPiece, &message_handler_));
   EXPECT_EQ("piece.tcc", partnership_->UrlSafeId());
   VerifyUrlCount(1);
@@ -477,7 +467,7 @@ TEST_F(ResourceCombinerTest, TestRebaseOverflow) {
 TEST_F(ResourceCombinerTest, TestRebaseOverflow2) {
   // Test to make sure we are exact in our size limit
   options()->set_max_url_segment_size(LeafLength(strlen(kPathCombined)) +
-                                    UrlSlack());
+                                      UrlSlack());
   EXPECT_TRUE(AddResource(kPathPiece, &message_handler_));
   EXPECT_EQ("piece.tcc", partnership_->UrlSafeId());
   VerifyUrlCount(1);
@@ -495,7 +485,7 @@ TEST_F(ResourceCombinerTest, TestRebaseOverflow3) {
   // Make sure that if we add url, rebase, and then rollback we
   // don't end up overlimit due to the first piece expanding
   options()->set_max_url_segment_size(LeafLength(strlen("piece.tcc")) +
-                                    UrlSlack());
+                                      UrlSlack());
   EXPECT_TRUE(AddResource(kPathPiece, &message_handler_));
   EXPECT_EQ("piece.tcc", partnership_->UrlSafeId());
   VerifyUrlCount(1);
@@ -524,8 +514,8 @@ TEST_F(ResourceCombinerTest, TestMaxUrlOverflow) {
 
 TEST_F(ResourceCombinerTest, TestMaxUrlOverflow2) {
   // This one is just right
-  options()->set_max_url_size(
-      strlen(kTestDomain) + LeafLength(strlen(kPathCombined)) + UrlSlack());
+  options()->set_max_url_size(strlen(kTestDomain) +
+                              LeafLength(strlen(kPathCombined)) + UrlSlack());
   EXPECT_TRUE(AddResource(kPathPiece, &message_handler_));
   EXPECT_EQ("piece.tcc", partnership_->UrlSafeId());
   VerifyUrlCount(1);

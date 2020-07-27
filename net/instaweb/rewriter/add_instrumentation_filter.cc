@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/add_instrumentation_filter.h"
 
 #include "base/logging.h"
@@ -75,8 +74,8 @@ AddInstrumentationFilter::AddInstrumentationFilter(RewriteDriver* driver)
       added_head_script_(false),
       added_unload_script_(false) {
   Statistics* stats = driver->server_context()->statistics();
-  instrumentation_script_added_count_ = stats->GetVariable(
-      kInstrumentationScriptAddedCount);
+  instrumentation_script_added_count_ =
+      stats->GetVariable(kInstrumentationScriptAddedCount);
 }
 
 AddInstrumentationFilter::~AddInstrumentationFilter() {}
@@ -105,9 +104,9 @@ void AddInstrumentationFilter::AddHeadScript(HtmlElement* element) {
     // rewrite this JS
     HtmlCharactersNode* script = nullptr;
     if (driver()->options()->Enabled(RewriteOptions::kPedantic)) {
-        script = driver()->NewCharactersNode(nullptr, kHeadScriptPedantic);
+      script = driver()->NewCharactersNode(nullptr, kHeadScriptPedantic);
     } else {
-        script = driver()->NewCharactersNode(nullptr, kHeadScriptNonPedantic);
+      script = driver()->NewCharactersNode(nullptr, kHeadScriptNonPedantic);
     }
     driver()->InsertNodeBeforeCurrent(script);
     instrumentation_script_added_count_->Add(1);
@@ -128,8 +127,7 @@ void AddInstrumentationFilter::EndElementImpl(HtmlElement* element) {
     if (!added_head_script_) {
       AddHeadScript(element);
     }
-    if (driver()->options()->report_unload_time() &&
-        !added_unload_script_) {
+    if (driver()->options()->report_unload_time() && !added_unload_script_) {
       GoogleString js = GetScriptJs(kUnloadTag);
       HtmlElement* script = driver()->NewElement(element, HtmlName::kScript);
       if (!driver()->defer_instrumentation_script()) {
@@ -170,8 +168,9 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
       js = static_asset_manager->GetAsset(
           StaticAssetEnum::EXTENDED_INSTRUMENTATION_JS, driver()->options());
     }
-    StrAppend(&js, static_asset_manager->GetAsset(
-        StaticAssetEnum::ADD_INSTRUMENTATION_JS, driver()->options()));
+    StrAppend(
+        &js, static_asset_manager->GetAsset(
+                 StaticAssetEnum::ADD_INSTRUMENTATION_JS, driver()->options()));
   }
 
   GoogleString js_event = (event == kLoadTag) ? "load" : "beforeunload";
@@ -212,18 +211,17 @@ GoogleString AddInstrumentationFilter::GetScriptJs(StringPiece event) {
   if (driver()->response_headers() != nullptr &&
       driver()->response_headers()->status_code() > 0 &&
       driver()->response_headers()->status_code() != HttpStatus::kOK) {
-    StrAppend(&extra_params, "&rc=", IntegerToString(
-        driver()->response_headers()->status_code()));
+    StrAppend(&extra_params, "&rc=",
+              IntegerToString(driver()->response_headers()->status_code()));
   }
   // Append the request id.
   if (driver()->request_context()->request_id() > 0) {
-    StrAppend(&extra_params, "&id=", Integer64ToString(
-        driver()->request_context()->request_id()));
+    StrAppend(&extra_params, "&id=",
+              Integer64ToString(driver()->request_context()->request_id()));
   }
 
   GoogleString html_url;
-  EscapeToJsStringLiteral(driver()->google_url().Spec(),
-                          false, /* no quotes */
+  EscapeToJsStringLiteral(driver()->google_url().Spec(), false, /* no quotes */
                           &html_url);
 
   StrAppend(&js, "\npagespeed.addInstrumentationInit(");

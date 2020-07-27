@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/http/public/http_response_parser.h"
 
 #include "net/instaweb/http/public/fetcher_test.h"
@@ -32,8 +31,7 @@
 
 namespace net_instaweb {
 
-class HttpResponseParserTest : public FetcherTest {
-};
+class HttpResponseParserTest : public FetcherTest {};
 
 TEST_F(HttpResponseParserTest, TestFetcher) {
   GoogleString http_filename = TestFilename();
@@ -41,8 +39,8 @@ TEST_F(HttpResponseParserTest, TestFetcher) {
   ResponseHeaders response_headers;
   MockTimer timer(new NullMutex, 0);
   StdioFileSystem file_system;
-  ASSERT_TRUE(file_system.ReadFile(http_filename.c_str(), &http,
-                                   &message_handler_));
+  ASSERT_TRUE(
+      file_system.ReadFile(http_filename.c_str(), &http, &message_handler_));
   StringWriter writer(&content);
   HttpResponseParser fetch(&response_headers, &writer, &message_handler_);
   ASSERT_TRUE(fetch.ParseChunk(http));

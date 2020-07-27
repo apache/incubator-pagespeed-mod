@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_HTML_HTML_WRITER_FILTER_H_
 #define PAGESPEED_KERNEL_HTML_HTML_WRITER_FILTER_H_
 
@@ -40,27 +39,27 @@ class HtmlWriterFilter : public HtmlFilter {
   explicit HtmlWriterFilter(HtmlParse* html_parse);
 
   void set_writer(Writer* writer) { writer_ = writer; }
-  virtual ~HtmlWriterFilter();
+  ~HtmlWriterFilter() override;
 
-  virtual void StartDocument();
-  virtual void EndDocument();
-  virtual void StartElement(HtmlElement* element);
-  virtual void EndElement(HtmlElement* element);
-  virtual void Cdata(HtmlCdataNode* cdata);
-  virtual void Comment(HtmlCommentNode* comment);
-  virtual void IEDirective(HtmlIEDirectiveNode* directive);
-  virtual void Characters(HtmlCharactersNode* characters);
-  virtual void Directive(HtmlDirectiveNode* directive);
-  virtual void Flush();
-  virtual void DetermineEnabled(GoogleString* disabled_reason);
+  void StartDocument() override;
+  void EndDocument() override;
+  void StartElement(HtmlElement* element) override;
+  void EndElement(HtmlElement* element) override;
+  void Cdata(HtmlCdataNode* cdata) override;
+  void Comment(HtmlCommentNode* comment) override;
+  void IEDirective(HtmlIEDirectiveNode* directive) override;
+  void Characters(HtmlCharactersNode* characters) override;
+  void Directive(HtmlDirectiveNode* directive) override;
+  void Flush() override;
+  void DetermineEnabled(GoogleString* disabled_reason) override;
   // This filter will not change urls.
-  virtual bool CanModifyUrls() { return false; }
+  bool CanModifyUrls() override { return false; }
   ScriptUsage GetScriptUsage() const override { return kNeverInjectsScripts; }
 
   void set_max_column(int max_column) { max_column_ = max_column; }
   void set_case_fold(bool case_fold) { case_fold_ = case_fold; }
 
-  virtual const char* Name() const { return "HtmlWriter"; }
+  const char* Name() const override { return "HtmlWriter"; }
 
  protected:
   // Clear various variables for rewriting a new html file.

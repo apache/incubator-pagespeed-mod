@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "pagespeed/kernel/base/time_util.h"
 
 #include "base/logging.h"

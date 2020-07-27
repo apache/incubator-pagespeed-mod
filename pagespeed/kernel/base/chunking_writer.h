@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_CHUNKING_WRITER_H_
 #define PAGESPEED_KERNEL_BASE_CHUNKING_WRITER_H_
 
@@ -37,10 +36,10 @@ class ChunkingWriter : public Writer {
   // If the flush_limit is <= 0 no extra flushing will be performed.
   // This does NOT take ownership of passed-in writer.
   ChunkingWriter(Writer* writer, int flush_limit);
-  virtual ~ChunkingWriter();
+  ~ChunkingWriter() override;
 
-  virtual bool Write(const StringPiece& str, MessageHandler* handler);
-  virtual bool Flush(MessageHandler* handler);
+  bool Write(const StringPiece& str, MessageHandler* handler) override;
+  bool Flush(MessageHandler* handler) override;
 
  private:
   // Flushes output if we have enough queued; returns false on Flush failure

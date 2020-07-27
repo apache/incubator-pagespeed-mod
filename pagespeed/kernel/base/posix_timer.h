@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #ifndef PAGESPEED_KERNEL_BASE_POSIX_TIMER_H_
 #define PAGESPEED_KERNEL_BASE_POSIX_TIMER_H_
 
@@ -29,10 +28,10 @@ namespace net_instaweb {
 class PosixTimer : public Timer {
  public:
   PosixTimer() {}
-  virtual ~PosixTimer();
+  ~PosixTimer() override;
 
-  virtual int64 NowUs() const;
-  virtual void SleepUs(int64 us);
+  int64 NowUs() const override;
+  void SleepUs(int64 us) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(PosixTimer);

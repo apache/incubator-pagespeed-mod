@@ -34,19 +34,18 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
-#include "pagespeed/kernel/cache/lru_cache.h"
-
 #include <vector>
 
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/null_mutex.h"
-#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/shared_string.h"
+#include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/cache/lru_cache.h"
 #include "pagespeed/kernel/util/simple_random.h"
+#include "pagespeed/kernel/base/benchmark.h"
 
 namespace {
 
@@ -57,8 +56,8 @@ const int kPayloadSize = 100;
 class EmptyCallback : public net_instaweb::CacheInterface::Callback {
  public:
   EmptyCallback() {}
-  virtual ~EmptyCallback() {}
-  virtual void Done(net_instaweb::CacheInterface::KeyState state) {}
+  ~EmptyCallback() override {}
+  void Done(net_instaweb::CacheInterface::KeyState state) override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyCallback);
@@ -168,7 +167,8 @@ static void LRUGets(benchmark::State& state) {
   for (int i = 0; i < state.iterations(); ++i) {
     payload.DoGets();
   }
-  CHECK_EQ(kNumKeys * state.iterations(), static_cast<int>(payload.lru_cache()->num_hits()));
+  CHECK_EQ(kNumKeys * state.iterations(),
+           static_cast<int>(payload.lru_cache()->num_hits()));
 }
 
 static void LRUFailedGets(benchmark::State& state) {

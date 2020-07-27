@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 // Unit-tests for HtmlDetector
 
 #include "pagespeed/automatic/html_detector.h"

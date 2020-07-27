@@ -17,14 +17,17 @@
  * under the License.
  */
 
-
 #ifndef NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
 #define NET_INSTAWEB_REWRITER_PUBLIC_PROCESS_CONTEXT_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 
-namespace pagespeed { namespace js { struct JsTokenizerPatterns; } };
+namespace pagespeed {
+namespace js {
+struct JsTokenizerPatterns;
+}
+};  // namespace pagespeed
 
 namespace net_instaweb {
 

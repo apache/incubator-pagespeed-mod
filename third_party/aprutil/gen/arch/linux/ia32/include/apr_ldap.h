@@ -15,11 +15,12 @@
  */
 
 /*
- * apr_ldap.h is generated from apr_ldap.h.in by configure -- do not edit apr_ldap.h
+ * apr_ldap.h is generated from apr_ldap.h.in by configure -- do not edit
+ * apr_ldap.h
  */
 /**
  * @file apr_ldap.h
- * @brief  APR-UTIL LDAP 
+ * @brief  APR-UTIL LDAP
  */
 #ifndef APU_LDAP_H
 #define APU_LDAP_H
@@ -31,19 +32,18 @@
  */
 
 /* this will be defined if LDAP support was compiled into apr-util */
-#define APR_HAS_LDAP		  0
+#define APR_HAS_LDAP 0
 
 /* identify the LDAP toolkit used */
-#define APR_HAS_NETSCAPE_LDAPSDK  0
-#define APR_HAS_SOLARIS_LDAPSDK   0
-#define APR_HAS_NOVELL_LDAPSDK    0
-#define APR_HAS_MOZILLA_LDAPSDK   0
-#define APR_HAS_OPENLDAP_LDAPSDK  0
+#define APR_HAS_NETSCAPE_LDAPSDK 0
+#define APR_HAS_SOLARIS_LDAPSDK 0
+#define APR_HAS_NOVELL_LDAPSDK 0
+#define APR_HAS_MOZILLA_LDAPSDK 0
+#define APR_HAS_OPENLDAP_LDAPSDK 0
 #define APR_HAS_MICROSOFT_LDAPSDK 0
-#define APR_HAS_TIVOLI_LDAPSDK    0
-#define APR_HAS_ZOS_LDAPSDK       0
-#define APR_HAS_OTHER_LDAPSDK     0
-
+#define APR_HAS_TIVOLI_LDAPSDK 0
+#define APR_HAS_ZOS_LDAPSDK 0
+#define APR_HAS_OTHER_LDAPSDK 0
 
 /*
  * Handle the case when LDAP is enabled
@@ -63,9 +63,9 @@
 #else
 #define APR_HAS_LDAP_SSL 1
 #endif
-#define APR_HAS_LDAP_URL_PARSE      0
+#define APR_HAS_LDAP_URL_PARSE 0
 
-#if APR_HAS_OPENLDAP_LDAPSDK && !defined(LDAP_DEPRECATED) 
+#if APR_HAS_OPENLDAP_LDAPSDK && !defined(LDAP_DEPRECATED)
 /* Ensure that the "deprecated" interfaces are still exposed
  * with OpenLDAP >= 2.3; these were exposed by default in earlier
  * releases. */
@@ -75,11 +75,6 @@
 /*
  * Include the standard LDAP header files.
  */
-
-
-
-
-
 
 /*
  * Detected standard functions
@@ -96,14 +91,14 @@
  * Make sure the secure LDAP port is defined
  */
 #ifndef LDAPS_PORT
-#define LDAPS_PORT 636  /* ldaps:/// default LDAP over TLS port */
+#define LDAPS_PORT 636 /* ldaps:/// default LDAP over TLS port */
 #endif
 
 /*
- * For ldap function calls that input a size limit on the number of returned elements
- * Some SDKs do not have the define for LDAP_DEFAULT_LIMIT (-1) or LDAP_NO_LIMIT (0)
- * LDAP_DEFAULT_LIMIT is preferred as it allows inheritance from whatever the SDK
- * or process is configured for.
+ * For ldap function calls that input a size limit on the number of returned
+ * elements Some SDKs do not have the define for LDAP_DEFAULT_LIMIT (-1) or
+ * LDAP_NO_LIMIT (0) LDAP_DEFAULT_LIMIT is preferred as it allows inheritance
+ * from whatever the SDK or process is configured for.
  */
 #ifdef LDAP_DEFAULT_LIMIT
 #define APR_LDAP_SIZELIMIT LDAP_DEFAULT_LIMIT
@@ -114,14 +109,15 @@
 #endif
 
 #ifndef APR_LDAP_SIZELIMIT
-#define APR_LDAP_SIZELIMIT 0 /* equivalent to LDAP_NO_LIMIT, and what goes on the wire */
+#define APR_LDAP_SIZELIMIT \
+  0 /* equivalent to LDAP_NO_LIMIT, and what goes on the wire */
 #endif
 
 /*
  * z/OS is missing some defines
  */
 #ifndef LDAP_VERSION_MAX
-#define LDAP_VERSION_MAX  LDAP_VERSION
+#define LDAP_VERSION_MAX LDAP_VERSION
 #endif
 #if APR_HAS_ZOS_LDAPSDK
 #define LDAP_VENDOR_NAME "IBM z/OS"
@@ -134,7 +130,7 @@
  */
 #if LDAP_VERSION_MAX <= 2
 #error Support for LDAP v2.0 toolkits has been removed from apr-util. Please use an LDAP v3.0 toolkit.
-#endif 
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -146,24 +142,24 @@ extern "C" {
  * what really happened.
  */
 typedef struct apr_ldap_err_t {
-    const char *reason;
-    const char *msg;
-    int rc;
+  const char* reason;
+  const char* msg;
+  int rc;
 } apr_ldap_err_t;
 
 #ifdef __cplusplus
 }
 #endif
 
-/* The MS SDK returns LDAP_UNAVAILABLE when the backend has closed the connection
- * between LDAP calls. Protect with APR_HAS_MICROSOFT_LDAPSDK in case someone 
- * manually chooses another SDK on Windows 
+/* The MS SDK returns LDAP_UNAVAILABLE when the backend has closed the
+ * connection between LDAP calls. Protect with APR_HAS_MICROSOFT_LDAPSDK in case
+ * someone manually chooses another SDK on Windows
  */
 #if APR_HAS_MICROSOFT_LDAPSDK
-#define APR_LDAP_IS_SERVER_DOWN(s)    ((s) == LDAP_SERVER_DOWN \
-                                    || (s) == LDAP_UNAVAILABLE)
+#define APR_LDAP_IS_SERVER_DOWN(s) \
+  ((s) == LDAP_SERVER_DOWN || (s) == LDAP_UNAVAILABLE)
 #else
-#define APR_LDAP_IS_SERVER_DOWN(s)    ((s) == LDAP_SERVER_DOWN)
+#define APR_LDAP_IS_SERVER_DOWN(s) ((s) == LDAP_SERVER_DOWN)
 #endif
 
 /* These symbols are not actually exported in a DSO build, but mapped into
@@ -187,10 +183,10 @@ typedef struct apr_ldap_err_t {
 #define APU_DECLARE_LDAP(type) APU_DECLARE(type)
 #endif
 
-#include "apr_ldap_url.h"
 #include "apr_ldap_init.h"
 #include "apr_ldap_option.h"
 #include "apr_ldap_rebind.h"
+#include "apr_ldap_url.h"
 
 /** @} */
 #endif /* APR_HAS_LDAP */

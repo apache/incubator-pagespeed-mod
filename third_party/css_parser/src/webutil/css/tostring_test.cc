@@ -17,16 +17,12 @@
  * under the License.
  */
 
-
-
 #include "webutil/css/tostring.h"
 
+#include <memory>
 #include <string>
 
-#include <memory>
-
 #include "pagespeed/kernel/base/gtest.h"
-#include "gtest/gtest.h"
 #include "webutil/css/parser.h"
 #include "webutil/css/string.h"
 
@@ -39,7 +35,7 @@ class ToStringTest : public testing::Test {
  protected:
   // Checks if ParseDeclarations()->ToString() returns identity.
   void TestDeclarations(const string& css, int line) {
-    SCOPED_TRACE (absl::StrFormat("at line %d", line));
+    SCOPED_TRACE(absl::StrFormat("at line %d", line));
     Css::Parser parser(css);
     std::unique_ptr<Css::Declarations> decls(parser.ParseDeclarations());
     EXPECT_EQ(css, decls->ToString());
@@ -47,7 +43,7 @@ class ToStringTest : public testing::Test {
 
   // Checks if ParseStylesheet()->ToString() returns identity.
   void TestStylesheet(const string& css, int line) {
-    SCOPED_TRACE (absl::StrFormat("at line %d", line));
+    SCOPED_TRACE(absl::StrFormat("at line %d", line));
     Css::Parser parser(css);
     std::unique_ptr<Css::Stylesheet> stylesheet(parser.ParseStylesheet());
     EXPECT_EQ(css, stylesheet->ToString());
@@ -55,57 +51,68 @@ class ToStringTest : public testing::Test {
 };
 
 TEST_F(ToStringTest, declarations) {
-  TESTDECLARATIONS("left: inherit; "
-                   "color: #abcdef; "
-                   "content: \"text\"; "
-                   "top: 1; right: 2px !important; "
-                   "background-image: url(link\\(a,b,\\\"c\\\"\\).html)");
+  TESTDECLARATIONS(
+      "left: inherit; "
+      "color: #abcdef; "
+      "content: \"text\"; "
+      "top: 1; right: 2px !important; "
+      "background-image: url(link\\(a,b,\\\"c\\\"\\).html)");
   TESTDECLARATIONS("content: counter(); clip: rect(auto 1px 2em auto)");
   TESTDECLARATIONS("font-family: arial,serif,\"Courier New\"");
 
   // FONT is special
   Css::Parser parser("font: 3px/1.1 Arial");
   std::unique_ptr<Css::Declarations> decls(parser.ParseDeclarations());
-  EXPECT_EQ("font: 3px/1.1 Arial; "
-            "font-style: normal; font-variant: normal; font-weight: normal; "
-            "font-size: 3px; line-height: 1.1; font-family: Arial",
-            decls->ToString());
+  EXPECT_EQ(
+      "font: 3px/1.1 Arial; "
+      "font-style: normal; font-variant: normal; font-weight: normal; "
+      "font-size: 3px; line-height: 1.1; font-family: Arial",
+      decls->ToString());
 }
 
 TEST_F(ToStringTest, selectors) {
-  TESTSTYLESHEET("/* AUTHOR */\n\n\n\n"
-                 "a, *, b#id, c.class, :hover:focus {top: 1}\n");
-  TESTSTYLESHEET("/* AUTHOR */\n\n\n\n"
-                 "table[width], [disable=\"no\"], [x~=\"y\"], [lang|=\"fr\"] "
-                 "{top: 1}\n");
-  TESTSTYLESHEET("/* AUTHOR */\n\n\n\n"
-                 "img[height=\"1\"] {display: block}\n"
-                 "[class^=\"icon-\"], [class*=\" icon-\"] {top: 1}\n");
-  TESTSTYLESHEET("/* AUTHOR */\n\n\n\n"
-                 "a > b, a + b, a b + c > d > e f {top: 1}\n");
+  TESTSTYLESHEET(
+      "/* AUTHOR */\n\n\n\n"
+      "a, *, b#id, c.class, :hover:focus {top: 1}\n");
+  TESTSTYLESHEET(
+      "/* AUTHOR */\n\n\n\n"
+      "table[width], [disable=\"no\"], [x~=\"y\"], [lang|=\"fr\"] "
+      "{top: 1}\n");
+  TESTSTYLESHEET(
+      "/* AUTHOR */\n\n\n\n"
+      "img[height=\"1\"] {display: block}\n"
+      "[class^=\"icon-\"], [class*=\" icon-\"] {top: 1}\n");
+  TESTSTYLESHEET(
+      "/* AUTHOR */\n\n\n\n"
+      "a > b, a + b, a b + c > d > e f {top: 1}\n");
 }
 
 TEST_F(ToStringTest, misc) {
-  TESTSTYLESHEET("/* AUTHOR */\n\n"
-                 "@import url(\"a.html\") ;\n"
-                 "@import url(\"b.html\") print;\n"
-                 "\n"
-                 "@media print, screen { a {top: 1} }\n"
-                 "b {color: #ff0000}\n");
+  TESTSTYLESHEET(
+      "/* AUTHOR */\n\n"
+      "@import url(\"a.html\") ;\n"
+      "@import url(\"b.html\") print;\n"
+      "\n"
+      "@media print, screen { a {top: 1} }\n"
+      "b {color: #ff0000}\n");
 
   std::unique_ptr<Css::Parser> parser(new Css::Parser("a {top: 1}"));
   std::unique_ptr<Css::Stylesheet> stylesheet(parser->ParseStylesheet());
   stylesheet->set_type(Css::Stylesheet::SYSTEM);
-  EXPECT_EQ("/* SYSTEM */\n\n\n\n"
-            "a {top: 1}\n",
-            stylesheet->ToString());
+  EXPECT_EQ(
+      "/* SYSTEM */\n\n\n\n"
+      "a {top: 1}\n",
+      stylesheet->ToString());
 
   // Make sure we correctly deal with escaped newline.
-  parser.reset(new Css::Parser("a { content: 'line 1\\\n"
-                               "line 2'; }"));
+  parser = std::make_unique<Css::Parser>(
+      "a { content: 'line 1\\\n"
+      "line 2'; }");
   stylesheet.reset(parser->ParseStylesheet());
-  EXPECT_EQ("/* AUTHOR */\n\n\n\n"
-            "a {content: \"line 1line 2\"}\n", stylesheet->ToString());
+  EXPECT_EQ(
+      "/* AUTHOR */\n\n\n\n"
+      "a {content: \"line 1line 2\"}\n",
+      stylesheet->ToString());
 }
 
 TEST_F(ToStringTest, SpecialChars) {
@@ -115,11 +122,12 @@ TEST_F(ToStringTest, SpecialChars) {
 }
 
 TEST_F(ToStringTest, MediaQueries) {
-  TESTSTYLESHEET("/* AUTHOR */\n\n"
-                 "@import url(\"a.css\") not screen;\n"
-                 "@import url(\"b.css\") (color) and (max-width: 38px);\n"
-                 "\n"
-                 "@media only print and (color) { .a {right: 1} }\n");
+  TESTSTYLESHEET(
+      "/* AUTHOR */\n\n"
+      "@import url(\"a.css\") not screen;\n"
+      "@import url(\"b.css\") (color) and (max-width: 38px);\n"
+      "\n"
+      "@media only print and (color) { .a {right: 1} }\n");
 }
 
 TEST_F(ToStringTest, EscapeIdentifier) {

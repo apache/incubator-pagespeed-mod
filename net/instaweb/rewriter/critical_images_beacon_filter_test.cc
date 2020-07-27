@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 #include "net/instaweb/rewriter/public/critical_images_beacon_filter.h"
 
 #include "net/instaweb/http/public/logging_proto_impl.h"
@@ -66,7 +65,7 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
  protected:
   CriticalImagesBeaconFilterTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     options()->set_beacon_url("http://example.com/beacon");
     CriticalImagesBeaconFilter::InitStats(statistics());
     // Enable a filter that uses critical images, which in turn will enable
@@ -88,9 +87,8 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     server_context()->set_beacon_cohort(beacon_cohort);
     server_context()->set_dom_cohort(dom_cohort);
 
-    server_context()->set_critical_images_finder(
-        new BeaconCriticalImagesFinder(
-            beacon_cohort, factory()->nonce_generator(), statistics()));
+    server_context()->set_critical_images_finder(new BeaconCriticalImagesFinder(
+        beacon_cohort, factory()->nonce_generator(), statistics()));
 
     GoogleUrl base(GetTestUrl());
     image_gurl_.Reset(base, kChefGifFile);
@@ -115,16 +113,16 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
 
   void PrepareInjection() {
     rewrite_driver()->AddFilters();
-    AddFileToMockFetcher(image_gurl_.Spec(), kChefGifFile,
-                         kContentTypeJpeg, 100);
+    AddFileToMockFetcher(image_gurl_.Spec(), kChefGifFile, kContentTypeJpeg,
+                         100);
   }
 
   void AddImageTags(GoogleString* html) {
     // Add the relative image URL.
     StrAppend(html, "<img src=\"", kChefGifFile, "\" ", kChefGifDims, ">");
     // Add the absolute image URL.
-    StrAppend(html, "<img src=\"", image_gurl_.Spec(), "\" ",
-              kChefGifDims, ">");
+    StrAppend(html, "<img src=\"", image_gurl_.Spec(), "\" ", kChefGifDims,
+              ">");
   }
 
   void RunInjection() {
@@ -150,14 +148,22 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
   }
 
   void VerifyInjection(int expected_beacon_count) {
-    EXPECT_EQ(expected_beacon_count, statistics()->GetVariable(
-        CriticalImagesBeaconFilter::kCriticalImagesBeaconAddedCount)->Get());
+    EXPECT_EQ(
+        expected_beacon_count,
+        statistics()
+            ->GetVariable(
+                CriticalImagesBeaconFilter::kCriticalImagesBeaconAddedCount)
+            ->Get());
     EXPECT_THAT(output_buffer_, HasSubstr(CreateInitString()));
   }
 
   void VerifyNoInjection(int expected_beacon_count) {
-    EXPECT_EQ(expected_beacon_count, statistics()->GetVariable(
-        CriticalImagesBeaconFilter::kCriticalImagesBeaconAddedCount)->Get());
+    EXPECT_EQ(
+        expected_beacon_count,
+        statistics()
+            ->GetVariable(
+                CriticalImagesBeaconFilter::kCriticalImagesBeaconAddedCount)
+            ->Get());
     EXPECT_THAT(output_buffer_, Not(HasSubstr("pagespeed.CriticalImages.Run")));
   }
 
@@ -167,9 +173,7 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
                 HasSubstr(StrCat("data-pagespeed-url-hash=\"", hash_str)));
   }
 
-  void AssumeHttps() {
-    https_mode_ = true;
-  }
+  void AssumeHttps() { https_mode_ = true; }
 
   GoogleString GetTestUrl() {
     return StrCat((https_mode_ ? "https://example.com/" : kTestDomain),
@@ -183,12 +187,11 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     return UintToString(hash_val);
   }
 
-
   GoogleString CreateInitString() {
     GoogleString url;
     EscapeToJsStringLiteral(rewrite_driver()->google_url().Spec(), false, &url);
-    StringPiece beacon_url = https_mode_ ? options()->beacon_url().https :
-        options()->beacon_url().http;
+    StringPiece beacon_url = https_mode_ ? options()->beacon_url().https
+                                         : options()->beacon_url().http;
     GoogleString options_signature_hash =
         rewrite_driver()->server_context()->hasher()->Hash(
             rewrite_driver()->options()->signature());
@@ -201,8 +204,9 @@ class CriticalImagesBeaconFilterTest : public RewriteTestBase {
     StrAppend(&str, "'", url, "',");
     StrAppend(&str, "'", options_signature_hash, "',");
     StrAppend(&str, BoolToString(!lazyload_will_run_beacon), ",");
-    StrAppend(&str, BoolToString(rewrite_driver()->options()->Enabled(
-                        RewriteOptions::kResizeToRenderedImageDimensions)),
+    StrAppend(&str,
+              BoolToString(rewrite_driver()->options()->Enabled(
+                  RewriteOptions::kResizeToRenderedImageDimensions)),
               ",");
     StrAppend(&str, "'", ExpectedNonce(), "');");
     return str;
@@ -221,10 +225,10 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjection) {
   EXPECT_TRUE(img_begin != GoogleString::npos);
   int img_end = output_buffer_.substr(img_begin).find(">");
   EXPECT_TRUE(img_end != GoogleString::npos);
-  EXPECT_TRUE(output_buffer_.substr(img_begin, img_end).find(
-      "onload=\"pagespeed.CriticalImages."
-      "checkImageForCriticality(this);\"") !=
-      GoogleString::npos);
+  EXPECT_TRUE(output_buffer_.substr(img_begin, img_end)
+                  .find("onload=\"pagespeed.CriticalImages."
+                        "checkImageForCriticality(this);\"") !=
+              GoogleString::npos);
   VerifyWithNoImageRewrite();
 }
 
@@ -247,8 +251,9 @@ TEST_F(CriticalImagesBeaconFilterTest, ScriptInjectionWithImageInlining) {
   // URI has the correct hash. We need to add the image hash to the critical
   // image set to make sure that the image is inlined.
   GoogleString hash_str = ImageUrlHash(kChefGifFile);
-  StringSet* crit_img_set = server_context()->critical_images_finder()->
-      mutable_html_critical_images(rewrite_driver());
+  StringSet* crit_img_set =
+      server_context()->critical_images_finder()->mutable_html_critical_images(
+          rewrite_driver());
   crit_img_set->insert(hash_str);
   options()->set_image_inline_max_bytes(10000);
   options()->EnableFilter(RewriteOptions::kResizeImages);
@@ -292,8 +297,8 @@ TEST_F(CriticalImagesBeaconFilterTest, DontRebeaconBeforeTimeout) {
 
   // Beacon injection happens when the pcache value expires or when the
   // reinstrumentation time interval is exceeded.
-  factory()->mock_timer()->AdvanceMs(
-      options()->beacon_reinstrument_time_sec() * 1000);
+  factory()->mock_timer()->AdvanceMs(options()->beacon_reinstrument_time_sec() *
+                                     1000);
   ResetDriver();
   SetDriverRequestHeaders();
   SetupAndProcessUrl();
@@ -345,8 +350,8 @@ TEST_F(CriticalImagesBeaconFilterTest, LazyloadEnabled) {
 
   // Advance time to force re-beaconing.  Now there are extant non-critical
   // images, and lazyload ought to be enabled.
-  factory()->mock_timer()->AdvanceMs(
-      options()->beacon_reinstrument_time_sec() * 1000);
+  factory()->mock_timer()->AdvanceMs(options()->beacon_reinstrument_time_sec() *
+                                     1000);
   ResetDriver();
   SetupAndProcessUrl();
   VerifyInjection(2);

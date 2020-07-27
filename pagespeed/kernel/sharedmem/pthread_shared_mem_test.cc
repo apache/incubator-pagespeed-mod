@@ -17,10 +17,11 @@
  * under the License.
  */
 
+#include "pagespeed/kernel/thread/pthread_shared_mem.h"
 
 #include <pthread.h>
-#include <unistd.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include <cstddef>
 #include <cstdlib>
@@ -36,7 +37,6 @@
 #include "pagespeed/kernel/sharedmem/shared_mem_lock_manager_test_base.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
-#include "pagespeed/kernel/thread/pthread_shared_mem.h"
 
 namespace net_instaweb {
 
@@ -48,36 +48,34 @@ namespace {
 
 class PthreadSharedMemEnvBase : public SharedMemTestEnv {
  public:
-  virtual AbstractSharedMem* CreateSharedMemRuntime() {
+  AbstractSharedMem* CreateSharedMemRuntime() override {
     return new PthreadSharedMem();
   }
 
-  virtual void ShortSleep() {
-    usleep(1000);
-  }
+  void ShortSleep() override { usleep(1000); }
 };
 
 class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
  public:
-  virtual bool CreateChild(Function* callback) {
+  bool CreateChild(Function* callback) override {
     pthread_t thread;
-    if (pthread_create(&thread, NULL, InvokeCallback, callback) != 0) {
+    if (pthread_create(&thread, nullptr, InvokeCallback, callback) != 0) {
       return false;
     }
     child_threads_.push_back(thread);
     return true;
   }
 
-  virtual void WaitForChildren() {
+  void WaitForChildren() override {
     for (size_t i = 0; i < child_threads_.size(); ++i) {
       void* result = this;  // non-NULL -> failure.
       EXPECT_EQ(0, pthread_join(child_threads_[i], &result));
-      EXPECT_EQ(NULL, result) << "Child reported failure";
+      EXPECT_EQ(nullptr, result) << "Child reported failure";
     }
     child_threads_.clear();
   }
 
-  virtual void ChildFailed() {
+  void ChildFailed() override {
     // In case of failure, we exit the thread with a non-NULL status.
     // We leak the callback object in that case, but this only gets called
     // for test failures anyway.
@@ -88,7 +86,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
   static void* InvokeCallback(void* raw_callback_ptr) {
     Function* callback = static_cast<Function*>(raw_callback_ptr);
     callback->CallRun();
-    return NULL;  // Used to denote success
+    return nullptr;  // Used to denote success
   }
 
   std::vector<pthread_t> child_threads_;
@@ -96,7 +94,7 @@ class PthreadSharedMemThreadEnv : public PthreadSharedMemEnvBase {
 
 class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
  public:
-  virtual bool CreateChild(Function* callback) {
+  bool CreateChild(Function* callback) override {
     pid_t ret = fork();
     if (ret == -1) {
       // Failure
@@ -114,7 +112,7 @@ class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
     }
   }
 
-  virtual void WaitForChildren() {
+  void WaitForChildren() override {
     for (size_t i = 0; i < child_processes_.size(); ++i) {
       int status;
       EXPECT_EQ(child_processes_[i], waitpid(child_processes_[i], &status, 0));
@@ -124,43 +122,41 @@ class PthreadSharedMemProcEnv : public PthreadSharedMemEnvBase {
     child_processes_.clear();
   }
 
-  virtual void ChildFailed() {
-    exit(-1);
-  }
+  void ChildFailed() override { exit(-1); }
 
  private:
   std::vector<pid_t> child_processes_;
 };
 
-
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedCircularBufferTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedDynamicStringMapTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemCacheTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemCacheDataTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemLockManagerTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemStatisticsTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadProc, SharedMemTestTemplate,
-                              PthreadSharedMemProcEnv);
+                               PthreadSharedMemProcEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedCircularBufferTestTemplate,
-                              PthreadSharedMemThreadEnv);
-INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedDynamicStringMapTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
+INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread,
+                               SharedDynamicStringMapTestTemplate,
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemCacheTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemCacheDataTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemLockManagerTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemStatisticsTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 INSTANTIATE_TYPED_TEST_SUITE_P(PthreadThread, SharedMemTestTemplate,
-                              PthreadSharedMemThreadEnv);
+                               PthreadSharedMemThreadEnv);
 
 }  // namespace
 

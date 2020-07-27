@@ -33,15 +33,15 @@ namespace net_instaweb {
 class DelegatingCacheCallback : public CacheInterface::Callback {
  public:
   explicit DelegatingCacheCallback(CacheInterface::Callback* callback);
-  virtual ~DelegatingCacheCallback();
+  ~DelegatingCacheCallback() override;
 
   // Note that we have to forward validity faithfully here, as if we're
   // wrapping a 2-level cache it will need to know accurately if the value
   // is valid or not.
-  virtual bool ValidateCandidate(const GoogleString& key,
-                                 CacheInterface::KeyState state);
+  bool ValidateCandidate(const GoogleString& key,
+                         CacheInterface::KeyState state) override;
 
-  virtual void Done(CacheInterface::KeyState state);
+  void Done(CacheInterface::KeyState state) override;
 
  private:
   CacheInterface::Callback* callback_;
