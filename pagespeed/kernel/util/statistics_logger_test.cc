@@ -86,7 +86,7 @@ class StatisticsLoggerTest : public ::testing::Test {
   }
 
   static GoogleString CreateVariableDataResponse(bool has_unused_variable,
-                                          bool first) {
+                                                 bool first) {
     GoogleString var_data;
     if (first) {
       var_data =

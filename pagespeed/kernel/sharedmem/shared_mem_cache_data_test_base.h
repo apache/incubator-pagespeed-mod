@@ -37,10 +37,8 @@ class ThreadSystem;
 class SharedMemCacheDataTestBase : public testing::Test {
  protected:
   typedef void (SharedMemCacheDataTestBase::*TestMethod)();
-  enum {
-    kBlockSize = 512
-  };  // Can't use static const int here since it's
-      // passed to EXPECT_EQ
+  enum { kBlockSize = 512 };  // Can't use static const int here since it's
+                              // passed to EXPECT_EQ
 
   explicit SharedMemCacheDataTestBase(SharedMemTestEnv* test_env);
 

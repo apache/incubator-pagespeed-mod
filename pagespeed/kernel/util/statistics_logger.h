@@ -102,12 +102,12 @@ class StatisticsLogger {
   // have same lifetime as it.
   static void ParseVarDataIntoMap(
       StringPiece logfile_var_data,
-      std::map<StringPiece, StringPiece>* parsed_var_data) ;
+      std::map<StringPiece, StringPiece>* parsed_var_data);
   static void PrintVarDataAsJSON(const VarMap& parsed_var_data, Writer* writer,
-                          MessageHandler* message_handler) ;
-  static void PrintTimestampListAsJSON(const std::vector<int64>& list_of_timestamps,
-                                Writer* writer,
-                                MessageHandler* message_handler) ;
+                                 MessageHandler* message_handler);
+  static void PrintTimestampListAsJSON(
+      const std::vector<int64>& list_of_timestamps, Writer* writer,
+      MessageHandler* message_handler);
   void PrintJSON(const std::vector<int64>& list_of_timestamps,
                  const VarMap& parsed_var_data, Writer* writer,
                  MessageHandler* message_handler) const;

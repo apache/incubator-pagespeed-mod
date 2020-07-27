@@ -411,8 +411,8 @@ apr_status_t SerfFetch::HandleSSLCertValidation(
 
   if (ssl_error_message_ == nullptr && async_fetch_ != nullptr) {
     if (  // If cert is null that means we're being called via
-          // SSLCertChainError. We only need to check the host name matches when
-          // being called via SSLCertError, in which case cert won't be null.
+        // SSLCertChainError. We only need to check the host name matches when
+        // being called via SSLCertError, in which case cert won't be null.
         cert != nullptr &&
         // No point in checking the host if we're allowing self-signed or a made
         // up CA, since people can forge whatever they want and often don't

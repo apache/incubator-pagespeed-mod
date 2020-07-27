@@ -460,9 +460,9 @@ void StatisticsLogger::PrintTimestampListAsJSON(
   }
 }
 
-void StatisticsLogger::PrintVarDataAsJSON(
-    const VarMap& parsed_var_data, Writer* writer,
-    MessageHandler* message_handler) {
+void StatisticsLogger::PrintVarDataAsJSON(const VarMap& parsed_var_data,
+                                          Writer* writer,
+                                          MessageHandler* message_handler) {
   for (VarMap::const_iterator iterator = parsed_var_data.begin();
        iterator != parsed_var_data.end(); ++iterator) {
     StringPiece var_name = iterator->first;
@@ -537,11 +537,10 @@ bool StatisticsLogfileReader::ReadNextDataBlock(int64* timestamp,
                              next_timestamp_pos - (newline_pos + 1));
       buffer_.erase(0, next_timestamp_pos);
       return true;
-    }       *timestamp = old_timestamp;
+    }
+    *timestamp = old_timestamp;
 
-      offset = next_timestamp_pos;
-
-   
+    offset = next_timestamp_pos;
   }
   return false;
 }

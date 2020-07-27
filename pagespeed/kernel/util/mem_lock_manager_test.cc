@@ -112,7 +112,6 @@ class MemLockManagerTest : public testing::Test {
                         &MemLockManagerTest::LogDeny, name);
   }
 
- 
   std::unique_ptr<ThreadSystem> thread_system_;
   MockTimer timer_;
   GoogleMessageHandler handler_;
