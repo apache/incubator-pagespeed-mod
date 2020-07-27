@@ -50,7 +50,7 @@ We require Apache (>= 2.2), Python (>= 2.7), <code>g++</code> (>= 4.1),
 To install these on Debian or Ubuntu run:
 </p>
 <pre>
-  sudo apt-get install apache2 g++ python subversion gperf make devscripts fakeroot git curl zlib1g-dev
+  sudo apt-get install apache2 g++ python subversion gperf make devscripts fakeroot git curl zlib1g-dev uuid-dev
 </pre>
 <p>
 On CentOS, run:
@@ -93,7 +93,7 @@ it with:
 <pre>
   mkdir -p ~/bin
   cd ~/bin
-  git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+  git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git --depth=1
 </pre>
 <p>
 You will need to add the <code>depot_tools</code> to your
@@ -106,7 +106,7 @@ path. In <code>bash</code> you would run:
 <p>
 <p>For building version 1.12 and later:</p>
 <pre>
-  git clone -b latest-stable --recursive https://github.com/apache/incubator-pagespeed-mod.git
+  git clone -b latest-stable --recursive https://github.com/apache/incubator-pagespeed-mod.git --depth=1
   cd incubator-pagespeed-mod
   python build/gyp_chromium --depth=.
   make BUILDTYPE=Release mod_pagespeed_test pagespeed_automatic_test
@@ -122,7 +122,7 @@ the <code>depot_tools</code>) will do this for you.
   mkdir ~/mod_pagespeed    # Any directory is fine.
   cd ~/mod_pagespeed
   gclient config https://github.com/apache/incubator-pagespeed-mod.git --unmanaged --name=src
-  git clone https://github.com/apache/incubator-pagespeed-mod.git src
+  git clone https://github.com/apache/incubator-pagespeed-mod.git src --depth=1
   cd src
   git checkout latest-stable
   cd ..
