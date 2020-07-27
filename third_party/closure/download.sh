@@ -26,9 +26,9 @@ fi
 
 DIR="$1"
 
-# If the version of the compiler is updated, the closure library submodule in
-# third_party/closure_library must also be updated.
-VERSION=20161024
+# If the version of the compiler is updated, the closure library version in
+# bazel/repositories.bzl must also be updated.
+VERSION=20191111
 ZIP=compiler-$VERSION.zip
 JAR_IN=$DIR/closure-compiler-v$VERSION.jar
 JAR=$DIR/compiler.jar

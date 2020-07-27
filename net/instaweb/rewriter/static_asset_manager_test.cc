@@ -149,7 +149,10 @@ TEST_F(StaticAssetManagerTest, TestJsDebug) {
       GoogleString script(manager_->GetAsset(module, options_));
       // Debug code is also put through the closure compiler to resolve any uses
       // of goog.require. As part of this, comments also get stripped out.
-      EXPECT_STREQ("", ExtractCommentSkippingWhitelist(script))
+      EXPECT_STREQ(
+          "/*\n\n Copyright The Closure Library Authors.\n "
+          "SPDX-License-Identifier: Apache-2.0\n*/",
+          ExtractCommentSkippingWhitelist(script))
           << "Comment found in debug version of asset " << module;
     }
   }
@@ -164,7 +167,10 @@ TEST_F(StaticAssetManagerTest, TestJsOpt) {
     if (module != StaticAssetEnum::BLANK_GIF &&
         module != StaticAssetEnum::MOBILIZE_CSS) {
       GoogleString script(manager_->GetAsset(module, options_));
-      EXPECT_STREQ("", ExtractCommentSkippingWhitelist(script))
+      EXPECT_STREQ(
+          "/*\n\n Copyright The Closure Library Authors.\n "
+          "SPDX-License-Identifier: Apache-2.0\n*/",
+          ExtractCommentSkippingWhitelist(script))
           << "Comment found in debug version of asset " << module;
     }
   }

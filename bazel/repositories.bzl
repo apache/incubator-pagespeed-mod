@@ -13,24 +13,31 @@ load(":aprutil.bzl", "aprutil_build_rule")
 load(":serf.bzl", "serf_build_rule")
 load(":closure_compiler.bzl", "closure_library_rules")
 
-ENVOY_COMMIT = "defea7ecbf6f3ebffe8b9d41afa7f62322756f05"    # July 25th, 2020
+ENVOY_COMMIT = "defea7ecbf6f3ebffe8b9d41afa7f62322756f05"  # July 25th, 2020
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
-HIREDIS_COMMIT = "0.14.1" # July 24th, 2020
-JSONCPP_COMMIT = "1.9.3" # July 24th, 2020
-RE2_COMMIT = "2020-07-06" # July 24th, 2020
-LIBPNG_COMMIT = "1.6.37" # July 24th, 2020
-LIBWEBP_COMMIT = "1.1.0" # July 24th, 2020
+HIREDIS_COMMIT = "0.14.1"  # July 24th, 2020
+JSONCPP_COMMIT = "1.9.3"  # July 24th, 2020
+RE2_COMMIT = "2020-07-06"  # July 24th, 2020
+LIBPNG_COMMIT = "1.6.37"  # July 24th, 2020
+LIBWEBP_COMMIT = "1.1.0"  # July 24th, 2020
 GOOGLE_SPARSEHASH_COMMIT = "6ff8809259d2408cb48ae4fa694e80b15b151af3"
-GLOG_COMMIT = "0a2e5931bd5ff22fd3bf8999eb8ce776f159cda6" # July 24th, 2020
-GFLAGS_COMMIT = "f7388c6655e699f777a5a74a3c9880b9cfaabe59" # July 24th, 2020
+GLOG_COMMIT = "0a2e5931bd5ff22fd3bf8999eb8ce776f159cda6"  # July 24th, 2020
+GFLAGS_COMMIT = "f7388c6655e699f777a5a74a3c9880b9cfaabe59"  # July 24th, 2020
 DRP_COMMIT = "21a7a0f0513b7adad7889ee68edcff49601e4a3a"
-GIFLIB_COMMIT = "5.2.1" # July 24th, 2020
-OPTIPNG_COMMIT = "0.7.7" # July 24th, 2020
-LIBJPEG_TURBO_COMMIT = "ab7cd970a83609f98e8542cea8b81e8d92ddab83" # July 24th, 2020
-APR_COMMIT = "901ece0cd7cec29c050c58451a801bb125d09b6e" # July 24th, 2020
+GIFLIB_COMMIT = "5.2.1"  # July 24th, 2020
+OPTIPNG_COMMIT = "0.7.7"  # July 24th, 2020
+LIBJPEG_TURBO_COMMIT = "ab7cd970a83609f98e8542cea8b81e8d92ddab83"  # July 24th, 2020
+APR_COMMIT = "901ece0cd7cec29c050c58451a801bb125d09b6e"  # July 24th, 2020
 APRUTIL_COMMIT = "13ed779e56669007dffe9a27ffab3790b59cbfaa"
 SERF_COMMIT = "3a37fc11c49d4fa91c559ee0b387f7a23705d999"  # July 24th, 2020
-CLOSURE_LIBRARY_COMMIT = "cd0e79408e4ec90e0da2eaee846a3400fae30445"
+
+# NOTE: Closure isn't at the latest, because of that introcucing top level comments which
+# break tests, but more importantly, make generated js files appear as if they're apache
+# licenced. We're at the last revision before that change gets introduced.
+# Full context at:
+# https://github.com/google/closure-compiler/issues/3551, which got introcuded via
+# https://github.com/google/closure-library/commit/1fe1bd873b1b772cca7de983cbaf72ef4011de0b
+CLOSURE_LIBRARY_COMMIT = "20191111"  # July 27th, 2020 (latest release was 20200719)
 
 def mod_pagespeed_dependencies():
     http_archive(
@@ -357,7 +364,7 @@ cc_binary(
     deps = [":benchmark"],
 )
 
-""",        
+""",
         sha256 = "2e9489a31ae007c81e90e8ec8a15d62d58a9c18d4fd1603f6441ef248556b41f",
     )
 
@@ -438,7 +445,7 @@ cc_binary(
         strip_prefix = "apr-%s" % APR_COMMIT,
         url = "https://github.com/apache/apr/archive/%s.tar.gz" % APR_COMMIT,
         build_file_content = apr_build_rule,
-        patches = [ "apr.patch" ],
+        patches = ["apr.patch"],
         patch_args = ["-p1"],
         sha256 = "372b6a3424d8a3abbbf216bf6058e949f7b9da95e9caa57a9f5e82fe7528ca40",
     )
@@ -462,8 +469,7 @@ cc_binary(
     http_archive(
         name = "closure_library",
         strip_prefix = "closure-library-%s" % CLOSURE_LIBRARY_COMMIT,
-        url = "https://github.com/google/closure-library/archive/%s.tar.gz" % CLOSURE_LIBRARY_COMMIT,
-        sha256 = "bd5966814e6fdced42e97f8461fcbae52849cf589292a1c589585fcd9fdb3cd2",
+        url = "https://github.com/google/closure-library/archive/v%s.tar.gz" % CLOSURE_LIBRARY_COMMIT,
+        sha256 = "21400f56c5b8f9e2548facb30658e4a09fe1cbaba39440735441735d2f900e55",
         build_file_content = closure_library_rules,
     )
-
