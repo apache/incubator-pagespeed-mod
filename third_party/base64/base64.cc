@@ -63,10 +63,10 @@ void base64_init() {
       web64_char_map[i] = kInvalidChar;
     }
     for (int i = 0; i < sizeof(base64_chars) - 1; ++i) {
-      base64_char_map[base64_chars[i]] = i;
+      base64_char_map[static_cast<int>(base64_chars[i])] = i;
     }
     for (int i = 0; i < sizeof(web64_chars) - 1; ++i) {
-      web64_char_map[web64_chars[i]] = i;
+      web64_char_map[static_cast<int>(web64_chars[i])] = i;
     }
   }
 }

@@ -342,9 +342,14 @@ TEST_F(StatisticsLoggerTest, NoMalformedJson) {
                    &writer_graphs, &handler_);
 
   Json::Value complete_json;
-  Json::Reader json_reader;
-  EXPECT_TRUE(json_reader.parse(json_dump, complete_json)) << json_dump;
-  EXPECT_TRUE(json_reader.parse(json_dump_graphs, complete_json))
+  Json::CharReaderBuilder reader;
+  std::string errs;
+  std::stringstream ss_dump(json_dump);
+  EXPECT_TRUE(Json::parseFromStream(reader, ss_dump, &complete_json, &errs))
+      << json_dump;
+  std::stringstream ss_dump_graphs(json_dump_graphs);
+  EXPECT_TRUE(
+      Json::parseFromStream(reader, ss_dump_graphs, &complete_json, &errs))
       << json_dump_graphs;
 }
 

@@ -43,7 +43,6 @@ namespace {
 
 const char kUrl[] = "http://www.myhost.com/static/mycss.css";
 const char kPrint[] = "print";
-const char kStylesheet[] = "stylesheet";
 const char kAlternateStylesheet[] = "alternate stylesheet";
 
 class CssTagScannerTest : public testing::Test {

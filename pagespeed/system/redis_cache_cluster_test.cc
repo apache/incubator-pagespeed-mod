@@ -47,7 +47,6 @@ namespace net_instaweb {
 namespace {
 static const int kReconnectionDelayMs = 10;
 static const int kTimeoutUs = 100 * Timer::kMsUs;
-static const int kSlaveNodesFlushingTimeoutMs = 1000;
 static const int kDatabaseIndex = 0;
 static const int kTTLSec = -1;
 

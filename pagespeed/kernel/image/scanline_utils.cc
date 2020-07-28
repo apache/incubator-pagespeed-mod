@@ -23,12 +23,6 @@
 
 namespace pagespeed {
 
-namespace {
-
-const uint8_t kAlphaOpaque = 255;
-
-}  // namespace
-
 namespace image_compression {
 
 size_t GetNumChannelsFromPixelFormat(PixelFormat format,

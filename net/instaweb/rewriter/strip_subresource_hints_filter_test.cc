@@ -31,8 +31,6 @@
 
 namespace {
 
-const char kHtmlDomain[] = "http://test.com/";
-const char kOtherDomain[] = "http://other.test.com/";
 const char kFrom1Domain[] = "http://from1.test.com/";
 const char kFrom2Domain[] = "http://from2.test.com/";
 const char kTo1Domain[] = "http://to1.test.com/";

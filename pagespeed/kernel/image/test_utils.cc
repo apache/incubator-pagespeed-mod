@@ -43,7 +43,6 @@ namespace {
 
 const double kMaxPSNR = 99.0;
 const int kIndexAlpha = 3;
-const uint8_t kAlphaTransparent = 0;
 
 // Definition of Peak-Signal-to-Noise-Ratio (PSNR):
 // http://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio

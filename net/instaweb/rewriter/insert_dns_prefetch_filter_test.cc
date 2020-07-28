@@ -43,14 +43,6 @@
 // filter.
 // TODO(bharathbhushan): Add a test for noscript.
 
-namespace {
-const int64 kOriginTtlMs = 12 * net_instaweb::Timer::kMinuteMs;
-const char kJsData[] =
-    "alert     (    'hello, world!'    ) "
-    " /* removed */ <!-- removed --> "
-    " // single-line-comment";
-}  // namespace
-
 namespace net_instaweb {
 
 class InsertDnsPrefetchFilterTest : public RewriteTestBase {

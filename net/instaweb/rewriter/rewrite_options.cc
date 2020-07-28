@@ -3867,6 +3867,7 @@ bool RewriteOptions::IsEqual(const RewriteOptions& that) const {
   // the RewriteOptions::signature.
   {
     ThreadSystem::ScopedReader read_lock(cache_purge_mutex_.get());
+    ThreadSystem::ScopedReader read_lock2(that.cache_purge_mutex_.get());
     return purge_set_->Equals(*that.purge_set_);
   }
 }
