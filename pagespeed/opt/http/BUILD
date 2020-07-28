@@ -1,18 +1,17 @@
-licenses(["notice"])  # Apache 2
-
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
 
+licenses(["notice"])  # Apache 2
+
 proto_library(
     name = "property_cache_proto",
     srcs = [
         "property_cache.proto",
-    ],
-    deps = [
-#        "//pagespeed/kernel/http:http_proto",
     ],
 )
 
@@ -22,7 +21,6 @@ cc_proto_library(
         ":property_cache_proto",
     ],
 )
-
 
 cc_library(
     name = "http",
@@ -46,16 +44,16 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        ":property_cache_proto_cc",
         "//pagespeed/kernel/cache",
         "//pagespeed/opt/logging",
-        ":property_cache_proto_cc"
     ],
 )
 
 pagespeed_cc_test_library(
     name = "http_test_base",
     srcs = [
-        "mock_property_page.cc",        
+        "mock_property_page.cc",
     ],
     hdrs = [
         "mock_property_page.h",
@@ -63,10 +61,8 @@ pagespeed_cc_test_library(
     deps = [
         ":http",
         "//pagespeed/kernel/base:kernel_test_util",
-        "//pagespeed/kernel/base:pagespeed_gtest",
     ],
 )
-
 
 pagespeed_cc_test(
     name = "http_test",

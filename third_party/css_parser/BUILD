@@ -1,10 +1,10 @@
-licenses(["notice"])  # Apache 2
-
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
 )
+
+licenses(["notice"])  # Apache 2
 
 cc_library(
     name = "utf",
@@ -39,7 +39,7 @@ cc_library(
     copts = [
         "-Ithird_party/css_parser/src/",
         "-Ithird_party/css_parser/src/third_party/utf",
-        "-funsigned-char"
+        "-funsigned-char",
     ],
 )
 
@@ -60,11 +60,11 @@ genrule(
 pagespeed_cc_test(
     name = "css_parser_test",
     srcs = [
-        'src/webutil/css/identifier_test.cc',
-        'src/webutil/css/parser_unittest.cc',
-        'src/webutil/css/property_test.cc',
-        'src/webutil/css/tostring_test.cc',
-        'src/webutil/css/util_test.cc',
+        "src/webutil/css/identifier_test.cc",
+        "src/webutil/css/parser_unittest.cc",
+        "src/webutil/css/property_test.cc",
+        "src/webutil/css/tostring_test.cc",
+        "src/webutil/css/util_test.cc",
     ],
     copts = [
         "-Ithird_party/css_parser/src",
@@ -73,7 +73,6 @@ pagespeed_cc_test(
     ],
     deps = [
         ":css_parser",
-        "//pagespeed/kernel/base:pagespeed_gtest",
     ],
 )
 
@@ -89,7 +88,6 @@ cc_library(
         "src/webutil/css/tostring.cc",
         "src/webutil/css/util.cc",
         "src/webutil/css/value.cc",
-
         "src/webutil/html/htmlcolor.cc",
         "src/webutil/html/htmltagenum.cc",
         "src/webutil/html/htmltagindex.cc",
@@ -137,14 +135,14 @@ cc_library(
         "-Ithird_party/css_parser/src",
         "-Ithird_party/css_parser/src/base",
         "-Ithird_party/css_parser/src/third_party/utf",
-         "-funsigned-char"
-   ],
+        "-funsigned-char",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":utf",
-        "@mod_pagespeed//base:log_shim",
-        "@com_google_absl//absl/strings:str_format",
         "//pagespeed/kernel/base:gtest_prod",
         "//third_party/google-sparsehash:google_sparsehash_gen",
+        "@com_google_absl//absl/strings:str_format",
+        "@mod_pagespeed//base:log_shim",
     ],
 )

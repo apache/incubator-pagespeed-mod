@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
 def pagespeed_cc_test(
         name,
         srcs = [],
@@ -9,25 +11,24 @@ def pagespeed_cc_test(
         tags = [],
         args = [],
         copts = [],
-        shard_count = None,
+        shard_count = 10,
         coverage = True,
-        local = False,  
+        local = False,
         size = "medium"):
     test_lib_tags = []
-    native.cc_test(
+    cc_test(
         name = name,
         copts = copts,
-        linkstatic=True,
+        linkstatic = True,
         srcs = srcs,
         deps = [
             repository + "//test:main",
-        ] + deps,
+        ] + deps + ["//pagespeed/kernel/base:pagespeed_gtest"],
         local = local,
         shard_count = shard_count,
         size = size,
-        data = data
+        data = data,
     )
-
 
 def _pagespeed_cc_test_infrastructure_library(
         name,
@@ -41,7 +42,7 @@ def _pagespeed_cc_test_infrastructure_library(
         include_prefix = None,
         copts = [],
         **kargs):
-    native.cc_library(
+    cc_library(
         name = name,
         srcs = srcs,
         hdrs = hdrs,
@@ -68,7 +69,7 @@ def pagespeed_cc_test_library(
         include_prefix = None,
         copts = [],
         **kargs):
-    deps = deps 
+    deps = deps
     _pagespeed_cc_test_infrastructure_library(
         name,
         srcs,
