@@ -23,7 +23,6 @@
 #include <memory>
 #include <unordered_set>
 
-#include "base/macros.h"
 #include "pagespeed/controller/central_controller.h"
 #include "pagespeed/controller/controller.grpc.pb.h"
 #include "pagespeed/controller/expensive_operation_callback.h"

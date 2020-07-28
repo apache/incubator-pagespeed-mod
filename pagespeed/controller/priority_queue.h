@@ -27,7 +27,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/macros.h"
 #include "pagespeed/kernel/base/basictypes.h"
 
 // Priority queue that supports incrementing the priority of a key.

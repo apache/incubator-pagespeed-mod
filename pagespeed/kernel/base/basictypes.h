@@ -17,12 +17,7 @@
  * under the License.
  */
 
-#ifndef PAGESPEED_KERNEL_BASE_BASICTYPES_H_
-#define PAGESPEED_KERNEL_BASE_BASICTYPES_H_
-
-//#include "base/basictypes.h"
-//#include "base/macros.h"
-
+#pragma once
 #include <inttypes.h>
 
 typedef int64_t int64;
@@ -85,8 +80,6 @@ typedef int8_t int8;
 
 // Lazily-initialized boolean value
 enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
-
-#endif  // PAGESPEED_KERNEL_BASE_BASICTYPES_H_
 
 // XXX(oschaaf): check licence. copied this in here because chromium dropped it.
 /*

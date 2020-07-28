@@ -20,8 +20,6 @@
 #ifndef PAGESPEED_SYSTEM_CONTROLLER_PROCESS_H_
 #define PAGESPEED_SYSTEM_CONTROLLER_PROCESS_H_
 
-#include "base/macros.h"
-
 namespace net_instaweb {
 
 // Abstract class for delegating work to ControllerManager. All of the following

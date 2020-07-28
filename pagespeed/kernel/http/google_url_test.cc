@@ -28,6 +28,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/util/simple_random.h"
+#undef DISALLOW_COPY_AND_ASSIGN  // Will be redefined below.
 #include "url/gurl.h"
 
 namespace {
