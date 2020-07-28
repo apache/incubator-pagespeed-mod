@@ -1,0 +1,71 @@
+diff --git a/BUILD b/BUILD
+index 3dc27d5..eff1079 100644
+--- a/BUILD
++++ b/BUILD
+@@ -270,6 +270,7 @@ cc_library(
+     testonly = 1,
+     srcs = ["util/benchmark.cc"],
+     deps = [":testing"],
++    visibility = ["//visibility:public"],
+ )
+ 
+ cc_binary(
+diff --git a/util/benchmark.cc b/util/benchmark.cc
+index e39c334..ffd8bfa 100644
+--- a/util/benchmark.cc
++++ b/util/benchmark.cc
+@@ -120,7 +120,7 @@ static bool WantBench(const char* name, int argc, const char** argv) {
+   return false;
+ }
+ 
+-int main(int argc, const char** argv) {
++int renamed_main(int argc, const char** argv) {
+   for (int i = 0; i < nbenchmarks; i++) {
+     Benchmark* b = benchmarks[i];
+     if (!WantBench(b->name(), argc, argv))
+@@ -128,4 +128,5 @@ int main(int argc, const char** argv) {
+     for (int arg = b->lo(); arg <= b->hi(); arg <<= 1)
+       RunBench(b, arg);
+   }
++  return 0;
+ }
+diff --git a/util/benchmark.h b/util/benchmark.h
+index d97b49e..18e492f 100644
+--- a/util/benchmark.h
++++ b/util/benchmark.h
+@@ -8,7 +8,6 @@
+ #include <stdint.h>
+ #include <functional>
+ 
+-#include "util/logging.h"
+ #include "util/util.h"
+ 
+ // Globals for the old benchmark API.
+@@ -61,10 +60,10 @@ class State {
+ 
+  public:
+   explicit State(int64_t iters)
+-      : iters_(iters), arg_(0), has_arg_(false) {}
++      : iters_(iters) {}
+ 
+   State(int64_t iters, int64_t arg)
+-      : iters_(iters), arg_(arg), has_arg_(true) {}
++      : iters_(iters) {}
+ 
+   Iterator begin() {
+     // We are about to start the loop, so start timing.
+@@ -79,14 +78,9 @@ class State {
+   void SetBytesProcessed(int64_t b) { SetBenchmarkBytesProcessed(b); }
+   void SetItemsProcessed(int64_t i) { SetBenchmarkItemsProcessed(i); }
+   int64_t iterations() const { return iters_; }
+-  // Pretend to support multiple arguments.
+-  int64_t range(int pos) const { CHECK(has_arg_); return arg_; }
+ 
+  private:
+   int64_t iters_;
+-  int64_t arg_;
+-  bool has_arg_;
+-
+   State(const State&) = delete;
+   State& operator=(const State&) = delete;
+ };
