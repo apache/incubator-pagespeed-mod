@@ -109,7 +109,9 @@ enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef COMPILE_ASSERT
 template <bool>
 struct CompileAssert {};
 #define COMPILE_ASSERT(expr, msg) \
   typedef CompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]  // NOLINT
+#endif

@@ -43,7 +43,7 @@ class HtmlParse;
 // makes a page amp-invalid.
 class AmpDocumentFilter : public EmptyHtmlFilter {
  public:
-  static const char kUtf8LightningBolt[];
+  static constexpr char kUtf8LightningBolt[] = "\xe2\x9a\xa1";
   static const char kInvalidAmpDirectiveComment[];
 
   typedef Callback1<bool> BoolCallback;

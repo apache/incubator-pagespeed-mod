@@ -26,7 +26,6 @@
 
 namespace net_instaweb {
 
-const char AmpDocumentFilter::kUtf8LightningBolt[] = "\xe2\x9a\xa1";
 const char AmpDocumentFilter::kInvalidAmpDirectiveComment[] =
     "Invalid AMP directive -- will be ignored and will probably "
     "be rejected by the AMP validator.";
