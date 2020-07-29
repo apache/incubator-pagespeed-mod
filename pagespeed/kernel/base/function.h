@@ -65,7 +65,7 @@ class Function {
   //
   // This can should only be called during the Run() method.
   bool quit_requested() const {
-    return (quit_requested_ != NULL) && quit_requested_->value();
+    return (quit_requested_ != nullptr) && quit_requested_->value();
   }
 
   // Implementors of Function interfaces should call via these helper methods
@@ -133,7 +133,7 @@ class MemberFunction0 : public MemberFunctionBase<C> {
 
   // Constructor supplying a Run method, but no Cancel method.
   MemberFunction0(Func f, C* c)
-      : MemberFunctionBase<C>(c), run_(f), cancel_(NULL) {}
+      : MemberFunctionBase<C>(c), run_(f), cancel_(nullptr) {}
 
   // Constructor supplying a Run method and a Cancel method.
   MemberFunction0(Func f, Func cancel, C* c)
@@ -142,7 +142,7 @@ class MemberFunction0 : public MemberFunctionBase<C> {
  protected:
   void Run() override { CALL_MEMBER_FN(object_, run_)(); }
   void Cancel() override {
-    if (cancel_ != NULL) {
+    if (cancel_ != nullptr) {
       CALL_MEMBER_FN(object_, cancel_)();
     }
   }
@@ -160,7 +160,7 @@ class MemberFunction1 : public MemberFunctionBase<C> {
 
   // Constructor supplying a Run method, but no Cancel method.
   MemberFunction1(Func f, C* c, T1 v1)
-      : MemberFunctionBase<C>(c), run_(f), cancel_(NULL), v1_(v1) {}
+      : MemberFunctionBase<C>(c), run_(f), cancel_(nullptr), v1_(v1) {}
 
   // Constructor supplying a Run method and a Cancel method.
   MemberFunction1(Func f, Func cancel, C* c, T1 v1)
@@ -169,7 +169,7 @@ class MemberFunction1 : public MemberFunctionBase<C> {
  protected:
   void Run() override { CALL_MEMBER_FN(object_, run_)(v1_); }
   void Cancel() override {
-    if (cancel_ != NULL) {
+    if (cancel_ != nullptr) {
       CALL_MEMBER_FN(object_, cancel_)(v1_);
     }
   }
@@ -188,7 +188,7 @@ class MemberFunction2 : public MemberFunctionBase<C> {
 
   // Constructor supplying a Run method, but no Cancel method.
   MemberFunction2(Func f, C* c, T1 v1, T2 v2)
-      : MemberFunctionBase<C>(c), run_(f), cancel_(NULL), v1_(v1), v2_(v2) {}
+      : MemberFunctionBase<C>(c), run_(f), cancel_(nullptr), v1_(v1), v2_(v2) {}
 
   // Constructor supplying a Run method and a Cancel method.
   MemberFunction2(Func f, Func cancel, C* c, T1 v1, T2 v2)
@@ -197,7 +197,7 @@ class MemberFunction2 : public MemberFunctionBase<C> {
  protected:
   void Run() override { CALL_MEMBER_FN(object_, run_)(v1_, v2_); }
   void Cancel() override {
-    if (cancel_ != NULL) {
+    if (cancel_ != nullptr) {
       CALL_MEMBER_FN(object_, cancel_)(v1_, v2_);
     }
   }
@@ -219,7 +219,7 @@ class MemberFunction3 : public MemberFunctionBase<C> {
   MemberFunction3(Func f, C* c, T1 v1, T2 v2, T3 v3)
       : MemberFunctionBase<C>(c),
         run_(f),
-        cancel_(NULL),
+        cancel_(nullptr),
         v1_(v1),
         v2_(v2),
         v3_(v3) {}
@@ -236,7 +236,7 @@ class MemberFunction3 : public MemberFunctionBase<C> {
  protected:
   void Run() override { CALL_MEMBER_FN(object_, run_)(v1_, v2_, v3_); }
   void Cancel() override {
-    if (cancel_ != NULL) {
+    if (cancel_ != nullptr) {
       CALL_MEMBER_FN(object_, cancel_)(v1_, v2_, v3_);
     }
   }
@@ -259,7 +259,7 @@ class MemberFunction4 : public MemberFunctionBase<C> {
   MemberFunction4(Func f, C* c, T1 v1, T2 v2, T3 v3, T4 v4)
       : MemberFunctionBase<C>(c),
         run_(f),
-        cancel_(NULL),
+        cancel_(nullptr),
         v1_(v1),
         v2_(v2),
         v3_(v3),
@@ -278,7 +278,7 @@ class MemberFunction4 : public MemberFunctionBase<C> {
  protected:
   void Run() override { CALL_MEMBER_FN(object_, run_)(v1_, v2_, v3_, v4_); }
   void Cancel() override {
-    if (cancel_ != NULL) {
+    if (cancel_ != nullptr) {
       CALL_MEMBER_FN(object_, cancel_)(v1_, v2_, v3_, v4_);
     }
   }

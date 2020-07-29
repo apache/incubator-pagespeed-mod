@@ -82,12 +82,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//third_party/google-sparsehash:google_sparsehash_gen",
-        "@com_github_fmtlib_fmt//:fmtlib",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/time",
-        "@glog",
         "@mod_pagespeed//base:log_shim",
     ],
 )
@@ -199,7 +197,6 @@ cc_library(
         ":gtest_prod",
         ":pagespeed_base_core",
         "//third_party/base64",
-        "@boringssl//:ssl",
         "@jsoncpp",
     ],
 )
