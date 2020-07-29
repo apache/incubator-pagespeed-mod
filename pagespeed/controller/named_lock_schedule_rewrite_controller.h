@@ -22,12 +22,12 @@
 
 #include <unordered_set>
 
+#include "absl/container/flat_hash_map.h"
 #include "pagespeed/controller/schedule_rewrite_controller.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/rde_hash_map.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
@@ -80,7 +80,7 @@ class NamedLockScheduleRewriteController : public ScheduleRewriteController {
     DISALLOW_COPY_AND_ASSIGN(LockInfo);
   };
 
-  typedef rde::hash_map<GoogleString, LockInfo*, CasePreserveStringHash>
+  typedef absl::flat_hash_map<GoogleString, LockInfo*, CasePreserveStringHash>
       LockMap;
 
   void LockObtained(Function* callback, const GoogleString key, NamedLock* lock)

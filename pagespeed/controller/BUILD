@@ -85,7 +85,6 @@ cc_library(
         "//pagespeed/kernel/thread",
         "//pagespeed/kernel/util",
         "//pagespeed/system:system_controller_process_h",
-        "//third_party/rdestl",
     ],
 )
 

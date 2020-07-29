@@ -59,7 +59,6 @@ cc_library(
         "null_writer.h",
         "print_message_handler.h",
         "printf_format.h",
-        "rde_hash_map.h",
         "scoped_ptr.h",
         "sparse_hash_map.h",
         "stack_buffer.h",
@@ -83,6 +82,8 @@ cc_library(
     deps = [
         "//third_party/google-sparsehash:google_sparsehash_gen",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:node_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/time",

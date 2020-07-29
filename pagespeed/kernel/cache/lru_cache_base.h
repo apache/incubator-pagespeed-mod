@@ -24,13 +24,12 @@
 #include <list>
 #include <utility>  // for pair
 
+#include "absl/container/flat_hash_map.h"
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/rde_hash_map.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/base/string_util.h"
-////#include "strings/stringpiece_utils.h"
 
 namespace net_instaweb {
 
@@ -64,7 +63,8 @@ class LRUCacheBase {
   // STL guarantees lifetime of list iterators as long as the node is in list.
   typedef typename EntryList::iterator ListNode;
 
-  typedef rde::hash_map<GoogleString, ListNode, CasePreserveStringHash> Map;
+  typedef absl::flat_hash_map<GoogleString, ListNode, CasePreserveStringHash>
+      Map;
 
  public:
   class Iterator {
