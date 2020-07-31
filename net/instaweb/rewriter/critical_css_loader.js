@@ -48,7 +48,7 @@ pagespeed.CriticalCssLoader.addAllStyles = function() {
     for (var v = 0; v < children.length; ++v) {
       children[v].removeAttribute('id');
     }  
-  document.body.appendChild(div);
+    document.body.appendChild(div);
   }
 };
 
