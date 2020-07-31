@@ -80,15 +80,27 @@ pagespeed_cc_test_library(
     deps = [
         ":html",
         "//pagespeed/kernel/base:kernel_test_util",
-        "@re2//:benchmark",
     ],
 )
 
 pagespeed_cc_test(
     name = "html_test",
-    srcs = glob(["*_test.cc"]),
+    srcs = glob(
+        ["*_test.cc"],
+        exclude = glob(["*speed_test.cc"]),
+    ),
     deps = [
         ":html",
         ":html_test_base",
+    ],
+)
+
+pagespeed_cc_test(
+    name = "html_speed_test",
+    srcs = glob(["*speed_test.cc"]),
+    deps = [
+        ":html",
+        ":html_test_base",
+        "//pagespeed/kernel/base:benchmark",
     ],
 )

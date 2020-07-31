@@ -69,7 +69,6 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":cache",
-        "//pagespeed/kernel/base:benchmark",
         "//pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
     ],
@@ -77,9 +76,22 @@ pagespeed_cc_test_library(
 
 pagespeed_cc_test(
     name = "cache_test",
-    srcs = glob(["*_test.cc"]),
+    srcs = glob(
+        ["*_test.cc"],
+        exclude = glob(["*_speed_test.cc"]),
+    ),
     deps = [
         ":cache",
         ":cache_test_base",
+    ],
+)
+
+pagespeed_cc_test(
+    name = "cache_speed_test",
+    srcs = glob(["*_speed_test.cc"]),
+    deps = [
+        ":cache",
+        ":cache_test_base",
+        "//pagespeed/kernel/base:benchmark",
     ],
 )

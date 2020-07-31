@@ -81,6 +81,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//third_party/google-sparsehash:google_sparsehash_gen",
+        "@boringssl//:ssl",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:node_hash_map",
@@ -238,7 +239,6 @@ pagespeed_cc_test_library(
         "null_thread_system.h",
     ],
     deps = [
-        ":benchmark",
         ":pagespeed_base",
         ":pagespeed_gtest",
         ":proto_matcher_test_proto_cc",
@@ -248,22 +248,29 @@ pagespeed_cc_test_library(
 
 pagespeed_cc_test_library(
     name = "benchmark",
-    srcs =
-        [
-        ],
-    hdrs = [
-        "benchmark.h",
-    ],
-    deps = [
-        "@re2//:benchmark",
-    ],
+    hdrs = ["benchmark.h"],
+    deps = ["@re2//:benchmark"],
 )
 
 pagespeed_cc_test(
     name = "base_test",
-    srcs = glob(["*_test.cc"]),
+    srcs = glob(
+        ["*_test.cc"],
+        exclude = glob(["*speed_test.cc"]),
+    ),
     shard_count = 1,
     deps = [
+        ":kernel_test_util",
+        "//pagespeed/kernel/sharedmem:shared_mem",
+    ],
+)
+
+pagespeed_cc_test(
+    name = "base_speed_test",
+    srcs = glob(["*speed_test.cc"]),
+    shard_count = 1,
+    deps = [
+        ":benchmark",
         ":kernel_test_util",
         "//pagespeed/kernel/sharedmem:shared_mem",
     ],

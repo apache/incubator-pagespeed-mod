@@ -13,7 +13,6 @@ cc_library(
         "html_detector.cc",
         "proxy_fetch.cc",
         "proxy_interface.cc",
-        #        "rewriter_speed_test.cc",
     ],
     hdrs = [
         "html_detector.h",
@@ -41,21 +40,43 @@ pagespeed_cc_test_library(
     deps = [
         ":automatic",
         "//net/instaweb/rewriter:rewriter_test_base",
-        "//pagespeed/kernel/base:benchmark",
         "//pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
     ],
 )
 
+pagespeed_cc_test_library(
+    name = "static_rewriter",
+    srcs = [
+        "static_rewriter.cc",
+    ],
+    hdrs = [
+        "static_rewriter.h",
+    ],
+    deps = [
+        "//pagespeed/system",
+    ],
+)
+
 pagespeed_cc_test(
     name = "automatic_test",
-    srcs = [
-        "html_detector_test.cc",
-        "proxy_fetch_test.cc",
-        "proxy_interface_test.cc",
-    ],
+    srcs = glob(
+        ["*_test.cc"],
+        exclude = glob(["*speed_test.cc"]),
+    ),
     data = ["//net/instaweb/rewriter:testdata"],
     deps = [
         ":automatic_test_base",
+    ],
+)
+
+pagespeed_cc_test(
+    name = "automatic_speed_test",
+    srcs = glob(["*_speed_test.cc"]),
+    data = ["//net/instaweb/rewriter:testdata"],
+    shard_count = 1,
+    deps = [
+        ":static_rewriter",
+        "//pagespeed/kernel/base:benchmark",
     ],
 )

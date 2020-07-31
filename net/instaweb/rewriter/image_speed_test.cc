@@ -106,20 +106,20 @@ class TestImageRewrite {
   GoogleString contents_;
 };
 
-static void BM_ConvertJpegToJpeg(int iters) {
+static void BM_ConvertJpegToJpeg(benchmark::State& state) {
   net_instaweb::Image::CompressionOptions options;
   options.recompress_jpeg = true;
   options.jpeg_quality = kNewQuality;
 
   TestImageRewrite test_rewrite(kPuzzle, &options);
   ASSERT_TRUE(test_rewrite.Initialize(net_instaweb::IMAGE_JPEG));
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
 }
 BENCHMARK(BM_ConvertJpegToJpeg);
 
-static void BM_ConvertJpegToWebp(int iters) {
+static void BM_ConvertJpegToWebp(benchmark::State& state) {
   net_instaweb::Image::CompressionOptions options;
   options.preferred_webp = pagespeed::image_compression::WEBP_LOSSY;
   options.convert_jpeg_to_webp = true;
@@ -127,25 +127,25 @@ static void BM_ConvertJpegToWebp(int iters) {
 
   TestImageRewrite test_rewrite(kPuzzle, &options);
   ASSERT_TRUE(test_rewrite.Initialize(net_instaweb::IMAGE_WEBP));
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
 }
 BENCHMARK(BM_ConvertJpegToWebp);
 
-static void BM_ConvertPngToPng(int iters) {
+static void BM_ConvertPngToPng(benchmark::State& state) {
   net_instaweb::Image::CompressionOptions options;
   options.recompress_png = true;
 
   TestImageRewrite test_rewrite(kCuppa, &options);
   ASSERT_TRUE(test_rewrite.Initialize(net_instaweb::IMAGE_PNG));
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
 }
 BENCHMARK(BM_ConvertPngToPng);
 
-static void BM_ConvertPngToWebp(int iters) {
+static void BM_ConvertPngToWebp(benchmark::State& state) {
   net_instaweb::Image::CompressionOptions options;
   options.preferred_webp = pagespeed::image_compression::WEBP_LOSSLESS;
   options.allow_webp_alpha = true;
@@ -154,19 +154,19 @@ static void BM_ConvertPngToWebp(int iters) {
   TestImageRewrite test_rewrite(kCuppa, &options);
   ASSERT_TRUE(
       test_rewrite.Initialize(net_instaweb::IMAGE_WEBP_LOSSLESS_OR_ALPHA));
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
 }
 BENCHMARK(BM_ConvertPngToWebp);
 
-static void BM_ConvertGifToPng(int iters) {
+static void BM_ConvertGifToPng(benchmark::State& state) {
   net_instaweb::Image::CompressionOptions options;
   options.convert_gif_to_png = true;
 
   TestImageRewrite test_rewrite(kIronChef, &options);
   ASSERT_TRUE(test_rewrite.Initialize(net_instaweb::IMAGE_PNG));
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
 }
@@ -174,7 +174,7 @@ BENCHMARK(BM_ConvertGifToPng);
 
 // To convert a GIF image to WebP we actually convert the GIF image to PNG,
 // and then from PNG to WebpP.
-static void BM_ConvertGifToWebp(int iters) {
+static void BM_ConvertGifToWebp(benchmark::State& state) {
   net_instaweb::Image::CompressionOptions options;
   options.preferred_webp = pagespeed::image_compression::WEBP_LOSSLESS;
   options.allow_webp_alpha = true;
@@ -184,13 +184,13 @@ static void BM_ConvertGifToWebp(int iters) {
   TestImageRewrite test_rewrite(kIronChef, &options);
   ASSERT_TRUE(
       test_rewrite.Initialize(net_instaweb::IMAGE_WEBP_LOSSLESS_OR_ALPHA));
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
 }
 BENCHMARK(BM_ConvertGifToWebp);
 
-static void BM_ConvertWebpToWebp(int iters) {
+static void BM_ConvertWebpToWebp(benchmark::State& state) {
   net_instaweb::Image::CompressionOptions options;
   options.preferred_webp = pagespeed::image_compression::WEBP_LOSSLESS;
   options.recompress_webp = true;
@@ -198,13 +198,13 @@ static void BM_ConvertWebpToWebp(int iters) {
 
   TestImageRewrite test_rewrite(kScenery, &options);
   ASSERT_TRUE(test_rewrite.Initialize(net_instaweb::IMAGE_WEBP));
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     test_rewrite.Rewrite(NULL /* no resizing */);
   }
 }
 BENCHMARK(BM_ConvertWebpToWebp);
 
-static void BM_ResizeGifToWebp(int iters) {
+static void BM_ResizeGifToWebp(benchmark::State& state) {
   net_instaweb::Image::CompressionOptions options;
   options.preferred_webp = pagespeed::image_compression::WEBP_LOSSLESS;
   options.allow_webp_alpha = true;
@@ -216,7 +216,7 @@ static void BM_ResizeGifToWebp(int iters) {
   ImageDim image_dim;
   image_dim.set_width(190);
   image_dim.set_height(250);
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     test_rewrite.Rewrite(&image_dim);
   }
 }

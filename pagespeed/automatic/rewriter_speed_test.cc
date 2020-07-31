@@ -43,14 +43,15 @@
 
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/process_context.h"
-//#include "strings/stringpiece_utils.h"
 #include "pagespeed/automatic/static_rewriter.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/null_writer.h"
 #include "pagespeed/kernel/base/stdio_file_system.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+// clang-format off
+#include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 namespace net_instaweb {
 
@@ -100,7 +101,7 @@ const StringPiece GetHtmlText() {
   return *sHtmlText;
 }
 
-static void BM_ParseAndSerializeReuseParserX50(int iters) {
+static void BM_ParseAndSerializeReuseParserX50(benchmark::State& state) {
   StopBenchmarkTiming();
   StringPiece orig = GetHtmlText();
   if (orig.empty()) {
@@ -115,7 +116,7 @@ static void BM_ParseAndSerializeReuseParserX50(int iters) {
 
   StaticRewriter rewriter(*process_context);
   StartBenchmarkTiming();
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     NullWriter writer;
     rewriter.ParseText("http://example.com/benchmark", "benchmark", text,
                        "/tmp", &writer);

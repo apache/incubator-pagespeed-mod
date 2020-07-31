@@ -62,15 +62,15 @@ extern const char* CSS_console_css;
 
 namespace {
 
-static void BM_MinifyCss(int iters, int size) {
+static void BM_MinifyCss(benchmark::State& state) {
   GoogleString in_text;
-  for (int i = 0; i < size; i += strlen(CSS_console_css)) {
+  for (int i = 0; i < state.iterations(); i += strlen(CSS_console_css)) {
     in_text += CSS_console_css;
   }
-  in_text.resize(size);
+  in_text.resize(state.iterations());
 
   NullMessageHandler handler;
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     Css::Parser parser(in_text);
     parser.set_preservation_mode(true);
     parser.set_quirks_mode(false);
@@ -84,9 +84,9 @@ static void BM_MinifyCss(int iters, int size) {
 BENCHMARK_RANGE(BM_MinifyCss, 1 << 6, 1 << 18);
 
 // Common-case, all chars are normal alpha-num that don't need to be escaped.
-static void BM_EscapeStringNormal(int iters, int size) {
-  GoogleString ident(size, 'A');
-  for (int i = 0; i < iters; ++i) {
+static void BM_EscapeStringNormal(benchmark::State& state) {
+  GoogleString ident(state.iterations(), 'A');
+  for (int i = 0; i < state.iterations(); ++i) {
     Css::EscapeUrl(ident);
     Css::EscapeString(ident);
   }
@@ -94,9 +94,9 @@ static void BM_EscapeStringNormal(int iters, int size) {
 BENCHMARK_RANGE(BM_EscapeStringNormal, 1, 1 << 12);
 
 // Worst-case for chars we actually expect to find in identifiers.
-static void BM_EscapeStringSpecial(int iters, int size) {
-  GoogleString ident(size, '(');
-  for (int i = 0; i < iters; ++i) {
+static void BM_EscapeStringSpecial(benchmark::State& state) {
+  GoogleString ident(state.iterations(), '(');
+  for (int i = 0; i < state.iterations(); ++i) {
     Css::EscapeUrl(ident);
     Css::EscapeString(ident);
   }
@@ -104,9 +104,9 @@ static void BM_EscapeStringSpecial(int iters, int size) {
 BENCHMARK_RANGE(BM_EscapeStringSpecial, 1, 1 << 12);
 
 // Worst-case for exotic chars like newlines and tabs in identifiers.
-static void BM_EscapeStringSuperSpecial(int iters, int size) {
-  GoogleString ident(size, '\t');
-  for (int i = 0; i < iters; ++i) {
+static void BM_EscapeStringSuperSpecial(benchmark::State& state) {
+  GoogleString ident(state.iterations(), '\t');
+  for (int i = 0; i < state.iterations(); ++i) {
     Css::EscapeUrl(ident);
     Css::EscapeString(ident);
   }

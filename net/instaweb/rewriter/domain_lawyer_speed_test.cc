@@ -34,26 +34,26 @@
 #include "pagespeed/kernel/http/google_url.h"
 
 void RunIsDomainAuthorizedIters(const net_instaweb::DomainLawyer& lawyer,
-                                int iters) {
+                                benchmark::State& state) {
   net_instaweb::GoogleUrl base_url("http://www.x.com/a/b/c/d/e/f");
   net_instaweb::GoogleUrl in_url("http://www.y.com/a/b/c/d/e/f");
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     lawyer.IsDomainAuthorized(base_url, in_url);
   }
 }
 
-static void BM_DomainLawyerIsAuthorizedAllowStar(int iters) {
+static void BM_DomainLawyerIsAuthorizedAllowStar(benchmark::State& state) {
   net_instaweb::NullMessageHandler handler;
   net_instaweb::DomainLawyer lawyer;
   lawyer.AddDomain("http://*", &handler);
-  RunIsDomainAuthorizedIters(lawyer, iters);
+  RunIsDomainAuthorizedIters(lawyer, state);
 }
 
-static void BM_DomainLawyerIsAuthorizedAllowAll(int iters) {
+static void BM_DomainLawyerIsAuthorizedAllowAll(benchmark::State& state) {
   net_instaweb::NullMessageHandler handler;
   net_instaweb::DomainLawyer lawyer;
   lawyer.AddDomain("*", &handler);
-  RunIsDomainAuthorizedIters(lawyer, iters);
+  RunIsDomainAuthorizedIters(lawyer, state);
 }
 
 BENCHMARK(BM_DomainLawyerIsAuthorizedAllowStar);
