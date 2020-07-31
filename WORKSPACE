@@ -4,6 +4,10 @@ load("//bazel:repositories.bzl", "mod_pagespeed_dependencies")
 
 mod_pagespeed_dependencies()
 
+local_repository(
+    name = "envoy_build_config",
+    path = ".",
+)
 
 load("@envoy//bazel:api_binding.bzl", "envoy_api_binding")
 
