@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
 licenses(["notice"])  # Apache 2
 
 cc_binary(
@@ -5,6 +7,13 @@ cc_binary(
     deps = [
         "//net/instaweb/rewriter:html_minifier_main_lib",
         "//net/instaweb:net_instaweb_lib",
-        #"//third_party:all_third_party", # for test
     ],
+)
+
+cc_binary(
+    name = "libmod_pagespeed.so",
+    linkshared = 1,
+    linkstatic = 0,
+    visibility = ["//visibility:public"],
+    deps = ["//pagespeed/apache"],
 )
