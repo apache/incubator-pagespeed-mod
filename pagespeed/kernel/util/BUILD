@@ -20,7 +20,7 @@ cc_library(
 cc_library(
     name = "util",
     srcs = [
-        #"brotli_inflater.cc",
+        "brotli_inflater.cc",
         "file_system_lock_manager.cc",
         "gflags.cc",
         "gzip_inflater.cc",
@@ -41,7 +41,7 @@ cc_library(
         "url_to_filename_encoder.cc",
     ],
     hdrs = [
-        #"brotli_inflater.h",
+        "brotli_inflater.h",
         "categorized_refcount.h",
         "copy_on_write.h",
         "file_system_lock_manager.h",
@@ -78,8 +78,8 @@ cc_library(
         "//pagespeed/kernel/html",
         "//pagespeed/kernel/http",
         "//pagespeed/kernel/thread",
-        #"@brotli//:brotlidec",
-        #"@brotli//:brotlienc",
+        "@brotli//:brotlidec",
+        "@brotli//:brotlienc",
         "@com_github_grpc_grpc//:grpc++",
         "@envoy//bazel/foreign_cc:zlib",
     ],
@@ -101,7 +101,6 @@ pagespeed_cc_test_library(
         ":util",
         "//pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/thread:thread_test_base",
-        "@re2//:benchmark",
     ],
 )
 
@@ -109,9 +108,24 @@ pagespeed_cc_test(
     name = "util_test",
     srcs = glob(
         ["*_test.cc"],
-        exclude = glob(["*brotli*"]),
+        exclude = glob(
+            [
+                "*_speed_test.cc",
+            ],
+        ),
     ),
     deps = [
         ":util_test_base",
+    ],
+)
+
+pagespeed_cc_test(
+    name = "util_speed_test",
+    srcs = glob(
+        ["*speed_test.cc"],
+    ),
+    deps = [
+        ":util_test_base",
+        "//pagespeed/kernel/base:benchmark",
     ],
 )

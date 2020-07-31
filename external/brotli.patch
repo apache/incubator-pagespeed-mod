@@ -1,0 +1,12 @@
+diff --git a/BUILD b/BUILD
+index 4ce4ad4..227a354 100644
+--- a/BUILD
++++ b/BUILD
+@@ -59,6 +59,7 @@ STRICT_C_OPTIONS = select({
+         "-Wno-strict-aliasing",
+         "-Wshadow",
+         "-Wsign-compare",
++        "-Wno-implicit-int-float-conversion",
+     ],
+ })
+ 
