@@ -317,6 +317,8 @@ TEST_F(UserAgentMatcherTest, SupportsWebpLosslessAlpha) {
       kPagespeedInsightsMobileUserAgent));
   EXPECT_TRUE(user_agent_matcher_->SupportsWebpLosslessAlpha(
       kPagespeedInsightsDesktopUserAgent));
+  EXPECT_TRUE(
+      user_agent_matcher_->SupportsWebpLosslessAlpha(kFirefox7UserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, DoesntSupportWebpLosslessAlpha) {
@@ -399,6 +401,7 @@ TEST_F(UserAgentMatcherTest, SupportsAnimatedWebp) {
   EXPECT_TRUE(user_agent_matcher_->SupportsWebpAnimated(kCriOS32UserAgent));
   EXPECT_TRUE(user_agent_matcher_->SupportsWebpAnimated(kOpera19UserAgent));
   EXPECT_TRUE(user_agent_matcher_->SupportsWebpAnimated(kChrome37UserAgent));
+  EXPECT_TRUE(user_agent_matcher_->SupportsWebpAnimated(kFirefox7UserAgent));
 }
 
 TEST_F(UserAgentMatcherTest, DoesntSupportAnimatedWebp) {

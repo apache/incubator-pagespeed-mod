@@ -121,18 +121,16 @@ First download ngx_pagespeed:
 
 <pre>
 #[check the <a href="release_notes">release notes</a> for the latest version</a>]
-NPS_VERSION=1.13.35.1-beta
+NPS_VERSION=1.13.35.2-stable
 cd
-wget https://github.com/apache/incubator-pagespeed-ngx/archive/v${NPS_VERSION}.zip
-unzip v${NPS_VERSION}.zip
+wget -O- https://github.com/apache/incubator-pagespeed-ngx/archive/v${NPS_VERSION}.tar.gz | tar -xz
 nps_dir=$(find . -name "*pagespeed-ngx-${NPS_VERSION}" -type d)
 cd "$nps_dir"
 NPS_RELEASE_NUMBER=${NPS_VERSION/beta/}
 NPS_RELEASE_NUMBER=${NPS_VERSION/stable/}
 psol_url=https://dl.google.com/dl/page-speed/psol/${NPS_RELEASE_NUMBER}.tar.gz
 [ -e scripts/format_binary_url.sh ] && psol_url=$(scripts/format_binary_url.sh PSOL_BINARY_URL)
-wget ${psol_url}
-tar -xzvf $(basename ${psol_url})  # extracts to psol/
+wget -O- ${psol_url} | tar -xz  # extracts to psol/
 </pre>
 
 <p>
@@ -140,10 +138,10 @@ Download and build nginx with support for pagespeed:
 </p>
 
 <pre>
-NGINX_VERSION=[check <a href="http://nginx.org/en/download.html">nginx's site</a> for the latest version]
+#[check <a href="http://nginx.org/en/download.html">nginx's site</a> for the latest version]
+NGINX_VERSION=1.18.0
 cd
-wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
-tar -xvzf nginx-${NGINX_VERSION}.tar.gz
+wget -O- http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz | tar -xz
 cd nginx-${NGINX_VERSION}/
 ./configure --add-module=$HOME/$nps_dir ${PS_NGX_EXTRA_FLAGS}
 make
