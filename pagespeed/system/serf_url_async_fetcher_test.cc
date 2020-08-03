@@ -464,10 +464,10 @@ TEST_F(SerfUrlAsyncFetcherTest, FetchUsingDifferentRequestMethod) {
   EXPECT_LT(static_cast<size_t>(0), contents(kModpagespeedSite).size());
   EXPECT_EQ(501,  // PURGE method not implemented in test apache servers.
             response_headers(kModpagespeedSite)->status_code());
-  EXPECT_TRUE(
-      contents(kModpagespeedSite)
-          .find("PURGE to /mod_pagespeed_example/index.html not supported.") !=
-      GoogleString::npos);
+  std::cerr << "@" << contents(kModpagespeedSite);
+  EXPECT_TRUE(contents(kModpagespeedSite)
+                  .find("PURGE  not supported for current URL.") !=
+              GoogleString::npos);
   ValidateMonitoringStats(0, 1);
 }
 
