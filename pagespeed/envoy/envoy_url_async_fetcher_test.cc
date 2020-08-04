@@ -199,7 +199,7 @@ class EnvoyUrlAsyncFetcherTest : public ::testing::Test {
 };
 
 TEST_F(EnvoyUrlAsyncFetcherTest, FetchURL) {
-  GoogleString starts_with = "<!DOCTYPE HTML";
+  GoogleString starts_with = "<!doctype html";
   envoy_fetch_ = std::make_unique<EnvoyTestFetch>(
       RequestContext::NewTestRequestContext(thread_system_.get()),
       mutex_.get());

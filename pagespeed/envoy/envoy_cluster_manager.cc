@@ -122,7 +122,7 @@ void EnvoyClusterManager::initClusterManager() {
 
 Envoy::Upstream::ClusterManager& EnvoyClusterManager::getClusterManager(
     const GoogleString str_url_) {
-  const std::string host_name = "127.0.0.1";
+  const std::string host_name = "35.196.240.89";
   const std::string scheme = "http";
   auto port = 80;
 

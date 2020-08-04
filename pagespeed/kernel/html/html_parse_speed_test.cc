@@ -36,16 +36,17 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/html/html_parse.h"
-//#include "strings/stringpiece_utils.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/base/null_writer.h"
 #include "pagespeed/kernel/base/stdio_file_system.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "pagespeed/kernel/html/html_parse.h"
 #include "pagespeed/kernel/html/html_writer_filter.h"
+// clang-format off
+#include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 namespace net_instaweb {
 

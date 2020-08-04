@@ -51,12 +51,13 @@ extern const char* JS_console_js;
 
 namespace {
 
-void TestMinifyJavascript(bool use_experimental_minifier, int iters, int size) {
+void TestMinifyJavascript(bool use_experimental_minifier,
+                          benchmark::State& state) {
   GoogleString in_text;
-  for (int i = 0; i < size; i += strlen(JS_console_js)) {
+  for (int i = 0; i < state.iterations(); i += strlen(JS_console_js)) {
     in_text += JS_console_js;
   }
-  in_text.resize(size);
+  in_text.resize(state.iterations());
 
   NullStatistics stats;
   JavascriptRewriteConfig::InitStats(&stats);
@@ -67,19 +68,19 @@ void TestMinifyJavascript(bool use_experimental_minifier, int iters, int size) {
                                  &js_tokenizer_patterns);
 
   NullMessageHandler handler;
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     JavascriptCodeBlock block(in_text, &config, "" /* message_id */, &handler);
     block.Rewrite();
   }
 }
 
-static void BM_MinifyJavascriptNew(int iters, int size) {
-  TestMinifyJavascript(true, iters, size);
+static void BM_MinifyJavascriptNew(benchmark::State& state) {
+  TestMinifyJavascript(true, state);
 }
 BENCHMARK_RANGE(BM_MinifyJavascriptNew, 1 << 6, 1 << 18);
 
-static void BM_MinifyJavascriptOld(int iters, int size) {
-  TestMinifyJavascript(false, iters, size);
+static void BM_MinifyJavascriptOld(benchmark::State& state) {
+  TestMinifyJavascript(false, state);
 }
 BENCHMARK_RANGE(BM_MinifyJavascriptOld, 1 << 6, 1 << 18);
 

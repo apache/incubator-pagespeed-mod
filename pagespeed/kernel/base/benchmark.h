@@ -17,8 +17,6 @@
  * under the License.
  */
 
-//
-
 #pragma once
 
 #include "base/logging.h"

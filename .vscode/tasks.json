@@ -414,7 +414,7 @@
         {
             "label": "build mod_pagespeed",
             "type": "shell",
-            "command": " bazel build //pagespeed/apache:libmod_pagespeed.so",
+            "command": " bazel build //:libmod_pagespeed.so",
             "problemMatcher": [
                 "$gcc"
             ],
@@ -426,7 +426,7 @@
         {
             "label": "build mod_pagespeed dbg",
             "type": "shell",
-            "command": " bazel build -c dbg //pagespeed/apache:libmod_pagespeed.so",
+            "command": " bazel build -c dbg //:libmod_pagespeed.so",
             "problemMatcher": [
                 "$gcc"
             ],

@@ -43,16 +43,18 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/mock_property_page.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/opt/http/property_cache.h"
+// clang-format off
+#include "pagespeed/kernel/base/benchmark.h"
+// clang-format on
 
 namespace net_instaweb {
 namespace {
 
-ProcessContext process_context;
+std::unique_ptr<ProcessContext> process_context;
 
 class SpeedTestContext {
  public:
@@ -60,7 +62,7 @@ class SpeedTestContext {
     StopBenchmarkTiming();
     RewriteDriverFactory::Initialize();
     factory_.reset(
-        new TestRewriteDriverFactory(process_context, "/tmp", &fetcher_));
+        new TestRewriteDriverFactory(*process_context, "/tmp", &fetcher_));
     TestRewriteDriverFactory::InitStats(factory_->statistics());
     server_context_ = factory_->CreateServerContext();
     StartBenchmarkTiming();
@@ -69,6 +71,7 @@ class SpeedTestContext {
   ~SpeedTestContext() {
     factory_.reset();  // Must precede ProcessContext destruction.
     RewriteDriverFactory::Terminate();
+    process_context.reset();
   }
 
   RewriteDriver* NewDriver(RewriteOptions* options) {
@@ -100,9 +103,9 @@ class SpeedTestContext {
   ServerContext* server_context_;
 };
 
-static void BM_RewriteDriverConstruction(int iters) {
+static void BM_RewriteDriverConstruction(benchmark::State& state) {
   SpeedTestContext speed_test_context;
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     RewriteOptions* options =
         new RewriteOptions(speed_test_context.factory()->thread_system());
     options->SetRewriteLevel(RewriteOptions::kAllFilters);
@@ -113,7 +116,7 @@ static void BM_RewriteDriverConstruction(int iters) {
 BENCHMARK(BM_RewriteDriverConstruction);
 
 // This measures the speed of the HTML parsing & filter dispatch mechanism.
-static void BM_EmptyFilter(int iters) {
+static void BM_EmptyFilter(benchmark::State& state) {
   SpeedTestContext speed_test_context;
 
   StopBenchmarkTiming();
@@ -140,7 +143,7 @@ static void BM_EmptyFilter(int iters) {
 
   StartBenchmarkTiming();
 
-  for (int i = 0; i < iters; ++i) {
+  for (int i = 0; i < state.iterations(); ++i) {
     RewriteDriver* driver = speed_test_context.NewDriver(options->Clone());
 
     // Critical css needs its finder and pcache to work, and of course we

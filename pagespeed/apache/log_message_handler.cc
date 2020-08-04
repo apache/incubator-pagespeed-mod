@@ -24,8 +24,6 @@
 #include <limits>
 #include <string>
 
-//#include "base/debug/debugger.h"
-//#include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "pagespeed/apache/apache_httpd_includes.h"
 #include "pagespeed/apache/apache_logging_includes.h"
@@ -54,8 +52,6 @@ int GetApacheLogLevel(int severity) {
       return APLOG_WARNING;
     case logging::LOG_ERROR:
       return APLOG_ERR;
-    // case logging::LOG_ERROR_REPORT:
-    //  return APLOG_CRIT;
     case logging::LOG_FATAL:
       return APLOG_ALERT;
     default:  // For VLOG()s
@@ -65,23 +61,9 @@ int GetApacheLogLevel(int severity) {
 }
 
 bool LogMessageHandler(int severity, const char* file, int line,
-                       size_t message_start, const GoogleString& str) {
+                       const GoogleString& str) {
   const int this_log_level = GetApacheLogLevel(severity);
-
-  GoogleString message = str;
-  if (severity == logging::LOG_FATAL) {
-    /* XXX(oschaaf):
-    if (base::debug::BeingDebugged()) {
-      base::debug::BreakDebugger();
-    } else {
-      base::debug::StackTrace trace;
-      std::ostringstream stream;
-      trace.OutputToStream(&stream);
-      message.append(stream.str());
-    }
-     */
-  }
-
+  GoogleString message(str);
   // Trim the newline off the end of the message string.
   size_t last_msg_character_index = message.length() - 1;
   if (message[last_msg_character_index] == '\n') {
@@ -97,12 +79,6 @@ bool LogMessageHandler(int severity, const char* file, int line,
                   static_cast<long>(getpid()), message.c_str());
   }
 
-  if (severity == logging::LOG_FATAL) {
-    // XXX(oschaaf):
-    // Crash the process to generate a dump.
-    // base::debug::BreakDebugger();
-  }
-
   return true;
 }
 
@@ -112,10 +88,20 @@ namespace net_instaweb {
 
 namespace log_message_handler {
 
+class ApacheGLogSink : public PageSpeedGLogSink {
+  void send(google::LogSeverity severity, const char* full_filename,
+            const char* base_filename, int line, const struct tm* tm_time,
+            const char* message, size_t message_len) override {
+    LogMessageHandler(severity, base_filename, line,
+                      std::string(message, message_len));
+  }
+};
+
+std::unique_ptr<ApacheGLogSink> apache_glog_sink = nullptr;
+
 void Install(apr_pool_t* pool) {
   log_pool = pool;
-  // XXX(oschaaf):
-  // logging::SetLogMessageHandler(&LogMessageHandler);
+  apache_glog_sink = std::make_unique<ApacheGLogSink>();
 }
 
 void ShutDown() {
@@ -123,6 +109,7 @@ void ShutDown() {
     delete mod_pagespeed_version;
     mod_pagespeed_version = nullptr;
   }
+  apache_glog_sink.release();
 }
 
 // What Google level of logs to display when Apache LogLevel is Debug.
@@ -147,8 +134,7 @@ void AddServerConfig(const server_rec* server, const StringPiece& version) {
 
   // Get VLOG(x) and above if LogLevel is set to Debug.
   if (log_level_cutoff >= APLOG_DEBUG) {
-    // XXX(oschaaf):
-    // logging::SetMinLogLevel(kDebugLogLevel);
+    apache_glog_sink->setMinLogLevel(kDebugLogLevel);
   }
   if (mod_pagespeed_version == nullptr) {
     mod_pagespeed_version = new GoogleString(version.as_string());
