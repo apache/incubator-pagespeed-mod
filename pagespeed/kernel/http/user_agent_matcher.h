@@ -39,7 +39,7 @@ namespace net_instaweb {
 class RequestHeaders;
 
 // This class contains various user agent based checks.  Currently all of these
-// are based on simple wildcard based white- and black-lists.
+// are based on simple wildcard based allow- and blocked-lists.
 //
 // TODO(sriharis):  Split the functionality here into two: a matcher that
 // pulls out all relevant information from UA strings (browser-family, version,
@@ -141,8 +141,8 @@ class UserAgentMatcher {
  private:
   FastWildcardGroup supports_image_inlining_;
   FastWildcardGroup supports_lazyload_images_;
-  FastWildcardGroup defer_js_whitelist_;
-  FastWildcardGroup defer_js_mobile_whitelist_;
+  FastWildcardGroup defer_js_allowlist_;
+  FastWildcardGroup defer_js_mobile_allowlist_;
   FastWildcardGroup legacy_webp_;
   FastWildcardGroup supports_webp_lossless_alpha_;
   FastWildcardGroup supports_webp_animated_;

@@ -39,10 +39,15 @@ pagespeed.CriticalCssLoader.addAllStyles = function() {
 
   var elements = document.getElementsByClassName('psa_add_styles');
 
+  
   for (var i = 0, e; e = elements[i]; ++i) {
     if (e.nodeName != 'NOSCRIPT') { continue; }
     var div = document.createElement('div');
     div.innerHTML = e.textContent;
+    var children = div.childNodes;
+    for (var v = 0; v < children.length; ++v) {
+      children[v].removeAttribute('id');
+    }  
     document.body.appendChild(div);
   }
 };
