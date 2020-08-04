@@ -38,7 +38,6 @@
 #include "pagespeed/kernel/base/message_handler.h"
 #include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/base/null_rw_lock.h"
-#include "pagespeed/kernel/base/rde_hash_map.h"
 #include "pagespeed/kernel/base/stl_util.h"
 #include "pagespeed/kernel/base/time_util.h"
 #include "pagespeed/kernel/base/timer.h"

@@ -27,6 +27,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/node_hash_map.h"
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/experiment_util.h"
@@ -40,7 +42,6 @@
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
 #include "pagespeed/kernel/base/proto_util.h"
-#include "pagespeed/kernel/base/rde_hash_map.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/sha1_signature.h"
 #include "pagespeed/kernel/base/string.h"
@@ -3337,14 +3338,13 @@ class RewriteOptions {
 
   typedef std::vector<UrlCacheInvalidationEntry*>
       UrlCacheInvalidationEntryVector;
-  typedef dense_hash_map<GoogleString, int64> UrlCacheInvalidationMap;
+  typedef absl::node_hash_map<GoogleString, int64> UrlCacheInvalidationMap;
 
   // Sigh. The folding Hash struct is required so that we ignore case when
   // inserting. The folding Equal struct is required for looking up. Damned
   // if I know why one needs to specify both.
-  typedef rde::hash_map<StringPiece, const PropertyBase*,
-                        CaseFoldStringPieceHash,
-                        /* TLoadFactor4 = */ 6, CaseFoldStringPieceEqual>
+  typedef absl::flat_hash_map<StringPiece, const PropertyBase*,
+                              CaseFoldStringPieceHash, CaseFoldStringPieceEqual>
       PropertyNameMap;
 
   // Private methods to help add properties to

@@ -101,10 +101,6 @@ Files: src/third_party/optipng/*
 Copyright: 2001-2012 Cosmin Truta and the Contributing Authors
 License: Zlib
 
-Files: src/third_party/rdestl/*
-Copyright: 2007 Maciej Sinilo
-License: Expat
-
 Files: src/third_party/serf/*
 Copyright: 2002-2012 Justin Erenkrantz and Greg Stein
 License: Apache-2.0
