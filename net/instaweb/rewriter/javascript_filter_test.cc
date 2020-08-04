@@ -1092,7 +1092,7 @@ void JavascriptFilterTest::SourceMapTest(StringPiece input_js,
       StrCat(")]}'\n{\"mappings\":\"", expected_mapping_vlq,
              "\",\"names\":[],"
              "\"sources\":[\"http://test.com/input.js?PageSpeed=off\"],"
-             "\"version\":3}\n");
+             "\"version\":3}");
 
   GoogleString source_map_url =
       Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId,
@@ -1250,7 +1250,7 @@ TEST_P(JavascriptFilterTest, ProperSourceMapForPagespeedInput) {
              "\"sources\":[\"",
              kTestDomain, outlined_js_tail,
              "\"],"
-             "\"version\":3}\n");
+             "\"version\":3}");
   GoogleString source_map_url =
       Encode(kTestDomain, RewriteOptions::kJavascriptMinSourceMapId,
              hasher()->Hash(expected_source_map), outlined_js_tail, "map");
@@ -1290,7 +1290,7 @@ TEST_P(JavascriptFilterTest, SourceMapOnDemandNotEnabled) {
       StrCat(")]}'\n{\"mappings\":\"", expected_vlq,
              "\",\"names\":[],"
              "\"sources\":[\"http://test.com/input.js?PageSpeed=off\"],"
-             "\"version\":3}\n");
+             "\"version\":3}");
 
   SetResponseWithDefaultHeaders("input.js", kContentTypeJavascript, input_js,
                                 100);

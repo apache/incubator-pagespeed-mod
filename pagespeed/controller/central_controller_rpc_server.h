@@ -22,7 +22,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "pagespeed/controller/controller.grpc.pb.h"
 #include "pagespeed/controller/expensive_operation_controller.h"
 #include "pagespeed/controller/schedule_rewrite_controller.h"

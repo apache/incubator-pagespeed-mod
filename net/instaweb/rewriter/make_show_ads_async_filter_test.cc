@@ -46,10 +46,6 @@ GoogleString GetShowAdsDataSnippetWithContent(StringPiece content) {
   return StrCat("<script type=\"text/javascript\"> ", content, " </script>");
 }
 
-GoogleString GetPageWithOneAdsByGoogle(StringPiece content) {
-  return GetPage(GetAdsByGoogleInsWithContent(content));
-}
-
 // Constants used in input/output.
 const char kAdsByGoogleJs[] =
     "<script async "

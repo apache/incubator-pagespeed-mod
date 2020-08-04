@@ -1,3 +1,5 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
@@ -6,83 +8,86 @@ load(
 load("//bazel:data2c.bzl", "data2c_gen2", "data2c_gen2_opt")
 load("//bazel:closure_compiler.bzl", "closure_compiler_gen", "closure_compiler_without_dependency_mode")
 
-
 licenses(["notice"])  # Apache 2
 
 closure_compiler_gen(
     name = "critical_css_loader_dbg",
-    js_src = "net/instaweb/rewriter/critical_css_loader.js",
+    entry_points = [
+        "goog:pagespeed.CriticalCssLoader",
+    ],
     js_dir = "rewriter",
     js_includes = [
         "net/instaweb/js/js_utils.js",
     ],
-    entry_points = [
-        "goog:pagespeed.CriticalCssLoader",
-    ],
+    js_src = "net/instaweb/rewriter/critical_css_loader.js",
     opt = False,
 )
 
 closure_compiler_gen(
     name = "critical_css_loader_opt",
-    js_src = "net/instaweb/rewriter/critical_css_loader.js",
+    entry_points = [
+        "goog:pagespeed.CriticalCssLoader",
+    ],
     js_dir = "rewriter",
     js_includes = [
         "net/instaweb/js/js_utils.js",
     ],
-    entry_points = [
-        "goog:pagespeed.CriticalCssLoader",
-    ],
+    js_src = "net/instaweb/rewriter/critical_css_loader.js",
     opt = True,
 )
 
 closure_compiler_gen(
     name = "critical_images_beacon_dbg",
-    js_src = "net/instaweb/rewriter/critical_images_beacon.js",
+    entry_points = [
+        "goog:pagespeed.CriticalImages",
+    ],
     js_dir = "rewriter",
     js_includes = [
         "net/instaweb/js/js_utils.js",
     ],
-    entry_points = [
-        "goog:pagespeed.CriticalImages",
-    ],
+    js_src = "net/instaweb/rewriter/critical_images_beacon.js",
     opt = False,
 )
 
 closure_compiler_gen(
     name = "critical_images_beacon_opt",
-    js_src = "net/instaweb/rewriter/critical_images_beacon.js",
+    entry_points = [
+        "goog:pagespeed.CriticalImages",
+    ],
     js_dir = "rewriter",
     js_includes = [
         "net/instaweb/js/js_utils.js",
     ],
-    entry_points = [
-        "goog:pagespeed.CriticalImages",
-    ],
+    js_src = "net/instaweb/rewriter/critical_images_beacon.js",
     opt = True,
 )
 
 closure_compiler_gen(
     name = "responsive_js_dbg",
-    js_src = "net/instaweb/rewriter/responsive_js.js",
-    js_dir = "rewriter",
     entry_points = [
         "goog:pagespeed.Responsive",
     ],
+    js_dir = "rewriter",
+    js_src = "net/instaweb/rewriter/responsive_js.js",
     opt = False,
 )
 
 closure_compiler_gen(
     name = "responsive_js_opt",
-    js_src = "net/instaweb/rewriter/responsive_js.js",
-    js_dir = "rewriter",
     entry_points = [
         "goog:pagespeed.Responsive",
     ],
+    js_dir = "rewriter",
+    js_src = "net/instaweb/rewriter/responsive_js.js",
     opt = True,
 )
 
 closure_compiler_without_dependency_mode(
     name = "without_dependency",
+    externs = [
+        "net/instaweb/js/externs.js",
+    ],
+    js_dir = "rewriter",
     js_src = [
         "net/instaweb/rewriter/add_instrumentation.js",
         "net/instaweb/rewriter/client_domain_rewriter.js",
@@ -92,15 +97,15 @@ closure_compiler_without_dependency_mode(
         "net/instaweb/rewriter/deterministic.js",
         "net/instaweb/rewriter/extended_instrumentation.js",
     ],
-    js_dir = "rewriter",
-    externs = [
-        "net/instaweb/js/externs.js",
-    ],
     opt = False,
 )
 
 closure_compiler_without_dependency_mode(
     name = "without_dependency",
+    externs = [
+        "net/instaweb/js/externs.js",
+    ],
+    js_dir = "rewriter",
     js_src = [
         "net/instaweb/rewriter/add_instrumentation.js",
         "net/instaweb/rewriter/client_domain_rewriter.js",
@@ -110,47 +115,43 @@ closure_compiler_without_dependency_mode(
         "net/instaweb/rewriter/deterministic.js",
         "net/instaweb/rewriter/extended_instrumentation.js",
     ],
-    js_dir = "rewriter",
-    externs = [
-        "net/instaweb/js/externs.js",
-    ],
     opt = True,
 )
 
 closure_compiler_without_dependency_mode(
     name = "with_dependency",
+    externs = [
+        "net/instaweb/js/externs.js",
+    ],
+    js_dir = "rewriter",
+    js_includes = [
+        "net/instaweb/js/js_utils.js",
+    ],
     js_src = [
         "net/instaweb/rewriter/critical_css_beacon.js",
         "net/instaweb/rewriter/lazyload_images.js",
         "net/instaweb/rewriter/delay_images.js",
         "net/instaweb/rewriter/js_defer.js",
         "net/instaweb/rewriter/local_storage_cache.js",
-    ],
-    js_dir = "rewriter",
-    js_includes = [
-        "net/instaweb/js/js_utils.js",
-    ],
-    externs = [
-        "net/instaweb/js/externs.js",
     ],
     opt = False,
 )
 
 closure_compiler_without_dependency_mode(
     name = "with_dependency",
+    externs = [
+        "net/instaweb/js/externs.js",
+    ],
+    js_dir = "rewriter",
+    js_includes = [
+        "net/instaweb/js/js_utils.js",
+    ],
     js_src = [
         "net/instaweb/rewriter/critical_css_beacon.js",
         "net/instaweb/rewriter/lazyload_images.js",
         "net/instaweb/rewriter/delay_images.js",
         "net/instaweb/rewriter/js_defer.js",
         "net/instaweb/rewriter/local_storage_cache.js",
-    ],
-    js_dir = "rewriter",
-    js_includes = [
-        "net/instaweb/js/js_utils.js",
-    ],
-    externs = [
-        "net/instaweb/js/externs.js",
     ],
     opt = True,
 )
@@ -755,7 +756,6 @@ pagespeed_cc_test(
         "-Ithird_party/css_parser/src/third_party/utf",
     ],
     data = [":testdata"],
-    shard_count = 10,
     deps = [
         ":rewriter_test_base",
         "//pagespeed/automatic:automatic_test_base",

@@ -577,18 +577,7 @@ void RedisCache::Connection::ShutDown() {
 }
 
 bool RedisCache::Connection::EnsureConnectionAndDatabaseSelection() {
-  {
-    ScopedMutex lock(state_mutex_.get());
-    if (state_ == kConnected) {
-      return true;
-    }
-  }
-
-  if (!EnsureConnection()) {
-    return false;
-  }
-
-  return EnsureDatabaseSelection();
+  return EnsureConnection() && EnsureDatabaseSelection();
 }
 
 bool RedisCache::Connection::EnsureConnection() {

@@ -1,10 +1,11 @@
-licenses(["notice"])  # Apache 2
-
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
+
+licenses(["notice"])  # Apache 2
 
 cc_library(
     name = "automatic",
@@ -19,8 +20,8 @@ cc_library(
         "proxy_fetch.h",
         "proxy_interface.h",
     ],
-    visibility = ["//visibility:public"],
     linkstatic = True,
+    visibility = ["//visibility:public"],
     deps = [
         "//net/instaweb/http",
         "//net/instaweb/rewriter",

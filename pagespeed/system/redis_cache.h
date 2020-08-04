@@ -177,7 +177,7 @@ class RedisCache : public CacheInterface {
         EXCLUSIVE_LOCKS_REQUIRED(redis_mutex_) LOCKS_EXCLUDED(state_mutex_);
     bool EnsureConnection() EXCLUSIVE_LOCKS_REQUIRED(redis_mutex_)
         LOCKS_EXCLUDED(state_mutex_);
-    bool EnsureDatabaseSelection() EXCLUSIVE_LOCKS_REQUIRED(state_mutex_)
+    bool EnsureDatabaseSelection() EXCLUSIVE_LOCKS_REQUIRED(redis_mutex_)
         LOCKS_EXCLUDED(state_mutex_);
 
     RedisContext TryConnect() LOCKS_EXCLUDED(redis_mutex_, state_mutex_);

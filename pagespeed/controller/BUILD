@@ -1,3 +1,5 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 load(
     "//bazel:pagespeed_test.bzl",
@@ -98,7 +100,6 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":controller",
-        "//pagespeed/kernel/base:pagespeed_gtest",
         "//pagespeed/kernel/thread:thread_test_base",
         "//pagespeed/kernel/util",
     ],
@@ -145,6 +146,7 @@ pagespeed_cc_test(
         "schedule_rewrite_rpc_handler_test.cc",
         "work_bound_expensive_operation_controller_test.cc",
     ],
+    shard_count = 1,
     deps = [
         ":controller_test_base",
         ":grpc_test_proto_grpc",

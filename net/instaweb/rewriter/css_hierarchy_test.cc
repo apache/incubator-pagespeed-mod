@@ -42,8 +42,6 @@ namespace net_instaweb {
 
 namespace {
 
-static const char kTestDomain[] = "http://test.com/";
-
 // The @import hierarchy is:
 // Top
 //  +- TopChild1

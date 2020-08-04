@@ -36,8 +36,6 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "base/logging.h"
-#include "fmt/format.h"
-#include "fmt/printf.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 
@@ -126,16 +124,16 @@ typedef std::vector<const GoogleString*> ConstStringStarVector;
 typedef std::vector<GoogleString*> StringStarVector;
 typedef std::vector<const char*> CharStarVector;
 
-inline GoogleString IntegerToString(int i) { return fmt::format("{}", i); }
+inline GoogleString IntegerToString(const int i) { return absl::StrCat(i); }
 
-inline GoogleString UintToString(unsigned int i) {
-  return fmt::format("{}", i);
+inline GoogleString UintToString(const unsigned int i) {
+  return absl::StrCat(i);
 }
 
-inline GoogleString Integer64ToString(int64 i) { return fmt::format("{}", i); }
+inline GoogleString Integer64ToString(const int64 i) { return absl::StrCat(i); }
 
-inline GoogleString PointerToString(void* pointer) {
-  return fmt::format("{}", pointer);
+inline GoogleString PointerToString(const void* pointer) {
+  return absl::StrFormat("%p", pointer);
 }
 
 // NOTE: For a string of the form "45x", this sets *out = 45 but returns false.

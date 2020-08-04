@@ -17,12 +17,7 @@
  * under the License.
  */
 
-#ifndef PAGESPEED_KERNEL_BASE_BASICTYPES_H_
-#define PAGESPEED_KERNEL_BASE_BASICTYPES_H_
-
-//#include "base/basictypes.h"
-//#include "base/macros.h"
-
+#pragma once
 #include <inttypes.h>
 
 typedef int64_t int64;
@@ -31,9 +26,6 @@ typedef uint32_t uint32;
 typedef int32_t int32;
 typedef uint8_t uint8;
 typedef int8_t int8;
-
-// this gets us check/dcheck/(v)log etc
-#include "base/logging.h"
 
 #define arraysize(a)            \
   ((sizeof(a) / sizeof(*(a))) / \
@@ -86,7 +78,9 @@ typedef int8_t int8;
 // Lazily-initialized boolean value
 enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
 
-#endif  // PAGESPEED_KERNEL_BASE_BASICTYPES_H_
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&);               \
+  void operator=(const TypeName&)
 
 // XXX(oschaaf): check licence. copied this in here because chromium dropped it.
 /*
@@ -115,12 +109,9 @@ enum LazyBool { kNotSet = -1, kFalse = 0, kTrue = 1 };
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TALK_BASE_COMPILE_ASSERT_H_
-#define TALK_BASE_COMPILE_ASSERT_H_
-#if !defined(COMPILE_ASSERT)
+#ifndef COMPILE_ASSERT
 template <bool>
 struct CompileAssert {};
 #define COMPILE_ASSERT(expr, msg) \
   typedef CompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]  // NOLINT
-#endif  // COMPILE_ASSERT
-#endif  // TALK_BASE_COMPILE_ASSERT_H_
+#endif

@@ -1,3 +1,5 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
@@ -54,7 +56,6 @@ pagespeed_cc_test_library(
     deps = [
         ":logging",
         "//pagespeed/kernel/base:kernel_test_util",
-        "//pagespeed/kernel/base:pagespeed_gtest",
     ],
 )
 

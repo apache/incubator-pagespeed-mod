@@ -193,9 +193,11 @@ bool Encode(StringPiece generated_url, StringPiece source_url,
     // Standard XSSI protection.
     // http://www.html5rocks.com/en/tutorials/developertools/sourcemaps/#toc-xssi
     *encoded_source_map += ")]}'\n";
-
-    Json::FastWriter writer;
-    *encoded_source_map += writer.write(json);
+    Json::StreamWriterBuilder builder;
+    builder["commentStyle"] = "None";
+    builder["indentation"] = "";
+    *encoded_source_map +=
+        Json::writeString(builder, json);  //xriter.write(json);
   }
   return success;
 }

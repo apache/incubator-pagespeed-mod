@@ -199,18 +199,18 @@ constexpr char kAnalyticsJSInvalid[] =
     "%s"
     "</script>";
 
-constexpr char* const kSendPageviews[] = {
+constexpr char const* const kSendPageviews[] = {
     "ga('send', 'pageview');", "ga(\"send\", \"pageview\");",
     "ga   (   'send'    ,        'pageview'    )    ;",
     "ga(\n'send',\n'pageview'\n);",
     "ga('MyTracker.send','pageview', 'foo', 'bar');"};
 
-constexpr char* const kNotSendPageviews[] = {
+constexpr char const* const kNotSendPageviews[] = {
     "ga('sendpageview');",        "ga('send''pageview');",
     "ga('send' 'pageview');",     "a('send', 'pageview');",
     "ga('send', 'pageview'[1]);", "ga('send', 'event', 'link', 'click');"};
 
-constexpr char* const kNoFieldObjectGaCreates[] = {
+constexpr char const* const kNoFieldObjectGaCreates[] = {
     "ga('create', '%s', 'auto'%s);",
     "ga(\"create\", \"%s\", \"auto\"%s);",
     "ga('create','%s','auto'%s);",
@@ -219,7 +219,7 @@ constexpr char* const kNoFieldObjectGaCreates[] = {
     "ga('create', '%s'%s);",
     "ga('create','%s','example.com', 'myTracker'%s);"};
 
-constexpr char* const kYesFieldObjectGaCreates[] = {
+constexpr char const* const kYesFieldObjectGaCreates[] = {
     "ga('create', '%s', {%stransport: 'beacon'});",
     "ga('create', '%s', {%stransport: \"beacon\"});",
     "ga('create', '%s', {%stransport: 'beacon', cookieDomain: 'auto'});",
@@ -228,7 +228,7 @@ constexpr char* const kYesFieldObjectGaCreates[] = {
     "ga('create', {%2$strackingId: '%1$s'});",
     "ga('create', '%s', 'auto', 'foo', {%stransport: 'beacon'});"};
 
-constexpr char* const kGaNoCreates[] = {
+constexpr char const* const kGaNoCreates[] = {
     "ga('create \"%s\" auto');",
     "ga('create, \"%s\", auto');",
     "ga[0]('create', '%s', 'auto');",

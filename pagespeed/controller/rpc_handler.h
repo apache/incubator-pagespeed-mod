@@ -21,7 +21,6 @@
 #define PAGESPEED_CONTROLLER_RPC_HANDLER_H_
 
 #include "base/logging.h"
-#include "base/macros.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
 #include "pagespeed/kernel/util/grpc.h"

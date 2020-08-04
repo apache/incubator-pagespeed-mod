@@ -16,12 +16,9 @@
 
 syntax = "proto2";
 
-import "pagespeed/kernel/http/http.proto";
-
 option optimize_for = LITE_RUNTIME;
 
 package net_instaweb;
-
 
 // FlushEarlyInfo stores various information for flushing a request early i.e.
 // before receiving a response form the origin server.

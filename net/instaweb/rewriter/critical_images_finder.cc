@@ -376,10 +376,12 @@ RenderedImages* CriticalImagesFinder::ExtractRenderedImageDimensionsFromCache(
 RenderedImages* CriticalImagesFinder::JsonMapToRenderedImagesMap(
     const GoogleString& str, const RewriteOptions* options) {
   try {
-    Json::Reader reader;
     Json::Value json_rendered_image_map;
-    if (!reader.parse(str, json_rendered_image_map)) {
-      LOG(WARNING) << "Unable to parse Json data for rendered images";
+    Json::CharReaderBuilder reader;
+    std::stringstream data(str);
+    std::string errs;
+    if (!Json::parseFromStream(reader, data, &json_rendered_image_map, &errs)) {
+      LOG(WARNING) << "Unable to parse Json data for rendered images" << errs;
       return nullptr;
     }
     // Parse json data into a map.

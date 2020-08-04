@@ -71,7 +71,7 @@ class CssImageCombineTest : public CssRewriteTestBase {
         Encode("", "is", "0", MultiUrl(kCuppaPngFile, kBikePngFile), "png");
     const char* sprite = sprite_string.c_str();
     // The JPEG will not be included in the sprite because we only handle PNGs.
-    constexpr char* html =
+    constexpr char html[] =
         "<head><style>"
         "#div1{background-image:url(%s);"
         "background-position:0 0;width:10px;height:10px}"

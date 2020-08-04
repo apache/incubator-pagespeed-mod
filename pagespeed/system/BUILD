@@ -1,39 +1,36 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//bazel:closure_compiler.bzl", "closure_compiler_gen")
-load("//bazel:data2c.bzl", "data2c_gen2_admin_js", "data2c_gen2_admin_css")
-
+load("//bazel:data2c.bzl", "data2c_gen2_admin_css", "data2c_gen2_admin_js")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
 
-
 licenses(["notice"])  # Apache 2
 
 closure_compiler_gen(
     name = "caches_dbg",
-    js_src = "pagespeed/system/caches.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Caches",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/caches.js",
     opt = False,
 )
 
 closure_compiler_gen(
     name = "caches_opt",
-    js_src = "pagespeed/system/caches.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Caches",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/caches.js",
     opt = True,
 )
 
 closure_compiler_gen(
     name = "console_opt",
-    js_src = "pagespeed/system/console.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Console",
         "goog:pagespeed.statistics",
@@ -42,13 +39,13 @@ closure_compiler_gen(
         "pagespeed/system/js_externs.js",
         "third_party/closure/externs/google_visualization_api.js",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/console.js",
     opt = True,
 )
 
 closure_compiler_gen(
     name = "console_dbg",
-    js_src = "pagespeed/system/console.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Console",
         "goog:pagespeed.statistics",
@@ -57,83 +54,85 @@ closure_compiler_gen(
         "pagespeed/system/js_externs.js",
         "third_party/closure/externs/google_visualization_api.js",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/console.js",
     opt = False,
 )
 
 closure_compiler_gen(
     name = "graphs_dbg",
-    js_src = "pagespeed/system/graphs.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Graphs",
     ],
     externs = [
         "third_party/closure/externs/google_visualization_api.js",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/graphs.js",
     opt = False,
 )
 
 closure_compiler_gen(
     name = "graphs_opt",
-    js_src = "pagespeed/system/graphs.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Graphs",
     ],
     externs = [
         "third_party/closure/externs/google_visualization_api.js",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/graphs.js",
     opt = True,
 )
 
 closure_compiler_gen(
     name = "messages_dbg",
-    js_src = "pagespeed/system/messages.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Messages",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/messages.js",
     opt = False,
 )
 
 closure_compiler_gen(
     name = "messages_opt",
-    js_src = "pagespeed/system/messages.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Messages",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/messages.js",
     opt = True,
 )
 
 closure_compiler_gen(
     name = "statistics_dbg",
-    js_src = "pagespeed/system/statistics.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Statistics",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/statistics.js",
     opt = False,
 )
 
 closure_compiler_gen(
     name = "statistics_opt",
-    js_src = "pagespeed/system/statistics.js",
-    js_dir = "system",
     entry_points = [
         "goog:pagespeed.Statistics",
     ],
+    js_dir = "system",
+    js_src = "pagespeed/system/statistics.js",
     opt = True,
 )
 
 data2c_gen2_admin_js(
     name = "data2c_generated",
     srcs = [
-        "console",
         "caches",
-        "statistics",
+        "console",
         "graphs",
         "messages",
+        "statistics",
     ],
     opt = False,
 )
@@ -141,24 +140,23 @@ data2c_gen2_admin_js(
 data2c_gen2_admin_js(
     name = "data2c_generated",
     srcs = [
-        "console",
         "caches",
-        "statistics",
+        "console",
         "graphs",
         "messages",
+        "statistics",
     ],
     opt = True,
 )
 
-
 data2c_gen2_admin_css(
     name = "data2c_generated",
     srcs = [
-        "console",
-        "caches",
         "admin_site",
-        "statistics",
+        "caches",
+        "console",
         "graphs",
+        "statistics",
     ],
     opt = False,
 )
@@ -166,15 +164,14 @@ data2c_gen2_admin_css(
 data2c_gen2_admin_css(
     name = "data2c_generated",
     srcs = [
-        "console",
-        "caches",
         "admin_site",
-        "statistics",
+        "caches",
+        "console",
         "graphs",
+        "statistics",
     ],
     opt = True,
 )
-
 
 cc_library(
     name = "system",
@@ -197,26 +194,26 @@ cc_library(
         "system_rewrite_options.cc",
         "system_server_context.cc",
         "system_thread_system.cc",
-        ":js_data2c_generated_console",
-        ":js_data2c_generated_console_opt",
+        ":css_data2c_generated_admin_site",
+        ":css_data2c_generated_admin_site_opt",
+        ":css_data2c_generated_caches",
+        ":css_data2c_generated_caches_opt",
+        ":css_data2c_generated_console",
+        ":css_data2c_generated_console_opt",
+        ":css_data2c_generated_graphs",
+        ":css_data2c_generated_graphs_opt",
+        ":css_data2c_generated_statistics",
+        ":css_data2c_generated_statistics_opt",
         ":js_data2c_generated_caches",
         ":js_data2c_generated_caches_opt",
-        ":js_data2c_generated_statistics",
-        ":js_data2c_generated_statistics_opt",
+        ":js_data2c_generated_console",
+        ":js_data2c_generated_console_opt",
         ":js_data2c_generated_graphs",
         ":js_data2c_generated_graphs_opt",
         ":js_data2c_generated_messages",
         ":js_data2c_generated_messages_opt",
-        ":css_data2c_generated_console",
-        ":css_data2c_generated_console_opt",
-        ":css_data2c_generated_caches",
-        ":css_data2c_generated_caches_opt",
-        ":css_data2c_generated_admin_site",
-        ":css_data2c_generated_admin_site_opt",
-        ":css_data2c_generated_statistics",
-        ":css_data2c_generated_statistics_opt",
-        ":css_data2c_generated_graphs",
-        ":css_data2c_generated_graphs_opt",
+        ":js_data2c_generated_statistics",
+        ":js_data2c_generated_statistics_opt",
     ],
     hdrs = [
         "add_headers_fetcher.h",
@@ -251,7 +248,7 @@ cc_library(
         "-Iexternal/apr/",
         "-Iexternal/serf/include/",
         "-Iexternal/serf/",
-        "-DPAGESPEED_SUPPORT_POSIX_SHARED_MEM=1",       
+        "-DPAGESPEED_SUPPORT_POSIX_SHARED_MEM=1",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -330,7 +327,6 @@ pagespeed_cc_test_library(
         ":system",
         "//net/instaweb/rewriter:rewriter_test_base",
         "//pagespeed/kernel/base:kernel_test_util",
-        "//pagespeed/kernel/base:pagespeed_gtest",
         "//pagespeed/kernel/cache:cache_test_base",
         "//pagespeed/kernel/thread:thread_test_base",
     ],
@@ -361,6 +357,7 @@ pagespeed_cc_test(
         "-Iexternal/serf/include/",
         "-Iexternal/serf/",
     ],
+    shard_count = 1,
     deps = [
         ":system_test_base",
     ],

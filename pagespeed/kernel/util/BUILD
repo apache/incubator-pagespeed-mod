@@ -1,10 +1,11 @@
-licenses(["notice"])  # Apache 2
-
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
+
+licenses(["notice"])  # Apache 2
 
 cc_library(
     name = "util_re2",
@@ -62,14 +63,14 @@ cc_library(
         "url_multipart_encoder.h",
         "url_segment_encoder.h",
         "url_to_filename_encoder.h",
-    ],    
+    ],
     copts = [
-        '-std=c++17',
+        "-std=c++17",
         "-Werror",
         "-Wno-macro-redefined",
         "-Wno-thread-safety-attributes",
         "-Wno-thread-safety-precise",
-    ],    
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":util_re2",
@@ -99,16 +100,17 @@ pagespeed_cc_test_library(
     deps = [
         ":util",
         "//pagespeed/kernel/base:kernel_test_util",
-        "//pagespeed/kernel/base:pagespeed_gtest",
         "//pagespeed/kernel/thread:thread_test_base",
-        "@re2",
         "@re2//:benchmark",
     ],
 )
 
 pagespeed_cc_test(
     name = "util_test",
-    srcs = glob(["*_test.cc"], exclude=glob(["*brotli*"])),
+    srcs = glob(
+        ["*_test.cc"],
+        exclude = glob(["*brotli*"]),
+    ),
     deps = [
         ":util_test_base",
     ],

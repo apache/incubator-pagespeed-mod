@@ -29,9 +29,8 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/query_params.h"
+#undef DISALLOW_COPY_AND_ASSIGN  // Will be redefined below.
 #include "url/gurl.h"
-#include "url/url_parse_internal.h"
-#include "url/url_util.h"
 
 namespace net_instaweb {
 

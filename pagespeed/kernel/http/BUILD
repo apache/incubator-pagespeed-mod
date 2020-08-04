@@ -1,10 +1,12 @@
-licenses(["notice"])  # Apache 2
-
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
+
+licenses(["notice"])  # Apache 2
 
 genrule(
     name = "bot_checker_cc_gperf",
@@ -15,8 +17,11 @@ genrule(
 
 proto_library(
     name = "http_proto",
-    visibility = ["//visibility:public"],    
-    srcs = ["http.proto", "image_types.proto"],
+    srcs = [
+        "http.proto",
+        "image_types.proto",
+    ],
+    visibility = ["//visibility:public"],
 )
 
 cc_proto_library(
@@ -27,56 +32,56 @@ cc_proto_library(
 cc_library(
     name = "http",
     srcs = [
-        "google_url.cc",
-        "query_params.cc",
         "caching_headers.cc",
-        "http_names.cc",
-        ":bot_checker_cc_gperf",
-        "user_agent_normalizer.cc",
-        "semantic_type.cc",
-        "response_headers.cc",
-        "request_headers.cc",
+        "content_type.cc",
         "data_url.cc",
         "domain_registry.cc",
-        "content_type.cc",
+        "google_url.cc",
         "headers.cc",
+        "http_names.cc",
         "http_options.cc",
-        "user_agent_matcher.cc",
+        "query_params.cc",
+        "request_headers.cc",
+        "response_headers.cc",
         "response_headers_parser.cc",
+        "semantic_type.cc",
+        "user_agent_matcher.cc",
+        "user_agent_normalizer.cc",
+        ":bot_checker_cc_gperf",
     ],
     hdrs = [
-        "google_url.h",
-        "query_params.h",
         "bot_checker.h",
         "caching_headers.h",
-        "http_names.h",
-        "user_agent_normalizer.h",
-        "user_agent_matcher.h",
-        "semantic_type.h",
-        "response_headers.h",
-        "request_headers.h",
+        "content_type.h",
         "data_url.h",
         "domain_registry.h",
-        "content_type.h",
+        "google_url.h",
         "headers.h",
+        "http_names.h",
         "http_options.h",
+        "query_params.h",
+        "request_headers.h",
+        "response_headers.h",
         "response_headers_parser.h",
+        "semantic_type.h",
+        "user_agent_matcher.h",
+        "user_agent_normalizer.h",
+    ],
+    copts = [
+        "-std=c++17",
     ],
     visibility = ["//visibility:public"],
-    copts = [
-        '-std=c++17',        
-    ],    
     deps = [
+        ":http_proto_cc",
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/util:util_re2",
         "@com_googlesource_googleurl//url",
-        "@drp//:drp",
-        "@re2//:re2",
-        ":http_proto_cc",
+        "@drp",
+        "@re2",
     ],
 )
 
-pagespeed_cc_test_library (
+pagespeed_cc_test_library(
     name = "http_test_base",
     srcs = [
         "user_agent_matcher_test_base.cc",
@@ -88,7 +93,7 @@ pagespeed_cc_test_library (
         ":http",
         "//pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
-    ]
+    ],
 )
 
 pagespeed_cc_test(
@@ -96,7 +101,6 @@ pagespeed_cc_test(
     srcs = glob(["*_test.cc"]),
     deps = [
         ":http",
-        "//pagespeed/kernel/base:pagespeed_gtest",
-        ":http_test_base"
+        ":http_test_base",
     ],
 )

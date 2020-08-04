@@ -7,9 +7,7 @@
       "includePath": [
         "${workspaceFolder}",
         "${workspaceFolder}//bazel-incubator-pagespeed-mod/**",
-        "/usr/include/x86_64-linux-gnu/5/include",
         "/usr/local/include",
-        "/usr/include/x86_64-linux-gnu/5/include-fixed",
         "/usr/include/x86_64-linux-gnu",
         "/usr/include"
       ],
@@ -18,9 +16,7 @@
         "path": [
           "${workspaceFolder}",
           "${workspaceFolder}//bazel-incubator-pagespeed-mod/**",
-          "/usr/include/x86_64-linux-gnu/5/include",
           "/usr/local/include",
-          "/usr/include/x86_64-linux-gnu/5/include-fixed",
           "/usr/include/x86_64-linux-gnu",
           "/usr/include"
         ],

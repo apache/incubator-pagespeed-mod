@@ -84,10 +84,13 @@ const int kModpagespeedSite = 0;  // TODO(matterbury): These should be an enum?
 const int kGoogleFavicon = 1;
 const int kGoogleLogo = 2;
 const int kCgiSlowJs = 3;
-const int kModpagespeedBeacon = 4;
 const int kConnectionRefused = 5;
 const int kNoContent = 6;
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-const-variable"
 const int kNextTestcaseIndex = 7;  // Should always be last.
+#pragma GCC diagnostic pop
 
 // Note: We do not subclass StringAsyncFetch because we want to lock access
 // to done_.

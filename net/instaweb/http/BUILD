@@ -1,10 +1,11 @@
-licenses(["notice"])  # Apache 2
-
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load(
     "//bazel:pagespeed_test.bzl",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
+
+licenses(["notice"])  # Apache 2
 
 cc_library(
     name = "http",
@@ -34,12 +35,12 @@ cc_library(
     ],
     hdrs = glob(["public/*.h"]),
     copts = [
-        '-std=c++17',        
-    ],    
+        "-std=c++17",
+    ],
     visibility = ["//visibility:public"],
     deps = [
-        "//pagespeed/opt/http:http",
-        "//pagespeed/kernel/http:http",
+        "//pagespeed/kernel/http",
+        "//pagespeed/opt/http",
     ],
 )
 
@@ -56,9 +57,8 @@ pagespeed_cc_test_library(
     deps = [
         ":http",
         "//pagespeed/kernel/base:kernel_test_util",
-        "//pagespeed/kernel/base:pagespeed_gtest",
-        "//pagespeed/kernel/thread:thread_test_base",
         "//pagespeed/kernel/sharedmem:shared_mem_test_base",
+        "//pagespeed/kernel/thread:thread_test_base",
     ],
 )
 
