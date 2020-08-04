@@ -23,6 +23,7 @@ mod_pagespeed is built on PageSpeed Optimization Libraries, deployed across 100,
 
 |  Try it 	|   [modpagespeed.com](https://modpagespeed.com)	|
 |---	|---	|
+| Slack | https://the-asf.slack.com/archives/CJTG9RH9U |
 | Read about it  |https://developers.google.com/speed/pagespeed/module   |
 | Download it  | https://modpagespeed.com/doc/download  |
 | Check announcements  |https://groups.google.com/group/mod-pagespeed-announce   |
