@@ -26,12 +26,11 @@ env:
     - BIT_FLAG=
 
 script:
-  - bazel build -c dbg -- //... -//pagespeed/envoy/... | grep -iv warning
+  - bazel build -c dbg -- //... -//pagespeed/envoy/...
   - bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 -c dbg -- //... -//pagespeed/envoy/...
 
 after_failure:
-  # dump the last 2000 lines of our build, and hope the error is in that!
-  - tail --lines=2000 build.log
+  - cat build.log
 
 notifications:
   email:
