@@ -5,6 +5,8 @@
 
 build:clang-asan --test_timeout=900
 build:clang-tsan --test_timeout=900
+# See https://github.com/envoyproxy/nighthawk/issues/405
+build:macos --copt -UDEBUG
 
 # Envoy specific Bazel build/test options.
 
@@ -31,6 +33,7 @@ build --enable_platform_specific_config
 # Enable position independent code, this option is not supported on Windows and default on on macOS.
 build:linux --copt=-fPIC
 build:linux --cxxopt=-std=c++17
+build:linux --conlyopt=-fexceptions
 
 # We already have absl in the build, define absl=1 to tell googletest to use absl for backtrace.
 build --define absl=1
@@ -71,7 +74,7 @@ build:asan --test_env=ASAN_SYMBOLIZER_PATH
 
 # Clang ASAN/UBSAN
 build:clang-asan --config=asan
-#build:clang-asan --linkopt -fuse-ld=lld
+build:clang-asan --linkopt -fuse-ld=lld
 
 # macOS ASAN/UBSAN
 build:macos --cxxopt=-std=c++17
@@ -90,7 +93,7 @@ build:clang-tsan --config=sanitizer
 build:clang-tsan --define ENVOY_CONFIG_TSAN=1
 build:clang-tsan --copt -fsanitize=thread
 build:clang-tsan --linkopt -fsanitize=thread
-#build:clang-tsan --linkopt -fuse-ld=lld
+build:clang-tsan --linkopt -fuse-ld=lld
 build:clang-tsan --build_tag_filters=-no_san,-no_tsan
 build:clang-tsan --test_tag_filters=-no_san,-no_tsan
 # Needed due to https://github.com/libevent/libevent/issues/777
@@ -124,6 +127,7 @@ build --test_env=HEAPCHECK=normal --test_env=PPROF_PATH
 
 # Coverage options
 coverage --config=coverage
+coverage --build_tests_only
 build:coverage --action_env=BAZEL_USE_LLVM_NATIVE_COVERAGE=1
 build:coverage --action_env=GCOV=llvm-profdata
 build:coverage --copt=-DNDEBUG
