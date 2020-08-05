@@ -13,7 +13,7 @@ load(":aprutil.bzl", "aprutil_build_rule")
 load(":serf.bzl", "serf_build_rule")
 load(":closure_compiler.bzl", "closure_library_rules")
 
-ENVOY_COMMIT = "a2ebf092025e64f1b452a8bdaef13795677bceef"  # July 31st, 2020
+ENVOY_COMMIT = "c2b0d37ca5b40b71ce48984f2cf5984297b79a71"  # August 5th, 2020
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
 HIREDIS_COMMIT = "0.14.1"  # July 24th, 2020
 JSONCPP_COMMIT = "1.9.3"  # July 24th, 2020
@@ -44,7 +44,7 @@ def mod_pagespeed_dependencies():
         name = "envoy",
         strip_prefix = "envoy-%s" % ENVOY_COMMIT,
         url = "https://github.com/envoyproxy/envoy/archive/%s.tar.gz" % ENVOY_COMMIT,
-        sha256 = "1fcb9ffa174e4d3d65c9c8b2805d9b4470c18051c60c0e80631d3e534ef0c6ab",
+        sha256 = "4877904623560ada549b92fd117c94727b3226a5482631a16d33a20ba19d5d23",
     )
 
     http_archive(
