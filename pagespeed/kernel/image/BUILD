@@ -88,7 +88,7 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":image",
-        "//pagespeed/kernel/base:kernel_test_util",
+        "//test/pagespeed/kernel/base:kernel_test_util",
     ],
 )
 

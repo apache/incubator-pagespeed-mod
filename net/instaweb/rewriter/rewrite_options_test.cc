@@ -23,15 +23,15 @@
 #include "net/instaweb/rewriter/public/experiment_util.h"
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/message_handler_test_base.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
-#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/null_message_handler.h"
-#include "pagespeed/kernel/base/null_thread_system.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/request_headers.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/message_handler_test_base.h"
+#include "test/pagespeed/kernel/base/mock_hasher.h"
+#include "test/pagespeed/kernel/base/mock_timer.h"
+#include "test/pagespeed/kernel/base/null_thread_system.h"
 
 namespace net_instaweb {
 

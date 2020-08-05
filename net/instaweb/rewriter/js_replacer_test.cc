@@ -20,10 +20,10 @@
 #include "net/instaweb/rewriter/public/js_replacer.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 using pagespeed::js::JsTokenizerPatterns;
 

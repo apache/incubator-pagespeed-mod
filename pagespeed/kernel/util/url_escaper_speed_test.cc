@@ -31,7 +31,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/util/url_escaper.h"
 // clang-format off
-#include "pagespeed/kernel/base/benchmark.h"
+#include "benchmark/benchmark.h"
 // clang-format on
 
 using net_instaweb::UrlEscaper::EncodeToUrlSegment;

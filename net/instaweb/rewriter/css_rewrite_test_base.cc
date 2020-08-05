@@ -22,7 +22,6 @@
 #include "base/logging.h"
 #include "net/instaweb/rewriter/public/css_url_extractor.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
@@ -33,6 +32,7 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/response_headers.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

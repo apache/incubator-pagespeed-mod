@@ -21,9 +21,9 @@
 
 #include <csetjmp>
 
-#include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/image/jpeg_reader.h"
+#include "test/pagespeed/kernel/base/mock_message_handler.h"
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBJPEG

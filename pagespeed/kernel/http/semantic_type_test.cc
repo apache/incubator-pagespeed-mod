@@ -19,7 +19,7 @@
 
 #include "pagespeed/kernel/http/semantic_type.h"
 
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

@@ -48,7 +48,7 @@
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/opt/http/property_cache.h"
 // clang-format off
-#include "pagespeed/kernel/base/benchmark.h"
+#include "benchmark/benchmark.h"
 // clang-format on
 
 namespace net_instaweb {

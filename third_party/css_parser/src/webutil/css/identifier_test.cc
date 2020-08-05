@@ -21,7 +21,7 @@
 
 #include <string>
 
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 #include "webutil/css/string.h"
 
 namespace {

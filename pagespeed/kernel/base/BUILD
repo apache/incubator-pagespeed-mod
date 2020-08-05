@@ -1,10 +1,4 @@
-load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
 licenses(["notice"])  # Apache 2
 
@@ -20,11 +14,6 @@ cc_library(
         "file_system.cc",
         "google_message_handler.cc",
         "message_handler.cc",
-        "null_message_handler.cc",
-        "null_mutex.cc",
-        "null_shared_mem.cc",
-        "null_statistics.cc",
-        "null_writer.cc",
         "print_message_handler.cc",
         "statistics.cc",
         "stdio_file_system.cc",
@@ -37,6 +26,12 @@ cc_library(
         "thread_system.cc",
         "writer.cc",
         #'mem_debug.cc',
+        "null_message_handler.cc",
+        "null_mutex.cc",
+        "null_rw_lock.cc",
+        "null_shared_mem.cc",
+        "null_statistics.cc",
+        "null_writer.cc",
     ],
     hdrs = [
         "abstract_mutex.h",
@@ -52,11 +47,6 @@ cc_library(
         "file_system.h",
         "google_message_handler.h",
         "message_handler.h",
-        "null_message_handler.h",
-        "null_mutex.h",
-        "null_shared_mem.h",
-        "null_statistics.h",
-        "null_writer.h",
         "print_message_handler.h",
         "printf_format.h",
         "scoped_ptr.h",
@@ -77,6 +67,12 @@ cc_library(
         "timer.h",
         "vector_deque.h",
         "writer.h",
+        "null_message_handler.h",
+        "null_mutex.h",
+        "null_rw_lock.h",
+        "null_shared_mem.h",
+        "null_statistics.h",
+        "null_writer.h",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -90,16 +86,6 @@ cc_library(
         "@com_google_absl//absl/time",
         "@mod_pagespeed//base:log_shim",
     ],
-)
-
-proto_library(
-    name = "proto_matcher_test_proto",
-    srcs = ["proto_matcher_test.proto"],
-)
-
-cc_proto_library(
-    name = "proto_matcher_test_proto_cc",
-    deps = [":proto_matcher_test_proto"],
 )
 
 cc_library(
@@ -130,7 +116,6 @@ cc_library(
         "json_writer.cc",
         "md5_hasher.cc",
         "named_lock_manager.cc",
-        "null_rw_lock.cc",
         "posix_timer.cc",
         "request_trace.cc",
         "rolling_hash.cc",
@@ -172,7 +157,6 @@ cc_library(
         "manually_ref_counted.h",
         "md5_hasher.h",
         "named_lock_manager.h",
-        "null_rw_lock.h",
         "pool.h",
         "pool_element.h",
         "posix_timer.h",
@@ -200,78 +184,5 @@ cc_library(
         ":pagespeed_base_core",
         "//third_party/base64",
         "@jsoncpp",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "pagespeed_gtest",
-    srcs = ["gtest.cc"],
-    hdrs = [
-        "gmock.h",
-        "gtest.h",
-    ],
-    deps = [
-        ":pagespeed_base_core",
-        "@com_google_googletest//:gtest",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "kernel_test_util",
-    srcs =
-        [
-            "file_system_test_base.cc",
-            "mem_file_system.cc",
-            "message_handler_test_base.cc",
-            "mock_hasher.cc",
-            "mock_message_handler.cc",
-            "mock_timer.cc",
-            "null_thread_system.cc",
-        ],
-    hdrs = [
-        "file_system_test_base.h",
-        "mem_file_system.h",
-        "message_handler_test_base.h",
-        "mock_hasher.h",
-        "mock_message_handler.h",
-        "mock_timer.h",
-        "named_lock_tester.h",
-        "null_thread_system.h",
-    ],
-    deps = [
-        ":pagespeed_base",
-        ":pagespeed_gtest",
-        ":proto_matcher_test_proto_cc",
-        "//pagespeed/kernel/util",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "benchmark",
-    hdrs = ["benchmark.h"],
-    deps = ["@re2//:benchmark"],
-)
-
-pagespeed_cc_test(
-    name = "base_test",
-    srcs = glob(
-        ["*_test.cc"],
-        exclude = glob(["*speed_test.cc"]),
-    ),
-    shard_count = 1,
-    deps = [
-        ":kernel_test_util",
-        "//pagespeed/kernel/sharedmem:shared_mem",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "base_speed_test",
-    srcs = glob(["*speed_test.cc"]),
-    shard_count = 1,
-    deps = [
-        ":benchmark",
-        ":kernel_test_util",
-        "//pagespeed/kernel/sharedmem:shared_mem",
     ],
 )

@@ -25,8 +25,6 @@
 #include "base/logging.h"
 #include "pagespeed/kernel/base/cache_interface.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/cache/delay_cache.h"
@@ -37,6 +35,8 @@
 #include "pagespeed/opt/http/cache_property_store.h"
 #include "pagespeed/opt/http/mock_property_page.h"
 #include "pagespeed/opt/http/property_cache.pb.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mock_timer.h"
 
 namespace net_instaweb {
 

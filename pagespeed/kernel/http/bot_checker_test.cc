@@ -22,7 +22,7 @@
 
 #include "pagespeed/kernel/http/bot_checker.h"
 
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

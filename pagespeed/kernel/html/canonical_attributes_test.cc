@@ -19,11 +19,11 @@
 
 #include "pagespeed/kernel/html/canonical_attributes.h"
 
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_parse.h"
 #include "pagespeed/kernel/html/html_parse_test_base.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

@@ -25,13 +25,13 @@
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/dynamic_annotations.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/util/threadsafe_lock_manager.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace {
 

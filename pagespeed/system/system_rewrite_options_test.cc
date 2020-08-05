@@ -23,9 +23,9 @@
 
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/null_thread_system.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/null_thread_system.h"
 
 namespace net_instaweb {
 

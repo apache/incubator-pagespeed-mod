@@ -20,7 +20,7 @@
 // Unit tests for endian-dependent operations used in image rewriting.
 
 #include "net/instaweb/rewriter/public/image_data_lookup.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 namespace {

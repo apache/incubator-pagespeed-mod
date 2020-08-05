@@ -42,7 +42,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/benchmark.h"
+#include "benchmark/benchmark.h"
 #include "pagespeed/kernel/base/vector_deque.h"
 
 // Implementation of deque subset interface using vector, with O(N)

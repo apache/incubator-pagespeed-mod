@@ -20,11 +20,11 @@
 #include "pagespeed/kernel/js/js_minify.h"
 
 #include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/stdio_file_system.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/js/js_keywords.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace {
 

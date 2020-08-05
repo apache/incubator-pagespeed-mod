@@ -13,7 +13,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//pagespeed/kernel/base:pagespeed_gtest",
+        "//test/pagespeed/kernel/base:pagespeed_gtest",
         "@com_google_absl//absl/debugging:symbolize",
     ],
 )

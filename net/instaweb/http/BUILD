@@ -56,7 +56,7 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":http",
-        "//pagespeed/kernel/base:kernel_test_util",
+        "//test/pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/sharedmem:shared_mem_test_base",
         "//pagespeed/kernel/thread:thread_test_base",
     ],

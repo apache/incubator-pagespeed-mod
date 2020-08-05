@@ -19,11 +19,11 @@
 
 #include "net/instaweb/rewriter/public/resource_namer.h"
 
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mock_hasher.h"
 
 namespace net_instaweb {
 

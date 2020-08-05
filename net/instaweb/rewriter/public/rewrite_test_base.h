@@ -43,12 +43,11 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/base/mem_file_system.h"
+#include "test/pagespeed/kernel/base/mock_hasher.h"
+#include "test/pagespeed/kernel/base/mock_message_handler.h"
 // We need to include mock_timer.h to allow upcast to Timer*.
-#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
@@ -63,6 +62,7 @@
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/kernel/util/url_segment_encoder.h"
 #include "pagespeed/opt/logging/request_timing_info.h"
+#include "test/pagespeed/kernel/base/mock_timer.h"
 
 namespace net_instaweb {
 

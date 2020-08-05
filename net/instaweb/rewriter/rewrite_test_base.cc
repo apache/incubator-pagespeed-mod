@@ -56,7 +56,6 @@
 #include "net/instaweb/rewriter/public/test_url_namer.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/base64_util.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/stdio_file_system.h"
@@ -81,6 +80,7 @@
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "pagespeed/kernel/util/url_multipart_encoder.h"
 #include "pagespeed/opt/logging/log_record.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

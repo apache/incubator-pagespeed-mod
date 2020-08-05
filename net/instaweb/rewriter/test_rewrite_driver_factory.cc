@@ -41,11 +41,7 @@
 #include "pagespeed/kernel/base/basictypes.h"  // for int64
 #include "pagespeed/kernel/base/file_system.h"
 #include "pagespeed/kernel/base/hasher.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_hasher.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"  // for scoped_ptr
 #include "pagespeed/kernel/base/statistics.h"
@@ -64,6 +60,10 @@
 #include "pagespeed/kernel/util/nonce_generator.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/threadsafe_lock_manager.h"
+#include "test/pagespeed/kernel/base/mem_file_system.h"
+#include "test/pagespeed/kernel/base/mock_hasher.h"
+#include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/base/mock_timer.h"
 
 namespace net_instaweb {
 

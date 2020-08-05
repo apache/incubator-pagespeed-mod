@@ -19,10 +19,10 @@
 
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

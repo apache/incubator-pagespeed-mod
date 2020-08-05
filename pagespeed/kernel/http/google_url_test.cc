@@ -21,13 +21,13 @@
 
 #include "pagespeed/kernel/http/google_url.h"
 
-#include "pagespeed/kernel/base/gmock.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/util/simple_random.h"
+#include "test/pagespeed/kernel/base/gmock.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 #undef DISALLOW_COPY_AND_ASSIGN  // Will be redefined below.
 #include "url/gurl.h"
 

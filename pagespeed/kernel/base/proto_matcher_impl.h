@@ -27,9 +27,9 @@
 #include "base/logging.h"
 #include "gmock/gmock-matchers.h"
 #include "google/protobuf/util/message_differencer.h"
-#include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/string.h"
+#include "test/pagespeed/kernel/base/gmock.h"
 
 using google::protobuf::util::MessageDifferencer;
 

@@ -29,7 +29,6 @@
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/stl_util.h"
 #include "pagespeed/kernel/base/thread.h"
@@ -42,6 +41,7 @@
 #include "pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 #include "pagespeed/kernel/util/platform.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 
