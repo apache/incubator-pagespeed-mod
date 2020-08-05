@@ -23,7 +23,7 @@
 #include <string>
 
 #include "base/logging.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 #include "webutil/css/parser.h"
 #include "webutil/css/string.h"
 #include "webutil/html/htmlcolor.h"

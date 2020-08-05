@@ -20,7 +20,7 @@
 #ifndef PAGESPEED_KERNEL_BASE_PROTO_MATCHER_H_
 #define PAGESPEED_KERNEL_BASE_PROTO_MATCHER_H_
 
-#include "pagespeed/kernel/base/gmock.h"
 #include "pagespeed/kernel/base/proto_matcher_impl.h"
+#include "test/pagespeed/kernel/base/gmock.h"
 
 #endif  // PAGESPEED_KERNEL_BASE_PROTO_MATCHER_H_

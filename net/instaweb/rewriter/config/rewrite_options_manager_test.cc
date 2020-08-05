@@ -23,7 +23,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
 #include "pagespeed/kernel/base/callback.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -34,6 +33,7 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/util/platform.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

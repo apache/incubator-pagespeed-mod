@@ -21,9 +21,9 @@
 
 #include <memory>
 
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/http/http_names.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

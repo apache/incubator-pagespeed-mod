@@ -25,13 +25,13 @@
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/dynamic_annotations.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

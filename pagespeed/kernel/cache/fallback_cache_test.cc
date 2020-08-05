@@ -20,12 +20,12 @@
 #include "pagespeed/kernel/cache/fallback_cache.h"
 
 #include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

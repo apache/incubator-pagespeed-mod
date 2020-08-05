@@ -23,14 +23,14 @@
 #include <cstdint>
 #include <vector>
 
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/image_frame_interface.h"
 #include "pagespeed/kernel/image/image_util.h"
 #include "pagespeed/kernel/image/test_utils.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mock_message_handler.h"
 namespace {
 
 using net_instaweb::MessageHandler;

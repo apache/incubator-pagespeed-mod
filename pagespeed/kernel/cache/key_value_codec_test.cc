@@ -19,9 +19,9 @@
 
 #include "pagespeed/kernel/cache/key_value_codec.h"
 
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/shared_string.h"
 #include "pagespeed/kernel/base/string.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

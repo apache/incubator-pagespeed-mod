@@ -22,12 +22,7 @@
 #include <memory>
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
-#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/named_lock_tester.h"
 #include "pagespeed/kernel/base/null_statistics.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
@@ -37,6 +32,11 @@
 #include "pagespeed/kernel/util/file_system_lock_manager.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mem_file_system.h"
+#include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/base/mock_timer.h"
+#include "test/pagespeed/kernel/base/named_lock_tester.h"
 
 namespace {
 

@@ -50,7 +50,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 // clang-format off
-#include "pagespeed/kernel/base/benchmark.h"
+#include "benchmark/benchmark.h"
 // clang-format on
 
 namespace net_instaweb {

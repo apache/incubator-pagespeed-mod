@@ -30,8 +30,6 @@
 #include "pagespeed/apache/apache_httpd_includes.h"
 #include "pagespeed/apache/header_util.h"
 #include "pagespeed/apache/mock_apache.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/cache/delay_cache.h"
 #include "pagespeed/kernel/http/content_type.h"
@@ -39,6 +37,8 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mock_message_handler.h"
 
 namespace {
 

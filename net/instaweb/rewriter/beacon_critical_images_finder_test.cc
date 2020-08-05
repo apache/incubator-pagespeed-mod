@@ -31,10 +31,10 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/property_cache.h"
-#include "pagespeed/kernel/base/gmock.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/timer.h"
+#include "test/pagespeed/kernel/base/gmock.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mock_timer.h"
 
 using ::testing::Eq;
 

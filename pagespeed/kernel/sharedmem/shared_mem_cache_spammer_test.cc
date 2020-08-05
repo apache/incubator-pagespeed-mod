@@ -23,7 +23,6 @@
 #include "base/logging.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/shared_string.h"
@@ -36,6 +35,7 @@
 #include "pagespeed/kernel/sharedmem/inprocess_shared_mem.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_cache.h"
 #include "pagespeed/kernel/util/platform.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace {
 const int kMaxSize = 100;

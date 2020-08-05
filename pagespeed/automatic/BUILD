@@ -40,7 +40,7 @@ pagespeed_cc_test_library(
     deps = [
         ":automatic",
         "//net/instaweb/rewriter:rewriter_test_base",
-        "//pagespeed/kernel/base:kernel_test_util",
+        "//test/pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
     ],
 )
@@ -77,6 +77,6 @@ pagespeed_cc_test(
     shard_count = 1,
     deps = [
         ":static_rewriter",
-        "//pagespeed/kernel/base:benchmark",
+        "//benchmark",
     ],
 )

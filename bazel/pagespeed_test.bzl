@@ -23,7 +23,7 @@ def pagespeed_cc_test(
         srcs = srcs,
         deps = [
             repository + "//test:main",
-        ] + deps + ["//pagespeed/kernel/base:pagespeed_gtest"],
+        ] + deps + ["//test/pagespeed/kernel/base:pagespeed_gtest"],
         local = local,
         shard_count = shard_count,
         size = size,

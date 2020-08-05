@@ -25,8 +25,8 @@
 // clang-format off
 #include "pagespeed/controller/rpc_handler.h"
 // clang-format on
-#include "pagespeed/kernel/base/gmock.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gmock.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/proto_matcher.h"
 #include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/string.h"

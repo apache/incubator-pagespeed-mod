@@ -68,7 +68,7 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":thread",
-        "//pagespeed/kernel/base:kernel_test_util",
+        "//test/pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util",
     ],
 )

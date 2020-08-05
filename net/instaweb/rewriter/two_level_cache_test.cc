@@ -35,7 +35,6 @@
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/cache_interface.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/ref_counted_ptr.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -44,6 +43,7 @@
 #include "pagespeed/kernel/cache/write_through_cache.h"
 #include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/opt/logging/log_record.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

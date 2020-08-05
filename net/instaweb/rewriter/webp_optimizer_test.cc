@@ -22,10 +22,10 @@
 #include "net/instaweb/rewriter/public/webp_optimizer.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"  // for StrCat
 #include "pagespeed/kernel/image/test_utils.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/decode.h"

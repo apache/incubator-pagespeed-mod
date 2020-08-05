@@ -27,12 +27,8 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/file_system.h"
-#include "pagespeed/kernel/base/file_system_test_base.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
-#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/string.h"
@@ -44,6 +40,10 @@
 #include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
+#include "test/pagespeed/kernel/base/file_system_test_base.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mem_file_system.h"
+#include "test/pagespeed/kernel/base/mock_timer.h"
 
 namespace net_instaweb {
 

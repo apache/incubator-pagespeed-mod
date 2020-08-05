@@ -25,10 +25,10 @@
 
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 namespace {

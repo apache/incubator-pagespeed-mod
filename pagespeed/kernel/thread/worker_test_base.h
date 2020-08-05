@@ -24,9 +24,9 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/condvar.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/thread_system.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 #ifndef PAGESPEED_KERNEL_THREAD_WORKER_TEST_BASE_H_
 #define PAGESPEED_KERNEL_THREAD_WORKER_TEST_BASE_H_

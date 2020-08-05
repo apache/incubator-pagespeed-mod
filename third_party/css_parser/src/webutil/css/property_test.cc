@@ -19,7 +19,7 @@
 
 #include "webutil/css/property.h"
 
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace {
 

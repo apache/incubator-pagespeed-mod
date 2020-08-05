@@ -22,11 +22,11 @@
 #include <memory>
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
 #include "pagespeed/kernel/util/nonce_generator_test_base.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 namespace {

@@ -90,7 +90,7 @@ pagespeed_cc_test_library(
     deps = [
         ":apache",
         "//net/instaweb/rewriter:rewriter_test_base",
-        "//pagespeed/kernel/base:kernel_test_util",
+        "//test/pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
     ],
 )

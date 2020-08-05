@@ -24,8 +24,6 @@
 #include <cstddef>
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_timer.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
@@ -36,6 +34,8 @@
 #include "pagespeed/opt/http/cache_property_store.h"
 #include "pagespeed/opt/http/mock_property_page.h"
 #include "pagespeed/opt/http/property_store.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mock_timer.h"
 
 namespace net_instaweb {
 

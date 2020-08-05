@@ -19,7 +19,7 @@
 
 #include "pagespeed/opt/ads/ads_attribute.h"
 
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 namespace ads_attribute {

@@ -45,13 +45,9 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "net/instaweb/util/public/property_store.h"
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
-#include "pagespeed/kernel/base/mem_file_system.h"
 #include "pagespeed/kernel/base/message_handler.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/named_lock_manager.h"
-#include "pagespeed/kernel/base/named_lock_tester.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/null_shared_mem.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -86,6 +82,10 @@
 #include "pagespeed/system/system_cache_path.h"
 #include "pagespeed/system/system_rewrite_options.h"
 #include "pagespeed/system/system_server_context.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mem_file_system.h"
+#include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/base/named_lock_tester.h"
 
 namespace net_instaweb {
 

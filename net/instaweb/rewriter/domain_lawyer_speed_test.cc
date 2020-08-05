@@ -28,8 +28,8 @@
 // can be misleading.  When contemplating an algorithm change, always do
 // interleaved runs with the old & new algorithm.
 
+#include "benchmark/benchmark.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
-#include "pagespeed/kernel/base/benchmark.h"
 #include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/http/google_url.h"
 

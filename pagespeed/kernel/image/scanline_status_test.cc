@@ -20,7 +20,7 @@
 #include "pagespeed/kernel/image/scanline_status.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace pagespeed {
 

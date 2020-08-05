@@ -21,7 +21,7 @@
 
 #include "pagespeed/kernel/http/user_agent_normalizer.h"
 
-#include "pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

@@ -196,6 +196,6 @@ envoy_cc_test(
     repository = "@envoy",
     deps = [
         ":envoy_fetcher",
-        "//pagespeed/kernel/base:kernel_test_util",
+        "//test/pagespeed/kernel/base:kernel_test_util",
     ],
 )

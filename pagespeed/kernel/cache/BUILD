@@ -69,8 +69,8 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":cache",
-        "//pagespeed/kernel/base:benchmark",
-        "//pagespeed/kernel/base:kernel_test_util",
+        "//benchmark",
+        "//test/pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
     ],
 )
@@ -93,6 +93,6 @@ pagespeed_cc_test(
     deps = [
         ":cache",
         ":cache_test_base",
-        "//pagespeed/kernel/base:benchmark",
+        "//benchmark",
     ],
 )

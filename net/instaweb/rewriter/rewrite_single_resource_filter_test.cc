@@ -34,7 +34,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/single_rewrite_context.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -47,6 +46,7 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/util/url_escaper.h"
 #include "pagespeed/kernel/util/url_segment_encoder.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

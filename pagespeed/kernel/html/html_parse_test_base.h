@@ -23,8 +23,6 @@
 #define PAGESPEED_KERNEL_HTML_HTML_PARSE_TEST_BASE_H_
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
-#include "pagespeed/kernel/base/mock_message_handler.h"
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
@@ -33,6 +31,8 @@
 #include "pagespeed/kernel/html/html_parse.h"
 #include "pagespeed/kernel/html/html_writer_filter.h"
 #include "pagespeed/kernel/http/google_url.h"
+#include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/base/mock_message_handler.h"
 
 namespace net_instaweb {
 

@@ -36,8 +36,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/support_noscript_filter.h"
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gmock.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/hasher.h"
 #include "pagespeed/kernel/base/md5_hasher.h"
 #include "pagespeed/kernel/base/statistics.h"
@@ -51,6 +49,8 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/opt/logging/log_record.h"
+#include "test/pagespeed/kernel/base/gmock.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace {
 

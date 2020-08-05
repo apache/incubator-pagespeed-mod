@@ -25,10 +25,10 @@
 #include <utility>
 
 #include "pagespeed/kernel/base/google_message_handler.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http.pb.h"
 #include "pagespeed/kernel/http/http_names.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
 

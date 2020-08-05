@@ -664,7 +664,7 @@ pagespeed_cc_test(
         # see if we can separate those, and link those separately.
         ":rewriter_test_base",
         "//pagespeed/automatic",
-        "//pagespeed/kernel/base:benchmark",
+        "//benchmark",
         "//pagespeed/system",
     ],
 )

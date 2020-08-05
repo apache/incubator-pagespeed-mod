@@ -20,11 +20,11 @@
 #include "pagespeed/kernel/cache/cache_key_prepender.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
 #include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/cache/in_memory_cache.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace {
 const char kKeyPrefix[] = "Prefix_";

@@ -45,7 +45,7 @@
 #include "pagespeed/kernel/html/html_parse.h"
 #include "pagespeed/kernel/html/html_writer_filter.h"
 // clang-format off
-#include "pagespeed/kernel/base/benchmark.h"
+#include "benchmark/benchmark.h"
 // clang-format on
 
 namespace net_instaweb {

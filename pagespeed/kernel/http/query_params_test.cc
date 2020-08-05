@@ -22,10 +22,10 @@
 #include "pagespeed/kernel/http/query_params.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/base/gtest.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/google_url.h"
+#include "test/pagespeed/kernel/base/gtest.h"
 
 namespace {
 
