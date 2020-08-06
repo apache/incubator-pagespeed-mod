@@ -60,5 +60,5 @@ pagespeed_cc_test(
     deps = [
         ":spriter_test_base",
     ],
-    data = ["//net/instaweb/rewriter:testdata"],
+    data = ["//test/net/instaweb/rewriter:testdata"],
 )

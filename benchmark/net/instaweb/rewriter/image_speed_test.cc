@@ -51,7 +51,7 @@ namespace net_instaweb {
 
 namespace {
 
-const char kTestData[] = "/net/instaweb/rewriter/testdata/";
+const char kTestData[] = "/test/net/instaweb/rewriter/testdata/";
 const char kCuppa[] = "Cuppa.png";
 const char kIronChef[] = "IronChef2.gif";
 const char kPuzzle[] = "Puzzle.jpg";

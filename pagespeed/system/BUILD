@@ -285,7 +285,7 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":system",
-        "//net/instaweb/rewriter:rewriter_test_base",
+        "//test/net/instaweb/rewriter:test_base",
         "//test/pagespeed/kernel/base:kernel_test_util",
         "//test/pagespeed/kernel/cache:cache_test_base",
         "//test/pagespeed/kernel/thread:thread_test_base",

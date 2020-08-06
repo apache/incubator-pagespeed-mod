@@ -19,7 +19,7 @@
 
 #include "pagespeed/apache/apache_config.h"
 
-#include "net/instaweb/rewriter/public/rewrite_options_test_base.h"
+#include "test/net/instaweb/rewriter/rewrite_options_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/null_thread_system.h"
 

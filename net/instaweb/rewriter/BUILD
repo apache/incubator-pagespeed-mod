@@ -1,10 +1,5 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
 load("//bazel:data2c.bzl", "data2c_gen2", "data2c_gen2_opt")
 load("//bazel:closure_compiler.bzl", "closure_compiler_gen", "closure_compiler_without_dependency_mode")
 
@@ -570,63 +565,5 @@ cc_library(
         "//pagespeed/kernel/js",
         "//pagespeed/opt/ads",
         "//third_party/css_parser",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "rewriter_test_base",
-    srcs = [
-        "critical_images_finder_test_base.cc",
-        "css_rewrite_test_base.cc",
-        "image_test_base.cc",
-        "mock_critical_images_finder.cc",
-        "mock_resource_callback.cc",
-        "notifying_fetch.cc",
-        "rewrite_context_test_base.cc",
-        "rewrite_test_base.cc",
-        "test_rewrite_driver_factory.cc",
-        "test_url_namer.cc",
-    ],
-    hdrs = [
-        "image_testing_peer.h",
-        "public/critical_images_finder_test_base.h",
-        "public/css_rewrite_test_base.h",
-        "public/custom_rewrite_test_base.h",
-        "public/image_test_base.h",
-        "public/mock_critical_images_finder.h",
-        "public/mock_resource_callback.h",
-        "public/notifying_fetch.h",
-        "public/rewrite_context_test_base.h",
-        "public/rewrite_options_test_base.h",
-        "public/rewrite_test_base.h",
-        "public/test_rewrite_driver_factory.h",
-        "public/test_url_namer.h",
-    ],
-    deps = [
-        ":rewriter",
-        "//net/instaweb/http:http_test_base",
-        "//test/pagespeed/kernel/http:http_test_base",
-        "//pagespeed/opt/http:http_test_base",
-        "//pagespeed/opt/logging:logging_test_base",
-        "//test/pagespeed/kernel/cache:cache_test_base",
-        "//test/pagespeed/kernel/html:html_test_base",
-        "//test/pagespeed/kernel/image:image_test_base",
-        "//test/pagespeed/kernel/thread:thread_test_base",
-        "//test/pagespeed/kernel/util:util_test_base",
-    ],
-)
-
-filegroup(
-    name = "testdata",
-    srcs = glob(["testdata/*"]),
-    visibility = ["//visibility:public"],
-)
-
-pagespeed_cc_test(
-    name = "rewriter_test",
-    srcs = glob(["*_test.cc"]),
-    data = [":testdata"],
-    deps = [
-        ":rewriter_test_base",
     ],
 )

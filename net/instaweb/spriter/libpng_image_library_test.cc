@@ -27,7 +27,7 @@
 
 namespace {
 
-const char kTestData[] = "/net/instaweb/rewriter/testdata/";
+const char kTestData[] = "/test/net/instaweb/rewriter/testdata/";
 const char kCuppa[] = "Cuppa.png";
 const char kBikeCrash[] = "BikeCrashIcn.png";
 

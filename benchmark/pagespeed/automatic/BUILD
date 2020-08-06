@@ -5,7 +5,7 @@ licenses(["notice"])  # Apache 2
 pagespeed_cc_benchmark(
     name = "automatic",
     srcs = glob(["*.cc"]),
-    data = ["//net/instaweb/rewriter:testdata"],
+    data = ["//test/net/instaweb/rewriter:testdata"],
     deps = [
         "//pagespeed/automatic:static_rewriter",
         "//benchmark",

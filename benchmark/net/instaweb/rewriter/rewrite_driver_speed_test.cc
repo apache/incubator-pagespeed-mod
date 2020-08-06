@@ -41,12 +41,12 @@
 #include "net/instaweb/rewriter/public/rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/util/public/mock_property_page.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/opt/http/property_cache.h"
+#include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"
 // clang-format off
 #include "benchmark/benchmark.h"
 // clang-format on

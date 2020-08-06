@@ -24,8 +24,6 @@
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
-#include "net/instaweb/rewriter/public/rewrite_test_base.h"
-#include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
 #include "pagespeed/automatic/proxy_interface.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -41,6 +39,8 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/opt/http/property_cache.h"
 #include "pagespeed/opt/http/request_context.h"
+#include "test/net/instaweb/rewriter/rewrite_test_base.h"
+#include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"
 #include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
