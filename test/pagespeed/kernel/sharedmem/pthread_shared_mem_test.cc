@@ -29,14 +29,14 @@
 
 #include "pagespeed/kernel/base/abstract_shared_mem.h"
 #include "pagespeed/kernel/base/function.h"
-#include "pagespeed/kernel/sharedmem/shared_circular_buffer_test_base.h"
-#include "pagespeed/kernel/sharedmem/shared_dynamic_string_map_test_base.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_cache_data_test_base.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_cache_test_base.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_lock_manager_test_base.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/sharedmem/shared_circular_buffer_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_dynamic_string_map_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_cache_data_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_cache_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_lock_manager_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 
 namespace net_instaweb {
 

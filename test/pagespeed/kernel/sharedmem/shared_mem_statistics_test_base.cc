@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_statistics_test_base.h"
 
 #include <memory>
 
@@ -28,10 +28,10 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_test_base.h"
 
 namespace net_instaweb {
 

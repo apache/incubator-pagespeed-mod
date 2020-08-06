@@ -236,7 +236,7 @@ cc_library(
         ":system_controller_process_h",
         "//net/instaweb/http",
         "//net/instaweb/rewriter",
-        "//pagespeed/kernel/sharedmem:shared_mem",
+        "//pagespeed/kernel/sharedmem",
         "//third_party/redis-crc",
         "@apr",
         "@aprutil",

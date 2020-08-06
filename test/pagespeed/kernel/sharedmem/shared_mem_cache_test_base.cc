@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/sharedmem/shared_mem_cache_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_cache_test_base.h"
 
 #include <unistd.h>
 

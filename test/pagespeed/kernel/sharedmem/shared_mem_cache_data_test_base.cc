@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/sharedmem/shared_mem_cache_data_test_base.h"
+#include "test/pagespeed/kernel/sharedmem/shared_mem_cache_data_test_base.h"
 
 #include <cstddef>  // for size_t
 #include <set>
