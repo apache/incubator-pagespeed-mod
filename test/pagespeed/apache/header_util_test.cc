@@ -20,10 +20,10 @@
 #include "pagespeed/apache/header_util.h"
 
 #include "http_request.h"  // NOLINT
-#include "pagespeed/apache/mock_apache.h"
 #include "pagespeed/kernel/base/callback.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
+#include "test/pagespeed/apache/mock_apache.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {

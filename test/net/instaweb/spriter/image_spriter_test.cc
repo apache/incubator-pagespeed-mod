@@ -20,9 +20,9 @@
 #include "net/instaweb/spriter/public/image_spriter.h"
 
 #include "net/instaweb/spriter/image_library_interface.h"
-#include "net/instaweb/spriter/mock_image_library_interface.h"
 #include "net/instaweb/spriter/public/image_spriter.pb.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
+#include "test/net/instaweb/spriter/mock_image_library_interface.h"
 #include "test/pagespeed/kernel/base/gmock.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 

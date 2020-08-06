@@ -37,8 +37,6 @@ pagespeed_cc_test_library(
     ],
     deps = [
         "//net/instaweb/rewriter",
-        "//pagespeed/opt/http:http_test_base",
-        "//pagespeed/opt/logging:logging_test_base",
         "//test/net/instaweb/http:http_test_base",
         "//test/pagespeed/kernel/cache:cache_test_base",
         "//test/pagespeed/kernel/html:html_test_base",
@@ -46,6 +44,8 @@ pagespeed_cc_test_library(
         "//test/pagespeed/kernel/image:image_test_base",
         "//test/pagespeed/kernel/thread:thread_test_base",
         "//test/pagespeed/kernel/util:util_test_base",
+        "//test/pagespeed/opt/http:test_base",
+        "//test/pagespeed/opt/logging:test_base",
     ],
 )
 

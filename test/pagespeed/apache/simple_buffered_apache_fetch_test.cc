@@ -28,7 +28,6 @@
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "pagespeed/apache/apache_httpd_includes.h"
 #include "pagespeed/apache/header_util.h"
-#include "pagespeed/apache/mock_apache.h"
 #include "pagespeed/kernel/base/thread.h"
 #include "pagespeed/kernel/cache/delay_cache.h"
 #include "pagespeed/kernel/http/content_type.h"
@@ -37,6 +36,7 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
+#include "test/pagespeed/apache/mock_apache.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 
