@@ -85,7 +85,7 @@ const char* kAfterCompilationNew =
     "is.ie=is.ns=false;is.opera=true;}"
     "if(is.ua.indexOf('gecko')>=0){is.ie=is.ns=false;is.gecko=true;}";
 
-const char kTestRootDir[] = "/pagespeed/kernel/js/testdata/third_party/";
+const char kTestRootDir[] = "/test/pagespeed/kernel/js/testdata/third_party/";
 
 class JsMinifyTest : public testing::Test {
  protected:

@@ -1,8 +1,4 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-)
 
 licenses(["notice"])  # Apache 2
 
@@ -30,14 +26,5 @@ cc_library(
         "//pagespeed/kernel/base:pagespeed_base",
         "//pagespeed/kernel/util:util_re2",
         "@re2",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "js_test",
-    srcs = glob(["*_test.cc"]),
-    data = glob(["testdata/third_party/*"]),
-    deps = [
-        ":js",
     ],
 )

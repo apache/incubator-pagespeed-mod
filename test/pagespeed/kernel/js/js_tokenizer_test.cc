@@ -35,7 +35,7 @@ using pagespeed::js::JsTokenizerPatterns;
 
 namespace {
 
-const char kTestRootDir[] = "/pagespeed/kernel/js/testdata/third_party/";
+const char kTestRootDir[] = "/test/pagespeed/kernel/js/testdata/third_party/";
 
 class JsTokenizerTest : public testing::Test {
  protected:
