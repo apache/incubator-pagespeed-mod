@@ -42,15 +42,15 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/data_url.h"
 #include "pagespeed/kernel/image/image_util.h"
-#include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 #include "pagespeed/kernel/image/jpeg_utils.h"
 #include "pagespeed/kernel/image/read_image.h"
-#include "pagespeed/kernel/image/test_utils.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
+#include "test/pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 using pagespeed::image_compression::JpegUtils;
 using pagespeed::image_compression::kMessagePatternAnimatedGif;

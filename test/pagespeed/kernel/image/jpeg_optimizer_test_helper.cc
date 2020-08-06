@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
+#include "test/pagespeed/kernel/image/jpeg_optimizer_test_helper.h"
 
 #include <csetjmp>
 

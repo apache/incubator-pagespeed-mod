@@ -29,9 +29,9 @@
 #include "pagespeed/kernel/image/gif_reader.h"
 #include "pagespeed/kernel/image/read_image.h"
 #include "pagespeed/kernel/image/scanline_utils.h"
-#include "pagespeed/kernel/image/test_utils.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 extern "C" {
 #ifdef USE_SYSTEM_LIBPNG

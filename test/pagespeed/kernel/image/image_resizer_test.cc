@@ -27,10 +27,10 @@
 #include "pagespeed/kernel/image/jpeg_optimizer.h"
 #include "pagespeed/kernel/image/png_optimizer.h"
 #include "pagespeed/kernel/image/read_image.h"
-#include "pagespeed/kernel/image/test_utils.h"
 #include "pagespeed/kernel/image/webp_optimizer.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 namespace {
 

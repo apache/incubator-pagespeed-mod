@@ -24,8 +24,8 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"  // for StrCat
-#include "pagespeed/kernel/image/test_utils.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 #ifdef USE_SYSTEM_LIBWEBP
 #include "webp/decode.h"

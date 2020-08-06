@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/image/test_utils.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 #include <cmath>
 #include <cstdint>

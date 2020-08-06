@@ -28,9 +28,9 @@
 #include "pagespeed/kernel/image/gif_reader.h"
 #include "pagespeed/kernel/image/image_analysis.h"
 #include "pagespeed/kernel/image/image_util.h"
-#include "pagespeed/kernel/image/test_utils.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 namespace {
 

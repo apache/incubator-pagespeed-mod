@@ -22,9 +22,9 @@
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/image/read_image.h"
-#include "pagespeed/kernel/image/test_utils.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 // DO NOT INCLUDE LIBJPEG HEADERS HERE. Doing so causes build errors
 // on Windows. If you need to call out to libjpeg, please add helper

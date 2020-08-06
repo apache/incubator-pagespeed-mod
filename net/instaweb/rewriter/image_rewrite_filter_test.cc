@@ -69,7 +69,6 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/kernel/image/test_utils.h"
 #include "pagespeed/opt/logging/enums.pb.h"
 #include "pagespeed/opt/logging/log_record.h"
 #include "test/pagespeed/kernel/base/gmock.h"
@@ -77,6 +76,7 @@
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 #include "test/pagespeed/kernel/base/null_thread_system.h"
 #include "test/pagespeed/kernel/html/html_parse_test_base.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 namespace net_instaweb {
 

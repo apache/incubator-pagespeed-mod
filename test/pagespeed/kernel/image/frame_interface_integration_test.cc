@@ -31,9 +31,9 @@
 #include "pagespeed/kernel/image/scanline_interface.h"
 #include "pagespeed/kernel/image/scanline_interface_frame_adapter.h"
 #include "pagespeed/kernel/image/scanline_status.h"
-#include "pagespeed/kernel/image/test_utils.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/kernel/image/test_utils.h"
 
 namespace pagespeed {
 
