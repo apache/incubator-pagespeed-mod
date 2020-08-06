@@ -25,7 +25,6 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
-#include "test/pagespeed/automatic/proxy_interface_test_base.h"
 #include "pagespeed/kernel/base/callback.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
@@ -34,6 +33,7 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
+#include "test/pagespeed/automatic/proxy_interface_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {

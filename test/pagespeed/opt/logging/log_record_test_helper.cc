@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/opt/logging/log_record_test_helper.h"
+#include "test/pagespeed/opt/logging/log_record_test_helper.h"
 
 namespace net_instaweb {
 

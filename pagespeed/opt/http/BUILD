@@ -1,10 +1,5 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
 
 licenses(["notice"])  # Apache 2
 
@@ -48,24 +43,4 @@ cc_library(
         "//pagespeed/kernel/cache",
         "//pagespeed/opt/logging",
     ],
-)
-
-pagespeed_cc_test_library(
-    name = "http_test_base",
-    srcs = [
-        "mock_property_page.cc",
-    ],
-    hdrs = [
-        "mock_property_page.h",
-    ],
-    deps = [
-        ":http",
-        "//test/pagespeed/kernel/base:kernel_test_util",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "http_test",
-    srcs = glob(["*_test.cc"]),
-    deps = [":http_test_base"],
 )

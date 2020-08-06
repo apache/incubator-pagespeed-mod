@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/opt/http/mock_property_page.h"
+#include "test/pagespeed/opt/http/mock_property_page.h"
 
 namespace net_instaweb {
 

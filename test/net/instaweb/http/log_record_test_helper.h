@@ -21,6 +21,6 @@
 #define NET_INSTAWEB_HTTP_PUBLIC_LOG_RECORD_TEST_HELPER_H_
 
 // TODO(morlovich): Remove this forwarding header and change all references.
-#include "pagespeed/opt/logging/log_record_test_helper.h"
+#include "test/pagespeed/opt/logging/log_record_test_helper.h"
 
 #endif  // NET_INSTAWEB_HTTP_PUBLIC_LOG_RECORD_TEST_HELPER_H_

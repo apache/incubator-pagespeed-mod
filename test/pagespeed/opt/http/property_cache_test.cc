@@ -32,10 +32,10 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "pagespeed/opt/http/cache_property_store.h"
-#include "pagespeed/opt/http/mock_property_page.h"
 #include "pagespeed/opt/http/property_store.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
+#include "test/pagespeed/opt/http/mock_property_page.h"
 
 namespace net_instaweb {
 
