@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "net/instaweb/http/public/fetcher_test.h"
+#include "test/net/instaweb/http/fetcher_test.h"
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/http_cache.h"

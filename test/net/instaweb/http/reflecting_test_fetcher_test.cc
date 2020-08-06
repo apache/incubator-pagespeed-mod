@@ -21,9 +21,8 @@
 // Unit tests for ReflectingTestFetcher
 //
 
-#include "net/instaweb/http/public/reflecting_test_fetcher.h"
+#include "test/net/instaweb/http/reflecting_test_fetcher.h"
 
-#include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "pagespeed/kernel/base/google_message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -32,6 +31,7 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/util/platform.h"
+#include "test/net/instaweb/http/mock_callback.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {

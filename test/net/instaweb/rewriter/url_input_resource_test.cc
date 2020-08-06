@@ -19,7 +19,6 @@
 
 #include "net/instaweb/rewriter/public/url_input_resource.h"
 
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/resource.h"  // for Resource, etc
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
@@ -32,6 +31,7 @@
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/net/instaweb/rewriter/mock_resource_callback.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
 #include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"

@@ -20,7 +20,6 @@
 #include "net/instaweb/rewriter/public/google_font_service_input_resource.h"
 
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
-#include "net/instaweb/http/public/ua_sensitive_test_fetcher.h"
 #include "net/instaweb/rewriter/public/resource.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/server_context.h"
@@ -31,6 +30,7 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/response_headers.h"
+#include "test/net/instaweb/http/ua_sensitive_test_fetcher.h"
 #include "test/net/instaweb/rewriter/mock_resource_callback.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"

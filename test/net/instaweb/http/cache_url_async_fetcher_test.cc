@@ -28,7 +28,6 @@
 #include "net/instaweb/http/public/http_cache_failure.h"
 #include "net/instaweb/http/public/http_value.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "pagespeed/kernel/base/abstract_mutex.h"  // for ScopedMutex
 #include "pagespeed/kernel/base/function.h"
@@ -52,6 +51,7 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "pagespeed/opt/logging/log_record.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mem_file_system.h"
 #include "test/pagespeed/kernel/base/mock_hasher.h"

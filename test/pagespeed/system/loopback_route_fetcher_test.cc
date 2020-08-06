@@ -26,8 +26,6 @@
 
 #include "apr_network_io.h"
 #include "apr_pools.h"
-#include "net/instaweb/http/public/mock_callback.h"
-#include "net/instaweb/http/public/reflecting_test_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/config/rewrite_options_manager.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
@@ -41,6 +39,8 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/util/platform.h"
+#include "test/net/instaweb/http/mock_callback.h"
+#include "test/net/instaweb/http/reflecting_test_fetcher.h"
 #include "test/net/instaweb/rewriter/rewrite_options_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 

@@ -21,7 +21,6 @@
 
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
 #include "net/instaweb/http/public/http_cache.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/cached_result.pb.h"
 #include "net/instaweb/rewriter/public/fake_filter.h"
@@ -41,6 +40,7 @@
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/net/instaweb/rewriter/notifying_fetch.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
 #include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"

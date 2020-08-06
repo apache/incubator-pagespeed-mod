@@ -24,7 +24,6 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/rewriter/public/file_load_policy.h"
 #include "net/instaweb/rewriter/public/output_resource_kind.h"
 #include "net/instaweb/rewriter/public/resource_namer.h"
@@ -42,6 +41,7 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http_names.h"  // for Code::kOK
 #include "pagespeed/kernel/http/response_headers.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/net/instaweb/rewriter/rewrite_context_test_base.h"
 #include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"
 #include "test/pagespeed/kernel/base/gtest.h"

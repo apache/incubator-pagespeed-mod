@@ -33,7 +33,6 @@
 
 #include <memory>
 
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/critical_selector_finder.h"
 #include "net/instaweb/rewriter/public/process_context.h"
@@ -46,6 +45,7 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/opt/http/property_cache.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"
 // clang-format off
 #include "benchmark/benchmark.h"

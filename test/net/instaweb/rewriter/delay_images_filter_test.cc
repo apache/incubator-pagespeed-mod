@@ -19,7 +19,6 @@
 
 #include "net/instaweb/rewriter/public/delay_images_filter.h"
 
-#include "net/instaweb/http/public/log_record_test_helper.h"
 #include "net/instaweb/http/public/logging_proto.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
 #include "net/instaweb/public/global_constants.h"
@@ -38,6 +37,7 @@
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/opt/logging/enums.pb.h"
 #include "pagespeed/opt/logging/log_record.h"
+#include "test/net/instaweb/http/log_record_test_helper.h"
 #include "test/net/instaweb/rewriter/critical_images_finder_test_base.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
 #include "test/pagespeed/kernel/base/gmock.h"

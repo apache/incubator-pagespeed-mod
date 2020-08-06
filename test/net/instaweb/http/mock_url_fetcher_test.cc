@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/request_context.h"

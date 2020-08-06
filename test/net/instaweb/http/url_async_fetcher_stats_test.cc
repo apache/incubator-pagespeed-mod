@@ -19,8 +19,6 @@
 
 #include "net/instaweb/http/public/url_async_fetcher_stats.h"
 
-#include "net/instaweb/http/public/mock_callback.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -35,6 +33,8 @@
 #include "pagespeed/kernel/sharedmem/inprocess_shared_mem.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_statistics.h"
 #include "pagespeed/kernel/util/platform.h"
+#include "test/net/instaweb/http/mock_callback.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mem_file_system.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"

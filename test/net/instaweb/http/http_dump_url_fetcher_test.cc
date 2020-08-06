@@ -53,7 +53,7 @@ class HttpDumpUrlFetcherTest : public testing::Test {
   HttpDumpUrlFetcherTest()
       : thread_system_(Platform::CreateThreadSystem()),
         mock_timer_(thread_system_->NewMutex(), 0),
-        http_dump_fetcher_(GTestSrcDir() + "/net/instaweb/http/testdata",
+        http_dump_fetcher_(GTestSrcDir() + "/test/net/instaweb/http/testdata",
                            &file_system_, &mock_timer_) {}
 
  protected:

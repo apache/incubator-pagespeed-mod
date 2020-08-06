@@ -1,9 +1,4 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
 
 licenses(["notice"])  # Apache 2
 
@@ -38,35 +33,5 @@ cc_library(
     deps = [
         "//pagespeed/kernel/http",
         "//pagespeed/opt/http",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "http_test_base",
-    srcs = [
-        "mock_url_fetcher.cc",
-        "ua_sensitive_test_fetcher.cc",
-    ],
-    hdrs = [
-        "public/mock_url_fetcher.h",
-        "public/ua_sensitive_test_fetcher.h",
-    ],
-    deps = [
-        ":http",
-        "//test/pagespeed/kernel/base:kernel_test_util",
-        "//test/pagespeed/kernel/sharedmem:test_base",
-        "//test/pagespeed/kernel/thread:thread_test_base",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "http_test",
-    srcs = glob(["*_test.cc"]),
-    data = glob([
-        "testdata/*",
-        "testdata/www.google.com/*",
-    ]),
-    deps = [
-        ":http_test_base",
     ],
 )

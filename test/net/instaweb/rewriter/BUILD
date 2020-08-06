@@ -36,10 +36,10 @@ pagespeed_cc_test_library(
         "test_url_namer.h",
     ],
     deps = [
-        "//net/instaweb/http:http_test_base",
         "//net/instaweb/rewriter",
         "//pagespeed/opt/http:http_test_base",
         "//pagespeed/opt/logging:logging_test_base",
+        "//test/net/instaweb/http:http_test_base",
         "//test/pagespeed/kernel/cache:cache_test_base",
         "//test/pagespeed/kernel/html:html_test_base",
         "//test/pagespeed/kernel/http:http_test_base",

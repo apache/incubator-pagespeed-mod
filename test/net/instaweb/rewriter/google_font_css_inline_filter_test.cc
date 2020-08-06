@@ -19,7 +19,6 @@
 
 // Unit tests for GoogleFontCssInlineFilter
 
-#include "net/instaweb/http/public/ua_sensitive_test_fetcher.h"
 #include "net/instaweb/rewriter/public/domain_lawyer.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -30,6 +29,7 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/opt/http/request_context.h"
+#include "test/net/instaweb/http/ua_sensitive_test_fetcher.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"

@@ -25,7 +25,7 @@
 
 #include <utility>
 
-#include "net/instaweb/http/public/mock_url_fetcher.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
 #include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"
 #include "test/pagespeed/kernel/base/gtest.h"

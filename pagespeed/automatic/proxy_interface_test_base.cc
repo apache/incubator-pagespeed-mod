@@ -24,8 +24,6 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
-#include "net/instaweb/http/public/mock_callback.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/util/public/cache_property_store.h"
@@ -47,6 +45,8 @@
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/thread/thread_synchronizer.h"
 #include "pagespeed/opt/logging/request_timing_info.h"
+#include "test/net/instaweb/http/mock_callback.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/net/instaweb/rewriter/mock_critical_images_finder.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
 #include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"

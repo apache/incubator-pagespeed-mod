@@ -22,7 +22,7 @@
 // query param before delegating to another fetcher. Meant for use in
 // unit tests.
 
-#include "net/instaweb/http/public/ua_sensitive_test_fetcher.h"
+#include "test/net/instaweb/http/ua_sensitive_test_fetcher.h"
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"

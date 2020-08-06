@@ -25,7 +25,6 @@
 #include "base/logging.h"
 #include "net/instaweb/http/public/async_fetch.h"
 #include "net/instaweb/http/public/counting_url_async_fetcher.h"
-#include "net/instaweb/http/public/mock_url_fetcher.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/http/public/wait_url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
@@ -35,6 +34,7 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/util/simple_stats.h"
+#include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 
 namespace net_instaweb {
@@ -117,7 +117,7 @@ class FetcherTest : public testing::Test {
   };
 
   GoogleString TestFilename() {
-    return (GTestSrcDir() + "/net/instaweb/http/testdata/google.http");
+    return (GTestSrcDir() + "/test/net/instaweb/http/testdata/google.http");
   }
 
   // This validation code is hard-coded to the http request capture in

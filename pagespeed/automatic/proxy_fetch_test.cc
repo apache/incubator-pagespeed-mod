@@ -25,7 +25,6 @@
 
 #include "base/logging.h"
 #include "net/instaweb/http/public/logging_proto_impl.h"
-#include "net/instaweb/http/public/mock_callback.h"
 #include "net/instaweb/http/public/request_context.h"
 #include "net/instaweb/rewriter/public/rewrite_driver.h"
 #include "net/instaweb/rewriter/public/rewrite_options.h"
@@ -42,6 +41,7 @@
 #include "pagespeed/kernel/thread/thread_synchronizer.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/opt/logging/log_record.h"
+#include "test/net/instaweb/http/mock_callback.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/html/html_parse_test_base.h"
