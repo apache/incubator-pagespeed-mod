@@ -1,8 +1,4 @@
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
 licenses(["notice"])  # Apache 2
 
@@ -21,18 +17,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pagespeed/kernel/base:pagespeed_base",
-        "//pagespeed/kernel/html:html",
-        "//pagespeed/kernel/js:js",
+        "//pagespeed/kernel/html",
+        "//pagespeed/kernel/js",
     ],
-)
-
-pagespeed_cc_test_library(
-    name = "ads_test_base",
-    deps = [
-        ":ads",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "ads_test",
 )

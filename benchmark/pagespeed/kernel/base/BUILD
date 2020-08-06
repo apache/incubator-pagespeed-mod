@@ -10,6 +10,6 @@ pagespeed_cc_benchmark(
     srcs = glob(["*.cc"]),
     deps = [
         "//benchmark",
-        "//pagespeed/kernel/sharedmem:shared_mem",
+        "//pagespeed/kernel/sharedmem",
     ],
 )

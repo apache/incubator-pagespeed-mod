@@ -69,6 +69,6 @@ pagespeed_cc_test(
     shard_count = 1,
     deps = [
         ":kernel_test_util",
-        "//pagespeed/kernel/sharedmem:shared_mem",
+        "//pagespeed/kernel/sharedmem",
     ],
 )

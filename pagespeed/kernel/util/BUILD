@@ -1,9 +1,4 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
 
 licenses(["notice"])  # Apache 2
 
@@ -74,32 +69,5 @@ cc_library(
         "@brotli//:brotlienc",
         "@com_github_grpc_grpc//:grpc++",
         "@envoy//bazel/foreign_cc:zlib",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "util_test_base",
-    srcs = [
-        "lock_manager_spammer.cc",
-        "mock_nonce_generator.cc",
-        "nonce_generator_test_base.cc",
-    ],
-    hdrs = [
-        "lock_manager_spammer.h",
-        "mock_nonce_generator.h",
-        "nonce_generator_test_base.h",
-    ],
-    deps = [
-        ":util",
-        "//test/pagespeed/kernel/base:kernel_test_util",
-        "//test/pagespeed/kernel/thread:thread_test_base",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "util_test",
-    srcs = glob(["*_test.cc"]),
-    deps = [
-        ":util_test_base",
     ],
 )

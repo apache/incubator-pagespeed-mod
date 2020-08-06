@@ -6,10 +6,10 @@ pagespeed_cc_benchmark(
     name = "rewriter",
     srcs = glob(["*.cc"]),
     deps = [
-        "//net/instaweb/rewriter:rewriter_test_base",
+        "//test/net/instaweb/rewriter:test_base",
         "//test/pagespeed/kernel/base:kernel_test_util",
         "//benchmark",
         # TODO(XXX): this is just for data2c generated stuff. Lean up to just that.
-        "//pagespeed/system", 
+        "//pagespeed/system",
     ],
 )

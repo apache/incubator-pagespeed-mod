@@ -1,11 +1,6 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//bazel:closure_compiler.bzl", "closure_compiler_gen")
 load("//bazel:data2c.bzl", "data2c_gen2_admin_css", "data2c_gen2_admin_js")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
 
 licenses(["notice"])  # Apache 2
 
@@ -241,7 +236,7 @@ cc_library(
         ":system_controller_process_h",
         "//net/instaweb/http",
         "//net/instaweb/rewriter",
-        "//pagespeed/kernel/sharedmem:shared_mem",
+        "//pagespeed/kernel/sharedmem",
         "//third_party/redis-crc",
         "@apr",
         "@aprutil",
@@ -258,54 +253,4 @@ cc_library(
         "controller_process.h",
     ],
     visibility = ["//visibility:public"],
-)
-
-cc_binary(
-    name = "redis_cache_cluster_setup",
-    testonly = True,
-    srcs = [
-        "redis_cache_cluster_setup_main.cc",
-    ],
-    deps = [
-        ":system_test_base",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "system_test_base",
-    srcs = [
-        "redis_cache_cluster_setup.cc",
-        "tcp_connection_for_testing.cc",
-        "tcp_server_thread_for_testing.cc",
-    ],
-    hdrs = [
-        "redis_cache_cluster_setup.h",
-        "tcp_connection_for_testing.h",
-        "tcp_server_thread_for_testing.h",
-    ],
-    deps = [
-        ":system",
-        "//net/instaweb/rewriter:rewriter_test_base",
-        "//test/pagespeed/kernel/base:kernel_test_util",
-        "//test/pagespeed/kernel/cache:cache_test_base",
-        "//test/pagespeed/kernel/thread:thread_test_base",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "system_test",
-    srcs = [
-        "apr_mem_cache_test.cc",
-        "external_server_spec_test.cc",
-        "in_place_resource_recorder_test.cc",
-        "loopback_route_fetcher_test.cc",
-        "redis_cache_cluster_test.cc",
-        "serf_url_async_fetcher_test.cc",
-        "system_caches_test.cc",
-        "system_message_handler_test.cc",
-    ],
-    shard_count = 1,
-    deps = [
-        ":system_test_base",
-    ],
 )
