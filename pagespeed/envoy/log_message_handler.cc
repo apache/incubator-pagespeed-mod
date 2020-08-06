@@ -32,8 +32,8 @@
 
 namespace {
 class Logger : public Envoy::Logger::Loggable<Envoy::Logger::Id::main> {
-  bool LogMessageHandler(int severity, const char* file, int line,
-                         size_t message_start, const GoogleString& str) {
+  bool LogMessageHandler(int severity, const char*, int,
+                         size_t, const GoogleString& str) {
     // TODO(oschaaf): if log level is fatal we need to do more:
     // - if debugging, break
     // - else log stack trace.

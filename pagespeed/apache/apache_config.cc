@@ -27,7 +27,6 @@ namespace net_instaweb {
 
 namespace {
 
-const char kModPagespeedStatisticsHandlerPath[] = "/mod_pagespeed_statistics";
 const char kProxyAuth[] = "ProxyAuth";
 const char kForceBuffering[] = "ForceBuffering";
 const char kProxyAllRequests[] = "ExperimentalProxyAllRequests";
