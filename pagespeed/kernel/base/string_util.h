@@ -110,7 +110,7 @@ using absl::StartsWith;
 
 #ifndef STATIC_STRLEN
 #define STATIC_STRLEN(static_string) (arraysize(static_string) - 1)
-#endif 
+#endif
 namespace net_instaweb {
 
 struct StringCompareInsensitive;
