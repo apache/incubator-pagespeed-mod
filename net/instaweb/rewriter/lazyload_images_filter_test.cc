@@ -32,10 +32,10 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/http/http_names.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/opt/logging/enums.pb.h"
 #include "pagespeed/opt/logging/log_record.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 namespace net_instaweb {
 

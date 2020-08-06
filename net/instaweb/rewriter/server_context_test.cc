@@ -68,12 +68,12 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/kernel/util/url_escaper.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
 #include "test/pagespeed/kernel/html/html_parse_test_base.h"
+#include "test/pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 namespace {
 

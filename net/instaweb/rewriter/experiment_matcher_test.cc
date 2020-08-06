@@ -32,8 +32,8 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
 #include "pagespeed/kernel/http/user_agent_matcher.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"  // for User Agent constants
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/http/user_agent_matcher_test_base.h"  // for User Agent constants
 
 namespace net_instaweb {
 

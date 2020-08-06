@@ -39,12 +39,12 @@
 #include "pagespeed/kernel/base/string_hash.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/opt/logging/enums.pb.h"
 #include "test/pagespeed/kernel/base/gmock.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
 #include "test/pagespeed/kernel/html/html_parse_test_base.h"
+#include "test/pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 using testing::HasSubstr;
 using testing::Not;

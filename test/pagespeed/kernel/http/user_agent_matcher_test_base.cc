@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
+#include "test/pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 #include <memory>
 

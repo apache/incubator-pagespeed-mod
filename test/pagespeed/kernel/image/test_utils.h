@@ -39,7 +39,7 @@ class ScanlineReaderInterface;
 
 using net_instaweb::MessageHandler;
 
-const char kTestRootDir[] = "/pagespeed/kernel/image/testdata/";
+const char kTestRootDir[] = "/test/pagespeed/kernel/image/testdata/";
 
 // Directory for test data.
 const char kGifTestDir[] = "gif/";

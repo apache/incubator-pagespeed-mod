@@ -39,11 +39,11 @@
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/semantic_type.h"
-#include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "pagespeed/opt/logging/enums.pb.h"
 #include "pagespeed/opt/logging/log_record.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
+#include "test/pagespeed/kernel/http/user_agent_matcher_test_base.h"
 
 namespace net_instaweb {
 
