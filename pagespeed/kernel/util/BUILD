@@ -63,12 +63,6 @@ cc_library(
         "url_segment_encoder.h",
         "url_to_filename_encoder.h",
     ],
-    copts = [
-        "-Werror",
-        "-Wno-macro-redefined",
-        "-Wno-thread-safety-attributes",
-        "-Wno-thread-safety-precise",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         ":util_re2",

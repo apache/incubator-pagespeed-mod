@@ -35,10 +35,7 @@ cc_library(
         "src/third_party/utf/runetypebody.c",
         "src/third_party/utf/utf.h",
         "src/third_party/utf/utfdef.h",
-    ],
-    copts = [
-        "-funsigned-char",
-    ],
+    ]
 )
 
 genrule(
