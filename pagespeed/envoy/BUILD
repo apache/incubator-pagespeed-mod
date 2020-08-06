@@ -1,22 +1,11 @@
 load(
     "@envoy//bazel:envoy_build_system.bzl",
-    "envoy_cc_binary",
     "envoy_cc_library",
     "envoy_cc_test",
 )
 load("@envoy_api//bazel:api_build_system.bzl", "api_cc_py_proto_library")
 
 package(default_visibility = ["//visibility:public"])
-
-envoy_cc_binary(
-    name = "envoy",
-    repository = "@envoy",
-    deps = [
-        ":envoy_fetcher",
-        ":http_filter_config",
-        "@envoy//source/exe:envoy_main_entry_lib",
-    ],
-)
 
 api_cc_py_proto_library(
     name = "http_filter_proto",
@@ -67,16 +56,6 @@ envoy_cc_library(
     name = "http_filter_config",
     srcs = ["http_filter_config.cc"],
     copts = [
-        "-Iexternal/aprutil/include/",
-        "-Iexternal/aprutil/include/arch/unix/",
-        "-Iexternal/aprutil/",
-        "-Ithird_party/aprutil/gen/arch/linux/x64/include/",
-        "-Ithird_party/apr/gen/arch/linux/x64/include/",
-        "-Iexternal/apr/include/",
-        "-Iexternal/apr/include/arch/unix/",
-        "-Iexternal/apr/",
-        "-Iexternal/serf/include/",
-        "-Iexternal/serf/",
         "-Wno-unused-parameter",
         "-Wno-old-style-cast",
         "-Wno-macro-redefined",
@@ -140,7 +119,6 @@ envoy_cc_library(
         "@envoy//source/common/common:cleanup_lib_with_external_headers",
         "@envoy//source/common/common:minimal_logger_lib_with_external_headers",
         "@envoy//source/common/common:random_generator_lib_with_external_headers",
-        "@envoy//source/common/config:datasource_lib_with_external_headers",
         "@envoy//source/common/config:utility_lib_with_external_headers",
         "@envoy//source/common/event:dispatcher_includes_with_external_headers",
         "@envoy//source/common/event:real_time_system_lib_with_external_headers",
@@ -167,7 +145,6 @@ envoy_cc_library(
         "@envoy//source/exe:process_wide_lib_with_external_headers",
         "@envoy//source/extensions/transport_sockets:well_known_names_with_external_headers",
         "@envoy//source/extensions/transport_sockets/tls:context_lib_with_external_headers",
-        "@envoy//source/server:options_lib_with_external_headers",
         "@envoy//source/server/config_validation:admin_lib_with_external_headers",
     ],
 )
@@ -176,9 +153,6 @@ envoy_cc_test(
     name = "envoy_fetcher_test",
     srcs = ["envoy_url_async_fetcher_test.cc"],
     copts = [
-        "-Iexternal/aprutil/include/",
-        "-Iexternal/aprutil/include/arch/unix/",
-        "-Iexternal/aprutil/",
         "-Wno-unused-parameter",
         "-Wno-old-style-cast",
         "-Wno-macro-redefined",

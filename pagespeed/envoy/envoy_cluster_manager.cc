@@ -44,7 +44,6 @@
 #include "external/envoy/source/extensions/transport_sockets/tls/context_manager_impl.h"
 #include "external/envoy/source/extensions/transport_sockets/well_known_names.h"
 #include "external/envoy/source/server/config_validation/admin.h"
-#include "external/envoy/source/server/options_impl_platform.h"
 
 namespace net_instaweb {
 
