@@ -91,7 +91,7 @@ pagespeed_cc_test_library(
         ":apache",
         "//net/instaweb/rewriter:rewriter_test_base",
         "//test/pagespeed/kernel/base:kernel_test_util",
-        "//pagespeed/kernel/util:util_test_base",
+        "//test/pagespeed/kernel/util:util_test_base",
     ],
 )
 

@@ -41,7 +41,7 @@ pagespeed_cc_test_library(
     deps = [
         ":automatic",
         "//net/instaweb/rewriter:rewriter_test_base",
-        "//pagespeed/kernel/util:util_test_base",
+        "//test/pagespeed/kernel/util:util_test_base",
         "//test/pagespeed/kernel/base:kernel_test_util",
     ],
 )

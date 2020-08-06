@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/controller/grpc_server_test.h"
+#include "test/pagespeed/controller/grpc_server_test.h"
 
 #include <grpc++/alarm.h>
 #include <sys/stat.h>

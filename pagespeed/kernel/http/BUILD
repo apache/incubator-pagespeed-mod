@@ -91,7 +91,7 @@ pagespeed_cc_test_library(
     deps = [
         ":http",
         "//test/pagespeed/kernel/base:kernel_test_util",
-        "//pagespeed/kernel/util:util_test_base",
+        "//test/pagespeed/kernel/util:util_test_base",
     ],
 )
 

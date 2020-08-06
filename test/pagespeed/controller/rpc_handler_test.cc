@@ -19,9 +19,9 @@
 
 #include <memory>
 
-#include "pagespeed/controller/grpc_server_test.h"
-#include "pagespeed/controller/grpc_test.grpc.pb.h"
-#include "pagespeed/controller/grpc_test.pb.h"
+#include "test/pagespeed/controller/grpc_server_test.h"
+#include "test/pagespeed/controller/grpc_test.grpc.pb.h"
+#include "test/pagespeed/controller/grpc_test.pb.h"
 // clang-format off
 #include "pagespeed/controller/rpc_handler.h"
 // clang-format on

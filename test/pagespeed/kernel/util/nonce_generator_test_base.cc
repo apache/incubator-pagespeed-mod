@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/util/nonce_generator_test_base.h"
+#include "test/pagespeed/kernel/util/nonce_generator_test_base.h"
 
 #include <set>
 #include <utility>

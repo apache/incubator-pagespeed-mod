@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/util/lock_manager_spammer.h"
+#include "test/pagespeed/kernel/util/lock_manager_spammer.h"
 
 #include <vector>
 

@@ -607,7 +607,7 @@ pagespeed_cc_test_library(
         "//net/instaweb/http:http_test_base",
         "//pagespeed/kernel/http:http_test_base",
         "//pagespeed/kernel/image:image_test_base",
-        "//pagespeed/kernel/util:util_test_base",
+        "//test/pagespeed/kernel/util:util_test_base",
         "//pagespeed/opt/http:http_test_base",
         "//pagespeed/opt/logging:logging_test_base",
         "//test/pagespeed/kernel/cache:cache_test_base",

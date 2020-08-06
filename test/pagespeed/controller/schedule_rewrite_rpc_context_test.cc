@@ -23,7 +23,6 @@
 
 #include "base/logging.h"
 #include "pagespeed/controller/controller.pb.h"
-#include "pagespeed/controller/controller_grpc_mocks.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/proto_matcher.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
@@ -33,6 +32,7 @@
 #include "pagespeed/kernel/thread/sequence.h"
 #include "pagespeed/kernel/util/grpc.h"
 #include "pagespeed/kernel/util/platform.h"
+#include "test/pagespeed/controller/controller_grpc_mocks.h"
 #include "test/pagespeed/kernel/base/gmock.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/message_handler_test_base.h"

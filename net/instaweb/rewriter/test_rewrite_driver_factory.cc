@@ -54,7 +54,6 @@
 #include "pagespeed/kernel/cache/threadsafe_cache.h"
 #include "pagespeed/kernel/html/html_filter.h"
 #include "pagespeed/kernel/thread/scheduler.h"
-#include "pagespeed/kernel/util/mock_nonce_generator.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/threadsafe_lock_manager.h"
@@ -64,6 +63,7 @@
 #include "test/pagespeed/kernel/base/mock_timer.h"
 #include "test/pagespeed/kernel/cache/mock_time_cache.h"
 #include "test/pagespeed/kernel/thread/mock_scheduler.h"
+#include "test/pagespeed/kernel/util/mock_nonce_generator.h"
 
 namespace net_instaweb {
 

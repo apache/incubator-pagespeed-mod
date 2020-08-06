@@ -25,8 +25,8 @@
 #include "pagespeed/kernel/base/null_mutex.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/stdio_file_system.h"
-#include "pagespeed/kernel/util/nonce_generator_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/util/nonce_generator_test_base.h"
 
 namespace net_instaweb {
 namespace {
