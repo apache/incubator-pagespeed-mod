@@ -32,10 +32,10 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 #include "test/pagespeed/kernel/thread/mock_scheduler.h"
 
 namespace net_instaweb {

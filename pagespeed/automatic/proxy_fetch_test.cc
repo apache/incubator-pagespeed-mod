@@ -37,7 +37,6 @@
 #include "pagespeed/kernel/base/null_message_handler.h"
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/http_names.h"
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/response_headers.h"
@@ -45,6 +44,7 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/opt/logging/log_record.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 #include "test/pagespeed/kernel/thread/mock_scheduler.h"
 #include "test/pagespeed/kernel/thread/worker_test_base.h"
 

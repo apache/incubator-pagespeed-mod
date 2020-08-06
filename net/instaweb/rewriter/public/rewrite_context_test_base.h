@@ -49,10 +49,10 @@
 #include "pagespeed/kernel/base/writer.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/util/url_multipart_encoder.h"
 #include "pagespeed/kernel/util/url_segment_encoder.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 #include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {

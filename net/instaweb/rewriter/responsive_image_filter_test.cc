@@ -27,11 +27,11 @@
 #include "net/instaweb/rewriter/public/static_asset_manager.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_keywords.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
 #include "test/pagespeed/kernel/base/gmock.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 
 namespace net_instaweb {
 

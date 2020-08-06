@@ -28,11 +28,11 @@
 #include "net/instaweb/rewriter/public/test_rewrite_driver_factory.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/html/disable_test_filter.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "test/pagespeed/kernel/base/gmock.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/html/disable_test_filter.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 
 using ::testing::HasSubstr;
 using ::testing::Not;

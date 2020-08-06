@@ -614,7 +614,7 @@ pagespeed_cc_test_library(
         ":rewriter",
         "//net/instaweb/http:http_test_base",
         "//test/pagespeed/kernel/cache:cache_test_base",
-        "//pagespeed/kernel/html:html_test_base",
+        "//test/pagespeed/kernel/html:html_test_base",
         "//pagespeed/kernel/http:http_test_base",
         "//pagespeed/kernel/image:image_test_base",
         "//test/pagespeed/kernel/thread:thread_test_base",

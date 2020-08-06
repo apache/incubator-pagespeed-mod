@@ -53,7 +53,6 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/html/html_writer_filter.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http_names.h"
@@ -63,6 +62,7 @@
 #include "pagespeed/kernel/util/url_segment_encoder.h"
 #include "pagespeed/opt/logging/request_timing_info.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 
 namespace net_instaweb {
 

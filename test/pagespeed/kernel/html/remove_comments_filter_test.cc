@@ -22,8 +22,8 @@
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/fast_wildcard_group.h"
 #include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 
 namespace net_instaweb {
 

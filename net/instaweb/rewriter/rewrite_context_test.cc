@@ -61,7 +61,6 @@
 #include "pagespeed/kernel/cache/write_through_cache.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/http_names.h"  // for Code::kOK
 #include "pagespeed/kernel/http/request_headers.h"
@@ -73,6 +72,7 @@
 #include "test/pagespeed/kernel/base/mem_file_system.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 #include "test/pagespeed/kernel/base/named_lock_tester.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 #include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {

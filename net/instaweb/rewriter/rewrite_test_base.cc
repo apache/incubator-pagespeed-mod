@@ -67,7 +67,6 @@
 #include "pagespeed/kernel/html/empty_html_filter.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_parse.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/html/html_writer_filter.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
@@ -80,6 +79,7 @@
 #include "pagespeed/opt/logging/log_record.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/cache/mock_time_cache.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 #include "test/pagespeed/kernel/thread/mock_scheduler.h"
 
 namespace net_instaweb {

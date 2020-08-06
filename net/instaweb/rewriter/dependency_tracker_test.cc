@@ -28,9 +28,9 @@
 #include "net/instaweb/util/public/property_cache.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/opt/http/request_context.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/html/html_parse_test_base.h"
 
 namespace net_instaweb {
 
