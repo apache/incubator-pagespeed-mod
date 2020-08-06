@@ -1,7 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load(
     "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_benchmark",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
@@ -66,7 +65,6 @@ cc_library(
         "url_to_filename_encoder.h",
     ],
     copts = [
-        "-std=c++17",
         "-Werror",
         "-Wno-macro-redefined",
         "-Wno-thread-safety-attributes",
@@ -107,26 +105,8 @@ pagespeed_cc_test_library(
 
 pagespeed_cc_test(
     name = "util_test",
-    srcs = glob(
-        ["*_test.cc"],
-        exclude = glob(
-            [
-                "*_speed_test.cc",
-            ],
-        ),
-    ),
+    srcs = glob(["*_test.cc"]),
     deps = [
         ":util_test_base",
-    ],
-)
-
-pagespeed_cc_benchmark(
-    name = "util_speed_test",
-    srcs = glob(
-        ["*speed_test.cc"],
-    ),
-    deps = [
-        ":util_test_base",
-        "//benchmark",
     ],
 )

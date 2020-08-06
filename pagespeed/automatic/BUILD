@@ -1,7 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load(
     "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_benchmark",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
@@ -61,23 +60,9 @@ pagespeed_cc_test_library(
 
 pagespeed_cc_test(
     name = "automatic_test",
-    srcs = glob(
-        ["*_test.cc"],
-        exclude = glob(["*speed_test.cc"]),
-    ),
+    srcs = glob(["*_test.cc"]),
     data = ["//net/instaweb/rewriter:testdata"],
     deps = [
         ":automatic_test_base",
-    ],
-)
-
-pagespeed_cc_benchmark(
-    name = "automatic_speed_test",
-    srcs = glob(["*_speed_test.cc"]),
-    data = ["//net/instaweb/rewriter:testdata"],
-    shard_count = 1,
-    deps = [
-        ":static_rewriter",
-        "//benchmark",
     ],
 )
