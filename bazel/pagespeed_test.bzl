@@ -1,5 +1,34 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
+def pagespeed_cc_benchmark(
+        name,
+        srcs = [],
+        data = [],
+        # List of pairs (Bazel shell script target, shell script args)
+        repository = "",
+        external_deps = [],
+        deps = [],
+        tags = [],
+        args = [],
+        copts = [],
+        shard_count = 1,
+        coverage = True,
+        local = False,
+        size = "medium"):
+    test_lib_tags = []
+    cc_test(
+        name = name,
+        copts = copts,
+        linkstatic = True,
+        srcs = srcs,
+        deps = deps + ["//test/pagespeed/kernel/base:pagespeed_gtest"],
+        local = local,
+        shard_count = 1,
+        size = size,
+        data = data,
+    )
+
+
 def pagespeed_cc_test(
         name,
         srcs = [],

@@ -6,10 +6,10 @@ load(
 licenses(["notice"])  # Apache 2
 
 pagespeed_cc_benchmark(
-    name = "cache",
+    name = "base",
     srcs = glob(["*.cc"]),
     deps = [
         "//benchmark",
-        "//pagespeed/kernel/cache",
+        "//pagespeed/kernel/sharedmem:shared_mem",
     ],
 )

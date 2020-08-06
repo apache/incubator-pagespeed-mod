@@ -2,6 +2,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
 load(
     "//bazel:pagespeed_test.bzl",
+    "pagespeed_cc_benchmark",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
@@ -613,14 +614,14 @@ pagespeed_cc_test_library(
     deps = [
         ":rewriter",
         "//net/instaweb/http:http_test_base",
-        "//test/pagespeed/kernel/cache:cache_test_base",
-        "//test/pagespeed/kernel/html:html_test_base",
         "//pagespeed/kernel/http:http_test_base",
         "//pagespeed/kernel/image:image_test_base",
-        "//test/pagespeed/kernel/thread:thread_test_base",
         "//pagespeed/kernel/util:util_test_base",
         "//pagespeed/opt/http:http_test_base",
         "//pagespeed/opt/logging:logging_test_base",
+        "//test/pagespeed/kernel/cache:cache_test_base",
+        "//test/pagespeed/kernel/html:html_test_base",
+        "//test/pagespeed/kernel/thread:thread_test_base",
     ],
 )
 
@@ -650,7 +651,7 @@ pagespeed_cc_test(
     ],
 )
 
-pagespeed_cc_test(
+pagespeed_cc_benchmark(
     name = "rewriter_speed_test",
     srcs = glob(["*_speed_test.cc"]),
     copts = [

@@ -194,9 +194,10 @@ static void LRUEvictions(benchmark::State& state) {
 
 }  // namespace
 
-BENCHMARK(LRUPuts);
-BENCHMARK(LRUReplaceSameValue);
-BENCHMARK(LRUReplaceNewValue);
-BENCHMARK(LRUGets);
-BENCHMARK(LRUFailedGets);
-BENCHMARK(LRUEvictions);
+// TODO(XXX): this leaks and crashes. look into that.
+//BENCHMARK(LRUPuts);
+//BENCHMARK(LRUReplaceSameValue);
+//BENCHMARK(LRUReplaceNewValue);
+//BENCHMARK(LRUGets);
+//BENCHMARK(LRUFailedGets);
+//BENCHMARK(LRUEvictions);

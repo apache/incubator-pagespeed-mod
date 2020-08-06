@@ -1,6 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load(
     "//bazel:pagespeed_test.bzl",
+    "pagespeed_cc_benchmark",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
@@ -119,7 +120,7 @@ pagespeed_cc_test(
     ],
 )
 
-pagespeed_cc_test(
+pagespeed_cc_benchmark(
     name = "util_speed_test",
     srcs = glob(
         ["*speed_test.cc"],
