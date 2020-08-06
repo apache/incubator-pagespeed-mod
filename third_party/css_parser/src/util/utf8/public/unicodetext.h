@@ -26,8 +26,8 @@
 #include <string>    // for string
 #include <utility>   // for pair
 
-#include "base/integral_types.h"  // for char32
-#include "util/utf8/public/config.h"
+#include "third_party/css_parser/src/base/integral_types.h"  // for char32
+#include "third_party/css_parser/src/util/utf8/public/config.h"
 
 // ***************************** UnicodeText **************************
 //

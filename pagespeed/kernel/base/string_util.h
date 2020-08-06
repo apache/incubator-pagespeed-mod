@@ -240,7 +240,7 @@ int GlobalEraseBracketedSubstring(StringPiece left, StringPiece right,
 GoogleString JoinStringStar(const ConstStringStarVector& vector,
                             StringPiece delim);
 
-// See also: ./src/third_party/css_parser/src/strings/ascii_ctype.h
+// See also: ./src/third_party/css_parser/src/third_party/css_parser/src/strings/ascii_ctype.h
 // We probably don't want our core string header file to have a
 // dependecy on the Google CSS parser, so for now we'll write this here:
 

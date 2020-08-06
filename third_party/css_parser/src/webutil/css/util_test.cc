@@ -17,16 +17,16 @@
  * under the License.
  */
 
-#include "webutil/css/util.h"
+#include "third_party/css_parser/src/webutil/css/util.h"
 
 #include <memory>
 #include <string>
 
 #include "base/logging.h"
 #include "test/pagespeed/kernel/base/gtest.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/string.h"
-#include "webutil/html/htmlcolor.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/string.h"
+#include "third_party/css_parser/src/webutil/html/htmlcolor.h"
 
 namespace {
 

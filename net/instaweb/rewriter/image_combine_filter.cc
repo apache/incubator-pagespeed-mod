@@ -58,11 +58,11 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
 #include "pagespeed/kernel/http/image_types.pb.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/identifier.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/property.h"
-#include "webutil/css/value.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/identifier.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/property.h"
+#include "third_party/css_parser/src/webutil/css/value.h"
 
 namespace net_instaweb {
 

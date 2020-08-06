@@ -379,7 +379,8 @@ UserAgentMatcher::UserAgentMatcher()
     StrAppend(&known_devices_pattern_string, dim.device_name);
   }
   StrAppend(&known_devices_pattern_string, ")");
-  known_devices_pattern_ = std::make_unique<RE2>(known_devices_pattern_string);
+  known_devices_pattern_ =
+      std::make_unique<re2::RE2>(known_devices_pattern_string);
 }
 
 UserAgentMatcher::~UserAgentMatcher() {}

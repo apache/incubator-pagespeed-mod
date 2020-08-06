@@ -23,8 +23,8 @@
 #include <string>
 #include <vector>
 
-#include "strings/stringpiece.h"
-#include "webutil/css/string.h"
+#include "third_party/css_parser/src/strings/stringpiece.h"
+#include "third_party/css_parser/src/webutil/css/string.h"
 
 class HtmlColor;
 class UnicodeText;

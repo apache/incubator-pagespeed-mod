@@ -17,15 +17,15 @@
  * under the License.
  */
 
-#include "webutil/css/string_util.h"
+#include "third_party/css_parser/src/webutil/css/string_util.h"
 
 #include <cerrno>
 #include <cstdlib>  // strtod
 #include <cstring>  // memcpy
 
-#include "strings/ascii_ctype.h"  // ascii_tolower
-#include "strings/memutil.h"
-#include "util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/strings/ascii_ctype.h"  // ascii_tolower
+#include "third_party/css_parser/src/strings/memutil.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
 
 namespace Css {
 

@@ -5,10 +5,6 @@ licenses(["notice"])  # Apache 2
 pagespeed_cc_benchmark(
     name = "rewriter",
     srcs = glob(["*.cc"]),
-    copts = [
-        "-Ithird_party/css_parser/src/",
-        "-Ithird_party/css_parser/src/third_party/utf",
-    ],
     deps = [
         "//net/instaweb/rewriter:rewriter_test_base",
         "//test/pagespeed/kernel/base:kernel_test_util",

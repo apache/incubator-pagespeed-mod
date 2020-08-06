@@ -53,8 +53,8 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_writer.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/tostring.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/tostring.h"
 
 namespace net_instaweb {
 

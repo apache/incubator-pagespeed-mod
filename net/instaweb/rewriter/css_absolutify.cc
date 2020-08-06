@@ -27,11 +27,11 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/base/string_writer.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/property.h"
-#include "webutil/css/selector.h"
-#include "webutil/css/value.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/property.h"
+#include "third_party/css_parser/src/webutil/css/selector.h"
+#include "third_party/css_parser/src/webutil/css/value.h"
 
 namespace net_instaweb {
 

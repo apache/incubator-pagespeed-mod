@@ -20,6 +20,6 @@
 #ifndef WEBUTIL_CSS_STRING_H_
 #define WEBUTIL_CSS_STRING_H_
 
-#include "string_using.h"
+#include "third_party/css_parser/src/string_using.h"
 
 #endif  // WEBUTIL_CSS_STRING_H_

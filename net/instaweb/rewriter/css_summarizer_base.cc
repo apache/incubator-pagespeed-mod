@@ -50,7 +50,7 @@
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/data_url.h"
 #include "pagespeed/kernel/util/url_segment_encoder.h"
-#include "webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
 
 namespace net_instaweb {
 

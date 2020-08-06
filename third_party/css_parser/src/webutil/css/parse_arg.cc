@@ -22,7 +22,7 @@
 
 #include <string>
 
-#include "webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
 
 int main(int argc, char** argv) {
   if (argc > 1) {

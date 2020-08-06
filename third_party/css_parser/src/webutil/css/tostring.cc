@@ -17,17 +17,17 @@
  * under the License.
  */
 
-#include "webutil/css/tostring.h"
+#include "third_party/css_parser/src/webutil/css/tostring.h"
 
 #include <string>
 #include <vector>
 
 #include "absl/strings/str_format.h"
-#include "strings/join.h"
-#include "strings/strutil.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/string.h"
-#include "webutil/css/string_util.h"
+#include "third_party/css_parser/src/strings/join.h"
+#include "third_party/css_parser/src/strings/strutil.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/string.h"
+#include "third_party/css_parser/src/webutil/css/string_util.h"
 
 class UnicodeText;
 

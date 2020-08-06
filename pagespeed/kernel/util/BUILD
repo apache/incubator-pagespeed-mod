@@ -9,9 +9,8 @@ licenses(["notice"])  # Apache 2
 
 cc_library(
     name = "util_re2",
-    hdrs = [
-        "re2.h",
-    ],
+    hdrs = ["re2.h"],
+    deps = ["@re2"],
     visibility = ["//visibility:public"],
 )
 

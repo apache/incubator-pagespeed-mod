@@ -246,10 +246,6 @@ cc_library(
     srcs = [
         "html_minifier_main.cc",
     ],
-    copts = [
-        "-Ithird_party/css_parser/src/",
-        "-Ithird_party/css_parser/src/third_party/utf",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         ":rewriter",
@@ -560,10 +556,6 @@ cc_library(
         "public/usage_data_reporter.h",
         "public/webp_optimizer.h",
     ],
-    copts = [
-        "-Ithird_party/css_parser/src/",
-        "-Ithird_party/css_parser/src/third_party/utf",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         ":rewriter_protos_cc",
@@ -633,10 +625,6 @@ filegroup(
 pagespeed_cc_test(
     name = "rewriter_test",
     srcs = glob(["*_test.cc"]),
-    copts = [
-        "-Ithird_party/css_parser/src/",
-        "-Ithird_party/css_parser/src/third_party/utf",
-    ],
     data = [":testdata"],
     deps = [
         ":rewriter_test_base",

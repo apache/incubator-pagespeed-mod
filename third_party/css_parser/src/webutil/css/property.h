@@ -29,8 +29,8 @@
 #include <cmath>
 #include <string>
 
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/string.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/string.h"
 
 // resolving conflict on macro OVERFLOW defined in math.h.
 #ifdef OVERFLOW

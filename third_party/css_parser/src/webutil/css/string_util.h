@@ -25,7 +25,7 @@
 
 #include <vector>
 
-#include "strings/stringpiece.h"
+#include "third_party/css_parser/src/strings/stringpiece.h"
 
 class UnicodeText;
 

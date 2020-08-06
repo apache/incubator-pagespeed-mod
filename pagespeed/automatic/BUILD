@@ -23,9 +23,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//net/instaweb/http",
+        "//net/instaweb/util",
         "//net/instaweb/rewriter",
         "//pagespeed/kernel/base:pagespeed_base",
-        "//pagespeed/kernel/thread",
+        #"//pagespeed/kernel/thread",
     ],
 )
 

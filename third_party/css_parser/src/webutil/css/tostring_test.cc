@@ -17,14 +17,14 @@
  * under the License.
  */
 
-#include "webutil/css/tostring.h"
+#include "third_party/css_parser/src/webutil/css/tostring.h"
 
 #include <memory>
 #include <string>
 
 #include "test/pagespeed/kernel/base/gtest.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/string.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/string.h"
 
 namespace {
 

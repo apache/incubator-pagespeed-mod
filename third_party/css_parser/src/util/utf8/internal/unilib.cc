@@ -17,9 +17,9 @@
  * under the License.
  */
 
-#include "util/utf8/public/unilib.h"
+#include "third_party/css_parser/src/util/utf8/public/unilib.h"
 
-#include "third_party/utf/utf.h"
+#include "third_party/css_parser/src/third_party/utf/utf.h"
 
 namespace UniLib {
 

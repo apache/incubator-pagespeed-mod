@@ -17,11 +17,11 @@
  * under the License.
  */
 
-#include "strings/stringpiece_utils.h"
+#include "third_party/css_parser/src/strings/stringpiece_utils.h"
 
 #include <vector>
 
-#include "strings/ascii_ctype.h"
+#include "third_party/css_parser/src/strings/ascii_ctype.h"
 
 namespace strings {
 

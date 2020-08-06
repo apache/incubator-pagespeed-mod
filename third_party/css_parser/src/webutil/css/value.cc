@@ -17,13 +17,13 @@
  * under the License.
  */
 
-#include "webutil/css/value.h"
+#include "third_party/css_parser/src/webutil/css/value.h"
 
 #include "base/logging.h"
-#include "strings/memutil.h"
-#include "util/gtl/stl_util.h"
-#include "webutil/css/fallthrough_intended.h"
-#include "webutil/html/htmlcolor.h"
+#include "third_party/css_parser/src/strings/memutil.h"
+#include "third_party/css_parser/src/util/gtl/stl_util.h"
+#include "third_party/css_parser/src/webutil/css/fallthrough_intended.h"
+#include "third_party/css_parser/src/webutil/html/htmlcolor.h"
 
 namespace Css {
 

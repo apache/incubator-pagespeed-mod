@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "webutil/html/htmltagenum.h"
+#include "third_party/css_parser/src/webutil/html/htmltagenum.h"
 
 #include "absl/strings/str_format.h"
 

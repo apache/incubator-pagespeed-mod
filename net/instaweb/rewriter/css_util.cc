@@ -26,12 +26,12 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/media.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/property.h"
-#include "webutil/css/selector.h"
-#include "webutil/css/value.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/media.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/property.h"
+#include "third_party/css_parser/src/webutil/css/selector.h"
+#include "third_party/css_parser/src/webutil/css/value.h"
 
 namespace net_instaweb {
 
