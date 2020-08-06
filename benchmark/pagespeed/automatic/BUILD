@@ -7,7 +7,7 @@ pagespeed_cc_benchmark(
     srcs = glob(["*.cc"]),
     data = ["//test/net/instaweb/rewriter:testdata"],
     deps = [
-        "//pagespeed/automatic:static_rewriter",
+        "//pagespeed/automatic:static_rewriter_lib",
         "//benchmark",
     ],
 )

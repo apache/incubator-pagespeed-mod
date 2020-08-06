@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/automatic/proxy_interface_test_base.h"
+#include "test/pagespeed/automatic/proxy_interface_test_base.h"
 
 #include <cstddef>
 #include <memory>

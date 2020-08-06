@@ -1,11 +1,21 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 licenses(["notice"])  # Apache 2
+
+cc_library(
+    name = "static_rewriter_lib",
+    srcs = ["static_rewriter.cc"],
+    hdrs = ["static_rewriter.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//pagespeed/system"],
+
+)
+
+cc_binary(
+    name = "static_rewriter",
+    srcs = ["static_rewriter_main.cc"],
+    deps = ["//pagespeed/automatic:static_rewriter_lib"],
+)
 
 cc_library(
     name = "automatic",
@@ -23,47 +33,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//net/instaweb/http",
-        "//net/instaweb/util",
         "//net/instaweb/rewriter",
-        "//pagespeed/kernel/base:pagespeed_base",
-        #"//pagespeed/kernel/thread",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "automatic_test_base",
-    srcs = [
-        "proxy_interface_test_base.cc",
-    ],
-    hdrs = [
-        "proxy_interface_test_base.h",
-    ],
-    deps = [
-        ":automatic",
-        "//test/net/instaweb/rewriter:test_base",
-        "//test/pagespeed/kernel/base:kernel_test_util",
-        "//test/pagespeed/kernel/util:util_test_base",
-    ],
-)
-
-pagespeed_cc_test_library(
-    name = "static_rewriter",
-    srcs = [
-        "static_rewriter.cc",
-    ],
-    hdrs = [
-        "static_rewriter.h",
-    ],
-    deps = [
-        "//pagespeed/system",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "automatic_test",
-    srcs = glob(["*_test.cc"]),
-    data = ["//test/net/instaweb/rewriter:testdata"],
-    deps = [
-        ":automatic_test_base",
+        "//net/instaweb/util",
     ],
 )

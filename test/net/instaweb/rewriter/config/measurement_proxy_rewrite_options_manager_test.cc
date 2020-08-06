@@ -25,7 +25,7 @@
 #include "net/instaweb/rewriter/public/rewrite_options.h"
 #include "net/instaweb/rewriter/public/server_context.h"
 #include "net/instaweb/rewriter/public/url_namer.h"
-#include "pagespeed/automatic/proxy_interface_test_base.h"
+#include "test/pagespeed/automatic/proxy_interface_test_base.h"
 #include "pagespeed/kernel/base/callback.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
