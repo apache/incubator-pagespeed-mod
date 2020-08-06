@@ -613,14 +613,14 @@ pagespeed_cc_test_library(
     deps = [
         ":rewriter",
         "//net/instaweb/http:http_test_base",
-        "//pagespeed/kernel/cache:cache_test_base",
-        "//pagespeed/kernel/html:html_test_base",
         "//pagespeed/kernel/http:http_test_base",
         "//pagespeed/kernel/image:image_test_base",
-        "//pagespeed/kernel/thread:thread_test_base",
         "//pagespeed/kernel/util:util_test_base",
         "//pagespeed/opt/http:http_test_base",
         "//pagespeed/opt/logging:logging_test_base",
+        "//test/pagespeed/kernel/cache:cache_test_base",
+        "//test/pagespeed/kernel/html:html_test_base",
+        "//test/pagespeed/kernel/thread:thread_test_base",
     ],
 )
 
@@ -632,14 +632,7 @@ filegroup(
 
 pagespeed_cc_test(
     name = "rewriter_test",
-    srcs = glob(
-        ["*_test.cc"],
-        exclude = glob(
-            [
-                "*_speed_test.cc",
-            ],
-        ),
-    ),
+    srcs = glob(["*_test.cc"]),
     copts = [
         "-Ithird_party/css_parser/src/",
         "-Ithird_party/css_parser/src/third_party/utf",
@@ -647,24 +640,5 @@ pagespeed_cc_test(
     data = [":testdata"],
     deps = [
         ":rewriter_test_base",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "rewriter_speed_test",
-    srcs = glob(["*_speed_test.cc"]),
-    copts = [
-        "-Ithird_party/css_parser/src/",
-        "-Ithird_party/css_parser/src/third_party/utf",
-    ],
-    data = [":testdata"],
-    shard_count = 1,
-    deps = [
-        # automatic and system are just for proto.
-        # see if we can separate those, and link those separately.
-        ":rewriter_test_base",
-        "//pagespeed/automatic",
-        "//benchmark",
-        "//pagespeed/system",
     ],
 )

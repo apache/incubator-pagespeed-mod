@@ -51,10 +51,8 @@
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/delay_cache.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
-#include "pagespeed/kernel/cache/mock_time_cache.h"
 #include "pagespeed/kernel/cache/threadsafe_cache.h"
 #include "pagespeed/kernel/html/html_filter.h"
-#include "pagespeed/kernel/thread/mock_scheduler.h"
 #include "pagespeed/kernel/thread/scheduler.h"
 #include "pagespeed/kernel/util/mock_nonce_generator.h"
 #include "pagespeed/kernel/util/nonce_generator.h"
@@ -64,6 +62,8 @@
 #include "test/pagespeed/kernel/base/mock_hasher.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
+#include "test/pagespeed/kernel/cache/mock_time_cache.h"
+#include "test/pagespeed/kernel/thread/mock_scheduler.h"
 
 namespace net_instaweb {
 

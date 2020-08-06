@@ -99,7 +99,7 @@ pagespeed_cc_test_library(
     ],
     deps = [
         ":controller",
-        "//pagespeed/kernel/thread:thread_test_base",
+        "//test/pagespeed/kernel/thread:thread_test_base",
         "//pagespeed/kernel/util",
     ],
 )

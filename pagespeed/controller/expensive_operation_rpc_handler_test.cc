@@ -26,10 +26,10 @@
 #include "pagespeed/controller/grpc_server_test.h"
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/util/grpc.h"
 #include "test/pagespeed/kernel/base/gmock.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 using testing::_;
 using testing::DoAll;

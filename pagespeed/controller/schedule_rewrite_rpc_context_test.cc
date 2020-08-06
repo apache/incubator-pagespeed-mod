@@ -31,12 +31,12 @@
 #include "pagespeed/kernel/base/string_util.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
 #include "pagespeed/kernel/thread/sequence.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/util/grpc.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "test/pagespeed/kernel/base/gmock.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/message_handler_test_base.h"
+#include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 using testing::_;
 using testing::Eq;

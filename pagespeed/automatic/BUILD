@@ -40,8 +40,8 @@ pagespeed_cc_test_library(
     deps = [
         ":automatic",
         "//net/instaweb/rewriter:rewriter_test_base",
-        "//test/pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
+        "//test/pagespeed/kernel/base:kernel_test_util",
     ],
 )
 
@@ -60,23 +60,9 @@ pagespeed_cc_test_library(
 
 pagespeed_cc_test(
     name = "automatic_test",
-    srcs = glob(
-        ["*_test.cc"],
-        exclude = glob(["*speed_test.cc"]),
-    ),
+    srcs = glob(["*_test.cc"]),
     data = ["//net/instaweb/rewriter:testdata"],
     deps = [
         ":automatic_test_base",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "automatic_speed_test",
-    srcs = glob(["*_speed_test.cc"]),
-    data = ["//net/instaweb/rewriter:testdata"],
-    shard_count = 1,
-    deps = [
-        ":static_rewriter",
-        "//benchmark",
     ],
 )

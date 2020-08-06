@@ -19,7 +19,7 @@ index e39c334..ffd8bfa 100644
  }
  
 -int main(int argc, const char** argv) {
-+int renamed_main(int argc, const char** argv) {
++int main(int argc, const char** argv) {
    for (int i = 0; i < nbenchmarks; i++) {
      Benchmark* b = benchmarks[i];
      if (!WantBench(b->name(), argc, argv))
