@@ -63,3 +63,11 @@ pagespeed_cc_test(
         "//test/net/instaweb/rewriter:test_base",
     ],
 )
+
+pagespeed_cc_test(
+    name = "rewriter_config",
+    srcs = glob(["config/*_test.cc"]),
+    deps = [
+        "//pagespeed/automatic:automatic_test_base",
+    ],
+)
