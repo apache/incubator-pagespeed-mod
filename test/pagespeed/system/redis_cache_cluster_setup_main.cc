@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/system/redis_cache_cluster_setup.h"
+#include "test/pagespeed/system/redis_cache_cluster_setup.h"
 
 // Lint complains if I put 'using namespace net_instaweb' even in main(), so
 // adding this instead.

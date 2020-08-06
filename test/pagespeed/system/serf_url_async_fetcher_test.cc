@@ -52,9 +52,9 @@
 #include "pagespeed/kernel/util/gzip_inflater.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
-#include "pagespeed/system/tcp_server_thread_for_testing.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
+#include "test/pagespeed/system/tcp_server_thread_for_testing.h"
 
 namespace {
 

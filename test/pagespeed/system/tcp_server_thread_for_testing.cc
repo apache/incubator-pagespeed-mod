@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/system/tcp_server_thread_for_testing.h"
+#include "test/pagespeed/system/tcp_server_thread_for_testing.h"
 
 #include <sys/socket.h>
 

@@ -36,11 +36,11 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "pagespeed/system/redis_cache.h"
-#include "pagespeed/system/redis_cache_cluster_setup.h"
-#include "pagespeed/system/tcp_connection_for_testing.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
 #include "test/pagespeed/kernel/cache/cache_test_base.h"
+#include "test/pagespeed/system/redis_cache_cluster_setup.h"
+#include "test/pagespeed/system/tcp_connection_for_testing.h"
 
 namespace net_instaweb {
 

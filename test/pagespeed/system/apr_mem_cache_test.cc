@@ -48,13 +48,13 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "pagespeed/system/external_server_spec.h"
-#include "pagespeed/system/tcp_server_thread_for_testing.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_hasher.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
 #include "test/pagespeed/kernel/cache/cache_spammer.h"
 #include "test/pagespeed/kernel/cache/cache_test_base.h"
 #include "test/pagespeed/kernel/thread/blocking_callback.h"
+#include "test/pagespeed/system/tcp_server_thread_for_testing.h"
 
 namespace net_instaweb {
 

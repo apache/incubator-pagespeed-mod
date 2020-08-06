@@ -19,19 +19,18 @@
 
 // Unit-test the redis interface in conjunction with Redis Cluster
 
-#include "pagespeed/system/redis_cache_cluster_setup.h"
+#include "test/pagespeed/system/redis_cache_cluster_setup.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 
 #include "base/logging.h"
-//#include "strings/stringpiece_utils.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/system/tcp_connection_for_testing.h"
+#include "test/pagespeed/system/tcp_connection_for_testing.h"
 
 namespace net_instaweb {
 

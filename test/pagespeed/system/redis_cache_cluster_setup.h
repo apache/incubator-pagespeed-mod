@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "pagespeed/kernel/base/string_util.h"
-#include "pagespeed/system/tcp_connection_for_testing.h"
+#include "test/pagespeed/system/tcp_connection_for_testing.h"
 
 namespace net_instaweb {
 
