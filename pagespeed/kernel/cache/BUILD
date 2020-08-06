@@ -68,8 +68,7 @@ pagespeed_cc_test_library(
         "mock_time_cache.h",
     ],
     deps = [
-        ":cache",
-        "//benchmark",
+        "//pagespeed/kernel/cache",
         "//test/pagespeed/kernel/base:kernel_test_util",
         "//pagespeed/kernel/util:util_test_base",
     ],
@@ -78,8 +77,7 @@ pagespeed_cc_test_library(
 pagespeed_cc_test(
     name = "cache_test",
     srcs = glob(
-        ["*_test.cc"],
-        exclude = glob(["*_speed_test.cc"]),
+        ["*_test.cc"]
     ),
     deps = [
         ":cache",
@@ -87,12 +85,3 @@ pagespeed_cc_test(
     ],
 )
 
-pagespeed_cc_test(
-    name = "cache_speed_test",
-    srcs = glob(["*_speed_test.cc"]),
-    deps = [
-        ":cache",
-        ":cache_test_base",
-        "//benchmark",
-    ],
-)
