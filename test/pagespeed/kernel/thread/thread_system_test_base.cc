@@ -19,7 +19,7 @@
 
 // This contains very basic smoke tests for ThreadSystem subclass operation
 
-#include "pagespeed/kernel/thread/thread_system_test_base.h"
+#include "test/pagespeed/kernel/thread/thread_system_test_base.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"  // for ScopedMutex, etc
 #include "pagespeed/kernel/base/condvar.h"

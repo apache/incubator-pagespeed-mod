@@ -30,7 +30,7 @@
 #include "pagespeed/kernel/base/proto_matcher.h"
 #include "pagespeed/kernel/base/proto_util.h"
 #include "pagespeed/kernel/base/string.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
+#include "test/pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/util/grpc.h"
 
 using testing::_;

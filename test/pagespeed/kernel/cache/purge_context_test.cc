@@ -27,7 +27,6 @@
 #include "pagespeed/kernel/base/scoped_ptr.h"
 #include "pagespeed/kernel/base/statistics.h"
 #include "pagespeed/kernel/base/thread_system.h"
-#include "pagespeed/kernel/thread/mock_scheduler.h"
 #include "pagespeed/kernel/thread/scheduler_based_abstract_lock.h"
 #include "pagespeed/kernel/util/file_system_lock_manager.h"
 #include "pagespeed/kernel/util/platform.h"
@@ -37,6 +36,7 @@
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
 #include "test/pagespeed/kernel/base/named_lock_tester.h"
+#include "test/pagespeed/kernel/thread/mock_scheduler.h"
 
 namespace {
 

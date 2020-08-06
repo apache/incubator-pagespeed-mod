@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/thread/mock_scheduler.h"
+#include "test/pagespeed/kernel/thread/mock_scheduler.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/basictypes.h"

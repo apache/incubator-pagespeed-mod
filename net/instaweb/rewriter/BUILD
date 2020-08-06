@@ -617,7 +617,7 @@ pagespeed_cc_test_library(
         "//pagespeed/kernel/html:html_test_base",
         "//pagespeed/kernel/http:http_test_base",
         "//pagespeed/kernel/image:image_test_base",
-        "//pagespeed/kernel/thread:thread_test_base",
+        "//test/pagespeed/kernel/thread:thread_test_base",
         "//pagespeed/kernel/util:util_test_base",
         "//pagespeed/opt/http:http_test_base",
         "//pagespeed/opt/logging:logging_test_base",

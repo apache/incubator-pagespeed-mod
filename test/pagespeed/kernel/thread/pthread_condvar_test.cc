@@ -26,9 +26,9 @@
 #include "pagespeed/kernel/base/posix_timer.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/thread/condvar_test_base.h"
 #include "pagespeed/kernel/thread/pthread_mutex.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/thread/condvar_test_base.h"
 
 namespace net_instaweb {
 

@@ -24,9 +24,9 @@
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 

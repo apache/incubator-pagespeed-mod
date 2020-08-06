@@ -58,11 +58,11 @@
 #include "pagespeed/kernel/http/request_headers.h"
 #include "pagespeed/kernel/http/semantic_type.h"
 #include "pagespeed/kernel/http/user_agent_matcher_test_base.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/opt/logging/log_record.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 #include "test/pagespeed/kernel/base/mock_timer.h"
+#include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 namespace net_instaweb {
 

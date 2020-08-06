@@ -19,8 +19,8 @@
 
 #include "pagespeed/kernel/thread/pthread_thread_system.h"
 
-#include "pagespeed/kernel/thread/thread_system_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/thread/thread_system_test_base.h"
 
 namespace net_instaweb {
 

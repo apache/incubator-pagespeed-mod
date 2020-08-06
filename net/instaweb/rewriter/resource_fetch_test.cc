@@ -35,8 +35,8 @@
 #include "pagespeed/kernel/html/html_parse_test_base.h"
 #include "pagespeed/kernel/http/content_type.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "pagespeed/kernel/thread/mock_scheduler.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/thread/mock_scheduler.h"
 
 namespace net_instaweb {
 

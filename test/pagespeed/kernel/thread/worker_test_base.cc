@@ -20,7 +20,7 @@
 // This contains things that are common between unit tests for Worker and its
 // subclasses, such as runtime creation and various closures.
 
-#include "pagespeed/kernel/thread/worker_test_base.h"
+#include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 #include "pagespeed/kernel/base/abstract_mutex.h"
 #include "pagespeed/kernel/base/thread_system.h"

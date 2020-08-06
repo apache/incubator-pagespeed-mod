@@ -34,12 +34,12 @@
 #include "pagespeed/kernel/cache/threadsafe_cache.h"
 #include "pagespeed/kernel/cache/write_through_cache.h"
 #include "pagespeed/kernel/thread/queued_worker_pool.h"
-#include "pagespeed/kernel/thread/worker_test_base.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/cache/cache_batcher_testing_peer.h"
 #include "test/pagespeed/kernel/cache/cache_test_base.h"
+#include "test/pagespeed/kernel/thread/worker_test_base.h"
 
 namespace {
 const size_t kMaxSize = 100;

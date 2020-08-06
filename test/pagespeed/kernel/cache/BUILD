@@ -15,7 +15,7 @@ pagespeed_cc_test_library(
     hdrs = glob(["*.h"]),
     deps = [
         "//pagespeed/kernel/cache",
-        "//pagespeed/kernel/thread:thread_test_base",
+        "//test/pagespeed/kernel/thread:thread_test_base",
         "//test/pagespeed/kernel/base:pagespeed_gtest",
     ],
 )
