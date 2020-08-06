@@ -2,7 +2,6 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
 load(
     "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_benchmark",
     "pagespeed_cc_test",
     "pagespeed_cc_test_library",
 )
@@ -633,14 +632,7 @@ filegroup(
 
 pagespeed_cc_test(
     name = "rewriter_test",
-    srcs = glob(
-        ["*_test.cc"],
-        exclude = glob(
-            [
-                "*_speed_test.cc",
-            ],
-        ),
-    ),
+    srcs = glob(["*_test.cc"]),
     copts = [
         "-Ithird_party/css_parser/src/",
         "-Ithird_party/css_parser/src/third_party/utf",
@@ -648,24 +640,5 @@ pagespeed_cc_test(
     data = [":testdata"],
     deps = [
         ":rewriter_test_base",
-    ],
-)
-
-pagespeed_cc_benchmark(
-    name = "rewriter_speed_test",
-    srcs = glob(["*_speed_test.cc"]),
-    copts = [
-        "-Ithird_party/css_parser/src/",
-        "-Ithird_party/css_parser/src/third_party/utf",
-    ],
-    data = [":testdata"],
-    shard_count = 1,
-    deps = [
-        # automatic and system are just for proto.
-        # see if we can separate those, and link those separately.
-        ":rewriter_test_base",
-        "//pagespeed/automatic",
-        "//benchmark",
-        "//pagespeed/system",
     ],
 )
