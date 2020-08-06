@@ -75,7 +75,7 @@
 #include "pagespeed/kernel/util/simple_random.h"
 #include "pagespeed/opt/logging/enums.pb.h"
 #include "pagespeed/opt/logging/log_record.h"
-#include "webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
 
 namespace net_instaweb {
 

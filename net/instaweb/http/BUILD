@@ -34,9 +34,6 @@ cc_library(
         "wget_url_fetcher.cc",
     ],
     hdrs = glob(["public/*.h"]),
-    copts = [
-        "-std=c++17",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//pagespeed/kernel/http",

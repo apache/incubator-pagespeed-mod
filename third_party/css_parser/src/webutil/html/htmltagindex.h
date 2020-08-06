@@ -33,10 +33,10 @@
 #include <memory>
 #include <string>
 
-#include "string_using.h"
-#include "strings/stringpiece.h"
-#include "util/gtl/dense_hash_map.h"
-#include "webutil/html/htmltagenum.h"
+#include "third_party/css_parser/src/string_using.h"
+#include "third_party/css_parser/src/strings/stringpiece.h"
+#include "third_party/css_parser/src/util/gtl/dense_hash_map.h"
+#include "third_party/css_parser/src/webutil/html/htmltagenum.h"
 
 class HtmlTagIndex {
  public:

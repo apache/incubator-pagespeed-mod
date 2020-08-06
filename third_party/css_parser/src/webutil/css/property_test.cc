@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "webutil/css/property.h"
+#include "third_party/css_parser/src/webutil/css/property.h"
 
 #include "test/pagespeed/kernel/base/gtest.h"
 

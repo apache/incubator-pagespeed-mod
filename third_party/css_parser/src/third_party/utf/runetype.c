@@ -30,8 +30,8 @@
  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
-#include "third_party/utf/utf.h"
-#include "third_party/utf/utfdef.h"
+#include "third_party/css_parser/src/third_party/utf/utf.h"
+#include "third_party/css_parser/src/third_party/utf/utfdef.h"
 
 static
 Rune*
@@ -86,4 +86,4 @@ isideographicrune(Rune c)
 	return 0;
 }
 
-#include "third_party/utf/runetypebody.c"
+#include "third_party/css_parser/src/third_party/utf/runetypebody.c"

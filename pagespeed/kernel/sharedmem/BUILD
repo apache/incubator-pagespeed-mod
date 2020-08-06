@@ -28,13 +28,6 @@ cc_library(
         "shared_mem_lock_manager.h",
         "shared_mem_statistics.h",
     ],
-    copts = [
-        "-Werror",
-        "-Wno-macro-redefined",
-        "-Wno-thread-safety-attributes",
-        "-Wno-thread-safety-precise",
-        "-Wno-unused-local-typedef",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         ":shared_mem_cache_shapshot_proto_cc",

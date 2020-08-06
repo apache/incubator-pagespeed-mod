@@ -24,7 +24,7 @@
 #include "pagespeed/kernel/base/string.h"
 #include "pagespeed/kernel/base/string_writer.h"
 #include "test/pagespeed/kernel/base/gtest.h"
-#include "webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
 
 namespace net_instaweb {
 

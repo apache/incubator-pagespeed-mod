@@ -17,14 +17,14 @@
  * under the License.
  */
 
-#include "webutil/html/htmltagindex.h"
+#include "third_party/css_parser/src/webutil/html/htmltagindex.h"
 
 #include <memory>
 #include <utility>
 
 #include "base/logging.h"
-#include "strings/ascii_ctype.h"
-#include "util/gtl/dense_hash_map.h"
+#include "third_party/css_parser/src/strings/ascii_ctype.h"
+#include "third_party/css_parser/src/util/gtl/dense_hash_map.h"
 
 // Assert character properties that the fast path depends on.
 //   (Uppercase letter | 0x20) == lowercase letter

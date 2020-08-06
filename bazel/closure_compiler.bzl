@@ -36,7 +36,7 @@ def closure_compiler_gen(name, js_src, js_includes = [], js_dir = [], entry_poin
                js_entry_points +
                js_externs +
                 " --dependency_mode STRICT" +
-               " --warning_level VERBOSE" +
+               #" --warning_level VERBOSE" +
                " --jscomp_off=checkVars" +
                " --generate_exports" +
                " --output_wrapper=\"(function(){%output%})();\"" +
@@ -73,7 +73,7 @@ def closure_compiler_without_dependency_mode(name, js_src, js_includes = [], js_
                    js_include_str +
                    BUILD_FLAGS +
                    js_externs +
-                   " --warning_level VERBOSE" +
+                   #" --warning_level VERBOSE" +
                    " --jscomp_off=checkVars" +
                    " --generate_exports" +
                    " --output_wrapper=\"(function(){%output%})();\""),

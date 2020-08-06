@@ -108,8 +108,9 @@ using absl::StartsWith;
 // Quick macro to get the size of a static char[] without trailing '\0'.
 // Note: Cannot be used for char*, std::string, etc.
 
+#ifndef STATIC_STRLEN
 #define STATIC_STRLEN(static_string) (arraysize(static_string) - 1)
-
+#endif
 namespace net_instaweb {
 
 struct StringCompareInsensitive;
@@ -240,7 +241,7 @@ int GlobalEraseBracketedSubstring(StringPiece left, StringPiece right,
 GoogleString JoinStringStar(const ConstStringStarVector& vector,
                             StringPiece delim);
 
-// See also: ./src/third_party/css_parser/src/strings/ascii_ctype.h
+// See also: ./src/third_party/css_parser/src/third_party/css_parser/src/strings/ascii_ctype.h
 // We probably don't want our core string header file to have a
 // dependecy on the Google CSS parser, so for now we'll write this here:
 

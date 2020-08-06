@@ -35,10 +35,10 @@
 #include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/kernel/html/html_parse.h"
 #include "test/pagespeed/kernel/base/gtest.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/media.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/selector.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/media.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/selector.h"
 
 namespace net_instaweb {
 

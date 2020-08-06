@@ -49,7 +49,7 @@
 #include "test/pagespeed/kernel/base/gtest.h"
 #include "test/pagespeed/kernel/base/mock_message_handler.h"
 #include "test/pagespeed/kernel/html/html_parse_test_base.h"
-#include "webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
 
 namespace net_instaweb {
 

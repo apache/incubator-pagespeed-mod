@@ -9,8 +9,6 @@ cc_library(
         "jpeglib.h",
         "jpeglibmangler.h",
     ],
-    copts = [
-    ],
     visibility = ["//visibility:public"],
 )
 
@@ -91,8 +89,6 @@ cc_library(
         "jdmrgext.c",
         "jdmrg565.c",
         "jdcol565.c",        
-    ],
-    copts = [
     ],
     deps = [":libjpeg_headers"],
     visibility = ["//visibility:public"],

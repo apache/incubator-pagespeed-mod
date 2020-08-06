@@ -27,8 +27,8 @@
 #include <string>
 #include <vector>
 
-#include "strings/stringpiece.h"
-#include "util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/strings/stringpiece.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
 
 namespace Css {
 

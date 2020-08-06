@@ -20,7 +20,7 @@
 #ifndef MEMUTIL_H_
 #define MEMUTIL_H_
 
-#include "strings/ascii_ctype.h"
+#include "third_party/css_parser/src/strings/ascii_ctype.h"
 
 // The ""'s catch people who don't pass in a literal for "str"
 #define strliterallen(str) (sizeof("" str "") - 1)

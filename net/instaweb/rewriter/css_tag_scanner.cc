@@ -33,7 +33,7 @@
 #include "pagespeed/kernel/html/html_element.h"
 #include "pagespeed/kernel/html/html_name.h"
 #include "pagespeed/kernel/http/google_url.h"
-#include "webutil/css/tostring.h"
+#include "third_party/css_parser/src/webutil/css/tostring.h"
 
 namespace {
 const char kTextCss[] = "text/css";

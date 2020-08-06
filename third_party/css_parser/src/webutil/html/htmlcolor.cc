@@ -21,15 +21,15 @@
 //
 // .cc for the HtmlColor class
 
-#include "webutil/html/htmlcolor.h"
+#include "third_party/css_parser/src/webutil/html/htmlcolor.h"
 
 #include <cmath>
 #include <cstring>
 
 #include "absl/strings/str_format.h"
-#include "strings/ascii_ctype.h"
-#include "strings/case.h"
-#include "strings/escaping.h"
+#include "third_party/css_parser/src/strings/ascii_ctype.h"
+#include "third_party/css_parser/src/strings/case.h"
+#include "third_party/css_parser/src/strings/escaping.h"
 
 typedef struct RgbValue {
   unsigned char r_;

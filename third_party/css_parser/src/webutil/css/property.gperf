@@ -36,11 +36,11 @@
 * specific language governing permissions and limitations
 * under the License.
 */
-#include "webutil/css/property.h"
+#include "third_party/css_parser/src/webutil/css/property.h"
 
-#include "base/googleinit.h"
+#include "third_party/css_parser/src/base/googleinit.h"
 #include "base/logging.h"
-#include "webutil/css/string_util.h"
+#include "third_party/css_parser/src/webutil/css/string_util.h"
 
 namespace Css {
 %}

@@ -33,8 +33,8 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
-#include "third_party/utf/utf.h"
-#include "third_party/utf/utfdef.h"
+#include "third_party/css_parser/src/third_party/utf/utf.h"
+#include "third_party/css_parser/src/third_party/utf/utfdef.h"
 
 Rune*
 runestrdup(const Rune *s) 

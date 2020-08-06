@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
 
 #include <memory>
 

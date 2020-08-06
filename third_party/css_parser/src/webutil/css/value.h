@@ -25,11 +25,11 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "strings/stringpiece.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/identifier.h"
-#include "webutil/css/string.h"
-#include "webutil/html/htmlcolor.h"
+#include "third_party/css_parser/src/strings/stringpiece.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/identifier.h"
+#include "third_party/css_parser/src/webutil/css/string.h"
+#include "third_party/css_parser/src/webutil/html/htmlcolor.h"
 
 // resolving conflict on macro HZ defined elsewhere.
 #ifdef HZ

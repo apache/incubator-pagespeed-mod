@@ -24,11 +24,11 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "strings/stringpiece.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/string.h"
-#include "webutil/html/htmltagenum.h"
-#include "webutil/html/htmltagindex.h"
+#include "third_party/css_parser/src/strings/stringpiece.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/string.h"
+#include "third_party/css_parser/src/webutil/html/htmltagenum.h"
+#include "third_party/css_parser/src/webutil/html/htmltagindex.h"
 
 namespace Css {
 

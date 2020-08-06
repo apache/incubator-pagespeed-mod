@@ -32,8 +32,8 @@
  */
 #include <stdarg.h>
 #include <string.h>
-#include "third_party/utf/utf.h"
-#include "third_party/utf/utfdef.h"
+#include "third_party/css_parser/src/third_party/utf/utf.h"
+#include "third_party/css_parser/src/third_party/utf/utfdef.h"
 
 Rune*
 runestrecpy(Rune *s1, Rune *es1, const Rune *s2)

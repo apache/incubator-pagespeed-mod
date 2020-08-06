@@ -35,12 +35,7 @@ cc_library(
         "src/third_party/utf/runetypebody.c",
         "src/third_party/utf/utf.h",
         "src/third_party/utf/utfdef.h",
-    ],
-    copts = [
-        "-Ithird_party/css_parser/src/",
-        "-Ithird_party/css_parser/src/third_party/utf",
-        "-funsigned-char",
-    ],
+    ]
 )
 
 genrule(
@@ -65,11 +60,6 @@ pagespeed_cc_test(
         "src/webutil/css/property_test.cc",
         "src/webutil/css/tostring_test.cc",
         "src/webutil/css/util_test.cc",
-    ],
-    copts = [
-        "-Ithird_party/css_parser/src",
-        "-Ithird_party/css_parser/src/base",
-        "-Ithird_party/css_parser/src/third_party/utf",
     ],
     deps = [
         ":css_parser",
@@ -132,9 +122,6 @@ cc_library(
         "src/util/utf8/public/unilib_utf8_utils.h",
     ] + glob(["src/util/gtl/*.h"]),
     copts = [
-        "-Ithird_party/css_parser/src",
-        "-Ithird_party/css_parser/src/base",
-        "-Ithird_party/css_parser/src/third_party/utf",
         "-funsigned-char",
     ],
     visibility = ["//visibility:public"],

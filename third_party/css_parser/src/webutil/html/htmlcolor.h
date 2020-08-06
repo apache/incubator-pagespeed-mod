@@ -32,8 +32,8 @@
 
 #include <string>
 
-#include "string_using.h"
-#include "strings/stringpiece.h"
+#include "third_party/css_parser/src/string_using.h"
+#include "third_party/css_parser/src/strings/stringpiece.h"
 
 class HtmlColor {
  private:

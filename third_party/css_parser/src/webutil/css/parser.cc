@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
 
 #include <algorithm>  // std::min
 #include <cctype>     // isascii
@@ -27,15 +27,15 @@
 
 #include "absl/strings/str_format.h"
 #include "base/logging.h"
-#include "strings/strutil.h"
-#include "third_party/utf/utf.h"
-#include "util/gtl/stl_util.h"
-#include "util/utf8/public/unicodetext.h"
-#include "util/utf8/public/unilib.h"
-#include "webutil/css/fallthrough_intended.h"  // Needed in open source
-#include "webutil/css/string_util.h"
-#include "webutil/css/util.h"
-#include "webutil/css/value.h"
+#include "third_party/css_parser/src/strings/strutil.h"
+#include "third_party/css_parser/src/third_party/utf/utf.h"
+#include "third_party/css_parser/src/util/gtl/stl_util.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/util/utf8/public/unilib.h"
+#include "third_party/css_parser/src/webutil/css/fallthrough_intended.h"  // Needed in open source
+#include "third_party/css_parser/src/webutil/css/string_util.h"
+#include "third_party/css_parser/src/webutil/css/util.h"
+#include "third_party/css_parser/src/webutil/css/value.h"
 
 namespace Css {
 

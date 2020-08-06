@@ -17,9 +17,9 @@
  * under the License.
  */
 
-#include "webutil/css/selector.h"
+#include "third_party/css_parser/src/webutil/css/selector.h"
 
-#include "util/gtl/stl_util.h"
+#include "third_party/css_parser/src/util/gtl/stl_util.h"
 
 namespace Css {
 

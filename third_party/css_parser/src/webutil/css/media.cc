@@ -17,9 +17,9 @@
  * under the License.
  */
 
-#include "webutil/css/media.h"
+#include "third_party/css_parser/src/webutil/css/media.h"
 
-#include "util/gtl/stl_util.h"
+#include "third_party/css_parser/src/util/gtl/stl_util.h"
 
 namespace Css {
 

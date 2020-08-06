@@ -17,16 +17,16 @@
  * under the License.
  */
 
-#include "webutil/css/util.h"
+#include "third_party/css_parser/src/webutil/css/util.h"
 
-#include "strings/ascii_ctype.h"
-#include "strings/memutil.h"
-#include "strings/stringpiece_utils.h"
-#include "strings/strutil.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/media.h"
-#include "webutil/css/parser.h"
-#include "webutil/css/string_util.h"
+#include "third_party/css_parser/src/strings/ascii_ctype.h"
+#include "third_party/css_parser/src/strings/memutil.h"
+#include "third_party/css_parser/src/strings/stringpiece_utils.h"
+#include "third_party/css_parser/src/strings/strutil.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/media.h"
+#include "third_party/css_parser/src/webutil/css/parser.h"
+#include "third_party/css_parser/src/webutil/css/string_util.h"
 
 // XXX(oschaaf):
 /*

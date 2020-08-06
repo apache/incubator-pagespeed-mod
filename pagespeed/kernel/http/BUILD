@@ -77,7 +77,6 @@ cc_library(
         "//pagespeed/kernel/util:util_re2",
         "@com_googlesource_googleurl//url",
         "@drp",
-        "@re2",
     ],
 )
 

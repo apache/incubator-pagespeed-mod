@@ -28,7 +28,7 @@
 #ifndef WEBUTIL_CSS_IDENTIFIER_H__
 #define WEBUTIL_CSS_IDENTIFIER_H__
 
-#include "util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
 
 namespace Css {
 

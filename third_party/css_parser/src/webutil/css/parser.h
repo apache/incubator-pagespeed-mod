@@ -25,14 +25,14 @@
 #include <vector>
 
 #include "pagespeed/kernel/base/gtest_prod.h"
-#include "strings/stringpiece.h"
-#include "util/utf8/public/unicodetext.h"
-#include "webutil/css/media.h"
-#include "webutil/css/property.h"  // while these CSS includes can be
-#include "webutil/css/selector.h"  // forward-declared, who is really
-#include "webutil/css/string.h"
-#include "webutil/css/value.h"  // going to want parser.h but not values.h?
-#include "webutil/html/htmlcolor.h"
+#include "third_party/css_parser/src/strings/stringpiece.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/webutil/css/media.h"
+#include "third_party/css_parser/src/webutil/css/property.h"  // while these CSS includes can be
+#include "third_party/css_parser/src/webutil/css/selector.h"  // forward-declared, who is really
+#include "third_party/css_parser/src/webutil/css/string.h"
+#include "third_party/css_parser/src/webutil/css/value.h"  // going to want parser.h but not values.h?
+#include "third_party/css_parser/src/webutil/html/htmlcolor.h"
 
 namespace Css {
 

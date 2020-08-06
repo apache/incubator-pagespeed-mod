@@ -17,17 +17,17 @@
  * under the License.
  */
 
-#include "util/utf8/public/unicodetext.h"
+#include "third_party/css_parser/src/util/utf8/public/unicodetext.h"
 
 #include <algorithm>  // for max
 #include <cstring>    // for memcpy, NULL, memcmp, etc
 
 #include "absl/strings/str_format.h"
-#include "base/logging.h"                        // for operator<<, CHECK, etc
-#include "strings/stringpiece.h"                 // for CssStringPiece, etc
-#include "third_party/utf/utf.h"                 // for isvalidcharntorune, etc
-#include "util/utf8/public/unilib.h"             // for IsInterchangeValid, etc
-#include "util/utf8/public/unilib_utf8_utils.h"  // for OneCharLen
+#include "base/logging.h"  // for operator<<, CHECK, etc
+#include "third_party/css_parser/src/strings/stringpiece.h"  // for CssStringPiece, etc
+#include "third_party/css_parser/src/third_party/utf/utf.h"  // for isvalidcharntorune, etc
+#include "third_party/css_parser/src/util/utf8/public/unilib.h"  // for IsInterchangeValid, etc
+#include "third_party/css_parser/src/util/utf8/public/unilib_utf8_utils.h"  // for OneCharLen
 
 static int CodepointDistance(const char* start, const char* end) {
   int n = 0;

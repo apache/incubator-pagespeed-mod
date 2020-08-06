@@ -9,9 +9,8 @@ licenses(["notice"])  # Apache 2
 
 cc_library(
     name = "util_re2",
-    hdrs = [
-        "re2.h",
-    ],
+    hdrs = ["re2.h"],
+    deps = ["@re2"],
     visibility = ["//visibility:public"],
 )
 
@@ -63,12 +62,6 @@ cc_library(
         "url_multipart_encoder.h",
         "url_segment_encoder.h",
         "url_to_filename_encoder.h",
-    ],
-    copts = [
-        "-Werror",
-        "-Wno-macro-redefined",
-        "-Wno-thread-safety-attributes",
-        "-Wno-thread-safety-precise",
     ],
     visibility = ["//visibility:public"],
     deps = [
