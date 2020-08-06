@@ -22,9 +22,9 @@
 #include "pagespeed/kernel/cache/write_through_cache.h"
 
 #include "pagespeed/kernel/base/basictypes.h"
-#include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/cache/cache_test_base.h"
 
 namespace net_instaweb {
 

@@ -33,16 +33,15 @@ pagespeed_cc_test_library(
 
 pagespeed_cc_test_library(
     name = "kernel_test_util",
-    srcs =
-        [
-            "file_system_test_base.cc",
-            "mem_file_system.cc",
-            "message_handler_test_base.cc",
-            "mock_hasher.cc",
-            "mock_message_handler.cc",
-            "mock_timer.cc",
+    srcs = [
+        "file_system_test_base.cc",
+        "mem_file_system.cc",
+        "message_handler_test_base.cc",
+        "mock_hasher.cc",
+        "mock_message_handler.cc",
+        "mock_timer.cc",
         "null_thread_system.cc",
-        ],
+    ],
     hdrs = [
         "file_system_test_base.h",
         "mem_file_system.h",

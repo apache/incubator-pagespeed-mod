@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "pagespeed/kernel/cache/cache_spammer.h"
+#include "test/pagespeed/kernel/cache/cache_spammer.h"
 
 #include <vector>
 

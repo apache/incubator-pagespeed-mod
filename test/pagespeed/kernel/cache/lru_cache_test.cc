@@ -23,8 +23,8 @@
 
 #include <cstddef>
 
-#include "pagespeed/kernel/cache/cache_test_base.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/cache/cache_test_base.h"
 
 namespace {
 const size_t kMaxSize = 100;

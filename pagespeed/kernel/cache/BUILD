@@ -1,9 +1,4 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load(
-    "//bazel:pagespeed_test.bzl",
-    "pagespeed_cc_test",
-    "pagespeed_cc_test_library",
-)
 
 licenses(["notice"])  # Apache 2
 
@@ -54,34 +49,3 @@ cc_library(
         "//pagespeed/kernel/util",
     ],
 )
-
-pagespeed_cc_test_library(
-    name = "cache_test_base",
-    srcs = [
-        "cache_spammer.cc",
-        "mock_time_cache.cc",
-    ],
-    hdrs = [
-        "cache_batcher_testing_peer.h",
-        "cache_spammer.h",
-        "cache_test_base.h",
-        "mock_time_cache.h",
-    ],
-    deps = [
-        "//pagespeed/kernel/cache",
-        "//test/pagespeed/kernel/base:kernel_test_util",
-        "//pagespeed/kernel/util:util_test_base",
-    ],
-)
-
-pagespeed_cc_test(
-    name = "cache_test",
-    srcs = glob(
-        ["*_test.cc"]
-    ),
-    deps = [
-        ":cache",
-        ":cache_test_base",
-    ],
-)
-

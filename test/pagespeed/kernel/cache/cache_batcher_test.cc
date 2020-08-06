@@ -29,8 +29,6 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/async_cache.h"
-#include "pagespeed/kernel/cache/cache_batcher_testing_peer.h"
-#include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/cache/delay_cache.h"
 #include "pagespeed/kernel/cache/lru_cache.h"
 #include "pagespeed/kernel/cache/threadsafe_cache.h"
@@ -40,6 +38,8 @@
 #include "pagespeed/kernel/util/platform.h"
 #include "pagespeed/kernel/util/simple_stats.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/cache/cache_batcher_testing_peer.h"
+#include "test/pagespeed/kernel/cache/cache_test_base.h"
 
 namespace {
 const size_t kMaxSize = 100;

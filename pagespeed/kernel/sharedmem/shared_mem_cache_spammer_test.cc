@@ -30,12 +30,12 @@
 #include "pagespeed/kernel/base/thread_system.h"
 #include "pagespeed/kernel/base/timer.h"
 #include "pagespeed/kernel/cache/cache_interface.h"
-#include "pagespeed/kernel/cache/cache_spammer.h"
-#include "pagespeed/kernel/cache/cache_test_base.h"
 #include "pagespeed/kernel/sharedmem/inprocess_shared_mem.h"
 #include "pagespeed/kernel/sharedmem/shared_mem_cache.h"
 #include "pagespeed/kernel/util/platform.h"
 #include "test/pagespeed/kernel/base/gtest.h"
+#include "test/pagespeed/kernel/cache/cache_spammer.h"
+#include "test/pagespeed/kernel/cache/cache_test_base.h"
 
 namespace {
 const int kMaxSize = 100;

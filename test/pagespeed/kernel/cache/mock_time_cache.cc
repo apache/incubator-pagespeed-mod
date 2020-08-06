@@ -23,7 +23,7 @@
 // MockTimeCache::Callback, which chains to a passed-in callback to actually
 // implement the delay.
 
-#include "pagespeed/kernel/cache/mock_time_cache.h"
+#include "test/pagespeed/kernel/cache/mock_time_cache.h"
 
 #include "pagespeed/kernel/base/function.h"
 #include "pagespeed/kernel/base/shared_string.h"
