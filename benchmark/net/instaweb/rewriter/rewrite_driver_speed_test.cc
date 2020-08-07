@@ -47,6 +47,8 @@
 #include "pagespeed/opt/http/property_cache.h"
 #include "test/net/instaweb/http/mock_url_fetcher.h"
 #include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"
+#include "test/net/instaweb/rewriter/rewrite_test_base.h"
+
 // clang-format off
 #include "benchmark/benchmark.h"
 // clang-format on
@@ -54,15 +56,13 @@
 namespace net_instaweb {
 namespace {
 
-std::unique_ptr<ProcessContext> process_context;
-
 class SpeedTestContext {
  public:
   SpeedTestContext() {
     StopBenchmarkTiming();
     RewriteDriverFactory::Initialize();
     factory_.reset(
-        new TestRewriteDriverFactory(*process_context, "/tmp", &fetcher_));
+        new TestRewriteDriverFactory(RewriteTestBase::process_context(), "/tmp", &fetcher_));
     TestRewriteDriverFactory::InitStats(factory_->statistics());
     server_context_ = factory_->CreateServerContext();
     StartBenchmarkTiming();
@@ -71,7 +71,6 @@ class SpeedTestContext {
   ~SpeedTestContext() {
     factory_.reset();  // Must precede ProcessContext destruction.
     RewriteDriverFactory::Terminate();
-    process_context.reset();
   }
 
   RewriteDriver* NewDriver(RewriteOptions* options) {
