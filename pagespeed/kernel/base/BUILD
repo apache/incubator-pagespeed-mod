@@ -182,7 +182,6 @@ cc_library(
     deps = [
         ":gtest_prod",
         ":pagespeed_base_core",
-        "//third_party/base64",
         "@jsoncpp",
     ],
 )
