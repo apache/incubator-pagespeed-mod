@@ -596,7 +596,7 @@ class RewriteOptions {
   // This version number should be incremented if any default-values
   // are changed, either in an Add*Property() call or via
   // options->set_default.
-  static constexpr int kOptionsVersion = 14;
+  static constexpr int kOptionsVersion = 15;
 
   // Number of bytes used for signature hashing.
   static constexpr int kHashBytes = 20;
