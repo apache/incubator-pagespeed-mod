@@ -32,6 +32,8 @@ build --enable_platform_specific_config
 build:linux --copt=-fPIC
 build:linux --cxxopt=-std=c++17
 build:linux --conlyopt=-fexceptions
+build:linux --fission=dbg,opt
+build:linux --features=per_object_debug_info
 
 # We already have absl in the build, define absl=1 to tell googletest to use absl for backtrace.
 build --define absl=1
@@ -330,7 +332,7 @@ clang-7's output unless we pass in -fno-addrsig
 #build --copt=-fno-addrsig 
 
 build:clang-asan --linkopt=-fno-sanitize=alignment
-build:clang-asan --copt=-fno-sanitize=alignment
+build:asan --copt=-fno-sanitize=alignment
 build:clang-asan --copt=-fno-omit-frame-pointer
 
 test --test_env=REDIS_PORT=6379
