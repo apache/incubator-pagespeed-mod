@@ -57,7 +57,7 @@ namespace {
 const char kFetchHost[] = "selfsigned.modpagespeed.com";
 
 // const int kThreadedPollMs = 200;
-const int kFetcherTimeoutMs = 5 * 1000;
+// const int kFetcherTimeoutMs = 5 * 1000;
 const int kFetcherTimeoutValgrindMs = 20 * 1000;
 
 // const int kModpagespeedSite = 0; // TODO(matterbury): These should be an
@@ -124,7 +124,9 @@ class EnvoyUrlAsyncFetcherTest : public ::testing::Test {
   void SetUp() override { SetUpWithProxy(""); }
 
   static int64 FetcherTimeoutMs() {
-    return RunningOnValgrind() ? kFetcherTimeoutValgrindMs : kFetcherTimeoutMs;
+    return kFetcherTimeoutValgrindMs;
+    // TODO(oschaaf): figure out substitute for deprecated absl::RunningOnValgrind()
+    // return RunningOnValgrind() ? kFetcherTimeoutValgrindMs : kFetcherTimeoutMs;
   }
 
   void SetUpWithProxy(const char* proxy) {
