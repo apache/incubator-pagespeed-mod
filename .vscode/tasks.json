@@ -18,7 +18,7 @@
         {
             "label": "test-all fastbuild",
             "type": "shell",
-            "command": "bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 //...",
+            "command": "bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 --  //... -//benchmark/...",
             "problemMatcher": [
                 "$gcc"
             ],

@@ -111,5 +111,7 @@ TYPED_TEST_P(SharedCircularBufferTestTemplate, TestCircular) {
 REGISTER_TYPED_TEST_SUITE_P(SharedCircularBufferTestTemplate, TestCreate,
                             TestAdd, TestClear, TestCircular);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SharedCircularBufferTestTemplate);
+
 }  // namespace net_instaweb
 #endif  // PAGESPEED_KERNEL_SHAREDMEM_SHARED_CIRCULAR_BUFFER_TEST_BASE_H_

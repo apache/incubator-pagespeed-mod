@@ -90,7 +90,7 @@ void EnvoyClusterManager::initClusterManager() {
 
   api_ = std::make_unique<Envoy::Api::Impl>(platform_impl_.threadFactory(),
                                             store_root_, time_system_,
-                                            platform_impl_.fileSystem());
+                                            platform_impl_.fileSystem(), generator_);
   dispatcher_ = api_->allocateDispatcher("pagespeed-fetcher");
   tls_.registerThread(*dispatcher_, true);
   store_root_.initializeThreading(*dispatcher_, tls_);
@@ -111,7 +111,6 @@ void EnvoyClusterManager::initClusterManager() {
   cluster_manager_factory_ =
       std::make_unique<Envoy::Upstream::ProdClusterManagerFactory>(
           admin_, Envoy::Runtime::LoaderSingleton::get(), store_root_, tls_,
-          generator_,
           dispatcher_->createDnsResolver({},
                                          bootstrap.use_tcp_for_dns_lookups()),
           *ssl_context_manager_, *dispatcher_, *local_info_, secret_manager_,
