@@ -118,8 +118,7 @@ void EnvoyFetch::setResponse(Envoy::Http::HeaderMap& headers,
         response_body.length());
   }
 
-  async_fetch_->Write(StringPiece(response_body.toString()),
-                      message_handler());
+  async_fetch_->Write(StringPiece(response_body.toString()), message_handler());
 
   async_fetch_->Done(true);
 }

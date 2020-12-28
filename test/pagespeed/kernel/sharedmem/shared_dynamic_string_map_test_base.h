@@ -131,7 +131,8 @@ REGISTER_TYPED_TEST_SUITE_P(SharedDynamicStringMapTestTemplate, TestSimple,
                             TestFillMultipleNonOverlappingThreads,
                             TestFillMultipleOverlappingThreads);
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SharedDynamicStringMapTestTemplate);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    SharedDynamicStringMapTestTemplate);
 
 }  // namespace net_instaweb
 

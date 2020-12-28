@@ -17,12 +17,11 @@
  * under the License.
  */
 
-#pragma once 
+#pragma once
 
-#include "pagespeed/kernel/base/string.h"
-
-#include "pagespeed/kernel/base/string_util.h"
 #include "absl/strings/escaping.h"
+#include "pagespeed/kernel/base/string.h"
+#include "pagespeed/kernel/base/string_util.h"
 
 namespace net_instaweb {
 
