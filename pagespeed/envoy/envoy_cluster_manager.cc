@@ -55,7 +55,8 @@ EnvoyClusterManager::EnvoyClusterManager()
       stats_allocator_(symbol_table_),
       store_root_(stats_allocator_),
       http_context_(store_root_.symbolTable()),
-      grpc_context_(store_root_.symbolTable()) {
+      grpc_context_(store_root_.symbolTable()),
+      router_context_(store_root_.symbolTable()) {
   initClusterManager();
 }
 
@@ -88,9 +89,9 @@ void EnvoyClusterManager::initClusterManager() {
       "envoyfetcher_service_zone", "envoyfetcher_service_cluster",
       "envoyfetcher_service_node");
 
-  api_ = std::make_unique<Envoy::Api::Impl>(platform_impl_.threadFactory(),
-                                            store_root_, time_system_,
-                                            platform_impl_.fileSystem(), generator_);
+  api_ = std::make_unique<Envoy::Api::Impl>(
+      platform_impl_.threadFactory(), store_root_, time_system_,
+      platform_impl_.fileSystem(), generator_);
   dispatcher_ = api_->allocateDispatcher("pagespeed-fetcher");
   tls_.registerThread(*dispatcher_, true);
   store_root_.initializeThreading(*dispatcher_, tls_);
@@ -115,7 +116,7 @@ void EnvoyClusterManager::initClusterManager() {
                                          bootstrap.use_tcp_for_dns_lookups()),
           *ssl_context_manager_, *dispatcher_, *local_info_, secret_manager_,
           validation_context_, *api_, http_context_, grpc_context_,
-          *access_log_manager_, *singleton_manager_);
+          router_context_, *access_log_manager_, *singleton_manager_);
 }
 
 Envoy::Upstream::ClusterManager& EnvoyClusterManager::getClusterManager(
