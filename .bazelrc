@@ -1,11 +1,12 @@
-# The following .bazelrc content is forked from the main Envoy repository. This is necessary since	
-# this needs to be available before we can access the Envoy repository contents via Bazel.
-
-build:clang-asan --test_timeout=900
-build:clang-tsan --test_timeout=900
-# See https://github.com/envoyproxy/nighthawk/issues/405
-build:macos --copt -UDEBUG
-
+# The following .bazelrc content is forked from the main Envoy repository.                  # unique
+# This is  necessary since this needs to be available before we can access                  # unique
+# the Envoy repository contents via Bazel.                                                  # unique
+                                                                                            # unique
+build:clang-asan --test_timeout=900                                                         # unique
+build:clang-tsan --test_timeout=900                                                         # unique
+# See https://github.com/envoyproxy/nighthawk/issues/405                                    # unique
+build:macos --copt -UDEBUG                                                                  # unique
+                                                                                            # unique
 # Envoy specific Bazel build/test options.
 
 # Bazel doesn't need more than 200MB of memory for local build based on memory profiling:
@@ -60,8 +61,10 @@ build:asan --config=sanitizer
 # ASAN install its signal handler, disable ours so the stacktrace will be printed by ASAN
 build:asan --define signal_trace=disabled
 build:asan --define ENVOY_CONFIG_ASAN=1
-build:asan --copt -fsanitize=address
-build:asan --linkopt -fsanitize=address
+# The following two lines were manually edited due to #593.                                 # unique
+# Flag undefined was dropped from both the lines to allow CI/ASAN to pass.                  # unique
+build:asan --copt -fsanitize=address                                                        # unique
+build:asan --linkopt -fsanitize=address                                                     # unique
 # vptr and function sanitizer are enabled in clang-asan if it is set up via bazel/setup_clang.sh.
 build:asan --copt -fno-sanitize=vptr,function
 build:asan --linkopt -fno-sanitize=vptr,function
@@ -182,7 +185,7 @@ build:rbe-toolchain-asan --linkopt -fuse-ld=lld
 build:rbe-toolchain-asan --action_env=ENVOY_UBSAN_VPTR=1
 build:rbe-toolchain-asan --copt=-fsanitize=vptr,function
 build:rbe-toolchain-asan --linkopt=-fsanitize=vptr,function
-build:rbe-toolchain-asan --linkopt=-L/opt/llvm/lib/clang/10.0.0/lib/linux
+build:rbe-toolchain-asan --linkopt=-L/opt/llvm/lib/clang/11.0.1/lib/linux
 build:rbe-toolchain-asan --linkopt=-l:libclang_rt.ubsan_standalone-x86_64.a
 build:rbe-toolchain-asan --linkopt=-l:libclang_rt.ubsan_standalone_cxx-x86_64.a
 
@@ -253,8 +256,8 @@ build:remote-clang-cl --config=clang-cl
 build:remote-clang-cl --config=rbe-toolchain-clang-cl
 
 # Docker sandbox
-# NOTE: Update this from https://github.com/envoyproxy/envoy-build-tools/blob/master/toolchains/rbe_toolchains_config.bzl#L8
-build:docker-sandbox --experimental_docker_image=envoyproxy/envoy-build-ubuntu:19a268cfe3d12625380e7c61d2467c8779b58b56
+# NOTE: Update this from https://github.com/envoyproxy/envoy-build-tools/blob/main/toolchains/rbe_toolchains_config.bzl#L8
+build:docker-sandbox --experimental_docker_image=envoyproxy/envoy-build-ubuntu:e33c93e6d79804bf95ff80426d10bdcc9096c785
 build:docker-sandbox --spawn_strategy=docker
 build:docker-sandbox --strategy=Javac=docker
 build:docker-sandbox --strategy=Closure=docker
@@ -285,18 +288,41 @@ build:remote-ci --remote_cache=grpcs://remotebuildexecution.googleapis.com
 build:remote-ci --remote_executor=grpcs://remotebuildexecution.googleapis.com
 
 # Fuzz builds
+
+# Shared fuzzing configuration.
+build:fuzzing --define=ENVOY_CONFIG_ASAN=1
+build:fuzzing --copt=-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+build:fuzzing --config=libc++
+
 # Fuzzing without ASAN. This is useful for profiling fuzzers without any ASAN artifacts.
+build:plain-fuzzer --config=fuzzing
 build:plain-fuzzer --define=FUZZING_ENGINE=libfuzzer
-build:plain-fuzzer --define ENVOY_CONFIG_ASAN=1
+# The fuzzing rules provide their own instrumentation, but it is currently
+# disabled due to bazelbuild/bazel#12888. Instead, we provide instrumentation at
+# the top level through these options.
 build:plain-fuzzer --copt=-fsanitize=fuzzer-no-link
 build:plain-fuzzer --linkopt=-fsanitize=fuzzer-no-link
-build:plain-fuzzer --copt=-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 
 build:asan-fuzzer --config=plain-fuzzer
 build:asan-fuzzer --config=asan
 build:asan-fuzzer --copt=-fno-omit-frame-pointer
 # Remove UBSAN halt_on_error to avoid crashing on protobuf errors.
 build:asan-fuzzer --test_env=UBSAN_OPTIONS=print_stacktrace=1
+
+build:oss-fuzz --config=fuzzing
+build:oss-fuzz --define=FUZZING_ENGINE=oss-fuzz
+build:oss-fuzz --@rules_fuzzing//fuzzing:cc_engine_instrumentation=oss-fuzz
+build:oss-fuzz --@rules_fuzzing//fuzzing:cc_engine_sanitizer=none
+build:oss-fuzz --dynamic_mode=off
+build:oss-fuzz --strip=never
+build:oss-fuzz --copt=-fno-sanitize=vptr
+build:oss-fuzz --linkopt=-fno-sanitize=vptr
+build:oss-fuzz --define=tcmalloc=disabled
+build:oss-fuzz --define=signal_trace=disabled
+build:oss-fuzz --copt=-D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
+build:oss-fuzz --define=force_libcpp=enabled
+build:oss-fuzz --linkopt=-lc++
+build:oss-fuzz --linkopt=-pthread
 
 # Compile database generation config
 build:compdb --build_tag_filters=-nocompdb

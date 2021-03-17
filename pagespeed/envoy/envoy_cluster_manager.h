@@ -98,7 +98,8 @@ class EnvoyClusterManager {
 
   envoy::config::bootstrap::v3::Bootstrap bootstrap;
   envoy::config::core::v3::Node envoy_node_{};
-
+  const Envoy::Protobuf::RepeatedPtrField<std::string>
+      envoy_node_context_params_;
   std::unique_ptr<Envoy::Upstream::ProdClusterManagerFactory>
       cluster_manager_factory_;
   std::unique_ptr<Envoy::Runtime::ScopedLoaderSingleton> runtime_singleton_;
