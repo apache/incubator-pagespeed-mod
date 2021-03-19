@@ -44,7 +44,8 @@
 #include "external/envoy/source/extensions/transport_sockets/tls/context_manager_impl.h"
 #include "external/envoy/source/extensions/transport_sockets/well_known_names.h"
 #include "external/envoy/source/server/config_validation/admin.h"
-
+#include "external/envoy/source/server/options_impl.h"
+#include "external/envoy/source/server/options_impl_platform.h"
 namespace net_instaweb {
 
 EnvoyClusterManager::EnvoyClusterManager()
@@ -55,7 +56,8 @@ EnvoyClusterManager::EnvoyClusterManager()
       stats_allocator_(symbol_table_),
       store_root_(stats_allocator_),
       http_context_(store_root_.symbolTable()),
-      grpc_context_(store_root_.symbolTable()) {
+      grpc_context_(store_root_.symbolTable()),
+      router_context_(store_root_.symbolTable()) {
   initClusterManager();
 }
 
@@ -82,15 +84,15 @@ void EnvoyClusterManager::initClusterManager() {
   configureComponentLogLevels(spdlog::level::from_str("error"));
 
   local_info_ = std::make_unique<Envoy::LocalInfo::LocalInfoImpl>(
-      envoy_node_,
+      store_root_.symbolTable(), envoy_node_, envoy_node_context_params_,
       Envoy::Network::Utility::getLocalAddress(
           Envoy::Network::Address::IpVersion::v4),
       "envoyfetcher_service_zone", "envoyfetcher_service_cluster",
       "envoyfetcher_service_node");
 
-  api_ = std::make_unique<Envoy::Api::Impl>(platform_impl_.threadFactory(),
-                                            store_root_, time_system_,
-                                            platform_impl_.fileSystem());
+  api_ = std::make_unique<Envoy::Api::Impl>(
+      platform_impl_.threadFactory(), store_root_, time_system_,
+      platform_impl_.fileSystem(), generator_);
   dispatcher_ = api_->allocateDispatcher("pagespeed-fetcher");
   tls_.registerThread(*dispatcher_, true);
   store_root_.initializeThreading(*dispatcher_, tls_);
@@ -107,16 +109,20 @@ void EnvoyClusterManager::initClusterManager() {
   ssl_context_manager_ = std::make_unique<
       Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>(
       time_system_);
-
+  const Envoy::OptionsImpl::HotRestartVersionCb hot_restart_version_cb =
+      [](bool) { return "hot restart is disabled"; };
+  const Envoy::OptionsImpl envoy_options(
+      /* args = */ {"process_impl"}, hot_restart_version_cb,
+      spdlog::level::info);
   cluster_manager_factory_ =
       std::make_unique<Envoy::Upstream::ProdClusterManagerFactory>(
           admin_, Envoy::Runtime::LoaderSingleton::get(), store_root_, tls_,
-          generator_,
           dispatcher_->createDnsResolver({},
                                          bootstrap.use_tcp_for_dns_lookups()),
           *ssl_context_manager_, *dispatcher_, *local_info_, secret_manager_,
           validation_context_, *api_, http_context_, grpc_context_,
-          *access_log_manager_, *singleton_manager_);
+          router_context_, *access_log_manager_, *singleton_manager_,
+          envoy_options);
 }
 
 Envoy::Upstream::ClusterManager& EnvoyClusterManager::getClusterManager(

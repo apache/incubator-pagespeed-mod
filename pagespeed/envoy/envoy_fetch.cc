@@ -104,22 +104,21 @@ void EnvoyFetch::Start() {
 bool EnvoyFetch::Init() { return true; }
 
 void EnvoyFetch::setResponse(Envoy::Http::HeaderMap& headers,
-                             Envoy::Buffer::InstancePtr& response_body) {
+                             Envoy::Buffer::Instance& response_body) {
   ResponseHeaders* res_header = async_fetch_->response_headers();
   std::unique_ptr<ResponseHeaders> response_headers_ptr =
       HeaderUtils::toPageSpeedResponseHeaders(headers);
   res_header->CopyFrom(*response_headers_ptr);
 
   async_fetch_->response_headers()->SetOriginalContentLength(
-      response_body->length());
+      response_body.length());
   if (async_fetch_->response_headers()->Has(
           HttpAttributes::kXOriginalContentLength)) {
     async_fetch_->extra_response_headers()->SetOriginalContentLength(
-        response_body->length());
+        response_body.length());
   }
 
-  async_fetch_->Write(StringPiece(response_body->toString()),
-                      message_handler());
+  async_fetch_->Write(StringPiece(response_body.toString()), message_handler());
 
   async_fetch_->Done(true);
 }

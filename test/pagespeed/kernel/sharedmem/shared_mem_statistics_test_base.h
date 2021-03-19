@@ -151,6 +151,8 @@ REGISTER_TYPED_TEST_SUITE_P(SharedMemStatisticsTestTemplate, TestCreate,
                             TestHistogramExtremeBuckets,
                             TestTimedVariableEmulation);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SharedMemStatisticsTestTemplate);
+
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_STATISTICS_TEST_BASE_H_

@@ -46,8 +46,8 @@
 #include "pagespeed/kernel/http/user_agent_matcher.h"
 #include "pagespeed/opt/http/property_cache.h"
 #include "test/net/instaweb/http/mock_url_fetcher.h"
-#include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"
 #include "test/net/instaweb/rewriter/rewrite_test_base.h"
+#include "test/net/instaweb/rewriter/test_rewrite_driver_factory.h"
 
 // clang-format off
 #include "benchmark/benchmark.h"
@@ -61,8 +61,8 @@ class SpeedTestContext {
   SpeedTestContext() {
     StopBenchmarkTiming();
     RewriteDriverFactory::Initialize();
-    factory_.reset(
-        new TestRewriteDriverFactory(RewriteTestBase::process_context(), "/tmp", &fetcher_));
+    factory_.reset(new TestRewriteDriverFactory(
+        RewriteTestBase::process_context(), "/tmp", &fetcher_));
     TestRewriteDriverFactory::InitStats(factory_->statistics());
     server_context_ = factory_->CreateServerContext();
     StartBenchmarkTiming();

@@ -6,6 +6,9 @@ EXTENSIONS = {
     "envoy.transport_sockets.raw_buffer": "//source/extensions/transport_sockets/raw_buffer:config",
 }
 
+DISABLED_BY_DEFAULT_EXTENSIONS = {
+}
+
 # These can be changed to ["//visibility:public"], for  downstream builds which
 # need to directly reference Envoy extensions.
 EXTENSION_CONFIG_VISIBILITY = ["//visibility:public"]

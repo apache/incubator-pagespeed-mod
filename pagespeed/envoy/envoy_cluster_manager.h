@@ -26,6 +26,7 @@
 #include "external/envoy/source/common/grpc/context_impl.h"
 #include "external/envoy/source/common/http/context_impl.h"
 #include "external/envoy/source/common/protobuf/message_validator_impl.h"
+#include "external/envoy/source/common/router/context_impl.h"
 #include "external/envoy/source/common/runtime/runtime_impl.h"
 #include "external/envoy/source/common/secret/secret_manager_impl.h"
 #include "external/envoy/source/common/stats/allocator_impl.h"
@@ -97,13 +98,15 @@ class EnvoyClusterManager {
 
   envoy::config::bootstrap::v3::Bootstrap bootstrap;
   envoy::config::core::v3::Node envoy_node_{};
-
+  const Envoy::Protobuf::RepeatedPtrField<std::string>
+      envoy_node_context_params_;
   std::unique_ptr<Envoy::Upstream::ProdClusterManagerFactory>
       cluster_manager_factory_;
   std::unique_ptr<Envoy::Runtime::ScopedLoaderSingleton> runtime_singleton_;
   std::unique_ptr<Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl>
       ssl_context_manager_;
   bool shutdown_{false};
+  Envoy::Router::ContextImpl router_context_;
 
   void initClusterManager();
 

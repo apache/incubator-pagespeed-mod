@@ -75,6 +75,8 @@ TYPED_TEST_P(ThreadSystemTestTemplate, TestSync) {
 
 REGISTER_TYPED_TEST_SUITE_P(ThreadSystemTestTemplate, TestStartJoin, TestSync);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ThreadSystemTestTemplate);
+
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_KERNEL_THREAD_THREAD_SYSTEM_TEST_BASE_H_

@@ -131,6 +131,7 @@ envoy_cc_library(
         "@envoy//source/common/network:dns_lib_with_external_headers",
         "@envoy//source/common/network:utility_lib_with_external_headers",
         "@envoy//source/common/protobuf:message_validator_lib_with_external_headers",
+        "@envoy//source/common/router:context_lib_with_external_headers",
         "@envoy//source/common/runtime:runtime_lib_with_external_headers",
         "@envoy//source/common/secret:secret_manager_impl_lib_with_external_headers",
         "@envoy//source/common/singleton:manager_impl_lib_with_external_headers",
@@ -146,6 +147,8 @@ envoy_cc_library(
         "@envoy//source/extensions/transport_sockets:well_known_names_with_external_headers",
         "@envoy//source/extensions/transport_sockets/tls:context_lib_with_external_headers",
         "@envoy//source/server/config_validation:admin_lib_with_external_headers",
+        "@envoy//source/server:options_lib_with_external_headers",
+        "@envoy//source/server:server_lib_with_external_headers",        
     ],
 )
 

@@ -95,6 +95,8 @@ TYPED_TEST_P(SharedMemLockManagerTestTemplate, TestSteal) {
 REGISTER_TYPED_TEST_SUITE_P(SharedMemLockManagerTestTemplate, TestBasic,
                             TestDestructorUnlock, TestSteal);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SharedMemLockManagerTestTemplate);
+
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_LOCK_MANAGER_TEST_BASE_H_

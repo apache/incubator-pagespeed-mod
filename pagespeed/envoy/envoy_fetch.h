@@ -75,7 +75,7 @@ class EnvoyFetch : public PoolElement<EnvoyFetch> {
    * @param response_body Response body of fetched url
    */
   void setResponse(Envoy::Http::HeaderMap& headers,
-                   Envoy::Buffer::InstancePtr& response_body);
+                   Envoy::Buffer::Instance& response_body);
 
  private:
   // Do the initialized work and start the resolver work.

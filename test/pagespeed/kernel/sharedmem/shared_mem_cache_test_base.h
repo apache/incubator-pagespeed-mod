@@ -169,6 +169,7 @@ REGISTER_TYPED_TEST_SUITE_P(SharedMemCacheTestTemplate, TestBasic, TestReinsert,
                             TestEvict, TestSnapshot,
                             TestRegisterSnapshotFileCache,
                             TestCheckpointAndRestore);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SharedMemCacheTestTemplate);
 
 }  // namespace net_instaweb
 

@@ -176,6 +176,8 @@ REGISTER_TYPED_TEST_SUITE_P(SharedMemTestTemplate, TestRewrite,
                             TestDestroy, TestCreateTwice, TestTwoKids,
                             TestMutex);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SharedMemTestTemplate);
+
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_KERNEL_SHAREDMEM_SHARED_MEM_TEST_BASE_H_

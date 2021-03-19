@@ -131,6 +131,9 @@ REGISTER_TYPED_TEST_SUITE_P(SharedDynamicStringMapTestTemplate, TestSimple,
                             TestFillMultipleNonOverlappingThreads,
                             TestFillMultipleOverlappingThreads);
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    SharedDynamicStringMapTestTemplate);
+
 }  // namespace net_instaweb
 
 #endif  // PAGESPEED_KERNEL_SHAREDMEM_SHARED_DYNAMIC_STRING_MAP_TEST_BASE_H_
