@@ -26,7 +26,7 @@
 #include <random>
 
 #include "envoy/stats/store.h"
-#include "external/envoy/include/envoy/event/dispatcher.h"
+#include "external/envoy/envoy/event/dispatcher.h"
 #include "external/envoy/source/common/api/api_impl.h"
 #include "external/envoy/source/common/config/utility.h"
 #include "external/envoy/source/common/event/real_time_system.h"
@@ -42,22 +42,25 @@
 #include "external/envoy/source/exe/platform_impl.h"
 #include "external/envoy/source/exe/process_wide.h"
 #include "external/envoy/source/extensions/transport_sockets/tls/context_manager_impl.h"
-#include "external/envoy/source/extensions/transport_sockets/well_known_names.h"
 #include "external/envoy/source/server/config_validation/admin.h"
 #include "external/envoy/source/server/options_impl.h"
 #include "external/envoy/source/server/options_impl_platform.h"
+#include "external/envoy_api/envoy/config/core/v3/resolver.pb.h"
+
 namespace net_instaweb {
 
 EnvoyClusterManager::EnvoyClusterManager()
     : init_watcher_("envoyfetcher", []() {}),
       secret_manager_(config_tracker_),
       validation_context_(false, false, false),
+      admin_(Envoy::Network::Address::InstanceConstSharedPtr()),
       init_manager_("init_manager"),
       stats_allocator_(symbol_table_),
       store_root_(stats_allocator_),
       http_context_(store_root_.symbolTable()),
       grpc_context_(store_root_.symbolTable()),
-      router_context_(store_root_.symbolTable()) {
+      router_context_(store_root_.symbolTable()),
+      quic_stat_names_(store_root_.symbolTable()) {
   initClusterManager();
 }
 
@@ -114,15 +117,15 @@ void EnvoyClusterManager::initClusterManager() {
   const Envoy::OptionsImpl envoy_options(
       /* args = */ {"process_impl"}, hot_restart_version_cb,
       spdlog::level::info);
+  envoy::config::core::v3::DnsResolverOptions dns_resolver_options;
   cluster_manager_factory_ =
       std::make_unique<Envoy::Upstream::ProdClusterManagerFactory>(
           admin_, Envoy::Runtime::LoaderSingleton::get(), store_root_, tls_,
-          dispatcher_->createDnsResolver({},
-                                         bootstrap.use_tcp_for_dns_lookups()),
+          dispatcher_->createDnsResolver({}, dns_resolver_options),
           *ssl_context_manager_, *dispatcher_, *local_info_, secret_manager_,
           validation_context_, *api_, http_context_, grpc_context_,
           router_context_, *access_log_manager_, *singleton_manager_,
-          envoy_options);
+          envoy_options, quic_stat_names_);
 }
 
 Envoy::Upstream::ClusterManager& EnvoyClusterManager::getClusterManager(
