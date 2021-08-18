@@ -26,6 +26,7 @@
 #include "external/envoy/source/common/grpc/context_impl.h"
 #include "external/envoy/source/common/http/context_impl.h"
 #include "external/envoy/source/common/protobuf/message_validator_impl.h"
+#include "external/envoy/source/common/quic/quic_stat_names.h"
 #include "external/envoy/source/common/router/context_impl.h"
 #include "external/envoy/source/common/runtime/runtime_impl.h"
 #include "external/envoy/source/common/secret/secret_manager_impl.h"
@@ -107,6 +108,7 @@ class EnvoyClusterManager {
       ssl_context_manager_;
   bool shutdown_{false};
   Envoy::Router::ContextImpl router_context_;
+  Envoy::Quic::QuicStatNames quic_stat_names_;
 
   void initClusterManager();
 

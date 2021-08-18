@@ -6,8 +6,7 @@ class HttpFilterPageSpeedIntegrationTest
       public testing::TestWithParam<Network::Address::IpVersion> {
  public:
   HttpFilterPageSpeedIntegrationTest()
-      : HttpIntegrationTest(Http::CodecClient::Type::HTTP1, GetParam(),
-                            realTime()) {}
+      : HttpIntegrationTest(Http::CodecClient::Type::HTTP1, GetParam()) {}
   /**
    * Initializer for an individual integration test.
    */
@@ -46,7 +45,7 @@ TEST_P(HttpFilterPageSpeedIntegrationTest, Test1) {
   ASSERT_TRUE(
       fake_upstream_connection->waitForNewStream(*dispatcher_, request_stream));
   ASSERT_TRUE(request_stream->waitForEndStream(*dispatcher_));
-  response->waitForEndStream();
+  ASSERT_FALSE(response->waitForEndStream());
 
   // EXPECT_EQ("pagespeed-filter",
   //             request_stream->headers().get(Http::LowerCaseString("via"))->value().getStringView());

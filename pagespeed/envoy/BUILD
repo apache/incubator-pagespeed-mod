@@ -63,7 +63,7 @@ envoy_cc_library(
     repository = "@envoy",
     deps = [
         ":http_filter_lib",
-        "@envoy//include/envoy/server:filter_config_interface",
+        "@envoy//envoy/server:filter_config_interface",
         "@envoy//source/common/common:minimal_logger_lib_with_external_headers",
         "@envoy//source/exe:envoy_common_lib_with_external_headers",
     ],
@@ -112,7 +112,7 @@ envoy_cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//net/instaweb/http",
-        "@envoy//include/envoy/event:dispatcher_interface_with_external_headers",
+        "@envoy//envoy/event:dispatcher_interface_with_external_headers",
         "@envoy//source/common/access_log:access_log_manager_lib_with_external_headers",
         "@envoy//source/common/api:api_lib_with_external_headers",
         "@envoy//source/common/common:assert_lib_with_external_headers",
@@ -144,7 +144,6 @@ envoy_cc_library(
         "@envoy//source/exe:platform_header_lib_with_external_headers",
         "@envoy//source/exe:platform_impl_lib_with_external_headers",
         "@envoy//source/exe:process_wide_lib_with_external_headers",
-        "@envoy//source/extensions/transport_sockets:well_known_names_with_external_headers",
         "@envoy//source/extensions/transport_sockets/tls:context_lib_with_external_headers",
         "@envoy//source/server/config_validation:admin_lib_with_external_headers",
         "@envoy//source/server:options_lib_with_external_headers",
