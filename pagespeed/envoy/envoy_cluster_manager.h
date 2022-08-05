@@ -115,6 +115,12 @@ class EnvoyClusterManager {
   const envoy::config::bootstrap::v3::Bootstrap createBootstrapConfiguration(
       const std::string scheme, const std::string host_name,
       const int port) const;
+  envoy::config::bootstrap::v3::Bootstrap bootstrap_;
+  // Null server implementation used as a placeholder. Its methods should never get called
+  // because we're not a full Envoy server that performs xDS config validation.
+  std::unique_ptr<Envoy::Server::Instance> server_;
+  // Null server factory context implementation for the same reason as above.
+  std::unique_ptr<Envoy::Server::Configuration::ServerFactoryContext> server_factory_context_;   
 };
 
 }  // namespace net_instaweb

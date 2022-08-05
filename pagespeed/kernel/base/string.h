@@ -26,4 +26,8 @@
 
 typedef std::string GoogleString;
 
+// TODO(oschaaf): this method was deprecated and removed in absl.
+// clean this up by removing all call spots and then remove this.
+inline bool RunningOnValgrind() {return false;}
+
 #endif  // PAGESPEED_KERNEL_BASE_STRING_H_

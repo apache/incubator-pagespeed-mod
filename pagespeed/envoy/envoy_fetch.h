@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "envoy_url_async_fetcher.h"
-#include "external/envoy_api/envoy/api/v2/core/http_uri.pb.h"
+#include "envoy/config/core/v3/http_uri.pb.h"
 #include "net/instaweb/http/public/url_async_fetcher.h"
 #include "pagespeed/kernel/base/basictypes.h"
 #include "pagespeed/kernel/base/pool.h"

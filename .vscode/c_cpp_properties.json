@@ -3,7 +3,7 @@
     {
       "name": "WSL",
       "intelliSenseMode": "clang-x64",
-      "compilerPath": "/usr/lib/llvm-10/bin/clang-10",
+      "compilerPath": "/usr/bin/clang",
       "includePath": [
         "${workspaceFolder}",
         "${workspaceFolder}//bazel-incubator-pagespeed-mod/**",

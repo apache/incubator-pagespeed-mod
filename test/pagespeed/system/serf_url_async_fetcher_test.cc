@@ -678,7 +678,11 @@ TEST_F(SerfUrlAsyncFetcherTest, TestHttpsFailsForSelfSignedCert) {
 TEST_F(SerfUrlAsyncFetcherTest, TestHttpsSucceedsForGoogleCom) {
   serf_url_async_fetcher_->SetHttpsOptions("enable");
   EXPECT_TRUE(serf_url_async_fetcher_->SupportsHttps());
-  TestHttpsSucceeds("https://about.google/intl/en/", "<!DOCTYPE html>");
+  // If you're here chances are that this test broke. It is fairly brittle and depends
+  // on the target page not changing it's response, which it actually does every year or so.
+  // In any case, don't worry about having to change this; the goal is to test basic fetching
+  // capabilities over https.
+  TestHttpsSucceeds("https://about.google/", "<!DOCTYPE html>");
   ValidateMonitoringStats(1, 0);
 }
 
