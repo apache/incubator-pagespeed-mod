@@ -12,16 +12,19 @@ before_install:
   - sudo apt-get update -q
   - sudo apt-get install -q -y git
   - sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python3 ninja-build cmake gperf memcached apache2-dev python2 clang-10
-  - wget https://github.com/bazelbuild/bazel/releases/download/4.1.0/bazel-4.1.0-installer-linux-x86_64.sh
-  - chmod +x bazel-4.1.0-installer-linux-x86_64.sh
-  - ./bazel-4.1.0-installer-linux-x86_64.sh --user
+  - wget https://github.com/bazelbuild/bazel/releases/download/6.0.0-pre.20220720.3/bazel-6.0.0-pre.20220720.3-installer-linux-x86_64.sh
+  - chmod +x bazel-6.0.0-pre.20220720.3-installer-linux-x86_64.sh
+  - ./bazel-6.0.0-pre.20220720.3-installer-linux-x86_64.sh --user
+  - wget https://apt.llvm.org/llvm.sh
+  - chmod +x llvm.sh
+  - ./llvm.sh 14
   - sudo service memcached start
   - sudo service redis-server start
 env:
   global:
     - MAKEFLAGS=-j3
-    - CXX=clang++-10
-    - CC=clang-10
+    - CXX=clang++-14
+    - CC=clang-14
   matrix:
     - BIT_FLAG=
 
