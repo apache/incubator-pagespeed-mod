@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <vector>
+#include <stdarg.h>  
 
 #include "pagespeed/kernel/base/string.h"
 

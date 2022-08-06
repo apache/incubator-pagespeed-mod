@@ -13,8 +13,8 @@ load(":aprutil.bzl", "aprutil_build_rule")
 load(":serf.bzl", "serf_build_rule")
 load(":closure_compiler.bzl", "closure_library_rules")
 
-ENVOY_COMMIT = "e85a7f408c7baee8e1ed4af39a647c98ee5f2215"  # Aug 10, 2021
-ENVOY_SHA = "1745bf00a464327a0993b5229cae5e30423854a77b9b1d0c4ee96306e9aedc64"
+ENVOY_COMMIT = "5261b4285d1487f93e7aece94786de9a8d3a2529"  # Aug 5, 2022
+ENVOY_SHA = "70e0485733d81ccb1076abc63114c3f3e0a17490843fc9041b0540dc27f23630"
 
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
 BROTLI_SHA = "ba8be5d701b369f86d14f3701c81d6bf6c6c34015c183ff98352c12ea5f5226b"
@@ -22,8 +22,6 @@ HIREDIS_COMMIT = "0.14.1"  # July 24th, 2020
 HIREDIS_SHA = "2663b2aed9fd430507e30fc5e63274ee40cdd1a296026e22eafd7d99b01c8913"
 JSONCPP_COMMIT = "1.9.3"  # July 24th, 2020
 JSONCPP_SHA = "8593c1d69e703563d94d8c12244e2e18893eeb9a8a9f8aa3d09a327aa45c8f7d"
-RE2_COMMIT = "2020-07-06"  # July 24th, 2020
-RE2_SHA = "2e9489a31ae007c81e90e8ec8a15d62d58a9c18d4fd1603f6441ef248556b41f"
 LIBPNG_COMMIT = "1.6.37"  # July 24th, 2020
 LIBPNG_SHA = "ca74a0dace179a8422187671aee97dd3892b53e168627145271cad5b5ac81307"
 LIBWEBP_COMMIT = "1.1.0"  # July 24th, 2020
@@ -91,15 +89,6 @@ def mod_pagespeed_dependencies():
         url = "https://github.com/open-source-parsers/jsoncpp/archive/%s.tar.gz" % JSONCPP_COMMIT,
         build_file_content = jsoncpp_build_rule,
         sha256 = JSONCPP_SHA,
-    )
-
-    http_archive(
-        name = "re2",
-        strip_prefix = "re2-%s" % RE2_COMMIT,
-        url = "https://github.com/google/re2/archive/%s.tar.gz" % RE2_COMMIT,
-        sha256 = RE2_SHA,
-        patch_args = ["-p1"],
-        patches = ["re2.patch"],
     )
 
     http_archive(

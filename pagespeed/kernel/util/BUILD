@@ -5,7 +5,7 @@ licenses(["notice"])  # Apache 2
 cc_library(
     name = "util_re2",
     hdrs = ["re2.h"],
-    deps = ["@re2"],
+    deps = ["@com_googlesource_code_re2//:re2"],
     visibility = ["//visibility:public"],
 )
 

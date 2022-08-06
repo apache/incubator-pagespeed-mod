@@ -62,9 +62,6 @@ cc_library(
         "user_agent_matcher.h",
         "user_agent_normalizer.h",
     ],
-    copts = [
-        "-std=c++17",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         ":http_proto_cc",

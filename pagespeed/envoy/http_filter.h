@@ -47,7 +47,7 @@ class HttpPageSpeedDecoderFilter : public StreamFilter {
   void setDecoderFilterCallbacks(StreamDecoderFilterCallbacks&) override;
 
   // Http::StreamEncoderFilter
-  FilterHeadersStatus encode100ContinueHeaders(
+  FilterHeadersStatus encode1xxHeaders(
       ResponseHeaderMap& headers) override {
     return FilterHeadersStatus::Continue;
   };

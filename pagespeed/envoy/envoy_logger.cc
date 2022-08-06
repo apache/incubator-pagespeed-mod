@@ -49,12 +49,13 @@ int PagespeedLogSink::getPagespeedLogLevel(
       // TODO : Handle log level off
       return kInfo;
     case spdlog::level::n_levels:
-      NOT_REACHED_GCOVR_EXCL_LINE;
+      IS_ENVOY_BUG("unexpected log spdlog::level:");
   }
-  NOT_REACHED_GCOVR_EXCL_LINE;
+  IS_ENVOY_BUG("unreachable");
+  return kFatal;
 }
 
-void PagespeedLogSink::log(absl::string_view msg) {
+void PagespeedLogSink::log(absl::string_view msg, const spdlog::details::log_msg&) {
   pagespeed_message_handler_->Message(
       static_cast<MessageType>(getPagespeedLogLevel(log_level_)), "%s",
       std::string(msg).c_str());
