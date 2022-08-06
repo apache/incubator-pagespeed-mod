@@ -29,7 +29,7 @@ env:
     - BIT_FLAG=
 
 script:
-  - bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 -c dbg //test/...
+  - bazel test --test_env=REDIS_PORT=6379 --test_env=MEMCACHED_PORT=11211 -c dbg  --test_output=streamed //test/...
 
 after_failure:
   - cat build.log
