@@ -675,14 +675,14 @@ TEST_F(SerfUrlAsyncFetcherTest, TestHttpsFailsForSelfSignedCert) {
   ValidateMonitoringStats(0, 1);
 }
 
-TEST_F(SerfUrlAsyncFetcherTest, TestHttpsSucceedsForGoogleCom) {
+TEST_F(SerfUrlAsyncFetcherTest, TestHttpsSucceedsForMPS) {
   serf_url_async_fetcher_->SetHttpsOptions("enable");
   EXPECT_TRUE(serf_url_async_fetcher_->SupportsHttps());
   // If you're here chances are that this test broke. It is fairly brittle and depends
   // on the target page not changing it's response, which it actually does every year or so.
   // In any case, don't worry about having to change this; the goal is to test basic fetching
   // capabilities over https.
-  TestHttpsSucceeds("https://about.google/", "<!DOCTYPE html>");
+  TestHttpsSucceeds("https://www.modpagespeed.com/", "<!--");
   ValidateMonitoringStats(1, 0);
 }
 
