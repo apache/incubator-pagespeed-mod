@@ -13,7 +13,7 @@ load(":aprutil.bzl", "aprutil_build_rule")
 load(":serf.bzl", "serf_build_rule")
 load(":closure_compiler.bzl", "closure_library_rules")
 
-ENVOY_COMMIT = "5183dbf7f11b23f1f7013a3e42cbce71eb63252a"  # Aug 28th, 2022
+ENVOY_COMMIT = "dc168055154a99d10a2b170e8da078c6e8d001f3"  # Aug 29th, 2022
 ENVOY_SHA = "70ea3e06fc0790a025e4a12a770e8eefde7036771f35938cbcee0293e574c2aa"
 
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
