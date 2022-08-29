@@ -14,7 +14,7 @@ load(":serf.bzl", "serf_build_rule")
 load(":closure_compiler.bzl", "closure_library_rules")
 
 ENVOY_COMMIT = "dc168055154a99d10a2b170e8da078c6e8d001f3"  # Aug 29th, 2022
-ENVOY_SHA = "70ea3e06fc0790a025e4a12a770e8eefde7036771f35938cbcee0293e574c2aa"
+ENVOY_SHA = "b8cb775ffdae81b734ad9d15dce3af381facd17a28e477d0ba2837c56c2f667c"
 
 BROTLI_COMMIT = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
 BROTLI_SHA = "ba8be5d701b369f86d14f3701c81d6bf6c6c34015c183ff98352c12ea5f5226b"
