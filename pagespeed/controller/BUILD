@@ -23,7 +23,7 @@ cc_grpc_library(
     proto_only = False,
     use_external = False,
     visibility = ["//visibility:public"],
-    well_known_protos = True,
+    well_known_protos = False,
     deps = [
         ":controller_proto_cc",
     ],
