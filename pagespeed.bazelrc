@@ -23,4 +23,8 @@ build --copt="-Iexternal/serf/include/"
 build --copt="-Iexternal/serf/"
 build --copt="-DPAGESPEED_SUPPORT_POSIX_SHARED_MEM=1"
 
+build --action_env=ABSL_LEGACY_THREAD_ANNOTATIONS=1
+build --copt="-DABSL_LEGACY_THREAD_ANNOTATIONS=1"
+build --cxxopt="-DABSL_LEGACY_THREAD_ANNOTATIONS=1"
+
 build --action_env=BAZEL_CXXOPTS="-std=c++17"

@@ -37,21 +37,23 @@ class Logger : public Envoy::Logger::Loggable<Envoy::Logger::Id::main> {
     // TODO(oschaaf): if log level is fatal we need to do more:
     // - if debugging, break
     // - else log stack trace.
-    StringPiece message = str;
-    absl::ConsumeSuffix(&message, "\n");
+    // TODO(oschaaf): fmt started complaining about StringPiece as an input.
+    // We need to strip the newline, but not introduce memory copying here.
+    //StringPiece message = str;
+    //absl::ConsumeSuffix(&message, "\n");
     constexpr char preamble[] = "[pagespeed %s] %s";
     switch (severity) {
       case logging::LOG_INFO:
-        ENVOY_LOG(info, preamble, net_instaweb::kModPagespeedVersion, message);
+        ENVOY_LOG(info, preamble, net_instaweb::kModPagespeedVersion, str);
       case logging::LOG_WARNING:
-        ENVOY_LOG(warn, preamble, net_instaweb::kModPagespeedVersion, message);
+        ENVOY_LOG(warn, preamble, net_instaweb::kModPagespeedVersion, str);
       case logging::LOG_ERROR:
-        ENVOY_LOG(error, preamble, net_instaweb::kModPagespeedVersion, message);
+        ENVOY_LOG(error, preamble, net_instaweb::kModPagespeedVersion, str);
       case logging::LOG_FATAL:
         ENVOY_LOG(critical, preamble, net_instaweb::kModPagespeedVersion,
-                  message);
+                  str);
       default:  // For VLOG(s)
-        ENVOY_LOG(debug, preamble, net_instaweb::kModPagespeedVersion, message);
+        ENVOY_LOG(debug, preamble, net_instaweb::kModPagespeedVersion, str);
     }
     return true;
   }
