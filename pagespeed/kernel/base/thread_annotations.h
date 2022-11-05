@@ -18,7 +18,7 @@
  */
 
 #pragma once
-
+#define ABSL_LEGACY_THREAD_ANNOTATIONS 1
 #include "absl/base/thread_annotations.h"
 
 // TODO(oschaaf): move this out of here.

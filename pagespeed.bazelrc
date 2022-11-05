@@ -1,0 +1,30 @@
+# modifications for pagespeed over Envoy's stock config
+
+build --linkopt -ldl
+
+build:clang-asan --linkopt=-fno-sanitize=alignment
+build:asan --copt=-fno-sanitize=alignment
+build:clang-asan --copt=-fno-omit-frame-pointer
+
+test --test_env=REDIS_PORT=6379
+test --test_env=MEMCACHED_PORT=11211
+test --test_env=HTTPS_TEST=1
+
+build --copt="-Iexternal/aprutil/include/"
+build --copt="-Iexternal/aprutil/include/private/"
+build --copt="-Iexternal/aprutil/include/arch/unix/"
+build --copt="-Iexternal/aprutil/"
+build --copt="-Ithird_party/aprutil/gen/arch/linux/x64/include/"
+build --copt="-Ithird_party/apr/gen/arch/linux/x64/include/"
+build --copt="-Iexternal/apr/include/"
+build --copt="-Iexternal/apr/include/arch/unix/"
+build --copt="-Iexternal/apr/"
+build --copt="-Iexternal/serf/include/"
+build --copt="-Iexternal/serf/"
+build --copt="-DPAGESPEED_SUPPORT_POSIX_SHARED_MEM=1"
+
+build --action_env=ABSL_LEGACY_THREAD_ANNOTATIONS=1
+build --copt="-DABSL_LEGACY_THREAD_ANNOTATIONS=1"
+build --cxxopt="-DABSL_LEGACY_THREAD_ANNOTATIONS=1"
+
+build --action_env=BAZEL_CXXOPTS="-std=c++17"

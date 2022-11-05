@@ -1,12 +1,3 @@
-# The following .bazelrc content is forked from the main Envoy repository.                  # unique
-# This is necessary since this needs to be available before we can access                   # unique
-# the Envoy repository contents via Bazel.                                                  # unique
-                                                                                            # unique
-build:clang-asan --test_timeout=900                                                         # unique
-build:clang-tsan --test_timeout=900                                                         # unique
-# See https://github.com/envoyproxy/nighthawk/issues/405                                    # unique
-build:macos --copt -UDEBUG                                                                  # unique
-                                                                                            # unique
 # Envoy specific Bazel build/test options.
 
 # Bazel doesn't need more than 200MB of memory for local build based on memory profiling:
@@ -23,8 +14,6 @@ run --color=yes
 
 build --color=yes
 build --workspace_status_command="bash bazel/get_workspace_status"
-# TODO: https://github.com/envoyproxy/envoy/issues/22758
-build --incompatible_use_platforms_repo_for_constraints=false
 build --incompatible_strict_action_env
 build --host_force_python=PY3
 build --java_runtime_version=remotejdk_11
@@ -49,7 +38,7 @@ common --experimental_allow_tags_propagation
 # (Workaround for https://github.com/bazelbuild/rules_foreign_cc/issues/421)
 build:linux --copt=-fPIC
 build:linux --copt=-Wno-deprecated-declarations
-build:linux --cxxopt=-std=c++17
+build:linux --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
 build:linux --conlyopt=-fexceptions
 build:linux --fission=dbg,opt
 build:linux --features=per_object_debug_info
@@ -109,11 +98,10 @@ build:clang-asan --linkopt --rtlib=compiler-rt
 build:clang-asan --linkopt --unwindlib=libgcc
 
 # macOS
-build:macos --cxxopt=-std=c++17
+build:macos --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
 build:macos --action_env=PATH=/opt/homebrew/bin:/opt/local/bin:/usr/local/bin:/usr/bin:/bin
 build:macos --host_action_env=PATH=/opt/homebrew/bin:/opt/local/bin:/usr/local/bin:/usr/bin:/bin
 build:macos --define tcmalloc=disabled
-build:macos --define wasm=disabled
 
 # macOS ASAN/UBSAN
 build:macos-asan --config=asan
@@ -192,7 +180,7 @@ build:coverage --strategy=CoverageReport=sandboxed,local
 build:coverage --experimental_use_llvm_covmap
 build:coverage --collect_code_coverage
 build:coverage --test_tag_filters=-nocoverage
-build:coverage --instrumentation_filter="//source(?!/common/quic/platform)[/:],//include[/:],//contrib(?!/.*/test)[/:]"
+build:coverage --instrumentation_filter="//source(?!/common/quic/platform)[/:],//envoy[/:],//contrib(?!/.*/test)[/:]"
 build:test-coverage --test_arg="-l trace"
 build:fuzz-coverage --config=plain-fuzzer
 build:fuzz-coverage --run_under=@envoy//bazel/coverage:fuzz_coverage_wrapper.sh
@@ -299,7 +287,7 @@ build:remote-clang-cl --config=rbe-toolchain-clang-cl
 
 # Docker sandbox
 # NOTE: Update this from https://github.com/envoyproxy/envoy-build-tools/blob/main/toolchains/rbe_toolchains_config.bzl#L8
-build:docker-sandbox --experimental_docker_image=envoyproxy/envoy-build-ubuntu:3de483a98c5e24973e710b4f97b2dabcd3cb621f
+build:docker-sandbox --experimental_docker_image=envoyproxy/envoy-build-ubuntu:b0ff77ae3f25b0bf595f9b8bba46b489723ab446
 build:docker-sandbox --spawn_strategy=docker
 build:docker-sandbox --strategy=Javac=docker
 build:docker-sandbox --strategy=Closure=docker
@@ -430,32 +418,4 @@ try-import %workspace%/user.bazelrc
 try-import %workspace%/local_tsan.bazelrc
 
 ###### modifications for pagespeed
-build --linkopt -ldl
-
-# objcopy 2.31 doesn't like clang-7's output unless we pass in -fno-addrsig
-# https://github.com/travitch/whole-program-llvm/issues/75
-# not passing this in will make the scripts that rename symbols fail
-#build --copt=-fno-addrsig 
-
-build:clang-asan --linkopt=-fno-sanitize=alignment
-build:asan --copt=-fno-sanitize=alignment
-build:clang-asan --copt=-fno-omit-frame-pointer
-
-test --test_env=REDIS_PORT=6379
-test --test_env=MEMCACHED_PORT=11211
-test --test_env=HTTPS_TEST=1
-
-build --copt="-Iexternal/aprutil/include/"
-build --copt="-Iexternal/aprutil/include/private/"
-build --copt="-Iexternal/aprutil/include/arch/unix/"
-build --copt="-Iexternal/aprutil/"
-build --copt="-Ithird_party/aprutil/gen/arch/linux/x64/include/"
-build --copt="-Ithird_party/apr/gen/arch/linux/x64/include/"
-build --copt="-Iexternal/apr/include/"
-build --copt="-Iexternal/apr/include/arch/unix/"
-build --copt="-Iexternal/apr/"
-build --copt="-Iexternal/serf/include/"
-build --copt="-Iexternal/serf/"
-build --copt="-DPAGESPEED_SUPPORT_POSIX_SHARED_MEM=1"
-
-build --action_env=BAZEL_CXXOPTS="-std=c++17"
+try-import %workspace%/pagespeed.bazelrc
