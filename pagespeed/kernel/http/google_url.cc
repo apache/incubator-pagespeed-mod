@@ -154,8 +154,6 @@ GoogleUrl* GoogleUrl::CopyAndAddEscapedQueryParam(
   query_params.AddEscaped(escaped_name, escaped_value);
   GoogleString query_params_string = query_params.ToEscapedString();
   GURL::Replacements replace_query;
-  url::Component query;
-  query.len = query_params_string.size();
   replace_query.SetQueryStr(query_params_string.c_str());
   GoogleUrl* result = new GoogleUrl(gurl_->ReplaceComponents(replace_query));
   return result;
