@@ -153,10 +153,8 @@ GoogleUrl* GoogleUrl::CopyAndAddEscapedQueryParam(
   query_params.ParseFromUrl(*this);
   query_params.AddEscaped(escaped_name, escaped_value);
   GoogleString query_params_string = query_params.ToEscapedString();
-  url::Replacements<char> replace_query;
-  url::Component query;
-  query.len = query_params_string.size();
-  replace_query.SetQuery(query_params_string.c_str(), query);
+  GURL::Replacements replace_query;
+  replace_query.SetQueryStr(query_params_string.c_str());
   GoogleUrl* result = new GoogleUrl(gurl_->ReplaceComponents(replace_query));
   return result;
 }
